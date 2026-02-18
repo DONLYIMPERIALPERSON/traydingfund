@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import '../styles/MobileAuthPage.css'
+import DescopeAuthCard from '../components/DescopeAuthCard'
 
 const MobileRegisterPage: React.FC = () => {
   return (
@@ -16,35 +17,10 @@ const MobileRegisterPage: React.FC = () => {
         </div>
 
         <div className="mobile-auth-form">
-          <label className="mobile-auth-label">First Name</label>
-          <div className="mobile-auth-input-wrap">
-            <i className="fas fa-user" />
-            <input type="text" placeholder="First name" />
-          </div>
-
-          <label className="mobile-auth-label">Last Name</label>
-          <div className="mobile-auth-input-wrap">
-            <i className="fas fa-user" />
-            <input type="text" placeholder="Last name" />
-          </div>
-
-          <label className="mobile-auth-label">Email</label>
-          <div className="mobile-auth-input-wrap">
-            <i className="fas fa-envelope" />
-            <input type="email" placeholder="Enter your email" />
-          </div>
-
-          <label className="mobile-auth-label">Password</label>
-          <div className="mobile-auth-input-wrap">
-            <i className="fas fa-lock" />
-            <input type="password" placeholder="Create password" />
-          </div>
-
-          <label className="mobile-auth-checkbox mobile-auth-terms">
-            <input type="checkbox" /> I agree to Terms and Conditions
-          </label>
-
-          <button className="mobile-auth-primary" type="button">Create Account</button>
+          <DescopeAuthCard
+            title="Register"
+            subtitle="Create your NairaTrader account securely"
+          />
 
           <p className="mobile-auth-switch">
             Already have an account?{' '}

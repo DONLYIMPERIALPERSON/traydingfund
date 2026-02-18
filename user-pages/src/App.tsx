@@ -37,9 +37,6 @@ import DesktopStatisticsPage from './pages/DesktopStatisticsPage'
 import DesktopCredentialsPage from './pages/DesktopCredentialsPage'
 import DesktopStartChallengePage from './pages/DesktopStartChallengePage'
 import DesktopLoginPage from './pages/DesktopLoginPage'
-import DesktopRegisterPage from './pages/DesktopRegisterPage'
-import MobileLoginPage from './pages/MobileLoginPage'
-import MobileRegisterPage from './pages/MobileRegisterPage'
 
 function App() {
   const isMobile = window.innerWidth < 768
@@ -47,8 +44,8 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={isMobile ? <HomeMobile /> : <HomeDesktop />} />
-        <Route path="/login" element={isMobile ? <MobileLoginPage /> : <DesktopLoginPage />} />
-        <Route path="/register" element={isMobile ? <MobileRegisterPage /> : <DesktopRegisterPage />} />
+        <Route path="/login" element={<DesktopLoginPage />} />
+        <Route path="/register" element={<DesktopLoginPage />} />
         <Route path="/account-details" element={isMobile ? <MobileAccountDetailsPage /> : <DesktopAccountDetailsPage />} />
         <Route path="/support" element={isMobile ? <MobileSupportPage /> : <DesktopSupportPage />} />
         <Route path="/previous-chats" element={<MobilePreviousChatsPage />} />

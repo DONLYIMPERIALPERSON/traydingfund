@@ -24,6 +24,7 @@
     "vite": "^7.3.1"
   },
   "dependencies": {
+    "@descope/react-sdk": "^2.26.4",
     "express": "^5.2.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

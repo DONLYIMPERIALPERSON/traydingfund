@@ -1,11 +1,14 @@
 import React, { useState } from 'react'
+import { useDescope } from '@descope/react-sdk'
 import { useNavigate } from 'react-router-dom'
 import '../styles/MobileSettingsPage.css'
+import { clearPersistedAuthUser, logoutFromBackend } from '../lib/auth'
 
 type PinModalType = 'set' | 'change' | 'reset' | null
 
 const MobileSettingsPage: React.FC = () => {
   const navigate = useNavigate()
+  const descopeSdk = useDescope()
   const [isDarkMode, setIsDarkMode] = useState(true)
   const [useNickNameForCertificates, setUseNickNameForCertificates] = useState(false)
   const [activePinModal, setActivePinModal] = useState<PinModalType>(null)
@@ -27,12 +30,21 @@ const MobileSettingsPage: React.FC = () => {
     // and apply the theme change to the entire app
   }
 
-  const handleLogout = () => {
-    // Handle logout logic here
-    // Clear user session, tokens, etc.
-    // Navigate to login page
-    console.log('Logout clicked')
-    // navigate('/login') // Uncomment when login page exists
+  const handleLogout = async () => {
+    try {
+      await logoutFromBackend()
+    } catch (error) {
+      console.warn('Backend logout call failed:', error)
+    }
+
+    try {
+      await descopeSdk.logout()
+    } catch (error) {
+      console.warn('Descope logout failed:', error)
+    }
+
+    clearPersistedAuthUser()
+    navigate('/login')
   }
 
   const resetPinForm = () => {

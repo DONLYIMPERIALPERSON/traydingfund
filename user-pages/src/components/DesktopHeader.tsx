@@ -1,14 +1,27 @@
 import React from 'react'
+import { useDescope } from '@descope/react-sdk'
 import { useNavigate } from 'react-router-dom'
+import { clearPersistedAuthUser, logoutFromBackend } from '../lib/auth'
 
 const DesktopHeader: React.FC = () => {
   const navigate = useNavigate()
+  const descopeSdk = useDescope()
 
-  const handleLogout = () => {
-    // Handle logout logic here
-    console.log('Logout clicked')
-    // For now, just navigate to home or show a message
-    // In a real app, this would clear authentication tokens, etc.
+  const handleLogout = async () => {
+    try {
+      await logoutFromBackend()
+    } catch (error) {
+      console.warn('Backend logout call failed:', error)
+    }
+
+    try {
+      await descopeSdk.logout()
+    } catch (error) {
+      console.warn('Descope logout failed:', error)
+    }
+
+    clearPersistedAuthUser()
+    navigate('/login')
   }
 
   return (
