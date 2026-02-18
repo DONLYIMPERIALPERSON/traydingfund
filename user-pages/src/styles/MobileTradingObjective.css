@@ -1,0 +1,54 @@
+/* === SECTION 4 – TRADING OBJECTIVE (elegant checklist) === */
+.objectives-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.objective-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 18px;
+    backdrop-filter: blur(8px);
+    border: 0.3px solid rgba(255,255,255,0.03);
+    transition: background 0.2s;
+}
+
+.objective-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.objective-icon {
+    width: 24px;
+    text-align: center;
+    font-size: 16px;
+}
+
+.objective-text {
+    font-size: 14px;
+    font-weight: 500;
+    color: white;
+    letter-spacing: -0.2px;
+}
+
+.check-status {
+    color: rgba(255,255,255,0.4);
+    font-size: 20px;
+    width: 28px;
+    text-align: right;
+}
+
+.check-status .checked {
+    color: #FFD700;
+    text-shadow: 0 0 6px rgba(255,215,0,0.5);
+}
+
+.check-status .unchecked {
+    color: rgba(255,255,255,0.2);
+}

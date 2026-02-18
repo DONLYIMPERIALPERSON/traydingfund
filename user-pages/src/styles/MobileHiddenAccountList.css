@@ -1,0 +1,147 @@
+/* === HIDDEN ACCOUNTS – collapsible === */
+.hidden-accounts-section {
+    margin-top: 8px;
+}
+
+.hidden-accounts-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.hidden-accounts-trigger:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+.trigger-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.trigger-left i {
+    color: #FFD700;
+    font-size: 18px;
+}
+
+.trigger-left span {
+    font-size: 16px;
+    font-weight: 600;
+    color: white;
+}
+
+.trigger-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.hidden-count {
+    background: rgba(255,215,0,0.15);
+    color: #FFD700;
+    padding: 4px 10px;
+    border-radius: 40px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.trigger-right i {
+    color: rgba(255,255,255,0.6);
+    font-size: 16px;
+    transition: transform 0.3s;
+}
+
+#toggle-hidden-mobile {
+    display: none;
+}
+
+.hidden-accounts-list {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-top: 0;
+}
+
+#toggle-hidden-mobile:checked ~ .hidden-accounts-list {
+    max-height: 400px;
+    opacity: 1;
+    margin-top: 12px;
+}
+
+#toggle-hidden-mobile:checked + .hidden-accounts-trigger .trigger-right i {
+    transform: rotate(180deg);
+}
+
+.hidden-account-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px;
+    background: rgba(22,22,22,0.7);
+    border-radius: 18px;
+    margin-bottom: 8px;
+    border: 0.3px solid rgba(255,255,255,0.03);
+}
+
+.hidden-account-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.hidden-account-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hidden-account-status {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 30px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.hidden-account-status.ready {
+    color: #f39c12;
+}
+
+.hidden-account-status.passed {
+    color: #27ae60;
+}
+
+.hidden-account-status.failed {
+    color: #e74c3c;
+}
+
+.hidden-account-number {
+    font-size: 15px;
+    font-weight: 600;
+    color: white;
+}
+
+.hidden-account-balance {
+    font-size: 17px;
+    font-weight: 700;
+    color: white;
+    letter-spacing: -0.3px;
+}
+
+.hidden-account-currency {
+    color: #FFD700;
+    font-size: 13px;
+    margin-left: 4px;
+}

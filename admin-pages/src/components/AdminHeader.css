@@ -1,0 +1,42 @@
+.admin-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.admin-header-left {
+  display: flex;
+  align-items: center;
+}
+
+.admin-header-logo {
+  height: 28px;
+  width: auto;
+  display: block;
+}
+
+.admin-header-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0b0b0b;
+  background: #facc15;
+  border-radius: 9999px;
+  padding: 6px 10px;
+}
+
+@media (max-width: 900px) {
+  .admin-header {
+    position: static;
+  }
+}

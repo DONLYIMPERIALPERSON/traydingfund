@@ -1,0 +1,50 @@
+/* === SECTION 2 – STATS AREA 1: Win Rate & No. of trades (side by side) === */
+.mobile-stats-performance-section .mobile-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 16px;
+}
+
+.mobile-stats-performance-section .mobile-stat-card {
+    background: rgba(22,22,22,0.9);
+    backdrop-filter: blur(8px);
+    border-radius: 24px;
+    padding: 20px 16px;
+    border: 0.3px solid rgba(255,215,0,0.15);
+    box-shadow: 0 8px 14px rgba(0,0,0,0.4);
+}
+
+.mobile-stats-performance-section .mobile-stat-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mobile-stats-performance-section .mobile-stat-number {
+    font-size: 36px;
+    font-weight: 700;
+    color: white;
+    letter-spacing: -1px;
+    line-height: 1;
+}
+
+.mobile-stats-performance-section .stat-unit {
+    font-size: 16px;
+    font-weight: 500;
+    color: #FFD700;
+    margin-left: 4px;
+}
+
+.mobile-stats-performance-section .mobile-stat-tag {
+    margin-top: 8px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.45);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}

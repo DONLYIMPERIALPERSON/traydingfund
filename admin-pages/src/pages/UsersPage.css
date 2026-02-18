@@ -1,0 +1,127 @@
+.users-header-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.users-quick-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.users-quick-stats article {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  display: grid;
+  gap: 4px;
+}
+
+.users-quick-stats span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+}
+
+.users-filters-card h3 {
+  margin-top: 0;
+}
+
+.users-filters-minimal {
+  display: grid;
+  grid-template-columns: minmax(280px, 2fr) repeat(3, minmax(150px, 1fr)) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.users-filters-minimal label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.users-search-field {
+  min-width: 0;
+}
+
+.users-filters-minimal input,
+.users-filters-minimal select,
+.users-table-footer button,
+.users-action-btn,
+.users-more-filters-btn {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  border-radius: 9px;
+  padding: 8px 10px;
+}
+
+.users-badge {
+  margin-left: 8px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  background: rgba(115, 242, 163, 0.2);
+  color: #73f2a3;
+}
+
+.users-badge-muted {
+  background: rgba(250, 204, 21, 0.2);
+  color: #facc15;
+}
+
+.users-chip {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.users-table-footer {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+
+.users-table-footer p {
+  color: #ffffff;
+  margin: 0;
+  font-size: 12px;
+}
+
+.users-pagination-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.users-pagination-actions button {
+  min-width: 84px;
+}
+
+.users-pagination-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1200px) {
+  .users-filters-minimal {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .users-more-filters-btn {
+    grid-column: 1 / -1;
+  }
+
+  .users-table-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

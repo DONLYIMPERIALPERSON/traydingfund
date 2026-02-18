@@ -1,0 +1,273 @@
+/* Desktop Leaderboard Page Styles */
+
+.leaderboard-page {
+  background-color: #f8f9fa;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+}
+
+.leaderboard-page .page-header {
+  margin-bottom: 32px;
+  text-align: left !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+}
+
+.leaderboard-page .page-header h1 {
+  font-size: 32px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 8px !important;
+  text-align: left !important;
+  display: block !important;
+  width: 100% !important;
+  clear: both !important;
+  float: none !important;
+}
+
+.leaderboard-page .page-header p {
+  font-size: 16px;
+  color: #666;
+  text-align: left !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  clear: both !important;
+  float: none !important;
+}
+
+.leaderboard-page .back-button {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background-color: transparent !important;
+  border: none !important;
+  color: #666 !important;
+  cursor: pointer !important;
+  font-size: 16px !important;
+  padding: 8px 0 !important;
+  transition: color 0.2s !important;
+  margin-bottom: 24px !important;
+  text-align: left !important;
+  justify-content: flex-start !important;
+  width: fit-content !important;
+}
+
+.leaderboard-page .back-button i {
+  color: #000;
+}
+
+.leaderboard-page .back-button:hover {
+  color: #333;
+}
+
+.leaderboard-page .leaderboard-content {
+  width: 100%;
+}
+
+/* Coming Soon Card */
+.leaderboard-page .coming-soon-card {
+  background: linear-gradient(135deg, rgba(255,215,0,0.1) 0%, rgba(255,215,0,0.05) 100%);
+  border: 1px solid rgba(255,215,0,0.2);
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 24px;
+}
+
+.leaderboard-page .card-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.leaderboard-page .card-icon {
+  width: 64px;
+  height: 64px;
+  background: rgba(255,215,0,0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.leaderboard-page .card-icon i {
+  font-size: 24px;
+  color: #FFD700;
+}
+
+.leaderboard-page .card-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #FFD700;
+  margin: 0;
+  text-shadow: 0 2px 8px rgba(255, 215, 0, 0.5);
+}
+
+.leaderboard-page .card-content {
+  text-align: center;
+}
+
+.leaderboard-page .card-description {
+  font-size: 16px;
+  color: rgba(0,0,0,0.8);
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+/* Coming Soon Badge */
+.leaderboard-page .coming-soon-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 20px;
+  padding: 8px 16px;
+  margin-bottom: 24px;
+}
+
+.leaderboard-page .coming-soon-badge i {
+  color: #FFD700;
+}
+
+.leaderboard-page .coming-soon-badge span {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Feature Preview */
+.leaderboard-page .feature-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.leaderboard-page .feature-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.leaderboard-page .feature-item i {
+  color: #FFD700;
+  width: 16px;
+  text-align: center;
+}
+
+.leaderboard-page .feature-item span {
+  font-size: 14px;
+  color: rgba(0,0,0,0.8);
+}
+
+/* Notification Card */
+.leaderboard-page .notification-card {
+  background-color: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.leaderboard-page .notification-icon {
+  width: 48px;
+  height: 48px;
+  background: rgba(255,215,0,0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.leaderboard-page .notification-icon i {
+  font-size: 20px;
+  color: #FFD700;
+}
+
+.leaderboard-page .notification-content {
+  flex: 1;
+}
+
+.leaderboard-page .notification-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.leaderboard-page .notification-description {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.leaderboard-page .notify-button {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(255,215,0,0.3);
+  width: 100%;
+}
+
+.leaderboard-page .notify-button:hover {
+  background: linear-gradient(135deg, #FFC107 0%, #FF8C00 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(255,215,0,0.4);
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .leaderboard-page .feature-preview {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .leaderboard-page .coming-soon-card,
+  .leaderboard-page .notification-card {
+    margin: 0 -12px 16px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
+  .leaderboard-page .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .leaderboard-page .notification-card {
+    flex-direction: column;
+    text-align: center;
+    padding: 20px;
+  }
+
+  .leaderboard-page .notification-content {
+    text-align: center;
+  }
+}

@@ -1,0 +1,97 @@
+/* === MOBILE SUPPORT HEADER – scoped === */
+.mobile-support-header {
+    margin-bottom: 0;
+}
+
+.mobile-support-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.mobile-support-header-left,
+.mobile-support-header-center,
+.mobile-support-header-right {
+    flex: 1;
+}
+
+.mobile-support-header-left {
+    display: flex;
+    align-items: center;
+}
+
+.mobile-support-header-center {
+    text-align: center;
+}
+
+.mobile-support-header-right {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.mobile-support-back-button {
+    background: rgba(255,255,255,0.08);
+    border-radius: 30px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(6px);
+    border: 0.3px solid rgba(255,255,255,0.1);
+    color: white;
+    font-size: 16px;
+}
+
+.mobile-support-back-button i {
+    font-size: 18px;
+    color: white;
+}
+
+.mobile-support-header-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: white;
+    letter-spacing: -0.3px;
+    white-space: nowrap;
+    display: inline-block;
+}
+
+.mobile-support-menu-wrap {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mobile-support-menu-trigger {
+    color: rgba(255,255,255,0.7);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 8px;
+}
+
+.mobile-support-menu-dropdown {
+    position: absolute;
+    top: 36px;
+    right: 0;
+    background: rgba(20,20,20,0.95);
+    border-radius: 12px;
+    padding: 8px 0;
+    min-width: 170px;
+    border: 0.5px solid rgba(255,255,255,0.1);
+    z-index: 20;
+}
+
+.mobile-support-menu-item {
+    padding: 8px 16px;
+    font-size: 14px;
+    color: white;
+    cursor: pointer;
+}
+
+.mobile-support-menu-item:hover {
+    background: rgba(255,255,255,0.06);
+}

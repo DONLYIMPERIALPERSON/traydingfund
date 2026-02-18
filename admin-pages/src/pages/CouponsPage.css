@@ -1,0 +1,80 @@
+.coupon-create-card h3 {
+  margin-top: 0;
+}
+
+.coupon-create-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.coupon-create-grid label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.coupon-create-grid input {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.coupon-create-btn {
+  margin-top: 12px;
+  border: 1px solid rgba(250, 204, 21, 0.5);
+  background: rgba(250, 204, 21, 0.18);
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.coupon-status {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.coupon-status.active {
+  color: #86efac;
+  border-color: rgba(134, 239, 172, 0.5);
+  background: rgba(134, 239, 172, 0.14);
+}
+
+.coupon-status.expired {
+  color: #fca5a5;
+  border-color: rgba(252, 165, 165, 0.45);
+  background: rgba(252, 165, 165, 0.14);
+}
+
+.coupon-action-btn {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.coupon-action-btn.reactivate {
+  border-color: rgba(34, 197, 94, 0.5);
+  background: rgba(34, 197, 94, 0.16);
+}
+
+.coupon-action-btn.expire {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.16);
+}
+
+@media (max-width: 960px) {
+  .coupon-create-grid {
+    grid-template-columns: 1fr;
+  }
+}

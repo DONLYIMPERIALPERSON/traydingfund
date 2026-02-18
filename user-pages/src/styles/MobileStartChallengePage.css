@@ -1,0 +1,530 @@
+/* === MOBILE START CHALLENGE PAGE STYLES === */
+
+/* Main Container */
+.mobile-start-challenge-page {
+  background-color: #000000;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0 12px 16px;
+  min-height: 100vh;
+  color: white;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Fixed Header */
+.mobile-start-challenge-page .fixed-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background: #000000;
+  padding: 20px 12px 0;
+}
+
+.mobile-start-header-shell {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.mobile-start-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mobile-start-header-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.mobile-start-back-button {
+  cursor: pointer;
+  color: white;
+  font-size: 18px;
+  padding: 8px;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.mobile-start-back-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.mobile-start-header-center {
+  flex: 1;
+  text-align: center;
+}
+
+.mobile-start-header-right {
+  flex: 1;
+}
+
+.mobile-start-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+/* Content Container */
+.mobile-start-challenge-page .content-container {
+  width: 100%;
+  padding-top: 100px;
+  max-width: 400px;
+}
+
+.mobile-start-challenge-page .content-padding {
+  padding: 24px 12px;
+}
+
+/* Hero Section */
+.mobile-start-challenge-page .hero-section {
+  margin-bottom: 20px;
+}
+
+.mobile-start-challenge-page .hero-content {
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.mobile-start-challenge-page .hero-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 12px;
+}
+
+.mobile-start-challenge-page .hero-description {
+  font-size: 16px;
+  color: rgba(255,255,255,0.8);
+  margin-bottom: 8px;
+}
+
+.mobile-start-challenge-page .hero-tagline {
+  font-size: 14px;
+  color: #FFD700;
+  font-weight: 600;
+}
+
+.mobile-start-challenge-page .account-balance-card {
+  background: rgba(255,215,0,0.1);
+  border-radius: 12px;
+  padding: 16px;
+  border: 0.5px solid rgba(255,215,0,0.2);
+}
+
+.mobile-start-challenge-page .balance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.mobile-start-challenge-page .balance-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+}
+
+.mobile-start-challenge-page .balance-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #FFD700;
+}
+
+.mobile-start-challenge-page .currency-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mobile-start-challenge-page .currency-label {
+  font-size: 14px;
+  color: rgba(255,255,255,0.6);
+}
+
+.mobile-start-challenge-page .currency-value {
+  font-size: 14px;
+  color: white;
+}
+
+.mobile-start-challenge-page .platform-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.mobile-start-challenge-page .platform-label {
+  font-size: 14px;
+  color: rgba(255,255,255,0.6);
+}
+
+.mobile-start-challenge-page .platform-value {
+  font-size: 14px;
+  color: white;
+}
+
+/* Account Card */
+.mobile-start-account-card {
+  margin-bottom: 20px;
+  background: rgba(22,22,22,0.88);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: 0.5px solid rgba(255,215,0,0.18);
+  box-shadow: 0 12px 20px rgba(0,0,0,0.45);
+}
+
+.mobile-start-section-card {
+  background: transparent;
+  border: none;
+  border-radius: 20px;
+  padding: 20px;
+}
+
+/* Billing Info */
+.mobile-start-challenge-page .billing-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 16px;
+}
+
+.mobile-start-challenge-page .billing-description {
+  font-size: 14px;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 20px;
+}
+
+.mobile-start-challenge-page .form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mobile-start-challenge-page .name-row {
+  display: flex;
+  gap: 12px;
+}
+
+.mobile-start-challenge-page .name-input {
+  flex: 1;
+}
+
+.mobile-start-challenge-page .form-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.05);
+  border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: white;
+  font-size: 16px;
+  outline: none;
+}
+
+.mobile-start-challenge-page .form-input::placeholder {
+  color: rgba(255,255,255,0.5);
+}
+
+.mobile-start-challenge-page .postal-row {
+  display: flex;
+  gap: 12px;
+}
+
+.mobile-start-challenge-page .postal-input,
+.mobile-start-challenge-page .country-select {
+  flex: 1;
+}
+
+.mobile-start-challenge-page .country-select {
+  background: rgba(255,255,255,0.05);
+  border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: white;
+  font-size: 16px;
+  padding: 12px 16px;
+  outline: none;
+}
+
+.mobile-start-challenge-page .country-select option {
+  background: #000000;
+  color: white;
+}
+
+/* Promo Code */
+.mobile-start-challenge-page .promo-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 16px;
+}
+
+.mobile-start-challenge-page .promo-input-group {
+  display: flex;
+  gap: 12px;
+}
+
+.mobile-start-challenge-page .promo-input {
+  flex: 1;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.05);
+  border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: white;
+  font-size: 16px;
+  outline: none;
+}
+
+.mobile-start-challenge-page .promo-input::placeholder {
+  color: rgba(255,255,255,0.5);
+}
+
+.mobile-start-challenge-page .apply-button {
+  padding: 12px 20px;
+  background: rgba(255,215,0,0.8);
+  color: black;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.mobile-start-challenge-page .apply-button:hover {
+  background: rgba(255,215,0,1);
+}
+
+/* Terms & Conditions */
+.mobile-start-challenge-page .terms-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 16px;
+}
+
+.mobile-start-challenge-page .terms-placeholder {
+  width: 100%;
+  height: 200px;
+  background: rgba(255,255,255,0.05);
+  border: 0.5px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.5);
+  font-size: 14px;
+}
+
+/* Summary */
+.mobile-start-challenge-page .summary-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 16px;
+}
+
+.mobile-start-challenge-page .summary-card {
+  background: rgba(255,215,0,0.1);
+  border-radius: 12px;
+  padding: 16px;
+  border: 0.5px solid rgba(255,215,0,0.2);
+  margin-bottom: 16px;
+}
+
+.mobile-start-challenge-page .challenge-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 12px;
+}
+
+.mobile-start-challenge-page .account-size {
+  font-size: 18px;
+  font-weight: 700;
+  color: #FFD700;
+  margin-bottom: 8px;
+}
+
+.mobile-start-challenge-page .summary-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.mobile-start-challenge-page .summary-label {
+  font-size: 14px;
+  color: rgba(255,255,255,0.6);
+}
+
+.mobile-start-challenge-page .summary-value {
+  font-size: 14px;
+  color: white;
+}
+
+.mobile-start-challenge-page .price-row .summary-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #FFD700;
+}
+
+.mobile-start-challenge-page .total-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 8px;
+}
+
+.mobile-start-challenge-page .total-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+}
+
+.mobile-start-challenge-page .total-amount {
+  text-align: right;
+}
+
+.mobile-start-challenge-page .total-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #FFD700;
+}
+
+.mobile-start-challenge-page .total-vat {
+  font-size: 12px;
+  color: rgba(255,255,255,0.6);
+}
+
+/* Payment Method Selection */
+.mobile-start-challenge-page .payment-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 16px;
+}
+
+.mobile-start-challenge-page .payment-methods {
+  display: flex;
+  gap: 12px;
+}
+
+.mobile-start-challenge-page .payment-method {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.mobile-start-challenge-page .payment-method.selected {
+  background: rgba(255,215,0,0.1);
+  border: 1px solid #FFD700;
+}
+
+.mobile-start-challenge-page .payment-radio {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  margin: 0;
+}
+
+.mobile-start-challenge-page .payment-logo {
+  width: 80px;
+  height: 40px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.mobile-start-challenge-page .logo-text {
+  font-size: 10px;
+  color: rgba(255,255,255,0.6);
+}
+
+.mobile-start-challenge-page .payment-info {
+  text-align: center;
+}
+
+.mobile-start-challenge-page .payment-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  line-height: 1.2;
+}
+
+/* Agreements */
+.mobile-start-challenge-page .agreements {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mobile-start-challenge-page .agreement-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.mobile-start-challenge-page .agreement-checkbox {
+  margin-top: 2px;
+}
+
+.mobile-start-challenge-page .agreement-label {
+  font-size: 14px;
+  color: rgba(255,255,255,0.8);
+  cursor: pointer;
+}
+
+.mobile-start-challenge-page .agreement-link {
+  color: #FFD700;
+}
+
+/* Continue Button */
+.mobile-start-challenge-page .continue-button {
+  width: 100%;
+  background: rgba(255,215,0,0.8);
+  color: black;
+  border: none;
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 20px;
+  transition: background-color 0.2s;
+}
+
+.mobile-start-challenge-page .continue-button:hover:not(:disabled) {
+  background: rgba(255,215,0,1);
+}
+
+.mobile-start-challenge-page .continue-button:disabled {
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.5);
+  cursor: not-allowed;
+}

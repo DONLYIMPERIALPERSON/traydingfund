@@ -1,0 +1,42 @@
+/* === SECTION 3 – ANALYSIS (Total PL / Max PL) === */
+.analysis-duo {
+    display: flex;
+    gap: 12px;
+}
+
+.analysis-item {
+    flex: 1;
+    background: rgba(20,20,20,0.9);
+    border-radius: 24px;
+    padding: 18px 16px;
+    backdrop-filter: blur(8px);
+    border: 0.3px solid rgba(255,215,0,0.2);
+}
+
+.analysis-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.55);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.analysis-number {
+    font-size: 24px;
+    font-weight: 700;
+    color: white;
+    letter-spacing: -0.8px;
+}
+
+.analysis-sub {
+    font-size: 11px;
+    color: #FFD700;
+    margin-top: 4px;
+    font-weight: 600;
+}
+
+.mt-2 {
+    margin-top: 20px;
+}

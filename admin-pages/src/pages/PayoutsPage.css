@@ -1,0 +1,113 @@
+.payout-action-group {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.payout-action-btn {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.payout-action-btn.approve {
+  border-color: rgba(34, 197, 94, 0.5);
+  background: rgba(34, 197, 94, 0.18);
+}
+
+.payout-action-btn.decline {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.18);
+}
+
+.payout-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 12, 0.72);
+  backdrop-filter: blur(3px);
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.payout-modal-card {
+  width: min(460px, 95vw);
+  background: linear-gradient(180deg, #131b2b 0%, #101827 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 28px 60px rgba(0, 0, 0, 0.58);
+}
+
+.payout-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.payout-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.payout-modal-header button {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+}
+
+.payout-modal-grid {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.payout-modal-grid article {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.payout-modal-grid span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+}
+
+.payout-modal-grid strong {
+  color: #ffffff;
+  font-size: 14px;
+}
+
+.payout-modal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.payout-copy-btn {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.payout-copy-btn.copied {
+  border-color: rgba(34, 197, 94, 0.55);
+  background: rgba(34, 197, 94, 0.24);
+}
