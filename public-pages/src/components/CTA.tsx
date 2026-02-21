@@ -31,15 +31,15 @@ export default function CTA() {
                 <div className="rounded-3xl bg-gradient-to-b from-blue-500 to-black border border-blue-400/60 p-6 md:p-8 relative overflow-hidden">
                     <div className="grid md:grid-cols-2 gap-6 items-end">
                         <div>
-                            <p className="text-sm font-medium text-yellow-300 uppercase tracking-wide mb-3">
+                            <p className="text-sm font-medium text-white uppercase tracking-wide mb-3">
                                 1. Start a Challenge
                             </p>
 
-                            <h2 className="text-2xl sm:text-4xl font-semibold mb-4">
+                            <h2 className="text-2xl sm:text-4xl font-semibold mb-4 text-white">
                                 Choose your challenge and begin
                             </h2>
 
-                            <p className="max-sm:text-sm text-slate-300 max-w-xl">
+                            <p className="max-sm:text-sm text-white max-w-xl">
                                 Pick the account size that fits your plan, start trading, and follow clear rules from day one.
                             </p>
                         </div>
@@ -57,13 +57,13 @@ export default function CTA() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                     <div className="rounded-3xl bg-gradient-to-b from-green-500 to-black border border-green-400/60 p-6 relative overflow-hidden">
                         <div>
-                            <p className="text-xs font-semibold text-yellow-300 uppercase tracking-wide mb-3">
+                            <p className="text-xs font-semibold text-white uppercase tracking-wide mb-3">
                                 2. Meet the Trading Objectives
                             </p>
                             <h3 className="text-xl text-white font-semibold mb-3">
                                 Show consistency and discipline
                             </h3>
-                            <p className="text-sm text-slate-300 mb-5">
+                            <p className="text-sm text-white mb-5">
                                 Hit profit targets while managing drawdown limits to demonstrate reliable risk management.
                             </p>
 
@@ -77,15 +77,15 @@ export default function CTA() {
                         </div>
                     </div>
 
-                    <div className="rounded-3xl bg-gradient-to-b from-yellow-400 to-black border border-yellow-300/70 p-6 relative overflow-hidden">
+                    <div className="rounded-3xl bg-gradient-to-b from-yellow-300 to-black border border-yellow-300/70 p-6 relative overflow-hidden">
                         <div>
-                            <p className="text-xs font-semibold text-yellow-300 uppercase tracking-wide mb-3">
+                            <p className="text-xs font-semibold text-white uppercase tracking-wide mb-3">
                                 3. Earn Real-Money Rewards
                             </p>
                             <h3 className="text-xl text-white font-semibold mb-3">
                                 Get paid for strong performance
                             </h3>
-                            <p className="text-sm text-slate-200 mb-5">
+                            <p className="text-sm text-white mb-5">
                                 Once you qualify, receive performance-based payouts fast — with processing in as little as 24 hours.
                             </p>
 
@@ -104,32 +104,12 @@ export default function CTA() {
                     <a href="/#pricing" className="w-full sm:w-auto">
                         <PrimaryButton className="w-full sm:w-auto">Start a Challenge</PrimaryButton>
                     </a>
-                    <a href="/#how-it-works" className="w-full sm:w-auto">
-                        <GhostButton className="w-full sm:w-auto justify-center">How it works</GhostButton>
+                    <a href="/faq" className="w-full sm:w-auto">
+                        <GhostButton className="w-full sm:w-auto justify-center">FAQ</GhostButton>
                     </a>
                 </div>
 
-                <div className="mt-12">
-                    <div className="text-center mb-6">
-                        <p className="text-sm font-medium text-yellow-300 uppercase tracking-wide mb-2">FAQ</p>
-                        <h3 className="text-2xl text-white font-semibold">Quick answers before you begin</h3>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {faqPreview.map((item, i) => (
-                            <div key={i} className="rounded-2xl border border-white/15 bg-white/5 p-4">
-                                <h4 className="text-white font-semibold text-sm mb-2">{item.q}</h4>
-                                <p className="text-gray-300 text-sm leading-relaxed">{item.a}</p>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="mt-5 flex justify-center">
-                        <a href="/faq">
-                            <PrimaryButton>Read more</PrimaryButton>
-                        </a>
-                    </div>
-                </div>
             </div>
         </section>
     );

@@ -6,13 +6,30 @@ export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
 
     const navLinks = [
-        { name: 'Home', href: '/#' },
-        { name: 'Why choose us', href: '/#features' },
-        { name: 'Challanges', href: '/#pricing' },
-        { name: 'Rules', href: '/rules' },
-        { name: 'FAQ', href: '/faq' },
-        { name: 'Contact', href: '/contact' },
+        { name: 'Home', href: '/#', isSection: true, sectionId: 'home' },
+        { name: 'Why choose us', href: '/#features', isSection: true, sectionId: 'features' },
+        { name: 'Challanges', href: '/#pricing', isSection: true, sectionId: 'pricing' },
+        { name: 'Rules', href: '/rules', isSection: false },
+        { name: 'FAQ', href: '/faq', isSection: false },
+        { name: 'Contact', href: '/contact', isSection: false },
     ];
+
+    const handleNavClick = (link: typeof navLinks[0], e: React.MouseEvent) => {
+        if (link.isSection && link.sectionId) {
+            e.preventDefault();
+            if (window.location.pathname !== '/') {
+                // Navigate to home page first, then scroll
+                window.location.href = link.href;
+            } else {
+                // Already on home page, just scroll
+                const element = document.getElementById(link.sectionId);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+        }
+        // For non-section links, let the default href behavior work
+    };
 
     return (
         <nav className='fixed top-5 left-0 right-0 z-50 px-4'>
@@ -23,14 +40,14 @@ export default function Navbar() {
 
                 <div className='hidden md:flex items-center gap-8 text-sm font-medium text-gray-900'>
                     {navLinks.map((link) => (
-                        <a href={link.href} key={link.name} className="hover:text-black/70 transition">
+                        <a href={link.href} key={link.name} onClick={(e) => handleNavClick(link, e)} className="hover:text-black/70 transition">
                             {link.name}
                         </a>
                     ))}
                 </div>
 
                 <div className='hidden md:flex items-center gap-3'>
-                    <PrimaryButton className='max-sm:text-xs hidden sm:inline-block'>Login</PrimaryButton>
+                    <a href="https://api.nairatrader.com" className='inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-medium text-white bg-black hover:bg-gray-800 active:scale-95 transition-all'>Dashboard</a>
                 </div>
 
                 <button onClick={() => setIsOpen(!isOpen)} className='md:hidden text-gray-900'>
@@ -39,12 +56,12 @@ export default function Navbar() {
             </div>
             <div className={`flex flex-col items-center justify-center gap-6 text-lg font-medium fixed inset-0 bg-black/40 backdrop-blur-md z-50 transition-all duration-300 ${isOpen ? "translate-x-0" : "translate-x-full"}`}>
                 {navLinks.map((link) => (
-                    <a key={link.name} href={link.href} onClick={() => setIsOpen(false)}>
+                    <a key={link.name} href={link.href} onClick={(e) => { handleNavClick(link, e); setIsOpen(false); }}>
                         {link.name}
                     </a>
                 ))}
 
-                <PrimaryButton onClick={() => setIsOpen(false)}>Login</PrimaryButton>
+                <a href="https://api.nairatrader.com" onClick={() => setIsOpen(false)} className='inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-medium text-white bg-black hover:bg-gray-800 active:scale-95 transition-all'>Dashboard</a>
 
                 <button
                     onClick={() => setIsOpen(false)}

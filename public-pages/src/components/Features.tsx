@@ -18,7 +18,7 @@ export default function Features() {
                             key={i}
                             className="rounded-2xl p-6 bg-white/3 border border-white/6 transition duration-300 hover:border-white/15 hover:-translate-y-1"
                         >
-                            <div className="w-12 h-12 rounded-lg bg-yellow-500/20 flex items-center justify-center mb-4 text-yellow-300">
+                            <div className="w-12 h-12 rounded-lg bg-yellow-300/20 flex items-center justify-center mb-4 text-yellow-300">
                                 {feature.icon}
                             </div>
                             <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>

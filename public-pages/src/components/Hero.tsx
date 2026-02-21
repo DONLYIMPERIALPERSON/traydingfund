@@ -131,9 +131,12 @@ export default function Hero() {
     ];
 
     const trustedLogosText = [
-        'Rewards',
-        'Advanced Support',
-        'Tools & Servics'
+        'Everything Now Instant',
+        'No Daily Loss Limit',
+        'No KYC wahala',
+        'No Consistency Rule',
+        '80% Profit Split',
+        '60secs Auto Payout Approval'
     ];
 
     return (
@@ -142,7 +145,7 @@ export default function Hero() {
                 <div className="max-w-6xl mx-auto px-4 min-h-screen md:min-h-[74vh] max-md:w-screen max-md:overflow-hidden pt-32 md:pt-32 flex items-center md:items-start justify-center">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
                         <div className="text-left">
-                            <a href="https://prebuiltui.com/tailwind-templates?ref=pixel-forge" className="inline-flex items-center gap-3 pl-3 pr-4 py-1.5 rounded-full bg-white/10 mb-6 justify-start">
+                            <a href="/#" className="inline-flex items-center gap-3 pl-3 pr-4 py-1.5 rounded-full bg-white/10 mb-6 justify-start">
                                 <div className="flex -space-x-2">
                                     {trustedUserImages.map((src, i) => (
                                         <img
@@ -168,8 +171,7 @@ export default function Hero() {
                             </h1>
 
                             <p className="text-gray-300 max-w-lg mb-8">
-                                Get funded with the <br />
-                                first naira based prop firm
+                                80% profit split, 1min super-fast auto payout, instant phase activation, and automatic KYC. Join the first Naira Prop Firm now.
                             </p>
 
                             <div className="flex flex-col sm:flex-row items-center gap-4 mb-8">
@@ -190,7 +192,7 @@ export default function Hero() {
 
                             <div className="flex sm:inline-flex overflow-hidden items-center max-sm:justify-center text-sm text-gray-200 bg-white/10 rounded">
                                 <div className="flex items-center gap-2 p-2 px-3 sm:px-6.5 hover:bg-white/3 transition-colors">
-                                    <ZapIcon className="size-4 text-yellow-400" />
+                                    <ZapIcon className="size-4 text-yellow-300" />
                                     <div>
                                         <div>Paid this month</div>
                                         <div className="text-xs text-gray-400">
@@ -202,7 +204,7 @@ export default function Hero() {
                                 <div className="hidden sm:block h-6 w-px bg-white/6" />
 
                                 <div className="flex items-center gap-2 p-2 px-3 sm:px-6.5 hover:bg-white/3 transition-colors">
-                                    <CheckIcon className="size-4 text-yellow-400" />
+                                    <CheckIcon className="size-4 text-yellow-300" />
                                     <div>
                                         <div>Paid today</div>
                                         <div className="text-xs text-gray-400">
@@ -215,8 +217,8 @@ export default function Hero() {
 
                         {/* Right: modern mockup card */}
                         <div className="mx-auto w-full max-w-lg">
-                            <div className="rounded-3xl overflow-hidden border border-white/6 shadow-2xl bg-linear-to-b from-yellow-400/35 via-yellow-300/10 to-transparent">
-                                <div className="relative aspect-16/10 bg-linear-to-br from-yellow-500/30 via-yellow-400/15 to-black/40">
+                            <div className="rounded-3xl overflow-hidden border border-white/6 shadow-2xl bg-linear-to-b from-yellow-300/35 via-yellow-300/10 to-transparent">
+                                <div className="relative aspect-16/10 bg-linear-to-br from-yellow-300/30 via-yellow-300/15 to-black/40">
                                     <img
                                         src={heroImages[0]}
                                         alt="Hero visual"
@@ -251,11 +253,11 @@ export default function Hero() {
                                 ))}
                                 <div className="text-sm text-gray-400 ml-2 flex items-center gap-2">
                                     <div className="relative flex h-3.5 w-3.5 items-center justify-center">
-                                        <span className="absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75 animate-ping duration-300" />
+                                        <span className="absolute inline-flex h-full w-full rounded-full bg-yellow-300 opacity-75 animate-ping duration-300" />
 
-                                        <span className="relative inline-flex size-2 rounded-full bg-yellow-500" />
+                                        <span className="relative inline-flex size-2 rounded-full bg-yellow-300" />
                                     </div>
-                                    Built for Naira traders and fast funded growth
+                                    Pioneer of the world's highest 20% max drawdown
                                 </div>
                             </div>
                         </div>
@@ -273,7 +275,7 @@ export default function Hero() {
                                     key={i}
                                     className="mx-6 inline-flex items-center gap-2 text-sm md:text-base font-semibold text-gray-400 hover:text-gray-300 tracking-wide transition-colors"
                                 >
-                                    <span className="inline-block size-2 rounded-full bg-yellow-400" />
+                                    <span className="inline-block size-2 rounded-full bg-yellow-300" />
                                     {logo}
                                 </span>
                             ))}

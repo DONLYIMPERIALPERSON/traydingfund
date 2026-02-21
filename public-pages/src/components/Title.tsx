@@ -9,7 +9,7 @@ export default function Title({ title, heading, description }: TitleProps) {
     return (
         <div className="text-center mb-16">
             {title && (
-                <p className="text-sm font-medium text-yellow-400 uppercase tracking-wide mb-3">
+                <p className="text-sm font-medium text-yellow-300 uppercase tracking-wide mb-3">
                     {title}
                 </p>
             )}

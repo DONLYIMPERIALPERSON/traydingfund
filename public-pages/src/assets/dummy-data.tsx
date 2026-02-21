@@ -3,18 +3,18 @@ import { ListChecksIcon, SlidersHorizontalIcon, TrendingUpIcon } from 'lucide-re
 export const featuresData = [
     {
         icon: <SlidersHorizontalIcon className="w-6 h-6" />,
-        title: 'Simplicity',
-        desc: 'A modern prop firm with simple rules that make traders feel less restricted.\nMT5 is available.'
+        title: 'Live Tracking',
+        desc: 'Monitor your trading account LIVE with precision — scalp monitor, remaining drawdown, and profit target all in real time. Get instant notifications the moment you hit your limits.'
     },
     {
         icon: <TrendingUpIcon className="w-6 h-6" />,
-        title: 'Highest drawdown limit globally',
-        desc: 'We offer the highest drawdown limit of any prop firm worldwide.'
+        title: 'The One Minute Firm',
+        desc: 'Hit your profit target? Your Phase 2 or Funded MT5 login is delivered instantly — no request needed, no more 24-hour waiting. Need cash fast? Payouts now land in your bank account within 60 seconds.'
     },
     {
         icon: <ListChecksIcon className="w-6 h-6" />,
-        title: 'Our Rules',
-        desc: 'We have just 2 simple rules:\n• 20% maximum drawdown\n• No 1 - 4 minutes fast scalping'
+        title: 'We lead, Others copy',
+        desc: 'First to launch instant automated payouts. First to launch 20% drawdown. First prop firm with just 2 rules. First to hit ₦1billion in payouts. First with a youth empowerment program.'
     }
 ];
 

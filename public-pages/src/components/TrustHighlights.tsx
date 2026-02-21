@@ -1,16 +1,16 @@
 export default function TrustHighlights() {
     const highlights = [
         {
-            title: '₦1B+ Paid in Rewards',
-            desc: 'Over one billion naira paid out to high-performing traders.',
+            title: 'Small Trader, Huge Capital',
+            desc: 'Maintain low drawdown and a few successful payouts to qualify for a scaled-up account.',
         },
         {
-            title: 'First Naira-Based Prop Firm',
-            desc: 'Built for Nigerian traders with local payouts and local support.',
+            title: '₦200k and ₦400k Traders',
+            desc: '₦1.5M free instant funded account will be issued with automatic payout activated as you sabi trade, we sabi scale.',
         },
         {
-            title: 'One of the Highest Drawdown Limits',
-            desc: 'Trade with more breathing room using our trader-friendly drawdown structure.',
+            title: '₦600k and ₦800k Traders',
+            desc: 'If you sabi trade, we sabi scale! ₦3M free instant funded account will be issued with automatic payout activated.',
         },
     ];
 
@@ -36,14 +36,14 @@ export default function TrustHighlights() {
         <section className="py-20 border-t border-white/6 bg-white/2">
             <div className="max-w-6xl mx-auto px-4">
                 <div className="text-center mb-12">
-                    <p className="text-sm font-medium text-yellow-400 uppercase tracking-wide mb-3">
-                        Trust & Track Record
+                    <p className="text-sm font-medium text-yellow-300 uppercase tracking-wide mb-3">
+                        SCALE FROM 0 TO 100
                     </p>
                     <h2 className="text-2xl md:text-4xl text-white font-semibold">
-                        Trusted by Millions of Traders
+                        Free 1.5 and 3m Live Funded
                     </h2>
                     <p className="max-w-2xl mx-auto text-sm text-gray-400 my-3">
-                        Built for growth, trusted for payouts, and designed to help serious traders scale with confidence.
+                        Yes, you heard it correctly — no evaluation, just a live funded account with instant payout enabled.
                     </p>
                 </div>
 
@@ -76,7 +76,7 @@ export default function TrustHighlights() {
                         </div>
 
                         <div className="text-sm text-gray-300">
-                            4.8/5 based on 3,200+ reviews
+                            4.8/5 based on 200+ reviews
                         </div>
                     </div>
                 </div>

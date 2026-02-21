@@ -254,7 +254,7 @@ export default function Pricing() {
                             onClick={() => scrollToMobileCard(plan.id)}
                             className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold border backdrop-blur-md transition ${
                                 activeMobileTab === plan.id
-                                    ? 'text-black bg-yellow-300 border-yellow-200 shadow-[0_0_12px_rgba(250,204,21,0.45)]'
+                                    ? 'text-black bg-yellow-300 border-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.45)]'
                                     : 'text-white bg-white/10 border-white/20 hover:bg-white/20'
                             }`}
                         >
@@ -270,7 +270,7 @@ export default function Pricing() {
                             return (
                                 <div key={plan.id} className="min-w-[220px] shrink-0">
                                     <div className="relative rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md p-4 min-h-[390px] shadow-[0_0_24px_rgba(255,255,255,0.08)] overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(250,204,21,0.2)]">
-                                        <div className="absolute -top-8 -right-8 h-20 w-20 rounded-full bg-yellow-400/10 blur-xl" />
+                                        <div className="absolute -top-8 -right-8 h-20 w-20 rounded-full bg-yellow-300/10 blur-xl" />
                                         <div className="relative flex items-center justify-between mb-4">
                                             <div className="font-bold text-white text-[15px]">{plan.name}</div>
                                             <div className="text-yellow-300 font-extrabold text-base">{plan.price}</div>
@@ -294,9 +294,11 @@ export default function Pricing() {
                                         </div>
                                     </div>
 
-                                    <PrimaryButton className="w-full mt-2 text-sm py-2.5 font-bold text-white bg-white/10 border border-white/25 backdrop-blur-md hover:bg-white/20 hover:border-white/35" disabled={status === 'Paused'}>
-                                        {status === 'Paused' ? 'Paused' : 'Start Now'}
-                                    </PrimaryButton>
+                                    <a href="https://app.nairatrader.com" className="block w-full mt-2">
+                                        <button className="w-full text-sm py-2.5 font-bold text-black bg-yellow-300 hover:bg-yellow-400 rounded-full transition-all" disabled={status === 'Paused'}>
+                                            {status === 'Paused' ? 'Paused' : 'Start Now'}
+                                        </button>
+                                    </a>
                                 </div>
                             );
                         })}
@@ -334,9 +336,11 @@ export default function Pricing() {
                                         </div>
                                     </div>
 
-                                    <PrimaryButton className="w-full mt-2 text-xs py-2 text-white bg-white/10 border border-white/25 backdrop-blur-md hover:bg-white/20 hover:border-white/35" disabled={status === 'Paused'}>
-                                        {status === 'Paused' ? 'Paused' : 'Start Now'}
-                                    </PrimaryButton>
+                                    <a href="https://app.nairatrader.com" className="block w-full mt-2">
+                                        <button className="w-full text-xs py-2 text-black bg-yellow-300 hover:bg-yellow-400 rounded-full transition-all" disabled={status === 'Paused'}>
+                                            {status === 'Paused' ? 'Paused' : 'Start Now'}
+                                        </button>
+                                    </a>
                                 </div>
                             );
                         })}
