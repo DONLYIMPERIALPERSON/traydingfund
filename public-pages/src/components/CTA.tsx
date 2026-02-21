@@ -1,20 +1,6 @@
 import { PrimaryButton, GhostButton } from './Buttons';
 
 export default function CTA() {
-    const faqPreview = [
-        {
-            q: 'How do I start a NairaTrader challenge?',
-            a: 'Choose your preferred challenge size, complete checkout, and begin trading immediately from your dashboard.',
-        },
-        {
-            q: 'How long does evaluation usually take?',
-            a: 'It depends on your strategy and pace. You can complete objectives as soon as you meet all required rules.',
-        },
-        {
-            q: 'When can I receive rewards?',
-            a: 'Once you pass and become eligible, payouts are processed quickly, often within 24 hours.',
-        },
-    ];
 
     return (
         <section id="how-it-works" className="py-20 2xl:pb-32 px-4">

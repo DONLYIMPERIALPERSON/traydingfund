@@ -1,5 +1,4 @@
 import { MenuIcon, XIcon } from 'lucide-react';
-import { PrimaryButton } from './Buttons';
 import { useState } from 'react';
 
 export default function Navbar() {

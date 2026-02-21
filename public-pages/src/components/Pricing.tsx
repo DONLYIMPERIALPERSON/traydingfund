@@ -1,7 +1,6 @@
 import Title from './Title';
 import { plansData } from '../assets/dummy-data';
 import { Clock3, Layers, Percent, ShieldAlert, Target, TrendingUp } from 'lucide-react';
-import { PrimaryButton } from './Buttons';
 import { useEffect, useRef, useState } from 'react';
 
 const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_URL;
