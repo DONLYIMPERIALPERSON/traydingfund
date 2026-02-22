@@ -32,7 +32,7 @@ export const plansData = [
             'Min. Trading Days: 1',
             'Profit Split: 70%',
             'Profit Cap: 100%',
-            '24hr Payout'
+            '1 Minute Payout'
         ]
     },
     {
@@ -48,7 +48,7 @@ export const plansData = [
             'Min. Trading Days: 1',
             'Profit Split: 70%',
             'Profit Cap: 100%',
-            '24hr Payout'
+            '1 Minute Payout'
         ],
         popular: true
     },
@@ -65,7 +65,7 @@ export const plansData = [
             'Min. Trading Days: 1',
             'Profit Split: 70%',
             'Profit Cap: 100%',
-            '24hr Payout'
+            '1 Minute Payout'
         ]
     },
     {
@@ -81,7 +81,7 @@ export const plansData = [
             'Min. Trading Days: 1',
             'Profit Split: 70%',
             'Profit Cap: 100%',
-            '24hr Payout'
+            '1 Minute Payout'
         ]
     },
     {
@@ -98,7 +98,7 @@ export const plansData = [
             'Profit Split: 70%',
             'Profit Cap: 50%',
             'Max Payout: 50%',
-            '24hr Payout'
+            '1 Minute Payout'
         ]
     },
     {
@@ -115,7 +115,7 @@ export const plansData = [
             'Profit Split: 70%',
             'Profit Cap: 50%',
             'Max Payout: 50%',
-            '24hr Payout',
+            '1 Minute Payout',
             'Status: Paused'
         ]
     }

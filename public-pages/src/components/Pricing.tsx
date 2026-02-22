@@ -42,7 +42,7 @@ const toUiPlan = (plan: ApiChallengePlan): UiPlan => ({
         `Min. Trading Days: ${plan.min_trading_days}`,
         `Profit Split: ${plan.profit_split}`,
         `Profit Cap: ${plan.profit_cap}`,
-        '24hr Payout',
+        '1 Minute Payout',
         `Status: ${plan.status}`,
     ],
 });
@@ -59,7 +59,7 @@ const toZeroUiPlan = (plan: { id: string; name: string }): UiPlan => ({
         'Min. Trading Days: 0',
         'Profit Split: 0%',
         'Profit Cap: 0%',
-        '24hr Payout',
+        '1 Minute Payout',
         'Status: Available',
     ],
 });
@@ -224,7 +224,7 @@ export default function Pricing() {
         {
             label: 'Payout',
             icon: Clock3,
-            getValue: () => '24hr',
+            getValue: () => '1 Minute',
         },
     ];
 
@@ -234,7 +234,7 @@ export default function Pricing() {
         { label: 'Phases', icon: Layers, value: getFeatureValue(plan.features, 'Phases') },
         { label: 'Profit Split', icon: Percent, value: getFeatureValue(plan.features, 'Profit Split') },
         { label: 'Profit Cap', icon: TrendingUp, value: getFeatureValue(plan.features, 'Profit Cap') },
-        { label: 'Payout', icon: Clock3, value: '24hr' },
+        { label: 'Payout', icon: Clock3, value: '1 Minute' },
     ]);
 
     return (

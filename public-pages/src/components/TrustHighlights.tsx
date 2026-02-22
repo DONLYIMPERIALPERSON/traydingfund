@@ -37,7 +37,7 @@ export default function TrustHighlights() {
             <div className="max-w-6xl mx-auto px-4">
                 <div className="text-center mb-12">
                     <p className="text-sm font-medium text-yellow-300 uppercase tracking-wide mb-3">
-                        SCALE FROM 0 TO 100
+                        FREE 1.5M TO 3M
                     </p>
                     <h2 className="text-2xl md:text-4xl text-white font-semibold">
                         Free 1.5 and 3m Live Funded

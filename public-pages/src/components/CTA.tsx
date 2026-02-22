@@ -55,9 +55,9 @@ export default function CTA() {
 
                             <div className="h-40 overflow-hidden relative">
                                 <img
-                                    src="/trading-objectives.png"
+                                    src="/no.2.svg"
                                     alt="Trading objectives preview"
-                                    className="absolute inset-0 w-full h-full object-cover object-center block scale-110"
+                                    className="absolute inset-0 w-full h-full object-contain object-bottom block"
                                 />
                             </div>
                         </div>
@@ -72,7 +72,7 @@ export default function CTA() {
                                 Get paid for strong performance
                             </h3>
                             <p className="text-sm text-white mb-5">
-                                Once you qualify, receive performance-based payouts fast — with processing in as little as 24 hours.
+                                Once you qualify, receive performance based payout fast - with 80% profit split in minutes.
                             </p>
 
                             <div className="h-40 overflow-hidden relative">
