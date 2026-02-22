@@ -46,7 +46,7 @@ export default function Navbar() {
                 </div>
 
                 <div className='hidden md:flex items-center gap-3'>
-                    <a href="https://api.nairatrader.com" className='inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-medium text-white bg-black hover:bg-gray-800 active:scale-95 transition-all'>Dashboard</a>
+                    <a href="https://app.nairatrader.com" className='inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-medium text-white bg-black hover:bg-gray-800 active:scale-95 transition-all'>Dashboard</a>
                 </div>
 
                 <button onClick={() => setIsOpen(!isOpen)} className='md:hidden text-gray-900'>
@@ -60,7 +60,7 @@ export default function Navbar() {
                     </a>
                 ))}
 
-                <a href="https://api.nairatrader.com" onClick={() => setIsOpen(false)} className='inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-medium text-white bg-black hover:bg-gray-800 active:scale-95 transition-all'>Dashboard</a>
+                <a href="https://app.nairatrader.com" onClick={() => setIsOpen(false)} className='inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-medium text-white bg-black hover:bg-gray-800 active:scale-95 transition-all'>Dashboard</a>
 
                 <button
                     onClick={() => setIsOpen(false)}
