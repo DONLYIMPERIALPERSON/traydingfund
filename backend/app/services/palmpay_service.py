@@ -437,3 +437,42 @@ def query_payout_status(*, order_id: str | None = None, order_no: str | None = N
     if not isinstance(data, dict):
         raise PalmPayPaymentError("PalmPay query payout status returned invalid data")
     return data
+
+
+class PalmPayService:
+    """Service class for PalmPay operations."""
+
+    def create_transfer(self, amount: float, account_number: str, bank_code: str, account_name: str, description: str) -> dict[str, object]:
+        """Create a bank transfer/payout."""
+        amount_kobo = int(amount * 100)  # Convert to kobo
+
+        return create_payout_order(
+            order_id=f"nairatrader-migration-{int(time.time())}",
+            amount_kobo=amount_kobo,
+            payee_name=account_name,
+            payee_bank_code=bank_code,
+            payee_bank_acc_no=account_number,
+            notify_url=f"{settings.app_public_base_url}/api/payments/palmpay/callback",
+            remark=description
+        )
+
+    def query_bank_account(self, account_number: str, bank_code: str) -> dict[str, str]:
+        """Query bank account details."""
+        account_name = query_bank_account_name(bank_code=bank_code, bank_account_number=account_number)
+
+        # Get the bank name from the bank code
+        bank_name = "Unknown Bank"
+        try:
+            banks = query_bank_list()
+            for bank in banks:
+                if bank.get("bank_code") == bank_code:
+                    bank_name = bank.get("bank_name", "Unknown Bank")
+                    break
+        except Exception:
+            # If bank list query fails, keep default
+            pass
+
+        return {
+            "accountName": account_name,
+            "bankName": bank_name
+        }
