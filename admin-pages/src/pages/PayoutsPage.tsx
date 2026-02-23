@@ -26,8 +26,6 @@ const PayoutsPage = ({ onOpenProfile }: { onOpenProfile?: (user: AdminUser) => v
   const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month'>('today')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedMt5Request, setSelectedMt5Request] = useState<PayoutRequest | null>(null)
-  const [copiedField, setCopiedField] = useState<string | null>(null)
   const [generatingCertificates, setGeneratingCertificates] = useState(false)
 
   const fetchPayoutData = async () => {
@@ -99,16 +97,6 @@ const PayoutsPage = ({ onOpenProfile }: { onOpenProfile?: (user: AdminUser) => v
           payouts: payoutRequest.amount_formatted // Use the payout amount as reference
         })
       }
-    }
-  }
-
-  const handleCopy = async (fieldKey: string, value: string) => {
-    try {
-      await navigator.clipboard.writeText(value)
-      setCopiedField(fieldKey)
-      setTimeout(() => setCopiedField(null), 1200)
-    } catch {
-      setCopiedField(null)
     }
   }
 

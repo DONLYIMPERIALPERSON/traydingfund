@@ -1,5 +1,5 @@
 import Title from './Title';
-import { AlertTriangle, BadgeCheck, CheckCircle2, CircleDot, ShieldCheck, Zap } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CircleDot, Zap } from 'lucide-react';
 
 export default function Rules() {
     return (

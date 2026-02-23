@@ -86,7 +86,7 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
     }
   }, [onError])
 
-  const onScreenUpdate = useCallback((incomingScreenName: string, context: Record<string, any>, next: FlowNextFn, ref: HTMLElement) => {
+  const onScreenUpdate = useCallback((incomingScreenName: string, context: Record<string, any>, next: FlowNextFn, _ref: HTMLElement) => {
     setInteractionLoading(false)
     setScreenName(incomingScreenName)
     setScreenContext(context)

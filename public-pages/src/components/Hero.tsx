@@ -1,6 +1,6 @@
 import { ArrowRightIcon, PlayIcon, ZapIcon, CheckIcon } from 'lucide-react';
 import { PrimaryButton, GhostButton } from './Buttons';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 
 const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -66,8 +66,6 @@ const formatCountWithCommas = (value: string) => {
 
 export default function Hero() {
     const [heroStats, setHeroStats] = useState<HeroStats>(defaultHeroStats);
-    const [floatingAmounts, setFloatingAmounts] = useState<Array<{id: number, amount: string, x: number, y: number}>>([]);
-    const amountIdRef = useRef(0);
 
     useEffect(() => {
         const readFreshCache = (): HeroStats | null => {
@@ -126,11 +124,6 @@ export default function Hero() {
         '/trusted-user-images/09527d0d-f2d0-45f4-8610-1e81ef095a6b.jpg',
         '/trusted-user-images/9720027.jpg',
         '/trusted-user-images/11475208.jpg'
-    ];
-
-    const heroImages = [
-        '/hero2.png',
-        '/hero3.png',
     ];
 
     const trustedLogosText = [
