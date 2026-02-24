@@ -73,6 +73,25 @@ class ChallengeFeedUpdateRequest(BaseModel):
     observed_at: datetime | None = None
 
 
+class InternalChallengeFeedUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    balance: float = Field(gt=0)
+    equity: float | None = Field(default=None, gt=0)
+    closed_trade_durations_seconds: list[int] = Field(default_factory=list)
+    scalping_breach_increment: int | None = Field(default=None, ge=0)
+    equity_breach_signal: bool | None = None
+    balance_breach_signal: bool | None = None
+    stage_pass_signal: bool | None = None
+    closed_trades_count_increment: int | None = Field(default=None, ge=0)
+    winning_trades_count_increment: int | None = Field(default=None, ge=0)
+    lots_traded_increment: float | None = Field(default=None, ge=0)
+    today_closed_pnl: float | None = None
+    today_trades_count: int | None = Field(default=None, ge=0)
+    today_lots_total: float | None = Field(default=None, ge=0)
+    observed_at: datetime | None = None
+
+
 class ChallengeFeedUpdateResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

@@ -28,6 +28,7 @@ from app.api.admin_finance_routes import router as admin_finance_router
 from app.api.admin_workboard_routes import router as admin_workboard_router
 from app.api.admin_migration_routes import router as admin_migration_router
 from app.api.migration_routes import router as migration_router
+from app.api.internal_routes import router as internal_router
 from app.core.config import settings
 
 # Configure logging
@@ -78,6 +79,7 @@ app.include_router(admin_finance_router, tags=["Admin Finance"])
 app.include_router(admin_workboard_router, tags=["Admin Workboard"])
 app.include_router(admin_migration_router, tags=["Admin Migration"])
 app.include_router(migration_router, tags=["Migration"])
+app.include_router(internal_router, tags=["Internal"])
 
 
 @app.get("/health", tags=["Health"])
