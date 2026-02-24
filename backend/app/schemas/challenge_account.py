@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -33,6 +34,7 @@ class ChallengeAccountResponse(BaseModel):
     funded_user_payout_amount: float
     withdrawal_count: int
     last_feed_at: datetime | None
+    last_refresh_requested_at: datetime | None
     breached_at: datetime | None
     passed_at: datetime | None
     created_at: datetime
@@ -136,3 +138,69 @@ class FundedWithdrawalApproveResponse(BaseModel):
     old_funded_account_number: str
     new_funded_account_number: str
     withdrawal_count: int
+
+
+class RefreshReason(str, Enum):
+    user_refresh = "user_refresh"
+    withdrawal_verify = "withdrawal_verify"
+    admin_verify = "admin_verify"
+
+
+class RefreshStatus(str, Enum):
+    queued = "queued"
+    processing = "processing"
+    done = "done"
+    failed = "failed"
+
+
+class MT5RefreshJobResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    account_number: str
+    reason: RefreshReason
+    status: RefreshStatus
+    requested_by_user_id: int | None
+    requested_at: datetime
+    started_at: datetime | None
+    finished_at: datetime | None
+    engine_id: str | None
+    error: str | None
+
+
+class EngineActiveAccount(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    challenge_id: str
+    account_number: str
+    server: str
+    password: str
+    last_feed_at: datetime | None
+
+
+class RefreshJobClaim(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    account_number: str
+    server: str
+    password: str
+
+
+class RefreshJobCompleteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: RefreshStatus
+    error: str | None = None
+
+
+class ChallengeRefreshRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    challenge_id: str
+
+
+class ChallengeRefreshResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: str  # "queued"

@@ -10,6 +10,7 @@ from app.db.deps import get_db
 from app.models.bank_directory import BankDirectory
 from app.models.challenge_account import ChallengeAccount
 from app.models.mt5_account import MT5Account
+from app.models.mt5_refresh_job import MT5RefreshJob, RefreshReason
 from app.models.user import User
 from app.models.user_bank_account import UserBankAccount
 from app.schemas.profile import (
@@ -30,6 +31,7 @@ from app.schemas.profile import (
     VerifyBankAccountRequest,
     WithdrawalPrecheckResponse,
 )
+from app.schemas.challenge_account import ChallengeRefreshRequest, ChallengeRefreshResponse
 from app.services.challenge_objectives import (
     ASSIGNED_STAGES,
     compute_max_permitted_loss_left,
@@ -586,3 +588,64 @@ def get_my_challenge_account_detail(
         funded_profit_cap_amount=round(challenge.funded_profit_cap_amount, 2) if challenge.funded_profit_cap_amount is not None else None,
         funded_user_payout_amount=round(challenge.funded_user_payout_amount, 2) if challenge.funded_user_payout_amount is not None else None,
     )
+
+
+@router.post("/challenge-accounts/{challenge_id}/refresh", response_model=ChallengeRefreshResponse)
+def refresh_challenge_account(
+    challenge_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ChallengeRefreshResponse:
+    challenge = db.scalar(
+        select(ChallengeAccount)
+        .where(ChallengeAccount.user_id == current_user.id)
+        .where(ChallengeAccount.challenge_id == challenge_id.strip())
+    )
+    if challenge is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Challenge account not found")
+
+    # Check cooldown (60 seconds)
+    now = datetime.now(timezone.utc)
+    if challenge.last_refresh_requested_at and (now - challenge.last_refresh_requested_at).total_seconds() < 60:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Refresh request too frequent. Please wait before requesting again.",
+        )
+
+    # Get the active MT5 account for this challenge
+    mt5 = _resolve_current_mt5(challenge, {})
+    if not mt5:
+        # Try to fetch it properly
+        mt5_ids = {
+            cid
+            for cid in [
+                challenge.active_mt5_account_id,
+                challenge.funded_mt5_account_id,
+                challenge.phase2_mt5_account_id,
+                challenge.phase1_mt5_account_id,
+            ]
+            if cid is not None
+        }
+        if mt5_ids:
+            mt5 = db.scalar(select(MT5Account).where(MT5Account.id.in_(list(mt5_ids))))
+
+    if not mt5:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No active MT5 account found for this challenge")
+
+    # Create refresh job
+    job = MT5RefreshJob(
+        account_number=mt5.account_number,
+        reason=RefreshReason.user_refresh,
+        status="queued",
+        requested_by_user_id=current_user.id,
+        requested_at=now,
+    )
+    db.add(job)
+
+    # Update challenge's last refresh request time
+    challenge.last_refresh_requested_at = now
+    db.add(challenge)
+
+    db.commit()
+
+    return ChallengeRefreshResponse(status="queued")

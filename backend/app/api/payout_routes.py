@@ -11,6 +11,7 @@ from app.models.challenge_account import ChallengeAccount
 from app.models.user_bank_account import UserBankAccount
 from app.models.payment_order import PaymentOrder
 from app.models.mt5_account import MT5Account
+from app.models.mt5_refresh_job import MT5RefreshJob, RefreshReason, RefreshStatus
 from app.services.challenge_objectives import compute_funded_payout_metrics, get_plan_for_account_size, _to_percent_number
 from app.services.palmpay_service import create_payout_order, query_payout_status
 from app.services.email_service import send_payout_notification
@@ -217,7 +218,55 @@ async def request_payout(
     if account.objective_status == "breached":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Account has been breached and is not eligible for payout")
 
-    # Ensure payout metrics are up to date
+    # Get the active MT5 account for verification
+    mt5_account = db.get(MT5Account, account.active_mt5_account_id)
+    if not mt5_account:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No active MT5 account found")
+
+    # Create withdrawal verification job
+    now = datetime.now(timezone.utc)
+    verification_job = MT5RefreshJob(
+        account_number=mt5_account.account_number,
+        reason=RefreshReason.withdrawal_verify,
+        status=RefreshStatus.queued,
+        requested_by_user_id=current_user.id,
+        requested_at=now,
+    )
+    db.add(verification_job)
+    db.flush()  # Get the job ID
+
+    # Wait for verification (up to 60 seconds)
+    import time
+    timeout_seconds = 60
+    start_time = time.time()
+    last_feed_at_before = account.last_feed_at
+
+    while time.time() - start_time < timeout_seconds:
+        db.refresh(verification_job)  # Refresh job status from DB
+
+        if verification_job.status == RefreshStatus.done:
+            # Check if last_feed_at was updated after job started
+            db.refresh(account)
+            if account.last_feed_at and account.last_feed_at > verification_job.started_at:
+                break  # Fresh data available
+
+        time.sleep(2)  # Poll every 2 seconds
+
+    # Check if verification succeeded
+    if verification_job.status != RefreshStatus.done or not (account.last_feed_at and account.last_feed_at > verification_job.started_at):
+        # Clean up failed verification job
+        db.delete(verification_job)
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Verification pending. Please try again in a few moments."
+        )
+
+    # Clean up successful verification job
+    db.delete(verification_job)
+
+    # Now run withdrawal eligibility checks with fresh data
+    # Ensure payout metrics are up to date with latest balance
     compute_funded_payout_metrics(db, account, account.latest_balance or 0)
 
     # Get available payout and limits

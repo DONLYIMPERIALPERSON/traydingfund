@@ -48,6 +48,7 @@ class ChallengeAccount(Base):
     today_lots_total: Mapped[float] = mapped_column(Float, nullable=False, default=0)
 
     last_feed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_refresh_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     breached_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     passed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
