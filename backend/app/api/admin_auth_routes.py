@@ -101,7 +101,7 @@ def admin_me(
 def list_allowlist(
     _: User = Depends(get_current_super_admin),
     db: Session = Depends(get_db),
-) -> list[dict[str, str | int | bool | None]]:
+) -> list[dict[str, str | int | bool | list[str] | None]]:
     rows = db.scalars(select(AdminAllowlist).order_by(AdminAllowlist.id.asc())).all()
     return [_serialize_allowlist(row) for row in rows]
 
@@ -111,7 +111,7 @@ def add_allowlist_entry(
     payload: AdminAllowlistCreateRequest,
     current_super_admin: User = Depends(get_current_super_admin),
     db: Session = Depends(get_db),
-) -> dict[str, str | int | bool | None]:
+) -> dict[str, str | int | bool | list[str] | None]:
     email = payload.email.strip().lower()
 
     existing = db.scalar(select(AdminAllowlist).where(AdminAllowlist.email == email))
@@ -142,7 +142,7 @@ def bootstrap_allowlist_entry(
     payload: AdminAllowlistCreateRequest,
     db: Session = Depends(get_db),
     bootstrap_secret: str | None = Depends(bootstrap_key_header),
-) -> dict[str, str | int | bool | None]:
+) -> dict[str, str | int | bool | list[str] | None]:
     _assert_bootstrap_secret(bootstrap_secret)
 
     email = payload.email.strip().lower()
@@ -170,7 +170,7 @@ def update_allowlist_entry(
     payload: AdminAllowlistUpdateRequest,
     _: User = Depends(get_current_super_admin),
     db: Session = Depends(get_db),
-) -> dict[str, str | int | bool | None]:
+) -> dict[str, str | int | bool | list[str] | None]:
     row = db.get(AdminAllowlist, entry_id)
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Allowlist entry not found")

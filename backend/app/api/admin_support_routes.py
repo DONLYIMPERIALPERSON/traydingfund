@@ -14,6 +14,7 @@ from app.schemas.support import (
     SupportMessage as SupportMessageSchema,
     SupportMessageCreate
 )
+from app.api.admin_workboard_routes import log_admin_activity
 
 router = APIRouter(prefix="/admin/support", tags=["Admin Support"])
 
@@ -110,6 +111,16 @@ async def assign_chat(
 
     db.commit()
 
+    log_admin_activity(
+        db=db,
+        admin_id=current_admin.id,
+        admin_name=current_admin.full_name or current_admin.email,
+        action="assign_chat",
+        description=f"Assigned chat {chat_id} to {admin_name}",
+        entity_type="support_chat",
+        entity_id=chat_id
+    )
+
     return {"message": f"Chat assigned to {admin_name}"}
 
 @router.post("/chats/{chat_id}/messages", response_model=SupportMessageSchema)
@@ -152,6 +163,16 @@ async def send_support_message(
     db.commit()
     db.refresh(message_obj)
 
+    log_admin_activity(
+        db=db,
+        admin_id=current_admin.id,
+        admin_name=current_admin.full_name or current_admin.email,
+        action="send_support_message",
+        description=f"Sent support message in chat {chat_id}",
+        entity_type="support_chat",
+        entity_id=chat_id
+    )
+
     return message_obj
 
 @router.post("/chats/{chat_id}/close")
@@ -170,6 +191,16 @@ async def close_chat(
     chat.updated_at = datetime.utcnow()
 
     db.commit()
+
+    log_admin_activity(
+        db=db,
+        admin_id=current_admin.id,
+        admin_name=current_admin.full_name or current_admin.email,
+        action="close_chat",
+        description=f"Closed support chat {chat_id}",
+        entity_type="support_chat",
+        entity_id=chat_id
+    )
 
     return {"message": "Chat closed"}
 
@@ -193,5 +224,15 @@ async def mark_user_messages_as_read(
     ).update({"is_read": True})
 
     db.commit()
+
+    log_admin_activity(
+        db=db,
+        admin_id=current_admin.id,
+        admin_name=current_admin.full_name or current_admin.email,
+        action="mark_chat_read",
+        description=f"Marked user messages as read in chat {chat_id}",
+        entity_type="support_chat",
+        entity_id=chat_id
+    )
 
     return {"message": "User messages marked as read"}

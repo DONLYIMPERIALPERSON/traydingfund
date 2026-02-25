@@ -79,7 +79,29 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
   const handleError = useCallback((event: unknown) => {
     setInteractionLoading(false)
     console.error('Descope flow error', event)
-    setError('Authentication failed. Please check your details and try again.')
+
+    // Try to extract error message from the event
+    let errorMessage = 'Authentication failed. Please check your details and try again.'
+
+    if (event && typeof event === 'object') {
+      const evt = event as any
+      if (evt.detail?.error?.message) {
+        errorMessage = evt.detail.error.message
+      } else if (evt.error?.message) {
+        errorMessage = evt.error.message
+      } else if (evt.message) {
+        errorMessage = evt.message
+      } else if (typeof evt === 'string') {
+        errorMessage = evt
+      }
+    }
+
+    // Use our safe message parser as fallback
+    if (errorMessage === 'Authentication failed. Please check your details and try again.') {
+      errorMessage = toSafeAuthErrorMessage(event)
+    }
+
+    setError(errorMessage)
 
     if (onError) {
       onError(event)
@@ -91,7 +113,16 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
     setScreenName(incomingScreenName)
     setScreenContext(context)
     setNextAction(() => next)
-    setError('')
+
+    // Check if there's an error in the context
+    if (context?.error?.message) {
+      setError(context.error.message)
+    } else if (context?.error) {
+      setError(typeof context.error === 'string' ? context.error : 'Authentication failed. Please try again.')
+    } else {
+      setError('')
+    }
+
     return true
   }, [])
 
@@ -123,6 +154,22 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !isBusy) {
+                    e.preventDefault()
+                    submitInteraction('Ppb_65tyyn', { email })
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  background: 'transparent',
+                  border: '2px solid rgba(255, 255, 255, 0.5)',
+                  borderRadius: '12px',
+                  padding: '12px 12px 12px 40px',
+                  color: '#fff',
+                  fontSize: '14px',
+                  outline: 'none'
+                }}
               />
             </div>
 
@@ -131,6 +178,19 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
               type="button"
               disabled={isBusy}
               onClick={() => submitInteraction('Ppb_65tyyn', { email })}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: '600',
+                background: '#ffffff',
+                color: '#000',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 12px rgba(255, 255, 255, 0.3)'
+              }}
             >
               {continueButtonText}
             </button>
@@ -151,6 +211,22 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !isBusy) {
+                    e.preventDefault()
+                    submitInteraction('pXVwWREG7M', { password })
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  background: 'transparent',
+                  border: '2px solid rgba(255, 255, 255, 0.5)',
+                  borderRadius: '12px',
+                  padding: '12px 12px 12px 40px',
+                  color: '#fff',
+                  fontSize: '14px',
+                  outline: 'none'
+                }}
               />
             </div>
 
@@ -159,6 +235,19 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
               type="button"
               disabled={isBusy}
               onClick={() => submitInteraction('pXVwWREG7M', { password })}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: '600',
+                background: '#ffffff',
+                color: '#000',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 12px rgba(255, 255, 255, 0.3)'
+              }}
             >
               {loading ? 'Signing in...' : continueButtonText}
             </button>
@@ -170,6 +259,18 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
               type="button"
               disabled={isBusy}
               onClick={() => submitInteraction('tZbr-2eP17')}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: '600',
+                background: 'rgba(255, 255, 255, 0.12)',
+                color: '#fff',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
             >
               {isBusy ? 'Please wait...' : 'Forgot password'}
             </button>
@@ -195,6 +296,22 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
                 placeholder="Enter OTP"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !isBusy) {
+                    e.preventDefault()
+                    submitInteraction('SgSm98sFRr', { code })
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  background: 'transparent',
+                  border: '2px solid rgba(255, 255, 255, 0.5)',
+                  borderRadius: '12px',
+                  padding: '12px 12px 12px 40px',
+                  color: '#fff',
+                  fontSize: '14px',
+                  outline: 'none'
+                }}
               />
             </div>
 
@@ -203,6 +320,19 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
               type="button"
               disabled={isBusy}
               onClick={() => submitInteraction('SgSm98sFRr', { code })}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: '600',
+                background: '#ffffff',
+                color: '#000',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 12px rgba(255, 255, 255, 0.3)'
+              }}
             >
               {isBusy ? 'Please wait...' : 'Verify code'}
             </button>
@@ -212,6 +342,18 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
               type="button"
               disabled={isBusy}
               onClick={() => submitInteraction('resend')}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: '600',
+                background: 'rgba(255, 255, 255, 0.12)',
+                color: '#fff',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
             >
               {isBusy ? 'Please wait...' : 'Send again'}
             </button>
@@ -321,7 +463,7 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
   }
 
   return (
-    <div>
+    <div className="descope-auth-container">
       <h2 className="form-title">{title}</h2>
       <p className="naira-auth-subtitle">{subtitle}</p>
 

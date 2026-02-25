@@ -70,7 +70,7 @@ const BreachesPage = ({ onOpenProfile }: BreachesPageProps) => {
 
   const formatBreachReason = (value: string | null) => {
     if (value === 'drawdown_limit') return 'Max DD'
-    if (value === 'scalping_rule') return '4 mins rule'
+    if (value === 'scalping_rule') return 'Scalping rule'
     return value || '-'
   }
 
@@ -145,10 +145,10 @@ const BreachesPage = ({ onOpenProfile }: BreachesPageProps) => {
           <h3>Total Breaches ({statsWindow === 'today' ? 'Today' : statsWindow === 'week' ? 'This Week' : 'This Month'})</h3>
           <strong>{statsRows.length}</strong>
         </article>
-        <article className="admin-kpi-card">
-          <h3>4 mins rule</h3>
-          <strong>{scalpingBreaches}</strong>
-        </article>
+<article className="admin-kpi-card">
+  <h3>Scalping rule</h3>
+  <strong>{scalpingBreaches}</strong>
+</article>
         <article className="admin-kpi-card">
           <h3>Max DD</h3>
           <strong>{maxDDBreaches}</strong>

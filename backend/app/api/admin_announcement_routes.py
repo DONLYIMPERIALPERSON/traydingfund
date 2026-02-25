@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.auth import get_current_admin_allowlisted
 from app.db.deps import get_db
 from app.models.user import User
-from app.services.email_service import send_announcement_email
+from app.tasks import send_announcement_email
 
 router = APIRouter(prefix="/admin/announcements", tags=["Admin Announcements"])
 
@@ -35,7 +35,7 @@ def send_announcement(
 
     try:
         # Send announcement to all users
-        send_announcement_email(
+        send_announcement_email.delay(
             to_emails=user_emails,
             subject=subject,
             message=message,
@@ -69,7 +69,7 @@ def send_test_announcement(
 
     try:
         # Send test announcement to admin's email
-        send_announcement_email(
+        send_announcement_email.delay(
             to_emails=[current_admin.email],
             subject=f"[TEST] {subject}",
             message=message,

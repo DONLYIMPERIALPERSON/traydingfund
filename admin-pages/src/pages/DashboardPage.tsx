@@ -252,34 +252,22 @@ const DashboardPage = ({ onNavigate }: DashboardPageProps) => {
       <div className="admin-dashboard-card">
         <h3>Operations Queues</h3>
         <div className="ops-queue-grid">
-          <article className="ops-tile">
-            <h4>Payouts Pending Review</h4>
-            <strong>{operationsQueues.payoutsPendingReview}</strong>
-            <p>Oldest: {operationsQueues.payoutsOldestHours}h</p>
-            <span className={`sla ${getSLAStatus(operationsQueues.payoutsOldestHours).status}`}>
-              {getSLAStatus(operationsQueues.payoutsOldestHours).text}
-            </span>
-          </article>
-          <article className="ops-tile">
-            <h4>Support Tickets Open</h4>
-            <strong>{operationsQueues.supportTicketsOpen}</strong>
-            <p>Oldest: {operationsQueues.supportTicketsOldestHours}h</p>
-            <span className={`sla ${getSLAStatus(operationsQueues.supportTicketsOldestHours).status}`}>
-              {getSLAStatus(operationsQueues.supportTicketsOldestHours).text}
-            </span>
-          </article>
-          <article className="ops-tile">
-            <h4>Provisioning Failures</h4>
-            <strong>{operationsQueues.provisioningFailures}</strong>
-            <p>Oldest: 3h</p>
-            <span className="sla on-track">On Track</span>
-          </article>
-          <article className="ops-tile">
-            <h4>Webhook Failures</h4>
-            <strong>{operationsQueues.webhookFailures}</strong>
-            <p>Oldest: 2h</p>
-            <span className="sla at-risk">At Risk</span>
-          </article>
+<article className="ops-tile">
+  <h4>Payouts Pending Review</h4>
+  <strong>{operationsQueues.payoutsPendingReview}</strong>
+  <p>Oldest: {operationsQueues.payoutsOldestHours}h</p>
+  <span className={`sla ${getSLAStatus(operationsQueues.payoutsOldestHours).status}`}>
+    {getSLAStatus(operationsQueues.payoutsOldestHours).text}
+  </span>
+</article>
+<article className="ops-tile">
+  <h4>Support Tickets Open</h4>
+  <strong>{operationsQueues.supportTicketsOpen}</strong>
+  <p>Oldest: {operationsQueues.supportTicketsOldestHours}h</p>
+  <span className={`sla ${getSLAStatus(operationsQueues.supportTicketsOldestHours).status}`}>
+    {getSLAStatus(operationsQueues.supportTicketsOldestHours).text}
+  </span>
+</article>
         </div>
       </div>
 

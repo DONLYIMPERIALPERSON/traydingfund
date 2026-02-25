@@ -1,4 +1,4 @@
-import { Building2, Clock3, MapPin, MessageCircle, Phone, Users } from 'lucide-react';
+import { Building2, Clock3, MessageCircle, Phone, Users } from 'lucide-react';
 
 const socialLinks = [
     { name: 'Discord', color: '#5865F2', url: 'https://discord.com/invite/WyPx9cm7R7' },
@@ -25,9 +25,19 @@ export default function ContactPage() {
                             <Building2 className="w-5 h-5 text-yellow-400" />
                             <h3 className="text-white text-xl font-semibold">Head Office</h3>
                         </div>
-                        <div className="flex items-start gap-3 text-gray-300">
-                            <MapPin className="w-4 h-4 mt-1 text-yellow-400" />
-                            <p>2, Akin Osiyemi, Allen Avenue.</p>
+                        <div className="space-y-6">
+                            <div className="text-gray-300 ml-7">
+                                <p>2, Akin Osiyemi, Allen Avenue.</p>
+                                <p>Lagos, Nigeria</p>
+                            </div>
+                            <div className="flex items-start gap-3 text-gray-300">
+                                <Clock3 className="w-4 h-4 mt-1 text-yellow-400" />
+                                <div>
+                                    <p className="text-white text-lg font-semibold mb-1">Working Hours</p>
+                                    <p className="text-white font-medium">9am to 5pm</p>
+                                    <p className="text-gray-300 text-sm">Mondays to Fridays only</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -56,34 +66,24 @@ export default function ContactPage() {
                         </div>
                     </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                    <div className="md:col-span-2 rounded-2xl border border-white/10 bg-white/5 p-6">
                         <div className="flex items-center gap-3 mb-4">
                             <Users className="w-5 h-5 text-yellow-400" />
                             <h3 className="text-white text-xl font-semibold">Join our live community</h3>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             {socialLinks.map((social) => (
                                 <a
                                     key={social.name}
                                     href={social.url}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="rounded-lg border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium hover:bg-white/10 transition"
-                                    style={{ color: social.color }}
+                                    className="rounded-lg border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium hover:bg-white/10 transition text-center text-white"
                                 >
                                     {social.name}
                                 </a>
                             ))}
                         </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-                        <div className="flex items-center gap-3 mb-4">
-                            <Clock3 className="w-5 h-5 text-yellow-400" />
-                            <h3 className="text-white text-xl font-semibold">Working Hours</h3>
-                        </div>
-                        <p className="text-white font-medium">9am to 5pm</p>
-                        <p className="text-gray-300 text-sm mt-1">Mondays to Fridays only</p>
                     </div>
                 </div>
             </section>

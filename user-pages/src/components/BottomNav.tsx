@@ -80,9 +80,9 @@ const BottomNav: React.FC = () => {
               <div className="menu-icon"><i className="fas fa-id-card"></i></div>
               <span>KYC</span>
             </div>
-            <div className="menu-item" onClick={() => navigate('/leaderboard')}>
-              <div className="menu-icon"><i className="fas fa-list-ol"></i></div>
-              <span>Leaderboard</span>
+            <div className="menu-item" onClick={() => window.open('https://nairatrader.com', '_blank')}>
+              <div className="menu-icon"><i className="fas fa-home"></i></div>
+              <span>Home</span>
             </div>
           </div>
         </div>

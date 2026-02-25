@@ -234,7 +234,7 @@
 }
 
 .kyc-page .section-icon {
-  color: #FFD700;
+  color: #000;
   font-size: 24px;
   width: 24px;
   text-align: center;
@@ -334,8 +334,8 @@
 
 .kyc-page .submit-button {
   width: 100%;
-  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
-  color: #000;
+  background: #000;
+  color: #fff;
   border: none;
   border-radius: 8px;
   padding: 14px 24px;
@@ -343,13 +343,13 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(255,215,0,0.3);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 .kyc-page .submit-button:hover {
-  background: linear-gradient(135deg, #FFC107 0%, #FF8C00 100%);
+  background: #333;
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(255,215,0,0.4);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.4);
 }
 
 /* Information Cards */
@@ -384,11 +384,11 @@
 }
 
 .kyc-page .warning .info-icon {
-  color: #FFD700;
+  color: #000;
 }
 
 .kyc-page .info .info-icon {
-  color: #1DA1F2;
+  color: #000;
 }
 
 .kyc-page .info-title {

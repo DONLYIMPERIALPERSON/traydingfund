@@ -1,12 +1,12 @@
-/* === SECTION 4 – TRADING OBJECTIVE (elegant checklist) === */
-.objectives-list {
+/* === MOBILE SECTION 4 – TRADING OBJECTIVE (elegant checklist) === */
+.mobile-objectives-list {
     display: flex;
     flex-direction: column;
     gap: 6px;
     margin-top: 10px;
 }
 
-.objective-row {
+.mobile-objective-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -18,37 +18,60 @@
     transition: background 0.2s;
 }
 
-.objective-left {
+.mobile-objective-left {
     display: flex;
     align-items: center;
     gap: 12px;
 }
 
-.objective-icon {
+.mobile-objective-icon {
     width: 24px;
     text-align: center;
     font-size: 16px;
 }
 
-.objective-text {
-    font-size: 14px;
-    font-weight: 500;
-    color: white;
-    letter-spacing: -0.2px;
+.mobile-objective-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+    width: 100%;
+    justify-content: flex-start;
+    align-items: flex-start;
 }
 
-.check-status {
+.mobile-objective-text {
+    font-size: 14px;
+    font-weight: 500;
+    color: white !important;
+    letter-spacing: -0.2px;
+    text-align: left !important;
+    width: 100%;
+    display: block;
+}
+
+.mobile-objective-info {
+    font-size: 12px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.6);
+    letter-spacing: -0.1px;
+    text-align: left !important;
+    width: 100%;
+    display: block;
+}
+
+.mobile-check-status {
     color: rgba(255,255,255,0.4);
     font-size: 20px;
     width: 28px;
     text-align: right;
 }
 
-.check-status .checked {
-    color: #FFD700;
-    text-shadow: 0 0 6px rgba(255,215,0,0.5);
+.mobile-check-status .checked {
+    color: #2ecc71;
+    text-shadow: 0 0 6px rgba(46, 204, 113, 0.5);
 }
 
-.check-status .unchecked {
+.mobile-check-status .unchecked {
     color: rgba(255,255,255,0.2);
 }

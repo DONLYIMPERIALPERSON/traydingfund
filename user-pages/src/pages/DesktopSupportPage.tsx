@@ -292,7 +292,7 @@ const DesktopSupportPage: React.FC = () => {
         {/* Support Content */}
         <div className="support-content">
           {/* Chat Section */}
-          <div className="chat-section">
+          <div className="chat-section" style={{width: '100%', maxWidth: 'none'}}>
             {!selectedChat ? (
               /* Chat List View */
               <>
@@ -319,8 +319,6 @@ const DesktopSupportPage: React.FC = () => {
                       disabled={creatingChat}
                       style={{
                         width: '100%',
-                        background: 'rgba(255,215,0,0.8)',
-                        color: 'black',
                         border: 'none',
                         borderRadius: '8px',
                         padding: '12px 16px',
@@ -519,39 +517,7 @@ const DesktopSupportPage: React.FC = () => {
             )}
           </div>
 
-          {/* Quick Help Section */}
-          <div className="quick-help-section">
-            <div className="quick-help-header">
-              <h2 className="quick-help-title">Quick Help</h2>
-              <p className="quick-help-subtitle">Common topics and solutions</p>
-            </div>
 
-            <div className="quick-help-list">
-              {quickHelpItems.map((item, index) => {
-                const isDisabled = creatingChat || hasOpenChats
-                return (
-                  <div
-                    key={index}
-                    className={`quick-help-item ${isDisabled ? 'disabled' : ''}`}
-                    onClick={isDisabled ? undefined : item.onClick}
-                    style={{ cursor: isDisabled ? 'not-allowed' : 'pointer', opacity: isDisabled ? 0.6 : 1 }}
-                  >
-                    {creatingChat ? (
-                      <i className="fas fa-spinner fa-spin quick-help-icon"></i>
-                    ) : (
-                      <i className={`${item.icon} quick-help-icon`}></i>
-                    )}
-                    <h3 className="quick-help-item-title">{item.title}</h3>
-                    <p className="quick-help-item-desc">
-                      {creatingChat ? 'Creating chat...' :
-                       hasOpenChats ? 'Please close your open chat first' :
-                       item.description}
-                    </p>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
         </div>
       </div>
 

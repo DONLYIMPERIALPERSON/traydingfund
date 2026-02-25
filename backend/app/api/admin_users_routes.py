@@ -6,6 +6,7 @@ from app.core.auth import get_current_admin_allowlisted
 from app.db.deps import get_db
 from app.models.challenge_account import ChallengeAccount
 from app.models.user import User
+from app.api.admin_workboard_routes import log_admin_activity
 
 
 router = APIRouter(prefix="/admin/users", tags=["Admin Users"])
@@ -171,6 +172,15 @@ def update_user_status(
     user.status = new_status
     db.commit()
 
+    log_admin_activity(
+        db=db,
+        admin_id=current_admin.id,
+        admin_name=current_admin.full_name or current_admin.email,
+        action="update_user_status",
+        description=f"Updated user status to {new_status} for user {user.email}",
+        entity_type="user",
+        entity_id=user.id
+    )
     return {"message": f"User status updated to {new_status}"}
 
 
@@ -194,6 +204,15 @@ def update_user_withdrawals(
     # user.withdrawals_enabled = enabled
     # db.commit()
 
+    log_admin_activity(
+        db=db,
+        admin_id=current_admin.id,
+        admin_name=current_admin.full_name or current_admin.email,
+        action="update_user_withdrawals",
+        description=f"{'Enabled' if enabled else 'Disabled'} withdrawals for user {user.email}",
+        entity_type="user",
+        entity_id=user.id
+    )
     return {"message": f"User withdrawals {'enabled' if enabled else 'disabled'}"}
 
 
@@ -215,6 +234,15 @@ def suspend_user(
     user.status = "suspended"
     db.commit()
 
+    log_admin_activity(
+        db=db,
+        admin_id=current_admin.id,
+        admin_name=current_admin.full_name or current_admin.email,
+        action="suspend_user",
+        description=f"Suspended user {user.email}",
+        entity_type="user",
+        entity_id=user.id
+    )
     return {"message": "User suspended successfully"}
 
 
@@ -235,6 +263,15 @@ def unsuspend_user(
     user.status = "active"
     db.commit()
 
+    log_admin_activity(
+        db=db,
+        admin_id=current_admin.id,
+        admin_name=current_admin.full_name or current_admin.email,
+        action="unsuspend_user",
+        description=f"Unsuspended user {user.email}",
+        entity_type="user",
+        entity_id=user.id
+    )
     return {"message": "User unsuspended successfully"}
 
 
@@ -256,6 +293,15 @@ def ban_user(
     user.status = "banned"
     db.commit()
 
+    log_admin_activity(
+        db=db,
+        admin_id=current_admin.id,
+        admin_name=current_admin.full_name or current_admin.email,
+        action="ban_user",
+        description=f"Banned user {user.email}",
+        entity_type="user",
+        entity_id=user.id
+    )
     return {"message": "User banned successfully"}
 
 
@@ -281,6 +327,15 @@ def add_user_note(
     # You could save this to a notes field or create a separate table
     print(f"Note added for user {user_id}: {note} (tag: {tag})")
 
+    log_admin_activity(
+        db=db,
+        admin_id=current_admin.id,
+        admin_name=current_admin.full_name or current_admin.email,
+        action="add_user_note",
+        description=f"Added note for user {user.email}: {note}",
+        entity_type="user",
+        entity_id=user.id
+    )
     return {"message": "Note added successfully"}
 
 
@@ -306,4 +361,13 @@ def send_user_email(
     # Here you would integrate with your email service
     print(f"Email sent to user {user_id} ({user.email}): {subject}")
 
+    log_admin_activity(
+        db=db,
+        admin_id=current_admin.id,
+        admin_name=current_admin.full_name or current_admin.email,
+        action="send_user_email",
+        description=f"Sent email to user {user.email} with subject: {subject}",
+        entity_type="user",
+        entity_id=user.id
+    )
     return {"message": "Email sent successfully"}

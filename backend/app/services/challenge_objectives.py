@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.models.challenge_account import ChallengeAccount
 from app.models.challenge_config import ChallengeConfig
 from app.models.mt5_account import MT5Account
+from app.schemas.challenge_account import TradeInfo
 
 
 ASSIGNED_STAGES = {"Phase 1", "Phase 2", "Funded"}
@@ -235,6 +236,7 @@ def process_challenge_feed(
     balance: float,
     equity: float | None,
     closed_trade_durations_seconds: list[int],
+    trades: list[TradeInfo] = [],
     scalping_breach_increment: int | None,
     equity_breach_signal: bool | None,
     balance_breach_signal: bool | None,
@@ -264,11 +266,18 @@ def process_challenge_feed(
     challenge.breach_balance = challenge.highest_balance - challenge.dd_amount
     compute_funded_payout_metrics(db, challenge, balance)
 
-    fast_trade_count = (
-        scalping_breach_increment
-        if scalping_breach_increment is not None
-        else sum(1 for duration in closed_trade_durations_seconds if duration < settings.challenge_scalping_min_seconds)
-    )
+    if trades:
+        fast_trade_count = sum(
+            1 for trade in trades
+            if (trade.close_time - trade.open_time).total_seconds() < settings.challenge_scalping_min_seconds
+        )
+    elif scalping_breach_increment is not None:
+        fast_trade_count = scalping_breach_increment
+    else:
+        fast_trade_count = sum(
+            1 for duration in closed_trade_durations_seconds
+            if duration < settings.challenge_scalping_min_seconds
+        )
 
     challenge.closed_trades_count += max(closed_trades_count_increment or 0, 0)
     challenge.winning_trades_count += max(winning_trades_count_increment or 0, 0)

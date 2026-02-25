@@ -5,7 +5,7 @@ This document defines how the external account-monitor engine should report MT5 
 ## Endpoint
 
 - **Method:** `POST`
-- **Path:** `/admin/challenge-accounts/feed/update`
+- **Path:** `/internal/feed/{account_number}`
 - **Header:** `X-Challenge-Feed-Secret: <CHALLENGE_FEED_SECRET>`
 - **Content-Type:** `application/json`
 
@@ -31,13 +31,12 @@ This document defines how the external account-monitor engine should report MT5 
 
 ```json
 {
-  "account_number": "10314521",
   "balance": 110000,
   "equity": 109800
 }
 ```
 
-- `account_number` (string): MT5 account number/login.
+- `account_number` (string): MT5 account number/login (provided in the URL path).
 - `balance` (number > 0): latest balance.
 - `equity` (number > 0, recommended always): latest equity.
 
@@ -78,7 +77,6 @@ If omitted, backend uses server current UTC time.
 
 ```json
 {
-  "account_number": "10314521",
   "balance": 111250.45,
   "equity": 110930.12,
   "closed_trade_durations_seconds": [420, 95],

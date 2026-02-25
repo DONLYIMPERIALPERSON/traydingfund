@@ -199,12 +199,13 @@ const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
                       <button
                         type="button"
                         onClick={() => onOpenProfile({
+                          user_id: Number(order.user.id),
                           name: order.user.name,
                           email: order.user.email,
-                          accounts: '0 / 0', // This would need to be fetched separately
-                          revenue: '₦0', // This would need to be fetched separately
-                          orders: '0', // This would need to be fetched separately
-                          payouts: '₦0', // This would need to be fetched separately
+                          accounts: 'N/A', // This would need to be fetched separately
+                          revenue: 'N/A', // This would need to be fetched separately
+                          orders: 'N/A', // This would need to be fetched separately
+                          payouts: 'N/A', // This would need to be fetched separately
                         })}
                       >
                         View User

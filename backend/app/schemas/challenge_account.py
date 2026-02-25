@@ -4,6 +4,12 @@ from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class TradeInfo(BaseModel):
+    ticket: str
+    open_time: datetime
+    close_time: datetime
+
+
 class ChallengeAccountResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -81,6 +87,7 @@ class InternalChallengeFeedUpdateRequest(BaseModel):
     balance: float = Field(gt=0)
     equity: float | None = Field(default=None, gt=0)
     closed_trade_durations_seconds: list[int] = Field(default_factory=list)
+    trades: list[TradeInfo] = Field(default_factory=list)
     scalping_breach_increment: int | None = Field(default=None, ge=0)
     equity_breach_signal: bool | None = None
     balance_breach_signal: bool | None = None
@@ -203,4 +210,5 @@ class ChallengeRefreshRequest(BaseModel):
 class ChallengeRefreshResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    status: str  # "queued"
+    status: str  # "queued" or "already_queued"
+    job_id: int

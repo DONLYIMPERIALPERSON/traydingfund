@@ -11,7 +11,7 @@ from app.db.deps import get_db
 from app.models.pin_otp import PinOtp
 from app.models.user import User
 from app.models.user_pin import UserPin
-from app.services.email_service import send_pin_otp_email
+from app.tasks import send_pin_otp_email
 from app.schemas.pin import (
     ChangePinRequest,
     OtpSendRequest,
@@ -70,7 +70,7 @@ def send_pin_otp(
         expires_at=expires_at,
     )
     db.add(otp_row)
-    send_pin_otp_email(to_email=current_user.email, otp_code=code)
+    send_pin_otp_email.delay(to_email=current_user.email, otp_code=code)
     db.commit()
 
     return {

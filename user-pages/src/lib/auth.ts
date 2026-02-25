@@ -119,6 +119,8 @@ export type UserChallengeAccountDetailResponse = {
   breached_at: string | null
   passed_at: string | null
   mt5_account: string | null
+  last_feed_at: string | null
+  last_refresh_requested_at: string | null
   metrics: UserChallengeMetrics
   objectives: Record<string, UserChallengeObjectiveStatus>
   credentials: UserChallengeCredentials | null
@@ -499,6 +501,17 @@ export async function fetchUserChallengeAccountDetail(challengeId: string): Prom
     throw parseBackendError('Challenge account detail fetch failed', response.status, errorText)
   }
   return response.json() as Promise<UserChallengeAccountDetailResponse>
+}
+
+export async function refreshChallengeAccount(challengeId: string): Promise<{ status: string }> {
+  const response = await authFetch(`/profile/challenge-accounts/${encodeURIComponent(challengeId)}/refresh`, {
+    method: 'POST',
+  })
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw parseBackendError('Challenge account refresh failed', response.status, errorText)
+  }
+  return response.json() as Promise<{ status: string }>
 }
 
 export async function fetchPublicChallengePlans(): Promise<PublicChallengePlan[]> {

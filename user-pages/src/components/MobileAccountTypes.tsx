@@ -155,10 +155,6 @@ const MobileAccountTypes: React.FC = () => {
                 <span className="mobile-spec-value">{account.phases}</span>
               </div>
               <div className="mobile-spec-row">
-                <span className="mobile-spec-label">Min. Trading Days</span>
-                <span className="mobile-spec-value">{account.days}</span>
-              </div>
-              <div className="mobile-spec-row">
                 <span className="mobile-spec-label">Profit Split</span>
                 <span className="mobile-spec-value">{account.profit_split}</span>
               </div>
@@ -206,7 +202,7 @@ const MobileAccountTypes: React.FC = () => {
               )}
               <div className="mobile-spec-row">
                 <span className="mobile-spec-label">Payout</span>
-                <span className="mobile-spec-value">{account.payout}</span>
+                <span className="mobile-spec-value">1 Minute</span>
               </div>
               <div className="mobile-spec-row">
                 <span className="mobile-spec-label">Fee</span>

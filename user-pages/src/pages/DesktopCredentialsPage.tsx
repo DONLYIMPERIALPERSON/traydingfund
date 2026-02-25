@@ -81,8 +81,7 @@ const DesktopCredentialsPage: React.FC = () => {
         <div className="credentials-header">
           <div className="credentials-header-content">
             <div className="credentials-header-left">
-              <i className="fas fa-lock"></i>
-              <span className="credentials-header-title">Login Credentials</span>
+              <span className="credentials-header-title">MT5 PLATFORM</span>
             </div>
             <div className="encrypted-badge">
               <i className="fas fa-shield"></i>
@@ -151,13 +150,24 @@ const DesktopCredentialsPage: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <button
-                className="action-button"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                <i className={`fas fa-${showPassword ? 'eye-slash' : 'eye'}`}></i>
-                {showPassword ? 'Hide' : 'Show'}
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {showPassword && (
+                  <button
+                    className="action-button"
+                    onClick={() => navigator.clipboard.writeText(accountData.credentials?.password || '')}
+                  >
+                    <i className="fas fa-copy"></i>
+                    Copy
+                  </button>
+                )}
+                <button
+                  className="action-button"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  <i className={`fas fa-${showPassword ? 'eye-slash' : 'eye'}`}></i>
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

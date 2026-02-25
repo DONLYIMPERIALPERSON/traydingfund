@@ -31,7 +31,7 @@ const DesktopStartChallengePage: React.FC = () => {
   const accountData = location.state as AccountData | undefined
 
   const [agreements, setAgreements] = useState({ terms: false })
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('')
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('bank-transfer')
   const [promoCode, setPromoCode] = useState('')
   const [couponLoading, setCouponLoading] = useState(false)
   const [couponError, setCouponError] = useState('')
@@ -184,6 +184,7 @@ const DesktopStartChallengePage: React.FC = () => {
                 <div className="desktop-checkout-panel">
                   <h3>Account Details</h3>
                   <div className="desktop-summary-row"><span>Account Balance</span><strong>{accountData.size}</strong></div>
+                  <div className="desktop-summary-row"><span>Leverage</span><strong>1:100</strong></div>
                   <div className="desktop-summary-row"><span>Trading Account Currency</span><strong>Naira</strong></div>
                   <div className="desktop-summary-row"><span>Platform</span><strong>MetaTrader 5</strong></div>
                 </div>
@@ -194,7 +195,7 @@ const DesktopStartChallengePage: React.FC = () => {
                     <input
                       value={promoCode}
                       onChange={(e) => setPromoCode(e.target.value)}
-                      placeholder="Enter promo code"
+                      placeholder="Enter discount code"
                     />
                     <button type="button" onClick={() => void applyCoupon()} disabled={couponLoading}>
                       {couponLoading ? 'Applying...' : 'Apply'}
@@ -208,13 +209,7 @@ const DesktopStartChallengePage: React.FC = () => {
                   )}
                 </div>
 
-                <div className="desktop-checkout-panel">
-                  <h3>Agreements</h3>
-                  <label className="desktop-check-row">
-                    <input type="checkbox" checked={agreements.terms} onChange={() => handleAgreementChange('terms')} />
-                    I agree to the Terms and Conditions
-                  </label>
-                </div>
+
               </div>
 
               <div className="desktop-checkout-column">
@@ -232,40 +227,17 @@ const DesktopStartChallengePage: React.FC = () => {
                   )}
                   <div className="desktop-summary-row desktop-summary-total" style={{color: 'black'}}><span>Total</span><strong style={{color: 'black'}}>{couponPreview?.formatted_final_amount ?? accountData.fee}</strong></div>
 
-                  <h4 className="desktop-payment-title" style={{color: 'black'}}>Select Payment Method</h4>
-                  <label className="desktop-radio-row">
-                    <input
-                      type="radio"
-                      name="payment"
-                      value="bank-transfer"
-                      checked={selectedPaymentMethod === 'bank-transfer'}
-                      onChange={() => setSelectedPaymentMethod('bank-transfer')}
-                    />
-                    <span className="desktop-method-pill">
-                      <i className="fas fa-university" aria-hidden="true"></i>
-                      <span>Bank Transfer</span>
-                    </span>
-                  </label>
-                  <label className="desktop-radio-row">
-                    <input
-                      type="radio"
-                      name="payment"
-                      value="atm-cards"
-                      checked={selectedPaymentMethod === 'atm-cards'}
-                      onChange={() => setSelectedPaymentMethod('atm-cards')}
-                    />
-                    <span className="desktop-method-pill">
-                      <i className="fas fa-credit-card" aria-hidden="true"></i>
-                      <span>ATM Cards & USSD</span>
-                    </span>
+                  <label className="desktop-check-row" style={{marginTop: '16px', marginBottom: '16px'}}>
+                    <input type="checkbox" checked={agreements.terms} onChange={() => handleAgreementChange('terms')} />
+                    I agree to the <a href="https://nairatrader.com/rules" target="_blank" rel="noopener noreferrer" style={{color: 'black', fontWeight: 'bold'}}>Rules and Conditions</a>
                   </label>
 
                   <button
                     className="desktop-checkout-continue"
                     onClick={handleContinue}
-                    disabled={!selectedPaymentMethod || !agreements.terms || paymentLoading}
+                    disabled={!agreements.terms || paymentLoading}
                   >
-                    {paymentLoading ? 'Processing...' : 'Continue to Payment'}
+                    {paymentLoading ? 'Processing...' : 'Proceed to Payment'}
                   </button>
                   {paymentStatus && <p className="desktop-coupon-success">{paymentStatus}</p>}
                 </div>

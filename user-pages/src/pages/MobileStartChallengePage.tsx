@@ -31,7 +31,7 @@ const MobileStartChallengePage: React.FC = () => {
     terms: false
   })
 
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('')
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('bank-transfer')
   const [promoCode, setPromoCode] = useState<string>('')
   const [couponLoading, setCouponLoading] = useState(false)
   const [couponError, setCouponError] = useState('')
@@ -175,30 +175,15 @@ const MobileStartChallengePage: React.FC = () => {
         <div className="content-padding">
           {/* Hero Section */}
           <div className="hero-section">
-            <div className="hero-content">
-              <h2 className="hero-title">Start Challenge</h2>
-              <p className="hero-description">
-                Show us your trading skills. Pass the Evaluation Process and receive a funded Account!
-              </p>
-              <p className="hero-tagline">
-                If you sabi Trade, We Sabi Pay
-              </p>
-            </div>
-
             <div className="account-balance-card">
               <div className="balance-row">
                 <span className="balance-label">Account Balance:</span>
                 <span className="balance-value">{accountData.size}</span>
               </div>
               <div className="currency-row">
-                <span className="currency-label">Trading Account Currency:</span>
-                <span className="currency-value">Naira</span>
+                <span className="currency-label">Leverage:</span>
+                <span className="currency-value">1:100</span>
               </div>
-            </div>
-
-            <div className="platform-info">
-              <span className="platform-label">Platform:</span>
-              <span className="platform-value">MetaTrader 5</span>
             </div>
           </div>
 
@@ -209,7 +194,7 @@ const MobileStartChallengePage: React.FC = () => {
               <div className="promo-input-group">
                 <input
                   type="text"
-                  placeholder="Enter promo code"
+                  placeholder="Enter discount code"
                   value={promoCode}
                   onChange={(e) => setPromoCode(e.target.value)}
                   className="promo-input"
@@ -233,16 +218,13 @@ const MobileStartChallengePage: React.FC = () => {
               <h3 className="summary-title">Summary</h3>
 
               <div className="summary-card">
-                <div className="challenge-title">NairaTrader Challenge</div>
-                <div className="account-size">{accountData.size} account</div>
-
                 <div className="summary-row">
                   <span className="summary-label">NairaTrader Challenge:</span>
                   <span className="summary-value">{accountData.phases}-Step</span>
                 </div>
 
                 <div className="summary-row">
-                  <span className="summary-label">Trading Account Currency:</span>
+                  <span className="summary-label">Currency:</span>
                   <span className="summary-value">Naira</span>
                 </div>
 
@@ -268,50 +250,7 @@ const MobileStartChallengePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Payment Method Selection */}
-          <div className="mobile-start-account-card">
-            <div className="mobile-start-section-card">
-              <h3 className="payment-title">Select Payment Method</h3>
 
-              <div className="payment-methods">
-                <div
-                  onClick={() => setSelectedPaymentMethod('bank-transfer')}
-                  className={`payment-method ${selectedPaymentMethod === 'bank-transfer' ? 'selected' : ''}`}
-                >
-                  <input
-                    type="radio"
-                    name="payment-method"
-                    value="bank-transfer"
-                    checked={selectedPaymentMethod === 'bank-transfer'}
-                    onChange={() => setSelectedPaymentMethod('bank-transfer')}
-                    className="payment-radio"
-                  />
-                  <div className="payment-pill">
-                    <i className="fas fa-university" aria-hidden="true"></i>
-                    <span className="payment-name">Bank Transfer</span>
-                  </div>
-                </div>
-
-                <div
-                  onClick={() => setSelectedPaymentMethod('atm-cards')}
-                  className={`payment-method ${selectedPaymentMethod === 'atm-cards' ? 'selected' : ''}`}
-                >
-                  <input
-                    type="radio"
-                    name="payment-method"
-                    value="atm-cards"
-                    checked={selectedPaymentMethod === 'atm-cards'}
-                    onChange={() => setSelectedPaymentMethod('atm-cards')}
-                    className="payment-radio"
-                  />
-                  <div className="payment-pill">
-                    <i className="fas fa-credit-card" aria-hidden="true"></i>
-                    <span className="payment-name">ATM Cards & USSD</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
 
           {/* Agreements */}
           <div className="mobile-start-account-card">
@@ -326,7 +265,7 @@ const MobileStartChallengePage: React.FC = () => {
                     className="agreement-checkbox"
                   />
                   <label htmlFor="terms" className="agreement-label">
-                    I have read and agreed to the <span className="agreement-link">Terms and Conditions</span>
+                    I agree to the <a href="https://nairatrader.com/rules" target="_blank" rel="noopener noreferrer" style={{color: '#FFD700'}}>Rules and Conditions</a>
                   </label>
                 </div>
               </div>

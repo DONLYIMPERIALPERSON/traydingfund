@@ -115,7 +115,7 @@
 }
 
 .stat-icon i {
-  color: #FFD700;
+  color: white !important;
   font-size: 20px;
 }
 
@@ -125,7 +125,7 @@
 
 .stat-label {
   font-size: 14px;
-  color: #666;
+  color: white !important;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-weight: 600;
@@ -135,18 +135,18 @@
 .stat-value {
   font-size: 24px;
   font-weight: 700;
-  color: #333;
+  color: white !important;
   margin-bottom: 4px;
 }
 
 .stat-subtitle {
   font-size: 12px;
-  color: #999;
+  color: white !important;
 }
 
 /* Tabs Section */
 .tabs-section {
-  background-color: white;
+  background-color: black;
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -156,7 +156,7 @@
 
 .tabs-container {
   display: flex;
-  background-color: #f8f9fa;
+  background-color: #000;
   border-radius: 8px;
   padding: 4px;
   margin-bottom: 24px;
@@ -165,8 +165,8 @@
 .tab-button {
   flex: 1;
   padding: 12px 24px;
-  background-color: transparent;
-  color: #666;
+  background-color: #000;
+  color: white;
   border: none;
   border-radius: 6px;
   font-size: 16px;
@@ -176,16 +176,16 @@
 }
 
 .tab-button.active {
-  background-color: #FFD700;
-  color: #333;
+  background-color: black;
+  color: white;
 }
 
 /* Tab Content */
-.tab-content h3 {
-  font-size: 20px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 24px;
+.payout-page .tab-content h3 {
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  color: black !important;
+  margin-bottom: 24px !important;
 }
 
 /* Request Form */
@@ -249,8 +249,8 @@
 }
 
 .request-button {
-  background-color: #FFD700;
-  color: #333;
+  background-color: black;
+  color: white;
   border: none;
   border-radius: 8px;
   padding: 16px 32px;
@@ -258,13 +258,13 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(255,215,0,0.3);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 .request-button:hover {
-  background-color: #FFC107;
+  background-color: #333;
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(255,215,0,0.4);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.4);
 }
 
 /* History Items */

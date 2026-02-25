@@ -30,7 +30,9 @@ from app.api.admin_migration_routes import router as admin_migration_router
 from app.api.migration_routes import router as migration_router
 from app.api.internal_routes import router as internal_router
 from app.core.config import settings
-
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.starlette import StarletteIntegration
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -40,7 +42,21 @@ logging.basicConfig(
     ]
 )
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from app.core.redis import redis_client
+
+sentry_sdk.init(
+    dsn=settings.sentry_dsn,
+    integrations=[StarletteIntegration(), FastApiIntegration()],
+    traces_sample_rate=1.0,
+)
+
+limiter = Limiter(key_func=get_remote_address, storage_uri=settings.redis_url)
 app = FastAPI(title=settings.app_name)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 cors_origins = [origin.strip() for origin in settings.backend_cors_origins.split(",") if origin.strip()]
 app.add_middleware(

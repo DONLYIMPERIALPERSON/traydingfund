@@ -14,7 +14,7 @@ from app.models.challenge_account import ChallengeAccount
 from app.services.palmpay_service import query_payout_status
 from app.services.email_service import send_payout_notification
 from app.services.certificate_service import certificate_service
-
+from app.api.admin_workboard_routes import log_admin_activity
 router = APIRouter(prefix="/admin/payouts", tags=["Admin Payouts"])
 
 
@@ -202,6 +202,15 @@ def approve_payout(
     db.add(payout_order)
     db.commit()
 
+    log_admin_activity(
+        db=db,
+        admin_id=current_admin.id,
+        admin_name=current_admin.full_name or current_admin.email,
+        action="approve_payout",
+        description=f"Approved payout of ₦{(payout_order.net_amount_kobo / 100):,.0f} for user {user.email}",
+        entity_type="payout",
+        entity_id=payout_order.id
+    )
     # Generate payout certificate
     try:
         # Get account size from the challenge account
@@ -293,6 +302,15 @@ def reject_payout(
     db.add(payout_order)
     db.commit()
 
+    log_admin_activity(
+        db=db,
+        admin_id=current_admin.id,
+        admin_name=current_admin.full_name or current_admin.email,
+        action="reject_payout",
+        description=f"Rejected payout of ₦{(payout_order.net_amount_kobo / 100):,.0f} for user {user.email} with reason: {reason}",
+        entity_type="payout",
+        entity_id=payout_order.id
+    )
     # Send notification email to user
     try:
         user = db.get(User, payout_order.user_id)

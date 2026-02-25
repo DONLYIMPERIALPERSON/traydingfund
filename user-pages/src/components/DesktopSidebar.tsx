@@ -79,11 +79,6 @@ const navItemsWithSections: SidebarSection[] = [
     label: "Community",
     items: [
       {
-        label: "Leaderboard",
-        href: "/leaderboard",
-        icon: () => <i className="fas fa-list-ol" style={{fontSize: '18px', color: '#666'}}></i>,
-      },
-      {
         label: "Competition",
         href: "/competition",
         icon: () => <i className="fas fa-trophy" style={{fontSize: '18px', color: '#666'}}></i>,
@@ -139,8 +134,8 @@ const DesktopSidebar: React.FC = () => {
             src="/logo.webp"
             alt="NairaTrader Logo"
             style={{
-              width: '100px',
-              height: '80px',
+              width: '140px',
+              height: '100px',
               borderRadius: '8px',
               objectFit: 'contain'
             }}

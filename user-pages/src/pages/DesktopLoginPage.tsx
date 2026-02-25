@@ -17,8 +17,8 @@ const DesktopLoginPage: React.FC = () => {
         <div className="auth-form">
           <div className="form-content">
             <DescopeAuthCard
-              title="Login"
-              subtitle="Continue securely with your NairaTrader account"
+              title=""
+              subtitle=""
             />
           </div>
         </div>

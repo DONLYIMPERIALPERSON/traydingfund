@@ -7,7 +7,7 @@ export default function Footer() {
                     <div>
                         <img src='/white-logo.svg' alt="NairaTrader logo" className="h-8" />
                         <p className="max-w-[410px] mt-6 text-sm leading-relaxed">
-                            NairaTrader is the first naira-based prop trading firm built for ambitious traders—offering clear rules, fair evaluations, and fast reward payouts.
+                            NairaTrader is the first naira-based prop trading firm
                         </p>
                     </div>
 

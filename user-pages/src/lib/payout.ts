@@ -84,11 +84,10 @@ class PayoutAPI {
     return this.request('/payout/eligibility')
   }
 
-  async requestPayout(amount: number, accountId?: number): Promise<{ request_id: string; amount: number; status: string; message: string }> {
+  async requestPayout(accountId: number): Promise<{ request_id: string; amount: number; status: string; estimated_completion: string; message: string }> {
     return this.request('/payout/request', {
       method: 'POST',
       body: JSON.stringify({
-        amount,
         account_id: accountId,
       }),
     })

@@ -22,7 +22,7 @@ const MobileDashboardBalanceOverview: React.FC<MobileDashboardBalanceOverviewPro
     <div className="section">
       <div style={{display: 'flex', alignItems: 'baseline', justifyContent: 'space-between'}}>
         <span className="text-small" style={{color: 'rgba(255,255,255,0.5)', letterSpacing: '0.5px', textTransform: 'uppercase', fontWeight: '600'}}>Balance overview</span>
-        <span style={{color: '#FFD700', fontSize: '10px', background: 'rgba(255,215,0,0.15)', padding: '3px 8px', borderRadius: '30px'}}>Connected</span>
+        <span style={{color: '#2ecc71', fontSize: '10px', background: 'rgba(46, 204, 113, 0.15)', padding: '3px 8px', borderRadius: '30px'}}>Live</span>
       </div>
       <div className="balance-grid">
         <div className="metric-tile">
@@ -40,7 +40,7 @@ const MobileDashboardBalanceOverview: React.FC<MobileDashboardBalanceOverviewPro
           </div>
         </div>
         <div className="metric-tile highlight-yellow">
-          <div className="label" title="Amount left before account breaches maximum drawdown."><i className="fas fa-sun" style={{color: '#FFD700'}}></i> Max Permitted Loss Left</div>
+          <div className="label" title="Amount left before account breaches maximum drawdown."><i className="fas fa-sun" style={{color: '#FFD700'}}></i> Remaining Loss Limit</div>
           <div className="value">{formatCurrency(maxPermittedLossLeft)}</div>
         </div>
       </div>

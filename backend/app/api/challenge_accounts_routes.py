@@ -24,7 +24,8 @@ from app.services.challenge_objectives import (
     process_challenge_feed,
     rollover_funded_account_after_withdrawal,
 )
-from app.services.email_service import send_challenge_breach_email, send_challenge_pass_email
+from app.tasks import send_challenge_breach_email, send_challenge_pass_email, send_challenge_objective_email, process_mt5_feed
+from celery.result import AsyncResult
 
 
 router = APIRouter(prefix="/admin/challenge-accounts", tags=["Challenge Accounts"])
@@ -49,13 +50,12 @@ def _try_send_challenge_mail(*, user: User | None, subject: str, message: str) -
         return
     try:
         if "passed" in subject.lower() or "passed" in message.lower():
-            send_challenge_pass_email(to_email=user.email, message=message)
+            send_challenge_pass_email.delay(to_email=user.email, message=message)
         elif "breached" in subject.lower() or "breach" in message.lower():
-            send_challenge_breach_email(to_email=user.email, message=message)
+            send_challenge_breach_email.delay(to_email=user.email, message=message)
         else:
             # For other notifications, use basic template
-            from app.services.email_service import send_challenge_objective_email
-            send_challenge_objective_email(to_email=user.email, subject=subject, message=message)
+            send_challenge_objective_email.delay(to_email=user.email, subject=subject, message=message)
     except Exception:
         # Do not fail objective processing because email service is unavailable.
         return
@@ -81,6 +81,7 @@ def _to_row(
         "breached_reason": challenge.breached_reason,
         "breached_at": challenge.breached_at.isoformat() if challenge.breached_at else None,
         "passed_at": challenge.passed_at.isoformat() if challenge.passed_at else None,
+        "current_pnl": f"+₦{(challenge.latest_equity - challenge.initial_balance):,.0f}" if challenge.latest_equity > challenge.initial_balance else f"₦{(challenge.latest_equity - challenge.initial_balance):,.0f}",
     }
 
 
@@ -160,12 +161,108 @@ def list_breached_accounts(
     return {"accounts": [_to_breach_row(row, mt5_by_id, user_by_id) for row in rows]}
 
 
-@router.post("/feed/update", response_model=ChallengeFeedUpdateResponse)
+@router.post("/feed/update")
 def ingest_challenge_feed_update(
     payload: ChallengeFeedUpdateRequest,
     db: Session = Depends(get_db),
     feed_secret: str | None = Depends(feed_key_header),
-) -> ChallengeFeedUpdateResponse:
+) -> dict[str, str]:
+    _assert_feed_secret(feed_secret)
+
+    account_number = payload.account_number.strip()
+    mt5 = db.scalar(select(MT5Account).where(MT5Account.account_number == account_number))
+    if mt5 is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="MT5 account not found")
+
+    if mt5.status not in ASSIGNED_STAGES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="MT5 account is not in an active challenge stage",
+        )
+
+    challenge = db.scalar(
+        select(ChallengeAccount).where(
+            or_(
+                ChallengeAccount.active_mt5_account_id == mt5.id,
+                ChallengeAccount.phase1_mt5_account_id == mt5.id,
+                ChallengeAccount.phase2_mt5_account_id == mt5.id,
+                ChallengeAccount.funded_mt5_account_id == mt5.id,
+            )
+        )
+    )
+    if challenge is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Challenge account not found")
+
+    # Queue the processing as a Celery task
+    task = process_mt5_feed.delay(
+        challenge.challenge_id,
+        payload.balance,
+        payload.equity,
+        payload.closed_trade_durations_seconds,
+        payload.scalping_breach_increment,
+        payload.equity_breach_signal,
+        payload.balance_breach_signal,
+        payload.stage_pass_signal,
+        payload.closed_trades_count_increment,
+        payload.winning_trades_count_increment,
+        payload.lots_traded_increment,
+        payload.today_closed_pnl,
+        payload.today_trades_count,
+        payload.today_lots_total,
+        payload.observed_at
+    )
+
+    return {"task_id": task.id, "status": "queued"}
+    _assert_feed_secret(feed_secret)
+
+    account_number = payload.account_number.strip()
+    mt5 = db.scalar(select(MT5Account).where(MT5Account.account_number == account_number))
+    if mt5 is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="MT5 account not found")
+
+    if mt5.status not in ASSIGNED_STAGES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="MT5 account is not in an active challenge stage",
+        )
+
+    challenge = db.scalar(
+        select(ChallengeAccount).where(
+            or_(
+                ChallengeAccount.active_mt5_account_id == mt5.id,
+                ChallengeAccount.phase1_mt5_account_id == mt5.id,
+                ChallengeAccount.phase2_mt5_account_id == mt5.id,
+                ChallengeAccount.funded_mt5_account_id == mt5.id,
+            )
+        )
+    )
+    if challenge is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Challenge account not found")
+
+    # Queue the processing as a Celery task
+    task = process_mt5_feed.delay(
+        challenge.challenge_id,
+        payload.balance,
+        payload.equity,
+        payload.closed_trade_durations_seconds,
+        payload.scalping_breach_increment,
+        payload.equity_breach_signal,
+        payload.balance_breach_signal,
+        payload.stage_pass_signal,
+        payload.closed_trades_count_increment,
+        payload.winning_trades_count_increment,
+        payload.lots_traded_increment,
+        payload.today_closed_pnl,
+        payload.today_trades_count,
+        payload.today_lots_total,
+        payload.observed_at
+    )
+
+    # Return immediately with task ID
+    return ChallengeFeedUpdateResponse(
+        task_id=task.id,
+        status="queued"
+    )
     _assert_feed_secret(feed_secret)
 
     account_number = payload.account_number.strip()
@@ -462,6 +559,17 @@ def delete_challenge_account(
 
     return {"message": f"Challenge {challenge_id} deleted successfully"}
 
+
+@router.get("/feed/task/{task_id}", response_model=ChallengeFeedUpdateResponse)
+def get_feed_task_result(task_id: str) -> ChallengeFeedUpdateResponse:
+    result = AsyncResult(task_id)
+    if result.ready():
+        if result.successful():
+            return result.result
+        else:
+            raise HTTPException(status_code=500, detail="Task failed")
+    else:
+        raise HTTPException(status_code=202, detail="Task pending")
 
 @router.get("/awaiting-next-stage")
 def list_awaiting_next_stage_accounts(

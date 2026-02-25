@@ -254,6 +254,13 @@ def approve_payout(
         f"Approved affiliate payout of ₦{payout.amount:,.2f} for {affiliate_name}",
         "payout", payout_id
     )
+    # Log admin activity
+    admin_name = current_admin.email  # Use email as admin identifier
+    log_admin_activity(
+        db, current_admin.id, admin_name, "approve_payout",
+        f"Approved affiliate payout of ₦{payout.amount:,.2f} for {affiliate_name}",
+        "payout", payout_id
+    )
 
     # TODO: Send email notification to affiliate
 
@@ -295,6 +302,16 @@ def reject_payout(
     payout.approved_at = datetime.utcnow()
     db.commit()
 
+    # Log admin activity
+    admin_name = current_admin.email
+    description = f"Rejected affiliate payout of ₦{payout.amount:,.2f} for {affiliate_name}"
+    if reason:
+        description += f" (Reason: {reason})"
+
+    log_admin_activity(
+        db, current_admin.id, admin_name, "reject_payout",
+        description, "payout", payout_id
+    )
     # Log admin activity
     admin_name = current_admin.email
     description = f"Rejected affiliate payout of ₦{payout.amount:,.2f} for {affiliate_name}"
@@ -416,6 +433,13 @@ def approve_milestone(
         f"Approved milestone reward (Level {milestone.level}) for {affiliate_name}",
         "milestone", milestone_id
     )
+    # Log admin activity
+    admin_name = current_admin.email
+    log_admin_activity(
+        db, current_admin.id, admin_name, "approve_milestone",
+        f"Approved milestone reward (Level {milestone.level}) for {affiliate_name}",
+        "milestone", milestone_id
+    )
 
     # TODO: Send email notification to affiliate
     # TODO: Create coupon or credit account
@@ -458,6 +482,16 @@ def reject_milestone(
     milestone.processed_at = datetime.utcnow()
     db.commit()
 
+    # Log admin activity
+    admin_name = current_admin.email
+    description = f"Rejected milestone reward (Level {milestone.level}) for {affiliate_name}"
+    if reason:
+        description += f" (Reason: {reason})"
+
+    log_admin_activity(
+        db, current_admin.id, admin_name, "reject_milestone",
+        description, "milestone", milestone_id
+    )
     # Log admin activity
     admin_name = current_admin.email
     description = f"Rejected milestone reward (Level {milestone.level}) for {affiliate_name}"

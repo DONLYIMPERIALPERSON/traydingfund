@@ -96,9 +96,9 @@ const MobilePreviousChatsPage: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'open':
-        return { bg: 'rgba(255, 193, 7, 0.15)', color: '#ffc107' }
+        return { bg: 'rgba(40, 167, 69, 0.15)', color: '#28a745' }
       case 'closed':
-        return { bg: 'rgba(46, 204, 113, 0.15)', color: '#2ecc71' }
+        return { bg: 'rgba(220, 53, 69, 0.15)', color: '#dc3545' }
       default:
         return { bg: 'rgba(149, 165, 166, 0.15)', color: '#95a5a6' }
     }

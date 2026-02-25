@@ -7,9 +7,8 @@ export default function Navbar() {
     const navLinks = [
         { name: 'Home', href: '/#', isSection: true, sectionId: 'home' },
         { name: 'Why choose us', href: '/#features', isSection: true, sectionId: 'features' },
-        { name: 'Challanges', href: '/#pricing', isSection: true, sectionId: 'pricing' },
+        { name: 'Challenges', href: '/#pricing', isSection: true, sectionId: 'pricing' },
         { name: 'Rules', href: '/rules', isSection: false },
-        { name: 'FAQ', href: '/faq', isSection: false },
         { name: 'Contact', href: '/contact', isSection: false },
     ];
 
@@ -32,7 +31,7 @@ export default function Navbar() {
 
     return (
         <nav className='fixed top-5 left-0 right-0 z-50 px-4'>
-            <div className='max-w-6xl mx-auto flex items-center justify-between bg-yellow-300 rounded-2xl p-3 shadow-[0_0_24px_rgba(250,204,21,0.28)]'>
+            <div className='max-w-6xl mx-auto flex items-center justify-between bg-white rounded-2xl p-3 shadow-[0_0_24px_rgba(0,0,0,0.1)]'>
                 <a href='/#'>
                     <img src='/logo.webp' alt="NairaTrader logo" className="h-8" />
                 </a>

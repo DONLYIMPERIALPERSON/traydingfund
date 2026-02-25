@@ -40,7 +40,6 @@ def get_monthly_finance_stats(
         .where(PaymentOrder.paid_at.isnot(None))
         .group_by(extract('year', PaymentOrder.paid_at), extract('month', PaymentOrder.paid_at))
         .order_by(extract('year', PaymentOrder.paid_at).desc(), extract('month', PaymentOrder.paid_at).desc())
-        .limit(3)
     )
 
     purchase_results = db.execute(purchase_query).all()
@@ -56,7 +55,6 @@ def get_monthly_finance_stats(
         .where(ChallengeAccount.funded_user_payout_amount > 0)
         .group_by(extract('year', ChallengeAccount.updated_at), extract('month', ChallengeAccount.updated_at))
         .order_by(extract('year', ChallengeAccount.updated_at).desc(), extract('month', ChallengeAccount.updated_at).desc())
-        .limit(3)
     )
 
     payout_results = db.execute(payout_query).all()
@@ -94,34 +92,47 @@ def get_monthly_finance_stats(
 
     # Convert to list and sort by most recent first
     result = list(monthly_data.values())
-    result.sort(key=lambda x: x['month'], reverse=True)
+    result.sort(key=lambda x: datetime.strptime(x['month'], "%m/%Y"), reverse=True)
 
-    # Ensure we have at least 3 months of data (fill with zeros if needed)
-    while len(result) < 3:
-        # Add previous month with zero values
-        if result:
-            last_month = result[-1]['month']
-            month_num, year = last_month.split('/')
-            prev_month = int(month_num) - 1
-            prev_year = int(year)
-            if prev_month == 0:
-                prev_month = 12
-                prev_year -= 1
-            result.append({
-                'month': f"{prev_month:02d}/{prev_year}",
+    # Fill missing months between the earliest and latest
+    if result:
+        earliest_date = datetime.strptime(result[-1]['month'], "%m/%Y")
+        latest_date = datetime.strptime(result[0]['month'], "%m/%Y")
+
+        current_date = latest_date
+        filled_result = []
+        while current_date >= earliest_date:
+            month_str = current_date.strftime("%m/%Y")
+            existing = next((item for item in result if item['month'] == month_str), None)
+            filled_result.append(existing or {
+                'month': month_str,
                 'totalPurchase': '₦0',
                 'totalPayouts': '₦0'
             })
-        else:
-            # If no data at all, add current month
-            current_month = now.strftime("%m/%Y")
+            # Move to previous month
+            if current_date.month == 1:
+                current_date = current_date.replace(year=current_date.year - 1, month=12)
+            else:
+                current_date = current_date.replace(month=current_date.month - 1)
+
+        result = filled_result
+
+    # If no data, add last 3 months with zeros
+    if not result:
+        current_month = now
+        for _ in range(3):
+            month_str = current_month.strftime("%m/%Y")
             result.append({
-                'month': current_month,
+                'month': month_str,
                 'totalPurchase': '₦0',
                 'totalPayouts': '₦0'
             })
+            if current_month.month == 1:
+                current_month = current_month.replace(year=current_month.year - 1, month=12)
+            else:
+                current_month = current_month.replace(month=current_month.month - 1)
 
-    return {"monthlyFinance": result[:3]}
+    return {"monthlyFinance": result}
 
 
 @router.get("/dashboard-stats")
@@ -210,6 +221,21 @@ def get_dashboard_stats(
 
     pass_rate = (funded_count / total_completed) * 100 if total_completed > 0 else 0
 
+    # Previous pass rate (last month)
+    prev_total_completed = db.scalar(
+        select(func.count(ChallengeAccount.id))
+        .where(ChallengeAccount.current_stage.in_(['Funded', 'Failed']))
+        .where(ChallengeAccount.updated_at < month_ago)
+    ) or 1
+
+    prev_funded_count = db.scalar(
+        select(func.count(ChallengeAccount.id))
+        .where(ChallengeAccount.current_stage == 'Funded')
+        .where(ChallengeAccount.updated_at < month_ago)
+    ) or 0
+
+    prev_pass_rate = (prev_funded_count / prev_total_completed) * 100 if prev_total_completed > 0 else 0
+
     # Pending Payout Requests
     pending_payouts_count = db.scalar(
         select(func.count(AffiliatePayout.id))
@@ -219,6 +245,19 @@ def get_dashboard_stats(
     pending_payouts_sum = db.scalar(
         select(func.sum(AffiliatePayout.amount))
         .where(AffiliatePayout.status == 'pending')
+    ) or 0
+
+    # Previous pending payouts (last month)
+    prev_pending_payouts_count = db.scalar(
+        select(func.count(AffiliatePayout.id))
+        .where(AffiliatePayout.status == 'pending')
+        .where(AffiliatePayout.requested_at < month_ago)
+    ) or 0
+
+    prev_pending_payouts_sum = db.scalar(
+        select(func.sum(AffiliatePayout.amount))
+        .where(AffiliatePayout.status == 'pending')
+        .where(AffiliatePayout.requested_at < month_ago)
     ) or 0
 
     # Today's Approved Payouts
@@ -232,6 +271,21 @@ def get_dashboard_stats(
         select(func.sum(AffiliatePayout.amount))
         .where(AffiliatePayout.status == 'approved')
         .where(AffiliatePayout.approved_at >= today_start)
+    ) or 0
+
+    # Yesterday's Approved Payouts
+    yesterday_approved_count = db.scalar(
+        select(func.count(AffiliatePayout.id))
+        .where(AffiliatePayout.status == 'approved')
+        .where(AffiliatePayout.approved_at >= yesterday_start)
+        .where(AffiliatePayout.approved_at < today_start)
+    ) or 0
+
+    yesterday_approved_sum = db.scalar(
+        select(func.sum(AffiliatePayout.amount))
+        .where(AffiliatePayout.status == 'approved')
+        .where(AffiliatePayout.approved_at >= yesterday_start)
+        .where(AffiliatePayout.approved_at < today_start)
     ) or 0
 
     # Operations Queues
@@ -297,15 +351,34 @@ def get_dashboard_stats(
     # Calculate percentage changes
     def calc_percent_change(current: float, previous: float) -> float:
         if previous == 0:
-            return 0
+            return 0 if current == 0 else 100  # If previous is 0 but current >0, show 100% growth
         return ((current - previous) / previous) * 100
 
-    revenue_change = calc_percent_change(total_revenue, total_revenue * 0.88)  # Mock previous period
-    today_sales_change = calc_percent_change(today_sales, yesterday_sales) if yesterday_sales > 0 else 0
-    payouts_change = calc_percent_change(total_payouts, total_payouts * 0.94)  # Mock previous period
-    signups_change = calc_percent_change(new_signups, prev_signups) if prev_signups > 0 else 0
-    active_accounts_change = calc_percent_change(active_challenge_accounts, prev_active_accounts) if prev_active_accounts > 0 else 0
-    pass_rate_change = 1.9  # Mock change for now
+    # Real previous total revenue (last month)
+    prev_total_revenue_result = db.scalar(
+        select(func.sum(PaymentOrder.net_amount_kobo))
+        .where(PaymentOrder.status == 'paid')
+        .where(PaymentOrder.paid_at < month_ago)
+    )
+    prev_total_revenue = (prev_total_revenue_result or 0) / 100
+
+    # Real previous total payouts (last month)
+    prev_total_payouts_result = db.scalar(
+        select(func.sum(ChallengeAccount.funded_user_payout_amount))
+        .where(ChallengeAccount.current_stage == 'Funded')
+        .where(ChallengeAccount.funded_user_payout_amount > 0)
+        .where(ChallengeAccount.updated_at < month_ago)
+    )
+    prev_total_payouts = prev_total_payouts_result or 0
+
+    revenue_change = calc_percent_change(total_revenue, prev_total_revenue)
+    today_sales_change = calc_percent_change(today_sales, yesterday_sales)
+    payouts_change = calc_percent_change(total_payouts, prev_total_payouts)
+    signups_change = calc_percent_change(new_signups, prev_signups)
+    active_accounts_change = calc_percent_change(active_challenge_accounts, prev_active_accounts)
+    pass_rate_change = calc_percent_change(pass_rate, prev_pass_rate)
+    pending_payouts_change = calc_percent_change(pending_payouts_count, prev_pending_payouts_count)
+    today_approved_change = calc_percent_change(today_approved_count, yesterday_approved_count)
 
     return {
         "kpis": {
@@ -322,20 +395,18 @@ def get_dashboard_stats(
             "passRate": f"{pass_rate:.1f}%",
             "passRateChange": pass_rate_change,
             "pendingPayoutRequests": f"{pending_payouts_count} (₦{pending_payouts_sum:,.0f})",
-            "pendingPayoutRequestsChange": 4.6,  # Mock
+            "pendingPayoutRequestsChange": pending_payouts_change,
             "todayApprovedPayouts": f"{today_approved_count} (₦{today_approved_sum:,.0f})",
-            "todayApprovedPayoutsChange": 6.3,  # Mock
+            "todayApprovedPayoutsChange": today_approved_change,
         },
-        "operationsQueues": {
-            "payoutsPendingReview": pending_payouts_count,
-            "payoutsOldestHours": int(oldest_ticket_hours),
-            "supportTicketsOpen": open_tickets,
-            "supportTicketsOldestHours": int(oldest_ticket_hours),
-            "migrationRequestsPending": pending_migrations,
-            "migrationRequestsOldestHours": int(oldest_migration_hours),
-            "provisioningFailures": 7,  # Mock for now
-            "webhookFailures": 11,  # Mock for now
-        },
+"operationsQueues": {
+    "payoutsPendingReview": pending_payouts_count,  # Real
+    "payoutsOldestHours": int(oldest_ticket_hours),  # Real
+    "supportTicketsOpen": open_tickets,  # Real
+    "supportTicketsOldestHours": int(oldest_ticket_hours),  # Real
+    "migrationRequestsPending": pending_migrations,  # Real
+    "migrationRequestsOldestHours": int(oldest_migration_hours),  # Real
+},
         "challengeOutcomes": {
             "passed": passed_count,
             "failed": failed_count,

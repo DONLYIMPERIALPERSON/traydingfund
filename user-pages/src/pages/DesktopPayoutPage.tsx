@@ -57,25 +57,31 @@ const DesktopPayoutPage: React.FC = () => {
       return
     }
 
-    // Find the selected account to get the available payout amount
-    const selectedAccount = payoutData?.funded_accounts.find(acc => acc.account_id === selectedAccountId)
-    if (!selectedAccount) {
-      setPinError('Selected account not found')
-      return
-    }
-
     try {
       setVerifyingPin(true)
       setPinError('')
-      const response = await payoutAPI.requestPayout(selectedAccount.available_payout, selectedAccountId)
+
+      // Show verification message
+      setPinError('Verifying MT5 stats...')
+
+      const response = await payoutAPI.requestPayout(selectedAccountId)
       setShowPinModal(false)
       setPinCode('')
       alert(response.message || 'Withdrawal request submitted successfully!')
+
       // Refresh payout data
       const data = await payoutAPI.getPayoutSummary()
       setPayoutData(data)
     } catch (error) {
-      setPinError(error instanceof Error ? error.message : 'Failed to submit withdrawal request')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to submit withdrawal request'
+
+      // Handle verification timeout
+      if (errorMessage.includes('Verification pending')) {
+        setPinError('Verification pending, please try again in a moment.')
+        return
+      }
+
+      setPinError(errorMessage)
     } finally {
       setVerifyingPin(false)
     }
@@ -120,29 +126,29 @@ const DesktopPayoutPage: React.FC = () => {
         {payoutData && (
           <div className="stats-grid">
             {/* Total Earned All Time */}
-            <div className="stat-card">
+            <div className="stat-card" style={{backgroundColor: 'black'}}>
               <div className="stat-card-header">
-                <div className="stat-icon">
+                <div className="stat-icon" style={{color: 'white !important'}}>
                   <i className="fas fa-trophy"></i>
                 </div>
-                <div className="stat-content">
-                  <div className="stat-label">Total Earned</div>
-                  <div className="stat-value">{formatCurrency(payoutData.total_earned_all_time)}</div>
-                  <div className="stat-subtitle">All-time earnings</div>
+                <div className="stat-content" style={{color: 'white !important'}}>
+                  <div className="stat-label" style={{color: 'white !important'}}>Total Earned</div>
+                  <div className="stat-value" style={{color: 'white !important'}}>{formatCurrency(payoutData.total_earned_all_time)}</div>
+                  <div className="stat-subtitle" style={{color: 'white !important'}}>All-time earnings</div>
                 </div>
               </div>
             </div>
 
             {/* Available Payout */}
-            <div className="stat-card">
+            <div className="stat-card" style={{backgroundColor: 'black'}}>
               <div className="stat-card-header">
-                <div className="stat-icon">
+                <div className="stat-icon" style={{color: 'white !important'}}>
                   <i className="fas fa-money-bill-wave"></i>
                 </div>
-                <div className="stat-content">
-                  <div className="stat-label">Available Payout</div>
-                  <div className="stat-value">{formatCurrency(payoutData.total_available_payout)}</div>
-                  <div className="stat-subtitle">Ready to withdraw</div>
+                <div className="stat-content" style={{color: 'white !important'}}>
+                  <div className="stat-label" style={{color: 'white !important'}}>Available Payout</div>
+                  <div className="stat-value" style={{color: 'white !important'}}>{formatCurrency(payoutData.total_available_payout)}</div>
+                  <div className="stat-subtitle" style={{color: 'white !important'}}>Ready to withdraw</div>
                 </div>
               </div>
             </div>
@@ -169,7 +175,7 @@ const DesktopPayoutPage: React.FC = () => {
           {/* Tab Content */}
           {activeTab === 'request' && payoutData && (
             <div>
-              <h3 className="tab-content">Request New Withdrawal</h3>
+              <h3 className="tab-content" style={{color: 'black !important'}}>Request New Withdrawal</h3>
 
               <div className="request-form">
                 {/* Funded MT5 Account */}
@@ -243,7 +249,7 @@ const DesktopPayoutPage: React.FC = () => {
 
           {activeTab === 'history' && payoutData && (
             <div>
-              <h3 className="tab-content">Withdrawal History</h3>
+              <h3 className="tab-content" style={{color: 'black !important'}}>Withdrawal History</h3>
 
               {payoutData.withdrawal_history.length === 0 ? (
                 <div className="empty-history">

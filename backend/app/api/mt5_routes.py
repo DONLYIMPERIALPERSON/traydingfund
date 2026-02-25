@@ -14,7 +14,7 @@ from app.models.mt5_account import MT5Account
 from app.models.payment_order import PaymentOrder
 from app.models.user import User
 from app.services.challenge_objectives import initialize_challenge_stage_tracking
-from app.services.email_service import send_welcome_email
+from app.tasks import send_welcome_email
 from app.services.certificate_service import get_certificate_service
 from app.schemas.mt5_account import (
     MT5AccountAssignRequest,
@@ -115,7 +115,7 @@ def _auto_assign_pending_orders(db: Session) -> None:
 
             # Send welcome email (don't fail the assignment if email fails)
             try:
-                send_welcome_email(
+                send_welcome_email.delay(
                     user_email=user.email,
                     user_name=user.full_name,
                     challenge_id=challenge_id,
@@ -220,7 +220,7 @@ def _auto_assign_awaiting_challenges(db: Session) -> None:
 
             # Send stage progression email
             try:
-                from app.services.email_service import send_challenge_objective_email
+                from app.tasks import send_challenge_objective_email
                 message = (
                     f"Congratulations! You have been automatically progressed to {next_stage}.\n\n"
                     f"Your new MT5 trading account details:\n"
@@ -229,7 +229,7 @@ def _auto_assign_awaiting_challenges(db: Session) -> None:
                     f"• Password: {account.password}\n\n"
                     f"You can now log in to your MT5 platform and continue trading."
                 )
-                send_challenge_objective_email(
+                send_challenge_objective_email.delay(
                     to_email=user.email,
                     subject=f"Challenge Progressed to {next_stage}",
                     message=message,
@@ -613,13 +613,13 @@ Investor Password: {row.investor_password}
 Please keep this information secure and do not share it with anyone.
 You can now log in to your MT5 platform and start trading.
 """
-            send_welcome_email(
+            send_welcome_email.delay(
                 to_email=assigned_user.email,
                 message=message.strip(),
             )
         elif payload.stage in {"Phase 2", "Funded"}:
             # Send progression email for Phase 2/Funded assignments
-            from app.services.email_service import send_challenge_objective_email
+            from app.tasks import send_challenge_objective_email
             stage_name = "Phase 2" if payload.stage == "Phase 2" else "Funded"
             message = (
                 f"Congratulations! Your account has been manually progressed to {stage_name}.\n\n"
@@ -629,7 +629,7 @@ You can now log in to your MT5 platform and start trading.
                 f"• Password: {row.password}\n\n"
                 f"You can now log in to your MT5 platform and continue trading."
             )
-            send_challenge_objective_email(
+            send_challenge_objective_email.delay(
                 to_email=assigned_user.email,
                 subject=f"Challenge Progressed to {stage_name}",
                 message=message,

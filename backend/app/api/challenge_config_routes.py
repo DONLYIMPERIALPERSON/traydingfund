@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -12,7 +12,11 @@ from app.models.challenge_config import ChallengeConfig
 from app.models.pin_otp import PinOtp
 from app.models.user import User
 from app.schemas.challenge_config import ChallengeConfigUpdateRequest, HeroStatsUpdateRequest
-from app.services.email_service import send_admin_settings_otp_email
+from app.tasks import send_admin_settings_otp_email
+from app.core.redis import redis_client
+import json
+from slowapi import Limiter
+limiter = Limiter(key_func=lambda: "public")
 
 
 router = APIRouter(tags=["Challenge Config"])
@@ -178,20 +182,34 @@ def _validate_and_consume_admin_otp(db: Session, user_id: int, otp: str) -> None
 
 
 @router.get("/public/challenges/config")
-def get_public_challenge_config(db: Session = Depends(get_db)) -> dict[str, list[dict[str, object]]]:
+@limiter.limit("60/minute")
+def get_public_challenge_config(request: Request, db: Session = Depends(get_db)) -> dict[str, list[dict[str, object]]]:
+    cache_key = "public_challenge_config"
+    cached = redis_client.get(cache_key)
+    if cached:
+        return json.loads(cached)
     row = _get_or_seed_config(db)
     public_plans = [
         plan
         for plan in row.config_value
         if bool(plan.get("enabled", True)) and str(plan.get("status", "Available")) == "Available"
     ]
-    return {"plans": public_plans}
+    result = {"plans": public_plans}
+    redis_client.setex(cache_key, 300, json.dumps(result))
+    return result
 
 
 @router.get("/public/hero/stats")
-def get_public_hero_stats(db: Session = Depends(get_db)) -> dict[str, dict[str, str]]:
+@limiter.limit("60/minute")
+def get_public_hero_stats(request: Request, db: Session = Depends(get_db)) -> dict[str, dict[str, str]]:
+    cache_key = "public_hero_stats"
+    cached = redis_client.get(cache_key)
+    if cached:
+        return json.loads(cached)
     row = _get_or_seed_hero_stats_config(db)
-    return {"stats": _normalize_hero_stats(row.config_value)}
+    result = {"stats": _normalize_hero_stats(row.config_value)}
+    redis_client.setex(cache_key, 300, json.dumps(result))
+    return result
 
 
 @router.get("/admin/challenges/config")
@@ -228,7 +246,7 @@ def send_admin_challenge_config_otp(
     )
 
     db.add(otp_row)
-    send_admin_settings_otp_email(to_email=current_admin.email, otp_code=code)
+    send_admin_settings_otp_email.delay(to_email=current_admin.email, otp_code=code)
     db.commit()
 
     return {"message": "OTP sent. Check your admin email."}

@@ -13,7 +13,7 @@ type DescopeAuthCardProps = {
 
 const projectId = import.meta.env.VITE_DESCOPE_PROJECT_ID ?? ''
 
-type FlowNextFn = (interactionId: string, form?: Record<string, unknown>) => void
+type FlowNextFn = (interactionId: string, form: Record<string, any>) => Promise<unknown>
 type DescopeSuccessPayload = {
   detail?: {
     sessionJwt?: string
@@ -81,7 +81,22 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle }) =>
   const handleError = useCallback((event: unknown) => {
     setInteractionLoading(false)
     console.error('Descope flow error', event)
-    setError('Authentication failed. Please check your details and try again.')
+
+    // Try to extract error message from the event
+    let errorMessage = 'Authentication failed. Please check your details and try again.'
+
+    if (event && typeof event === 'object') {
+      const errorEvent = event as any
+      const message = errorEvent.message || errorEvent.error || errorEvent.detail ||
+                     errorEvent.description || errorEvent.text
+      if (message) {
+        errorMessage = String(message).replace(/\s*-\s*Error\s*$/, '')
+      }
+    } else if (typeof event === 'string') {
+      errorMessage = event.replace(/\s*-\s*Error\s*$/, '')
+    }
+
+    setError(errorMessage)
   }, [])
 
   const onScreenUpdate = useCallback((incomingScreenName: string, context: Record<string, unknown>, next: FlowNextFn) => {
@@ -89,11 +104,29 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle }) =>
     setScreenName(incomingScreenName)
     setScreenContext(context)
     setNextAction(() => next)
-    setError('')
+
+    // Check for error messages in the context - Descope may pass errors here
+    const errorMsg = context.errorMessage || context.error || context.message || context.error_description ||
+                    (context as any).errorMsg || (context as any).err
+    if (errorMsg) {
+      let errorMessage = 'Authentication failed. Please try again.'
+      if (typeof errorMsg === 'string') {
+        errorMessage = errorMsg.replace(/\s*-\s*Error\s*$/, '')
+      } else if (errorMsg && typeof errorMsg === 'object') {
+        const errorObj = errorMsg as any
+        // Handle Descope's specific error object format: {text: 'error message', type: 'errorType'}
+        errorMessage = errorObj.text || errorObj.message || errorObj.error || String(errorMsg)
+        errorMessage = errorMessage.replace(/\s*-\s*Error\s*$/, '')
+      }
+      setError(errorMessage)
+    } else {
+      setError('')
+    }
+
     return true
   }, [])
 
-  const submitInteraction = useCallback((interactionId: string, form: Record<string, unknown> = {}) => {
+  const submitInteraction = useCallback(async (interactionId: string, form: Record<string, unknown> = {}) => {
     if (!nextAction) {
       return
     }
@@ -101,7 +134,30 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle }) =>
       return
     }
     setInteractionLoading(true)
-    nextAction(interactionId, form)
+    try {
+      await nextAction(interactionId, form)
+    } catch (err) {
+      console.error('Interaction error:', err)
+      setInteractionLoading(false)
+      // Try to extract error message from the error - handle different Descope error formats
+      let errorMessage = 'Authentication failed. Please try again.'
+
+      if (err instanceof Error) {
+        errorMessage = err.message
+      } else if (typeof err === 'string') {
+        errorMessage = err
+      } else if (err && typeof err === 'object') {
+        // Check for common error message properties
+        const errorObj = err as any
+        errorMessage = errorObj.message || errorObj.error || errorObj.errorMessage ||
+                      errorObj.description || errorObj.detail || String(err)
+      }
+
+      // Clean up the error message (remove " - Error" suffix if present)
+      errorMessage = errorMessage.replace(/\s*-\s*Error\s*$/, '')
+
+      setError(errorMessage)
+    }
   }, [loading, nextAction])
 
   const isBusy = interactionLoading || loading
@@ -121,6 +177,14 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle }) =>
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (!isBusy) {
+                      submitInteraction('Ppb_65tyyn', { email });
+                    }
+                  }
+                }}
               />
             </div>
 
@@ -132,8 +196,6 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle }) =>
             >
               {continueButtonText}
             </button>
-
-            <p className="naira-auth-continue-note">Continue securely with your NairaTrader account.</p>
           </div>
         )
 
@@ -149,6 +211,14 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle }) =>
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (!isBusy) {
+                      submitInteraction('pXVwWREG7M', { password });
+                    }
+                  }
+                }}
               />
             </div>
 
@@ -160,8 +230,6 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle }) =>
             >
               {loading ? 'Signing in...' : continueButtonText}
             </button>
-
-            <p className="naira-auth-continue-note">Continue securely with your NairaTrader account.</p>
 
             <button
               className="submit-button naira-auth-secondary-btn"

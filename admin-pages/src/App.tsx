@@ -129,6 +129,21 @@ function App() {
     verifyAdminSession()
   }, [])
 
+  useEffect(() => {
+    if (!authUser || authUser.role === 'super_admin' || !authUser.allowed_pages) return;
+
+    const possiblePages = ['analysis', 'users', 'accounts', 'fundedAccounts', 'breaches', 'orders', 'payouts', 'kycReview', 'referrals', 'financeAnalysis', 'coupons', 'supportTickets', 'settings', 'workBoard', 'mt5', 'sendAnnouncement', 'migrationRequests'];
+    const firstAllowed = possiblePages.find(page => authUser.allowed_pages?.includes(page) ?? false);
+    if (!firstAllowed) {
+      setAuthError('No pages assigned to this admin account.');
+      return;
+    }
+
+    if (activePage !== firstAllowed && !authUser.allowed_pages.includes(activePage)) {
+      setActivePage(firstAllowed as AdminPage);
+    }
+  }, [authUser, activePage]);
+
   const roleLabel = useMemo(() => {
     if (!authUser) return 'Admin'
     return authUser.role === 'super_admin' ? 'Super Admin' : 'Admin'
@@ -267,30 +282,43 @@ function App() {
           onNavigate={setActivePage}
           onLogout={handleAdminLogout}
           isLoggingOut={isLoggingOut}
-          allowedPages={authUser.allowed_pages}
+          allowedPages={authUser.allowed_pages ?? []}
           userRole={authUser.role}
         />
 
         <main className="admin-dashboard-content">
-          {activePage === 'analysis' && <DashboardPage onNavigate={setActivePage} />}
-          {activePage === 'workBoard' && <WorkBoardPage />}
-          {activePage === 'users' && <UsersPage onOpenProfile={handleOpenUserProfile} />}
-          {activePage === 'accounts' && <AccountsPage onOpenProfile={handleOpenUserProfile} />}
-          {activePage === 'fundedAccounts' && <FundedAccountsPage onOpenProfile={handleOpenUserProfile} />}
-          {activePage === 'breaches' && <BreachesPage onOpenProfile={handleOpenUserProfile} />}
-          {activePage === 'mt5' && <MT5Page />}
-          {activePage === 'orders' && <OrdersPage onOpenProfile={handleOpenUserProfile} />}
-          {activePage === 'payouts' && <PayoutsPage onOpenProfile={handleOpenUserProfile} />}
-          {activePage === 'financeAnalysis' && <FinanceAnalysisPage />}
-          {activePage === 'coupons' && <CouponsPage />}
-          {activePage === 'sendAnnouncement' && <SendAnnouncementPage />}
-          {activePage === 'supportTickets' && <SupportTicketsPage onOpenProfile={handleOpenUserProfile} />}
-          {activePage === 'settings' && <SettingsPage />}
-          {activePage === 'kycReview' && <KycReviewPage onOpenProfile={handleOpenUserProfile} />}
-          {activePage === 'referrals' && <ReferralsPage />}
-          {activePage === 'migrationRequests' && <MigrationRequestsPage />}
-          {activePage === 'userProfile' && selectedUser && (
+          {authError && (
+            <div className="admin-no-access">
+              <h2>Error</h2>
+              <p>{authError}</p>
+              <button onClick={handleAdminLogout}>Logout</button>
+            </div>
+          )}
+          {!authError && activePage === 'analysis' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('analysis'))) && <DashboardPage onNavigate={setActivePage} />}
+          {!authError && activePage === 'workBoard' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('workBoard'))) && <WorkBoardPage />}
+          {!authError && activePage === 'users' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('users'))) && <UsersPage onOpenProfile={handleOpenUserProfile} />}
+          {!authError && activePage === 'accounts' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('accounts'))) && <AccountsPage onOpenProfile={handleOpenUserProfile} />}
+          {!authError && activePage === 'fundedAccounts' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('fundedAccounts'))) && <FundedAccountsPage onOpenProfile={handleOpenUserProfile} />}
+          {!authError && activePage === 'breaches' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('breaches'))) && <BreachesPage onOpenProfile={handleOpenUserProfile} />}
+          {!authError && activePage === 'mt5' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('mt5'))) && <MT5Page />}
+          {!authError && activePage === 'orders' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('orders'))) && <OrdersPage onOpenProfile={handleOpenUserProfile} />}
+          {!authError && activePage === 'payouts' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('payouts'))) && <PayoutsPage onOpenProfile={handleOpenUserProfile} />}
+          {!authError && activePage === 'financeAnalysis' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('financeAnalysis'))) && <FinanceAnalysisPage />}
+          {!authError && activePage === 'coupons' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('coupons'))) && <CouponsPage />}
+          {!authError && activePage === 'sendAnnouncement' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('sendAnnouncement'))) && <SendAnnouncementPage />}
+          {!authError && activePage === 'supportTickets' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('supportTickets'))) && <SupportTicketsPage onOpenProfile={handleOpenUserProfile} />}
+          {!authError && activePage === 'settings' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('settings'))) && <SettingsPage />}
+          {!authError && activePage === 'kycReview' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('kycReview'))) && <KycReviewPage onOpenProfile={handleOpenUserProfile} />}
+          {!authError && activePage === 'referrals' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('referrals'))) && <ReferralsPage />}
+          {!authError && activePage === 'migrationRequests' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('migrationRequests'))) && <MigrationRequestsPage />}
+          {!authError && activePage === 'userProfile' && selectedUser && (
             <UserProfilePage user={selectedUser} onBack={handleBackToUsers} />
+          )}
+          {!authError && !['analysis', 'workBoard', 'users', 'accounts', 'fundedAccounts', 'breaches', 'mt5', 'orders', 'payouts', 'financeAnalysis', 'coupons', 'sendAnnouncement', 'supportTickets', 'settings', 'kycReview', 'referrals', 'migrationRequests', 'userProfile'].includes(activePage) && (
+            <div className="admin-no-access">
+              <h2>Access Denied</h2>
+              <p>You do not have permission to access this page. Please select an available page from the sidebar.</p>
+            </div>
           )}
         </main>
       </div>

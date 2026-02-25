@@ -145,15 +145,15 @@ const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, phase, accoun
               transition: 'background-color 0.2s',
               color: '#666',
               fontSize: '14px',
-              backgroundColor: 'rgba(255, 215, 0, 0.1)',
-              border: '1px solid rgba(255, 215, 0, 0.2)'
+              backgroundColor: 'rgba(52, 152, 219, 0.1)',
+              border: '1px solid rgba(52, 152, 219, 0.2)'
             }}
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/credentials?challenge_id=${encodeURIComponent(challengeId)}`);
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 215, 0, 0.2)'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 215, 0, 0.1)'}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(52, 152, 219, 0.2)'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(52, 152, 219, 0.1)'}
           >
             <i className="fas fa-key" style={{fontSize: '14px'}}></i>
             <span>Credentials</span>
@@ -169,42 +169,18 @@ const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, phase, accoun
               transition: 'background-color 0.2s',
               color: '#666',
               fontSize: '14px',
-              backgroundColor: 'rgba(255, 215, 0, 0.1)',
-              border: '1px solid rgba(255, 215, 0, 0.2)'
+              backgroundColor: 'rgba(231, 76, 60, 0.1)',
+              border: '1px solid rgba(231, 76, 60, 0.2)'
             }}
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/account-overview?challenge_id=${encodeURIComponent(challengeId)}`);
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 215, 0, 0.2)'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 215, 0, 0.1)'}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(231, 76, 60, 0.2)'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(231, 76, 60, 0.1)'}
           >
             <i className="fas fa-chart-bar" style={{fontSize: '14px'}}></i>
             <span>Account Metrics</span>
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '6px 12px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              transition: 'background-color 0.2s',
-              color: '#666',
-              fontSize: '14px',
-              backgroundColor: 'rgba(255, 215, 0, 0.1)',
-              border: '1px solid rgba(255, 215, 0, 0.2)'
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/statistics?challenge_id=${encodeURIComponent(challengeId)}`);
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 215, 0, 0.2)'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 215, 0, 0.1)'}
-          >
-            <i className="fas fa-chart-pie" style={{fontSize: '14px'}}></i>
-            <span>Analysis</span>
           </div>
         </div>
       </div>

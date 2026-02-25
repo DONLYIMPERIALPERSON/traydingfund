@@ -2,6 +2,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    redis_url: str = "redis://localhost:6379/0"
+    sentry_dsn: str = ""
     app_name: str
     app_env: str
     app_host: str

@@ -16,33 +16,14 @@ from app.models.mt5_account import MT5Account
 from app.models.user import User
 from app.schemas.migration_request import MigrationRequestResponse, MigrationRequestUpdate
 from app.services.challenge_objectives import rollover_funded_account_after_withdrawal
-from app.services.email_service import send_challenge_objective_email
+from app.tasks import send_challenge_objective_email
 from app.services.palmpay_service import PalmPayService
+from app.api.admin_workboard_routes import log_admin_activity
 
 
 router = APIRouter(prefix="/admin/migration-requests", tags=["Admin Migration"])
 
 
-def _log_admin_activity(
-    db: Session,
-    admin_id: int,
-    admin_name: str,
-    action: str,
-    description: str,
-    entity_type: str,
-    entity_id: Optional[int] = None,
-):
-    """Helper function to log admin activity."""
-    activity = AdminActivityLog(
-        admin_id=admin_id,
-        admin_name=admin_name,
-        action=action,
-        description=description,
-        entity_type=entity_type,
-        entity_id=entity_id,
-    )
-    db.add(activity)
-    db.commit()
 
 
 @router.get("", response_model=list[MigrationRequestResponse])
@@ -109,9 +90,9 @@ def update_migration_request(
             _process_approved_migration_request(db, request, current_admin, update_data.withdrawal_amount)
             # Log the approval activity
             withdrawal_info = f" with ₦{update_data.withdrawal_amount:,.2f} payout" if update_data.withdrawal_amount else ""
-            _log_admin_activity(
+            log_admin_activity(
                 db,
-                current_admin.id,
+                admin_entry.id,
                 current_admin.full_name or current_admin.email,
                 "approve_migration_request",
                 f"Approved {request.request_type} migration request for user {request.user_id} ({request.account_size}){withdrawal_info}",
@@ -123,9 +104,9 @@ def update_migration_request(
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to process migration: {str(e)}")
     elif update_data.status == "declined":
         # Log the decline activity
-        _log_admin_activity(
+        log_admin_activity(
             db,
-            current_admin.id,
+            admin_entry.id,
             current_admin.full_name or current_admin.email,
             "decline_migration_request",
             f"Declined {request.request_type} migration request for user {request.user_id} ({request.account_size})",
@@ -152,7 +133,7 @@ def _process_approved_migration_request(
 
     if request.request_type == "phase2":
         _process_phase2_migration(db, request, user, admin)
-    elif request.request_type == "funded":
+    elif request.request_type in ["funded", "funded_request"]:
         _process_funded_migration(db, request, user, admin, withdrawal_amount)
 
 
@@ -204,7 +185,7 @@ def _process_phase2_migration(
 
     # Send email notification
     try:
-        send_challenge_objective_email(
+        send_challenge_objective_email.delay(
             to_email=user.email,
             subject="Phase 2 Migration Approved",
             message=(
@@ -228,9 +209,10 @@ def _process_funded_migration(
     withdrawal_amount: Optional[float] = None
 ) -> None:
     """Process funded migration request."""
-    # Validate that withdrawal amount is provided for funded migrations
-    if withdrawal_amount is None or withdrawal_amount <= 0:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Withdrawal amount is required for funded migrations")
+    # For "funded" type, validate withdrawal amount
+    if request.request_type == "funded":
+        if withdrawal_amount is None or withdrawal_amount <= 0:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Withdrawal amount is required and must be greater than 0 for payout requests")
 
     # Find an available funded account of the same size
     # Note: MT5 account sizes have " Account" suffix (e.g., "₦400k Account")
@@ -247,8 +229,8 @@ def _process_funded_migration(
     if not mt5_account:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No funded account available for this size")
 
-    # Use the admin-provided withdrawal amount
-    if withdrawal_amount > 0:
+    # Process withdrawal if amount is provided and greater than 0
+    if withdrawal_amount and withdrawal_amount > 0:
         # Process the withdrawal via PalmPay
         palm_pay = PalmPayService()
         transfer_result = palm_pay.create_transfer(
@@ -298,12 +280,12 @@ def _process_funded_migration(
             f"• Password: {mt5_account.password}\n\n"
         )
 
-        if withdrawal_amount > 0:
+        if withdrawal_amount and withdrawal_amount > 0:
             message += f"A withdrawal of ₦{withdrawal_amount:,.2f} has been processed to your bank account.\n\n"
 
         message += "You can now log in to your MT5 platform and start trading with your funded account."
 
-        send_challenge_objective_email(
+        send_challenge_objective_email.delay(
             to_email=user.email,
             subject="Funded Account Migration Approved",
             message=message

@@ -1,5 +1,5 @@
 import Title from './Title';
-import { AlertTriangle, CheckCircle2, CircleDot, Zap } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CircleDot } from 'lucide-react';
 
 export default function Rules() {
     return (
@@ -7,7 +7,7 @@ export default function Rules() {
             <div className="w-full px-4 md:px-6 lg:px-8">
                 <Title
                     title="Rules"
-                    heading="Simple Rules Tailourd for your consistent payouts and long term trading success"
+                    heading="Simple rules tailored for your consistent payout"
                     description="We’ve removed 98% of all traditional prop firm rules to make trading at NairaTrader as simple and fair as possible."
                 />
 
@@ -16,9 +16,13 @@ export default function Rules() {
                         <p className="text-gray-200 leading-relaxed">
                             Aside from our 2 essential rules, every other trading approach is fully allowed — giving you the freedom to trade your way, making us the best prop firm.
                         </p>
-                        <p className="text-yellow-300 font-semibold mt-4 flex items-center gap-2">
-                            <Zap className="w-4 h-4" />
-                            Trade Freely. Earn Freely. — Only with NairaTrader.
+                        <p className="text-gray-200 leading-relaxed mt-3 flex items-start gap-2">
+                            <CircleDot className="w-4 h-4 mt-0.5 text-yellow-300" />
+                            20% Maximum Drawdown
+                        </p>
+                        <p className="text-gray-200 leading-relaxed mt-3 flex items-start gap-2">
+                            <CircleDot className="w-4 h-4 mt-0.5 text-yellow-300" />
+                            No 1–2 minute scalping on more than 6 trades.
                         </p>
                     </div>
 
@@ -87,10 +91,10 @@ export default function Rules() {
                     <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md p-5 md:p-7">
                         <h3 className="text-xl font-semibold mb-3">Scalping Rule</h3>
                         <p className="text-gray-200 leading-relaxed">
-                            No 1 – 4 minutes scalping. Scalping up to 3 minutes 59 seconds is still counted as a violation, so we recommend holding your trade for at least 4 minutes.
+                            No 1–2 minute scalping on more than 6 trades, so we recommend holding your trade for at least 2 minutes.
                         </p>
                         <p className="text-gray-300 mt-3">
-                            This rule was introduced to prevent our system from copying delayed trades and to discourage high-frequency trading (HFT) practices.
+                            This rule was introduced to prevent our system from copying delayed trades and to discourage high-frequency trading (HFT) robots.
                         </p>
                     </div>
 
@@ -99,7 +103,7 @@ export default function Rules() {
                         <p className="text-gray-200">Our broker automatically deletes inactive accounts after 5 days of no trading activity.</p>
                         <p className="text-gray-200 mt-3 flex items-start gap-2"><CircleDot className="w-4 h-4 mt-0.5 text-yellow-300" /> Stay active! Place at least one trade every 5 days.</p>
                         <p className="text-gray-300 mt-2">
-                            NairaTrader accounts with no trading for 5 days are automatically removed by the broker. If you have no setup, just open a trade with the smallest lot size.
+                            NairaTrader accounts with no trading for 5 days are automatically removed. If you have no setup, just open a trade with the smallest lot size.
                         </p>
                     </div>
 

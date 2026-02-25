@@ -132,6 +132,8 @@ class UserChallengeAccountDetailResponse(BaseModel):
     breached_at: str | None
     passed_at: str | None
     mt5_account: str | None
+    last_feed_at: str | None
+    last_refresh_requested_at: str | None
     metrics: UserChallengeMetrics
     objectives: dict[str, UserChallengeObjectiveStatus]
     credentials: UserChallengeCredentials | None

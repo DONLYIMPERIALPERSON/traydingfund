@@ -90,12 +90,13 @@ const AccountsPage = ({ onOpenProfile }: AccountsPageProps) => {
                 <td>{row.mt5_server ?? '-'}</td>
                 <td>{row.mt5_password ?? '-'}</td>
                 <td>{row.phase}</td>
-                <td>+₦0 (dummy)</td>
+                <td>{row.current_pnl ?? '+₦0'}</td>
                 <td>
                   <button
                     type="button"
                     onClick={() =>
                       onOpenProfile({
+                        user_id: row.user_id,
                         name: row.trader_name ?? `User ${row.user_id}`,
                         email: `user${row.user_id}@mail.com`,
                         accounts: '1 / 0',

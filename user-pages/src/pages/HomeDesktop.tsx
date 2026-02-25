@@ -85,26 +85,26 @@ const HomeDesktop: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              backgroundColor: '#FFD700',
+              backgroundColor: '#000000',
               border: 'none',
               borderRadius: '8px',
               padding: '12px 20px',
               cursor: 'pointer',
               fontSize: '14px',
-              color: '#333',
+              color: '#FFFFFF',
               fontWeight: '600',
               transition: 'all 0.2s',
-              boxShadow: '0 2px 4px rgba(255,215,0,0.3)'
+              boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#FFC107';
+              e.currentTarget.style.backgroundColor = '#333333';
               e.currentTarget.style.transform = 'translateY(-1px)';
-              e.currentTarget.style.boxShadow = '0 4px 8px rgba(255,215,0,0.4)';
+              e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.4)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#FFD700';
+              e.currentTarget.style.backgroundColor = '#000000';
               e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 2px 4px rgba(255,215,0,0.3)';
+              e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
             }}
           >
             <i className="fas fa-plus" style={{fontSize: '14px'}}></i>

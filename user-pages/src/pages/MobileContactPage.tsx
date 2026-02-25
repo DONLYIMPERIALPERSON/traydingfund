@@ -25,7 +25,7 @@ const MobileContactPage: React.FC = () => {
     { name: 'Discord', icon: 'fab fa-discord', color: '#5865F2', url: 'https://discord.com/invite/WyPx9cm7R7' },
     { name: 'Telegram', icon: 'fab fa-telegram', color: '#0088CC', url: 'https://t.me/nairatrader' },
     { name: 'TikTok', icon: 'fab fa-tiktok', color: '#000000', url: 'https://www.tiktok.com/@nairatrader_FX' },
-    { name: 'X', icon: 'fab fa-x-twitter', color: '#000000', url: 'https://x.com/naira_trader' }
+    { name: 'Twitter', icon: 'fab fa-x-twitter', color: '#000000', url: 'https://x.com/naira_trader' }
   ]
 
   return (
@@ -39,9 +39,22 @@ const MobileContactPage: React.FC = () => {
               </div>
             </div>
             <div className="mobile-contact-header-center">
-              <span className="mobile-contact-header-title">Contact</span>
             </div>
-            <div className="mobile-contact-header-right" aria-hidden="true" />
+            <div className="mobile-contact-header-right">
+              <div className="mobile-contact-support-icon" onClick={() => navigate('/support')} style={{
+                cursor: 'pointer',
+                background: 'rgba(255,255,255,0.1)',
+                borderRadius: '20px',
+                padding: '6px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                border: '1px solid rgba(255,255,255,0.2)'
+              }}>
+                <i className="fas fa-message" style={{color: '#FFD700'}}></i>
+                <span>Support</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -58,15 +71,13 @@ const MobileContactPage: React.FC = () => {
                   Head Office
                 </h3>
               </div>
-              <div style={{display: 'flex', alignItems: 'flex-start', gap: '12px'}}>
-                <i className="fas fa-map-marker-alt" style={{color: '#FFD700', marginTop: '2px'}}></i>
-                <div>
-                  <div style={{fontSize: '16px', fontWeight: '600', color: 'white', marginBottom: '4px'}}>
-                    Location
-                  </div>
-                  <div style={{fontSize: '14px', color: 'rgba(255,255,255,0.8)', lineHeight: '1.5'}}>
-                    2, Akin Osiyemi, Allen Avenue.
-                  </div>
+              <div>
+                <div style={{fontSize: '16px', fontWeight: '600', color: 'white', marginBottom: '4px'}}>
+                  Location
+                </div>
+                <div style={{fontSize: '14px', color: 'rgba(255,255,255,0.8)', lineHeight: '1.5'}}>
+                  2, Akin Osiyemi, Allen Avenue.<br />
+                  Ikeja, Lagos
                 </div>
               </div>
             </div>
@@ -100,7 +111,7 @@ const MobileContactPage: React.FC = () => {
                     padding: '12px 16px',
                     color: 'white',
                     fontSize: '16px',
-                    fontWeight: '600',
+                    fontWeight: '400',
                     cursor: 'pointer',
                     marginBottom: '8px'
                   }}
@@ -128,7 +139,7 @@ const MobileContactPage: React.FC = () => {
                     padding: '12px 16px',
                     color: 'white',
                     fontSize: '16px',
-                    fontWeight: '600',
+                    fontWeight: '400',
                     cursor: 'pointer'
                   }}
                 >
@@ -148,9 +159,6 @@ const MobileContactPage: React.FC = () => {
                   Join Our Live Community
                 </h3>
               </div>
-              <div style={{fontSize: '14px', color: 'rgba(255,255,255,0.7)', marginBottom: '16px'}}>
-                for Discounts
-              </div>
 
               <div style={{display: 'flex', flexWrap: 'wrap', gap: '12px'}}>
                 {socialLinks.map((social) => (
@@ -167,7 +175,7 @@ const MobileContactPage: React.FC = () => {
                       padding: '10px 14px',
                       color: 'white',
                       fontSize: '14px',
-                      fontWeight: '600',
+                      fontWeight: '400',
                       cursor: 'pointer',
                       minWidth: '100px',
                       justifyContent: 'center'
@@ -191,15 +199,12 @@ const MobileContactPage: React.FC = () => {
                 </h3>
               </div>
 
-              <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                <i className="fas fa-calendar-week" style={{color: '#FFD700'}}></i>
-                <div>
-                  <div style={{fontSize: '16px', fontWeight: '600', color: 'white', marginBottom: '4px'}}>
-                    9am to 5pm
-                  </div>
-                  <div style={{fontSize: '14px', color: 'rgba(255,255,255,0.7)'}}>
-                    Mondays to Fridays Only
-                  </div>
+              <div>
+                <div style={{fontSize: '16px', fontWeight: '600', color: 'white', marginBottom: '4px'}}>
+                  9am to 5pm
+                </div>
+                <div style={{fontSize: '14px', color: 'rgba(255,255,255,0.7)'}}>
+                  Mondays to Fridays Only
                 </div>
               </div>
             </div>

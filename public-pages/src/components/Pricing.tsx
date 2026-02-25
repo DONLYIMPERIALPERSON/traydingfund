@@ -294,7 +294,7 @@ export default function Pricing() {
                                     </div>
 
                                     <a href="https://app.nairatrader.com" className="block w-full mt-2">
-                                        <button className="w-full text-sm py-2.5 font-bold text-black bg-yellow-300 hover:bg-yellow-400 rounded-full transition-all" disabled={status === 'Paused'}>
+                                        <button className="w-full text-sm py-2.5 font-bold text-black bg-white hover:bg-gray-100 rounded-full transition-all" disabled={status === 'Paused'}>
                                             {status === 'Paused' ? 'Paused' : 'Start Now'}
                                         </button>
                                     </a>
@@ -336,7 +336,7 @@ export default function Pricing() {
                                     </div>
 
                                     <a href="https://app.nairatrader.com" className="block w-full mt-2">
-                                        <button className="w-full text-xs py-2 text-black bg-yellow-300 hover:bg-yellow-400 rounded-full transition-all" disabled={status === 'Paused'}>
+                                        <button className="w-full text-xs py-2 text-black bg-white hover:bg-gray-100 rounded-full transition-all" disabled={status === 'Paused'}>
                                             {status === 'Paused' ? 'Paused' : 'Start Now'}
                                         </button>
                                     </a>

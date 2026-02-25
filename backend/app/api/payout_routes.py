@@ -14,7 +14,7 @@ from app.models.mt5_account import MT5Account
 from app.models.mt5_refresh_job import MT5RefreshJob, RefreshReason, RefreshStatus
 from app.services.challenge_objectives import compute_funded_payout_metrics, get_plan_for_account_size, _to_percent_number
 from app.services.palmpay_service import create_payout_order, query_payout_status
-from app.services.email_service import send_payout_notification
+from app.tasks import send_payout_notification
 from app.services.certificate_service import certificate_service
 from app.data.banks import NIGERIAN_BANKS
 from app.schemas.payout import (
@@ -389,7 +389,7 @@ async def request_payout(
                 f"Bank Account: ****{bank_account.bank_account_number[-4:]}\n\n"
                 f"You will receive an email notification once the payout is completed."
             )
-        send_payout_notification(to_email=current_user.email, message=message)
+        send_payout_notification.delay(to_email=current_user.email, message=message)
     except Exception:
         # Don't fail payout request if email fails
         pass
@@ -551,7 +551,7 @@ async def payout_notify(request: Request, db: Session = Depends(get_db)):
                     f"{payout_order.payer_virtual_acc_no[-4:] if payout_order.payer_virtual_acc_no else '****'}.\n\n"
                     f"Thank you for trading with NairaTrader!"
                 )
-                send_payout_notification(to_email=user.email, subject="Payout Completed", message=message)
+                send_payout_notification.delay(to_email=user.email, subject="Payout Completed", message=message)
         except Exception:
             # Don't fail the callback if email fails
             pass
@@ -569,7 +569,7 @@ async def payout_notify(request: Request, db: Session = Depends(get_db)):
                     f"Please contact our support team for assistance.\n\n"
                     f"We're sorry for the inconvenience."
                 )
-                send_payout_notification(to_email=user.email, subject="Payout Failed", message=message)
+                send_payout_notification.delay(to_email=user.email, subject="Payout Failed", message=message)
         except Exception:
             pass
 

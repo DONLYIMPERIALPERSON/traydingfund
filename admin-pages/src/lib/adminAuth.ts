@@ -124,6 +124,7 @@ export type ChallengeAccountListItem = {
   breached_reason?: string | null
   breached_at?: string | null
   passed_at?: string | null
+  current_pnl?: string
   // Additional fields for profitable accounts
   rank?: number
   profit?: string

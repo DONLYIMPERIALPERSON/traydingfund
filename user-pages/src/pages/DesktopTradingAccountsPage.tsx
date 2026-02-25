@@ -129,7 +129,6 @@ const DesktopTradingAccountsPage: React.FC = () => {
                 <div className="spec-row"><span className="spec-label">Max Drawdown</span><span className="spec-value">{getDisplayValue(account.size, account.drawdown)}</span></div>
                 <div className="spec-row"><span className="spec-label">Target</span><span className="spec-value">{getDisplayValue(account.size, account.target)}</span></div>
                 <div className="spec-row"><span className="spec-label">Phases</span><span className="spec-value">{account.phases}</span></div>
-                <div className="spec-row"><span className="spec-label">Min. Trading Days</span><span className="spec-value">{account.days}</span></div>
                 <div className="spec-row"><span className="spec-label">Profit Split</span><span className="spec-value">{account.profit_split}</span></div>
 
                 {account.profit_cap && (
@@ -151,7 +150,7 @@ const DesktopTradingAccountsPage: React.FC = () => {
                   </div>
                 )}
 
-                <div className="spec-row"><span className="spec-label">Payout</span><span className="spec-value">{account.payout}</span></div>
+                <div className="spec-row"><span className="spec-label">Payout</span><span className="spec-value">1 Minute</span></div>
                 <div className="spec-row"><span className="spec-label">Fee</span><span className="spec-value fee">{account.fee}</span></div>
               </div>
 

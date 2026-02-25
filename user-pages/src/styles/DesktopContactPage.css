@@ -8,23 +8,23 @@
 
 .contact-page .page-header {
   margin-bottom: 32px;
-  text-align: left !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: flex-start !important;
-  justify-content: flex-start !important;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .contact-page .page-header h1 {
   font-size: 32px;
   font-weight: 700;
   color: #333;
-  margin-bottom: 8px !important;
-  text-align: left !important;
-  display: block !important;
-  width: 100% !important;
-  clear: both !important;
-  float: none !important;
+  margin-bottom: 8px;
+  text-align: center;
+  display: block;
+  width: 100%;
+  clear: both;
+  float: none;
 }
 
 .contact-page .back-button {
@@ -68,6 +68,22 @@
   width: 100%;
 }
 
+.contact-page .contact-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+@media (min-width: 768px) {
+  .contact-page .contact-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .contact-page .community-card {
+    grid-column: 1 / -1;
+  }
+}
+
 /* Contact Cards */
 .contact-page .contact-card {
   background-color: white;
@@ -87,7 +103,7 @@
 }
 
 .contact-page .card-header i {
-  color: #FFD700;
+  color: #000;
   font-size: 24px;
   width: 24px;
   text-align: center;
@@ -107,14 +123,7 @@
 
 /* Location Info */
 .contact-page .location-info {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.contact-page .location-info i {
-  color: #FFD700;
-  margin-top: 2px;
+  margin-bottom: 24px;
 }
 
 .contact-page .location-title {
@@ -163,18 +172,18 @@
 }
 
 .contact-page .phone-button.calls {
-  background: rgba(255,255,255,0.05);
-  border-color: rgba(255,255,255,0.1);
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
   color: #333;
 }
 
 .contact-page .phone-button.calls:hover {
-  background: rgba(255,255,255,0.1);
-  border-color: rgba(255,255,255,0.2);
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.4);
 }
 
 .contact-page .phone-button.calls i {
-  color: #FFD700;
+  color: #000;
 }
 
 .contact-page .phone-button.whatsapp {
@@ -189,7 +198,7 @@
 }
 
 .contact-page .phone-button.whatsapp i {
-  color: #25D366;
+  color: #000;
 }
 
 /* Community Section */
@@ -228,14 +237,19 @@
 }
 
 /* Working Hours */
-.contact-page .hours-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.contact-page .hours-section {
+  width: 100%;
 }
 
-.contact-page .hours-info i {
-  color: #FFD700;
+.contact-page .hours-header {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 16px;
+}
+
+.contact-page .hours-info {
+  margin-top: 8px;
 }
 
 .contact-page .hours-time {

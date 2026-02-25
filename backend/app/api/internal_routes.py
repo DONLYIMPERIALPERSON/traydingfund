@@ -1,7 +1,8 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import APIKeyHeader
-from sqlalchemy import or_, select, update
+from sqlalchemy import and_, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -74,6 +75,7 @@ def internal_feed_update(
         balance=payload.balance,
         equity=payload.equity,
         closed_trade_durations_seconds=payload.closed_trade_durations_seconds,
+        trades=payload.trades,
         scalping_breach_increment=payload.scalping_breach_increment,
         equity_breach_signal=payload.equity_breach_signal,
         balance_breach_signal=payload.balance_breach_signal,
@@ -88,8 +90,7 @@ def internal_feed_update(
     )
 
     # Update last_feed_at timestamp
-    from datetime import datetime
-    updated_challenge.last_feed_at = datetime.now(datetime.timezone.utc)
+    updated_challenge.last_feed_at = datetime.now(timezone.utc)
     db.commit()
     return {"status": "ok"}
 
@@ -141,11 +142,24 @@ def get_refresh_jobs(
             detail="X-Engine-Id header required",
         )
 
-    # Atomically claim queued jobs
+    # Atomically claim queued jobs and orphaned processing jobs
+    # Orphaned processing jobs: started > 10 minutes ago or no engine_id
+    ten_minutes_ago = datetime.now(timezone.utc) - timedelta(minutes=10)
     jobs_query = (
-        select(MT5RefreshJob.id, MT5Account.account_number, MT5Account.server, MT5Account.investor_password)
+        select(MT5RefreshJob.id, MT5Account.account_number, MT5Account.server, MT5Account.investor_password.label("password"))
         .join(MT5Account, MT5RefreshJob.account_number == MT5Account.account_number)
-        .where(MT5RefreshJob.status == RefreshStatus.queued)
+        .where(
+            or_(
+                MT5RefreshJob.status == RefreshStatus.queued,
+                and_(
+                    MT5RefreshJob.status == RefreshStatus.processing,
+                    or_(
+                        MT5RefreshJob.engine_id.is_(None),
+                        MT5RefreshJob.started_at < ten_minutes_ago
+                    )
+                )
+            )
+        )
         .order_by(MT5RefreshJob.requested_at.asc())
         .limit(limit)
         .with_for_update(skip_locked=True)
@@ -162,7 +176,7 @@ def get_refresh_jobs(
             .values(
                 status=RefreshStatus.processing,
                 engine_id=engine_id,
-                started_at=datetime.now(datetime.timezone.utc),
+                started_at=datetime.now(timezone.utc),
             )
         )
         db.commit()
@@ -191,7 +205,7 @@ def complete_refresh_job(
         )
 
     job.status = payload.status
-    job.finished_at = datetime.now(datetime.timezone.utc)
+    job.finished_at = datetime.now(timezone.utc)
     if payload.error:
         job.error = payload.error
 

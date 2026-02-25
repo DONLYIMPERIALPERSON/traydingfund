@@ -39,7 +39,7 @@ from app.services.challenge_objectives import (
     compute_win_rate,
     is_min_trading_days_met,
 )
-from app.services.email_service import send_kyc_approved_email
+from app.tasks import send_kyc_approved_email
 from app.data.banks import NIGERIAN_BANKS
 from app.services.palmpay_service import PalmPayQueryError, query_bank_account_name
 
@@ -300,7 +300,7 @@ def submit_kyc(
     db.refresh(current_user)
 
     try:
-        send_kyc_approved_email(
+        send_kyc_approved_email.delay(
             to_email=current_user.email,
             account_name=row.account_name,
             bank_name=bank["bank_name"],
@@ -551,6 +551,8 @@ def get_my_challenge_account_detail(
         breached_at=challenge.breached_at.isoformat() if challenge.breached_at else None,
         passed_at=challenge.passed_at.isoformat() if challenge.passed_at else None,
         mt5_account=mt5.account_number if mt5 else None,
+        last_feed_at=challenge.last_feed_at.isoformat() if challenge.last_feed_at else None,
+        last_refresh_requested_at=challenge.last_refresh_requested_at.isoformat() if challenge.last_refresh_requested_at else None,
         metrics=UserChallengeMetrics(
             balance=round(balance, 2),
             equity=round(equity, 2),
@@ -632,7 +634,22 @@ def refresh_challenge_account(
     if not mt5:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No active MT5 account found for this challenge")
 
-    # Create refresh job
+    # Check if there's already an active refresh job for this account
+    existing_job = db.scalar(
+        select(MT5RefreshJob)
+        .where(MT5RefreshJob.account_number == mt5.account_number)
+        .where(MT5RefreshJob.status.in_(["queued", "processing"]))
+        .order_by(MT5RefreshJob.requested_at.desc())
+    )
+
+    if existing_job:
+        # Update challenge's last refresh request time even for existing jobs
+        challenge.last_refresh_requested_at = now
+        db.add(challenge)
+        db.commit()
+        return ChallengeRefreshResponse(status="already_queued", job_id=existing_job.id)
+
+    # Create new refresh job
     job = MT5RefreshJob(
         account_number=mt5.account_number,
         reason=RefreshReason.user_refresh,
@@ -647,5 +664,6 @@ def refresh_challenge_account(
     db.add(challenge)
 
     db.commit()
+    db.refresh(job)
 
-    return ChallengeRefreshResponse(status="queued")
+    return ChallengeRefreshResponse(status="queued", job_id=job.id)

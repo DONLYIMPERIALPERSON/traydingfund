@@ -65,10 +65,8 @@
 }
 
 .support-page .support-content {
-  display: grid;
-  grid-template-columns: 1fr 400px;
-  gap: 32px;
-  height: calc(100vh - 200px);
+  display: block;
+  margin-bottom: 40px;
 }
 
 /* Chat Section */
@@ -85,7 +83,7 @@
 .support-page .chat-header {
   padding: 20px 24px;
   border-bottom: 1px solid #e0e0e0;
-  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  background: #000;
   color: white;
   display: flex;
   align-items: center;
@@ -423,8 +421,8 @@
 }
 
 .support-page .start-new-chat-btn {
-  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
-  color: #000;
+  background: #000;
+  color: #fff;
   border: none;
   padding: 12px 24px;
   border-radius: 8px;
@@ -435,13 +433,13 @@
   align-items: center;
   gap: 8px;
   transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(255,215,0,0.3);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 .support-page .start-new-chat-btn:hover {
-  background: linear-gradient(135deg, #FFC107 0%, #FF8C00 100%);
+  background: #333;
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(255,215,0,0.4);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.4);
 }
 
 .support-page .start-new-chat-btn i {

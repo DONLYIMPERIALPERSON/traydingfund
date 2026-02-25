@@ -58,39 +58,38 @@
 }
 
 .submit-button {
-  width: 100%;
-  padding: 12px 16px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 600;
-  background: #facc15;
-  color: #000;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(250, 204, 21, 0.3);
+  width: 100% !important;
+  padding: 12px 16px !important;
+  border-radius: 12px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  background: #ffffff !important;
+  color: #000 !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3) !important;
 }
 
 .submit-button:hover:not(:disabled) {
-  background: #fde047;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(250, 204, 21, 0.4);
+  background: #f5f5f5 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 16px rgba(255, 255, 255, 0.4) !important;
 }
 
 /* Style inner custom auth area without affecting the rest of the app */
 .form-content .naira-auth-stack .form-input {
   width: 100% !important;
-  background: rgba(255, 255, 255, 0.98) !important;
-  border: 2px solid rgba(250, 204, 21, 0.4) !important;
+  background: transparent !important;
+  border: 2px solid rgba(255, 255, 255, 0.5) !important;
   border-radius: 12px !important;
   padding: 16px 20px !important;
   font-size: 16px !important;
   font-weight: 500 !important;
-  color: #1f2937 !important;
+  color: #ffffff !important;
   transition: all 0.2s ease !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
-  outline: 4px solid rgba(255, 255, 255, 0.95) !important;
-  outline-offset: 0px !important;
+  box-shadow: none !important;
+  outline: none !important;
 }
 
 .form-content .naira-auth-stack .form-input:focus {
@@ -153,8 +152,8 @@
   box-sizing: border-box;
   padding: 12px 12px 12px 40px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  background: transparent;
   color: #fff;
   font-size: 14px;
 }
@@ -170,21 +169,21 @@
 }
 
 .mobile-auth-page .submit-button {
-  width: 100%;
-  margin-bottom: 0;
-  margin-top: 2px;
-  margin-bottom: 8px;
-  border-radius: 12px;
-  padding: 12px 14px;
-  font-size: 14px;
-  font-weight: 600;
-  background: #facc15;
-  color: #000;
-  box-shadow: 0 8px 20px rgba(250, 204, 21, 0.25);
+  width: 100% !important;
+  margin-bottom: 0 !important;
+  margin-top: 2px !important;
+  margin-bottom: 8px !important;
+  border-radius: 12px !important;
+  padding: 12px 14px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  background: #ffffff !important;
+  color: #000 !important;
+  box-shadow: 0 8px 20px rgba(255, 255, 255, 0.25) !important;
 }
 
 .mobile-auth-page .submit-button:hover {
-  background: #fde047;
+  background: #f5f5f5 !important;
 }
 
 .submit-button:disabled,
@@ -215,4 +214,40 @@
 .mobile-auth-page .naira-auth-error {
   margin-top: 8px;
   border-radius: 12px;
+}
+
+/* Make the auth container background transparent to match page */
+.descope-auth-container {
+  background: transparent !important;
+}
+
+.descope-auth-container .descope-container {
+  background: transparent !important;
+}
+
+.descope-auth-container .descope-screen {
+  background: transparent !important;
+}
+
+/* Remove yellow gradients from specific Descope elements */
+.descope-auth-container .descope-screen[style*="background"] {
+  background: transparent !important;
+}
+
+.descope-auth-container [class*="gradient"],
+.descope-auth-container [class*="Gradient"] {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+/* Target all background gradients and images */
+.descope-auth-container * {
+  background-image: none !important;
+}
+
+.descope-auth-container [style*="background-image"],
+.descope-auth-container [style*="linear-gradient"],
+.descope-auth-container [style*="radial-gradient"] {
+  background-image: none !important;
+  background: transparent !important;
 }

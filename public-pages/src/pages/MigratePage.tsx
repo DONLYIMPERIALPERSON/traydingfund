@@ -26,7 +26,7 @@ const MigratePage = () => {
 
 	// Migration states
 	const [migrationRequests, setMigrationRequests] = useState<MigrationRequest[]>([]);
-	const [requestType, setRequestType] = useState<'phase2' | 'funded'>('phase2');
+	const [requestType, setRequestType] = useState<'phase2' | 'funded' | 'funded_request'>('phase2');
 	const [accountSize, setAccountSize] = useState('');
 	const [mt5Server, setMt5Server] = useState('');
 	const [mt5AccountNumber, setMt5AccountNumber] = useState('');
@@ -275,18 +275,26 @@ const MigratePage = () => {
 			`
 		}}>
 			<div className="max-w-6xl mx-auto">
-			<div className="text-center mb-12">
-				<div className="flex justify-between items-center mb-4">
-					<div></div>
-					<h1 className="text-4xl md:text-5xl font-bold text-white">Account Migration Portal</h1>
-					<button
-						onClick={handleLogout}
-						className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-					>
-						Logout
-					</button>
+			{/* Dashboard Header */}
+			<div className="bg-black/40 backdrop-blur-md border border-yellow-500/20 rounded-2xl p-6 mb-8">
+				<div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+					<div>
+						<h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Account Migration Portal</h1>
+						<p className="text-gray-300 text-lg">Move from the old NairaTrader.is to the new NairaTrader.com</p>
+					</div>
+					<div className="flex items-center gap-4">
+						<div className="flex items-center gap-3 px-4 py-2 bg-green-900/30 border border-green-500/30 rounded-lg">
+							<div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+							<span className="text-green-300 text-sm font-medium">Online</span>
+						</div>
+						<button
+							onClick={handleLogout}
+							className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-red-500/25 font-medium"
+						>
+							Logout
+						</button>
+					</div>
 				</div>
-				<p className="text-gray-300 text-lg">Welcome to your account migration dashboard</p>
 			</div>
 
 				{/* Migration Requests Status */}
@@ -303,7 +311,9 @@ const MigratePage = () => {
 									<div className="flex justify-between items-center">
 										<div>
 											<p className="font-medium text-white text-lg">
-												{request.request_type === 'phase2' ? 'Phase 2' : 'Funded'} Migration - {request.account_size}
+												{request.request_type === 'phase2' ? 'Phase 2' :
+												 request.request_type === 'funded_request' ? 'Funded Account' :
+												 'Payout'} - {request.account_size}
 											</p>
 											<p className="text-sm text-gray-400 mt-1">
 												Submitted: {new Date(request.created_at).toLocaleDateString()}
@@ -337,32 +347,49 @@ const MigratePage = () => {
 					<h2 className="text-2xl font-semibold mb-8 text-white">Request Account Migration</h2>
 
 					<div className="space-y-8">
-						{/* Request Type Selection */}
+						{/* Request Type Selection - Tab Style */}
 						<div>
-							<label className="block text-sm font-medium text-gray-300 mb-4">
-								Migration Type
+							<label className="block text-sm font-medium text-gray-300 mb-6">
+								Choose Migration Type
 							</label>
-							<div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-6">
-								<label className="flex items-center text-white">
-									<input
-										type="radio"
-										value="phase2"
-										checked={requestType === 'phase2'}
-										onChange={(e) => setRequestType(e.target.value as 'phase2')}
-										className="mr-3 w-4 h-4 text-yellow-300 bg-gray-700 border-gray-600 focus:ring-yellow-300"
-									/>
-									Phase 2 Migration
-								</label>
-								<label className="flex items-center text-white">
-									<input
-										type="radio"
-										value="funded"
-										checked={requestType === 'funded'}
-										onChange={(e) => setRequestType(e.target.value as 'funded')}
-										className="mr-3 w-4 h-4 text-yellow-300 bg-gray-700 border-gray-600 focus:ring-yellow-300"
-									/>
-									Funded Account Migration
-								</label>
+							<div className="flex flex-wrap gap-2 p-1 bg-gray-800/50 rounded-xl border border-gray-600/50 backdrop-blur-sm">
+								<button
+									onClick={() => setRequestType('phase2')}
+									className={`flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+										requestType === 'phase2'
+											? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/25'
+											: 'text-gray-300 hover:text-white hover:bg-gray-700/50'
+									}`}
+								>
+									Phase 2 Request
+								</button>
+								<button
+									onClick={() => setRequestType('funded_request')}
+									className={`flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+										requestType === 'funded_request'
+											? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/25'
+											: 'text-gray-300 hover:text-white hover:bg-gray-700/50'
+									}`}
+								>
+									Funded Account Request
+								</button>
+								<button
+									onClick={() => setRequestType('funded')}
+									className={`flex-1 min-w-0 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+										requestType === 'funded'
+											? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/25'
+											: 'text-gray-300 hover:text-white hover:bg-gray-700/50'
+									}`}
+								>
+									Payout Request
+								</button>
+							</div>
+							<div className="mt-4 p-4 bg-gray-800/30 rounded-lg border border-gray-600/30">
+								<p className="text-sm text-gray-400">
+									{requestType === 'phase2' && 'Basic account migration - Transfer your existing trading account to our platform.'}
+									{requestType === 'funded_request' && 'Request a funded account - Get access to our proprietary trading capital.'}
+									{requestType === 'funded' && 'Withdrawal & payout - Transfer funds from your trading account to your bank.'}
+								</p>
 							</div>
 						</div>
 
@@ -388,14 +415,14 @@ const MigratePage = () => {
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 							<div>
 								<label className="block text-sm font-medium text-gray-300 mb-3">
-									MT5 Server
+									Order Number
 								</label>
 								<input
 									type="text"
 									value={mt5Server}
 									onChange={(e) => setMt5Server(e.target.value)}
 									className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-yellow-300 focus:border-transparent backdrop-blur-sm"
-									placeholder="e.g., ICMarkets-Demo"
+									placeholder="Enter your order number"
 									required
 								/>
 							</div>

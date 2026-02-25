@@ -18,10 +18,10 @@ const DesktopContactPage: React.FC = () => {
   }
 
   const socialLinks = [
-    { name: 'Discord', icon: 'fab fa-discord', color: '#5865F2', url: 'https://discord.com/invite/WyPx9cm7R7' },
-    { name: 'Telegram', icon: 'fab fa-telegram', color: '#0088CC', url: 'https://t.me/nairatrader' },
+    { name: 'Discord', icon: 'fab fa-discord', color: '#000000', url: 'https://discord.com/invite/WyPx9cm7R7' },
+    { name: 'Telegram', icon: 'fab fa-telegram', color: '#000000', url: 'https://t.me/nairatrader' },
     { name: 'TikTok', icon: 'fab fa-tiktok', color: '#000000', url: 'https://www.tiktok.com/@nairatrader_FX' },
-    { name: 'X', icon: 'fab fa-x-twitter', color: '#000000', url: 'https://x.com/naira_trader' }
+    { name: 'X (formerly Twitter)', icon: 'fab fa-x-twitter', color: '#000000', url: 'https://x.com/naira_trader' }
   ]
 
   return (
@@ -51,90 +51,83 @@ const DesktopContactPage: React.FC = () => {
 
         {/* Contact Content */}
         <div className="contact-content">
-          {/* Head Office */}
-          <div className="contact-card">
-            <div className="card-header">
-              <i className="fas fa-building"></i>
-              <h3>Head Office</h3>
-            </div>
-            <div className="card-content">
-              <div className="location-info">
-                <i className="fas fa-map-marker-alt"></i>
-                <div>
-                  <div className="location-title">Location</div>
-                  <div className="location-address">2, Akin Osiyemi, Allen Avenue.</div>
+          <div className="contact-grid">
+            {/* Head Office */}
+            <div className="contact-card">
+              <div className="card-header">
+                <i className="fas fa-building"></i>
+                <h3>Head Office</h3>
+              </div>
+              <div className="card-content">
+                <div className="location-info">
+                  <div>
+                    <div className="location-title">Location</div>
+                    <div className="location-address">2, Akin Osiyemi, Allen Avenue.</div>
+                  </div>
+                </div>
+                <div className="hours-section">
+                  <div className="hours-header">Working Hours</div>
+                  <div className="hours-info">
+                    <div>
+                      <div className="hours-time">9am to 5pm</div>
+                      <div className="hours-days">Mondays to Fridays Only</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Phone Numbers */}
-          <div className="contact-card">
-            <div className="card-header">
-              <i className="fas fa-phone"></i>
-              <h3>Phone Numbers</h3>
-            </div>
-            <div className="card-content">
-              {/* Calls Only */}
-              <div className="phone-section">
-                <div className="phone-label">CALLS ONLY</div>
-                <button
-                  onClick={() => handleCall('08021495027')}
-                  className="phone-button calls"
-                >
-                  <span>08021495027</span>
-                  <i className="fas fa-phone"></i>
-                </button>
+            {/* Phone Numbers */}
+            <div className="contact-card">
+              <div className="card-header">
+                <i className="fas fa-phone"></i>
+                <h3>Phone Numbers</h3>
               </div>
-
-              {/* WhatsApp Only */}
-              <div className="phone-section">
-                <div className="phone-label">WHATSAPP ONLY</div>
-                <button
-                  onClick={() => handleWhatsApp('09040001503')}
-                  className="phone-button whatsapp"
-                >
-                  <span>09040001503</span>
-                  <i className="fab fa-whatsapp"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Community */}
-          <div className="contact-card">
-            <div className="card-header">
-              <i className="fas fa-users"></i>
-              <h3>Join Our Live Community</h3>
-            </div>
-            <div className="card-content">
-              <div className="social-links">
-                {socialLinks.map((social) => (
+              <div className="card-content">
+                {/* Calls Only */}
+                <div className="phone-section">
+                  <div className="phone-label">CALLS ONLY</div>
                   <button
-                    key={social.name}
-                    className="social-button"
-                    onClick={() => handleOpenLink(social.url)}
+                    onClick={() => handleCall('08021495027')}
+                    className="phone-button calls"
                   >
-                    <i className={social.icon} style={{color: social.color}}></i>
-                    <span>{social.name}</span>
+                    <span>08021495027</span>
+                    <i className="fas fa-phone"></i>
                   </button>
-                ))}
+                </div>
+
+                {/* WhatsApp Only */}
+                <div className="phone-section">
+                  <div className="phone-label">WHATSAPP ONLY</div>
+                  <button
+                    onClick={() => handleWhatsApp('09040001503')}
+                    className="phone-button whatsapp"
+                  >
+                    <span>09040001503</span>
+                    <i className="fab fa-whatsapp"></i>
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Working Hours */}
-          <div className="contact-card">
-            <div className="card-header">
-              <i className="fas fa-clock"></i>
-              <h3>Working Hours</h3>
-            </div>
-            <div className="card-content">
-              <div className="hours-info">
-                <i className="fas fa-calendar-week"></i>
-                <div>
-                  <div className="hours-time">9am to 5pm</div>
-                  <div className="hours-days">Mondays to Fridays Only</div>
+            {/* Community */}
+            <div className="contact-card community-card">
+              <div className="card-header">
+                <i className="fas fa-users"></i>
+                <h3>Join Our Live Community</h3>
+              </div>
+              <div className="card-content">
+                <div className="social-links">
+                  {socialLinks.map((social) => (
+                    <button
+                      key={social.name}
+                      className="social-button"
+                      onClick={() => handleOpenLink(social.url)}
+                    >
+                      <i className={social.icon} style={{color: social.color}}></i>
+                      <span>{social.name}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>

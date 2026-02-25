@@ -103,7 +103,7 @@ def _assign_phase1_account_for_paid_order(db: Session, order: PaymentOrder) -> s
                     f"You will receive an email notification as soon as your account is ready and assigned.\n\n"
                     f"Thank you for your patience!"
                 )
-                send_welcome_email(to_email=user.email, message=message)
+                send_welcome_email.delay(to_email=user.email, message=message)
             except Exception:
                 # Don't fail the payment process if email fails
                 pass
@@ -165,7 +165,7 @@ def _assign_phase1_account_for_paid_order(db: Session, order: PaymentOrder) -> s
                 f"You can now log in to your MT5 platform and start trading. "
                 f"Good luck with your challenge!"
             )
-            send_welcome_email(to_email=user.email, message=message)
+            send_welcome_email.delay(to_email=user.email, message=message)
         except Exception:
             # Don't fail the payment process if email fails
             pass

@@ -57,7 +57,7 @@ export default function CTA() {
                                 <img
                                     src="/no.2.svg"
                                     alt="Trading objectives preview"
-                                    className="absolute inset-0 w-full h-full object-contain object-bottom block"
+                                    className="absolute inset-0 w-full h-full object-contain object-bottom block scale-125"
                                 />
                             </div>
                         </div>
@@ -90,8 +90,8 @@ export default function CTA() {
                     <a href="/#pricing" className="w-full sm:w-auto">
                         <PrimaryButton className="w-full sm:w-auto">Start a Challenge</PrimaryButton>
                     </a>
-                    <a href="/faq" className="w-full sm:w-auto">
-                        <GhostButton className="w-full sm:w-auto justify-center">FAQ</GhostButton>
+                    <a href="/rules" className="w-full sm:w-auto">
+                        <GhostButton className="w-full sm:w-auto justify-center">Rules</GhostButton>
                     </a>
                 </div>
 

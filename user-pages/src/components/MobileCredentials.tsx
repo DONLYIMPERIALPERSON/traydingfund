@@ -21,9 +21,8 @@ const MobileCredentials: React.FC<MobileCredentialsProps> = ({
   return (
     <div className="section">
       <div className="credentials-title">
-        <i className="fas fa-lock" style={{color: '#FFD700', fontSize: '18px'}}></i>
         <span className="text-small" style={{color: 'rgba(255,255,255,0.7)'}}>Login credentials</span>
-        <span style={{marginLeft: 'auto', background: 'rgba(255,215,0,0.1)', padding: '4px 10px', borderRadius: '40px', fontSize: '12px', color: '#FFD700'}}>
+        <span style={{marginLeft: 'auto', background: '#28a745', padding: '4px 10px', borderRadius: '40px', fontSize: '12px', color: '#000'}}>
           <i className="fas fa-shield"></i> encrypted
         </span>
       </div>

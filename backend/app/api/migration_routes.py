@@ -42,10 +42,10 @@ def create_migration_request(
         )
 
     # Validate request type
-    if request.request_type not in ["phase2", "funded"]:
+    if request.request_type not in ["phase2", "funded", "funded_request"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid request type. Must be 'phase2' or 'funded'"
+            detail="Invalid request type. Must be 'phase2', 'funded', or 'funded_request'"
         )
 
     # For funded requests, bank details are required

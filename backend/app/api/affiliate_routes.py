@@ -33,9 +33,9 @@ from app.schemas.affiliate import (
 
 router = APIRouter(prefix="/affiliate", tags=["Affiliate"])
 
-# Milestone targets (same as WordPress plugin)
-MILESTONE_TARGETS = [20, 30, 40, 50]
-REWARD_AMOUNTS = [600000, 800000, 1500000, 1500000]  # ₦600k, ₦800k, ₦1.5m, ₦1.5m
+# Milestone targets for referral rewards
+MILESTONE_TARGETS = [5, 15, 30, 50]
+REWARD_AMOUNTS = [200000, 400000, 600000, 800000]  # ₦200k, ₦400k, ₦600k, ₦800k
 
 
 def _ensure_affiliate_row(db: Session, user_id: int) -> Affiliate:

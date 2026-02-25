@@ -59,13 +59,25 @@
 
 /* Style inner custom auth area without affecting the rest of the app */
 .form-content .naira-auth-stack .form-input {
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(255, 215, 0, 0.45);
+  background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  color: #fff;
 }
 
 .form-content .naira-auth-stack .form-input:focus {
-  border-color: #facc15;
-  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.2);
+  border-color: rgba(250, 204, 21, 0.95);
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.18);
+}
+
+/* Style buttons for form-content (desktop login) */
+.form-content .naira-auth-stack .submit-button {
+  background: #ffffff;
+  color: #000;
+  box-shadow: 0 8px 20px rgba(255, 255, 255, 0.25);
+}
+
+.form-content .naira-auth-stack .submit-button:hover {
+  background: #f5f5f5;
 }
 
 @media (max-width: 768px) {
@@ -119,8 +131,8 @@
   box-sizing: border-box;
   padding: 12px 12px 12px 40px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  background: transparent;
   color: #fff;
   font-size: 14px;
 }
@@ -144,13 +156,13 @@
   padding: 12px 14px;
   font-size: 14px;
   font-weight: 600;
-  background: #facc15;
+  background: #ffffff;
   color: #000;
-  box-shadow: 0 8px 20px rgba(250, 204, 21, 0.25);
+  box-shadow: 0 8px 20px rgba(255, 255, 255, 0.25);
 }
 
 .mobile-auth-page .submit-button:hover {
-  background: #fde047;
+  background: #f5f5f5;
 }
 
 .submit-button:disabled,
