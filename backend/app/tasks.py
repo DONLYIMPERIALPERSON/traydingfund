@@ -10,7 +10,16 @@ from app.services.email_service import (
     send_kyc_approved_email as sync_send_kyc_approved_email,
     send_announcement_email as sync_send_announcement_email,
 )
-from app.services.challenge_objectives import process_challenge_feed
+from app.models.challenge_account import ChallengeAccount
+from app.models.mt5_account import MT5Account
+from app.models.user import User
+from app.services.challenge_objectives import (
+    process_challenge_feed,
+    compute_max_permitted_loss_left,
+    compute_unrealized_pnl,
+    compute_win_rate,
+    is_min_trading_days_met,
+)
 from app.db.session import SessionLocal
 from datetime import datetime
 
