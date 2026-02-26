@@ -13,6 +13,7 @@ from app.models.user_bank_account import UserBankAccount
 from app.models.payment_order import PaymentOrder
 from app.models.certificate import Certificate
 from app.models.email_log import EmailLog
+from app.models.support import SupportChat, SupportMessage
 
 __all__ = [
     "User",
@@ -28,4 +29,6 @@ __all__ = [
     "PaymentOrder",
     "Certificate",
     "EmailLog",
+    "SupportChat",
+    "SupportMessage",
 ]
