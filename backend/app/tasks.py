@@ -1,4 +1,4 @@
-from celery import shared_task
+from app.core.celery import celery_app
 from app.services.email_service import (
     send_pin_otp_email as sync_send_pin_otp_email,
     send_payout_notification as sync_send_payout_notification,
@@ -14,43 +14,43 @@ from app.services.challenge_objectives import process_challenge_feed
 from app.db.session import SessionLocal
 from datetime import datetime
 
-@shared_task
+@celery_app.task
 def send_pin_otp_email(to_email: str, otp_code: str):
     sync_send_pin_otp_email(to_email=to_email, otp_code=otp_code)
 
-@shared_task
+@celery_app.task
 def send_payout_notification(to_email: str, subject: str, message: str):
     sync_send_payout_notification(to_email=to_email, subject=subject, message=message)
 
-@shared_task
+@celery_app.task
 def send_admin_settings_otp_email(to_email: str, otp_code: str):
     sync_send_admin_settings_otp_email(to_email=to_email, otp_code=otp_code)
 
-@shared_task
+@celery_app.task
 def send_welcome_email(to_email: str, message: str):
     sync_send_welcome_email(to_email=to_email, message=message)
 
-@shared_task
+@celery_app.task
 def send_challenge_pass_email(to_email: str, message: str):
     sync_send_challenge_pass_email(to_email=to_email, message=message)
 
-@shared_task
+@celery_app.task
 def send_challenge_breach_email(to_email: str, message: str):
     sync_send_challenge_breach_email(to_email=to_email, message=message)
 
-@shared_task
+@celery_app.task
 def send_challenge_objective_email(to_email: str, subject: str, message: str):
     sync_send_challenge_objective_email(to_email=to_email, subject=subject, message=message)
 
-@shared_task
+@celery_app.task
 def send_kyc_approved_email(to_email: str, account_name: str, bank_name: str, bank_account_number: str):
     sync_send_kyc_approved_email(to_email=to_email, account_name=account_name, bank_name=bank_name, bank_account_number=bank_account_number)
 
-@shared_task
+@celery_app.task
 def send_announcement_email(to_emails: list[str], subject: str, message: str):
     sync_send_announcement_email(to_emails=to_emails, subject=subject, message=message)
 
-@shared_task(bind=True, max_retries=3)
+@celery_app.task(bind=True, max_retries=3)
 def process_mt5_feed(
     self,
     challenge_id: str,
