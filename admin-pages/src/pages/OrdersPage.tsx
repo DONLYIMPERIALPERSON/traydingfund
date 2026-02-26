@@ -7,6 +7,7 @@ interface OrdersPageProps {
 }
 
 const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
+  const pageSize = 10
   const [statsPeriod, setStatsPeriod] = useState<'today' | 'week' | 'month'>('week')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [stats, setStats] = useState<OrderStats | null>(null)
@@ -31,7 +32,7 @@ const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
   const loadOrders = async (page: number = 1, period: 'today' | 'week' | 'month' = statsPeriod, statusFilterParam: string = statusFilter) => {
     try {
       setLoading(true)
-      const data = await fetchOrders(page, 50, period, statusFilterParam || undefined)
+      const data = await fetchOrders(page, pageSize, period, statusFilterParam || undefined)
       setOrders(data.orders)
       setTotalPages(data.pagination.pages)
       setCurrentPage(data.pagination.page)
@@ -193,7 +194,16 @@ const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
                     </td>
                     <td>{order.net_amount_formatted}</td>
                     <td>
-                      {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A'}
+                      {order.created_at ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span>{new Date(order.created_at).toLocaleDateString()}</span>
+                          <span style={{ fontSize: '12px', color: '#9ca3af' }}>
+                            {new Date(order.created_at).toLocaleTimeString()}
+                          </span>
+                        </div>
+                      ) : (
+                        'N/A'
+                      )}
                     </td>
                     <td>
                       <button

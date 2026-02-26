@@ -206,7 +206,7 @@ export default function Hero() {
                                 <div className="flex items-center gap-2 p-2 px-3 sm:px-6.5 hover:bg-white/3 transition-colors">
                                     <ZapIcon className="size-4 text-yellow-300" />
                                     <div>
-                                        <div>Paid this month</div>
+                                        <div>Paid last month</div>
                                         <div className="text-xs text-gray-400">
                                             {formatNaira(heroStats.paid_this_month)}
                                         </div>
@@ -218,7 +218,7 @@ export default function Hero() {
                                 <div className="flex items-center gap-2 p-2 px-3 sm:px-6.5 hover:bg-white/3 transition-colors">
                                     <CheckIcon className="size-4 text-yellow-300" />
                                     <div>
-                                        <div>Paid today</div>
+                                        <div>Paid last week</div>
                                         <div className="text-xs text-gray-400">
                                             {formatNaira(heroStats.paid_today)}
                                         </div>

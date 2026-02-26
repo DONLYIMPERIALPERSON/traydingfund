@@ -14,7 +14,7 @@ from app.models.mt5_account import MT5Account
 from app.models.payment_order import PaymentOrder
 from app.models.user import User
 from app.services.challenge_objectives import initialize_challenge_stage_tracking
-from app.tasks import send_welcome_email
+from app.tasks import send_welcome_email, send_challenge_objective_email
 from app.services.certificate_service import get_certificate_service
 from app.schemas.mt5_account import (
     MT5AccountAssignRequest,
@@ -115,17 +115,16 @@ def _auto_assign_pending_orders(db: Session) -> None:
 
             # Send welcome email (don't fail the assignment if email fails)
             try:
-                send_welcome_email.delay(
-                    user_email=user.email,
-                    user_name=user.full_name,
-                    challenge_id=challenge_id,
-                    account_size=account.account_size,
-                    mt5_server=account.server,
-                    mt5_account=account.account_number,
-                    mt5_password=account.password,
-                    mt5_investor_password=account.investor_password,
-                    payment_amount_kobo=order.net_amount_kobo,
+                message = (
+                    f"Congratulations! Your payment of ₦{order.net_amount_kobo / 100:,.2f} has been confirmed "
+                    f"and your {account.account_size} challenge account ({challenge_id}) has been assigned.\n\n"
+                    f"Your MT5 trading account details:\n"
+                    f"• Account Number: {account.account_number}\n"
+                    f"• Server: {account.server}\n"
+                    f"• Password: {account.password}\n\n"
+                    "You can now log in to your MT5 platform and start trading."
                 )
+                send_welcome_email.delay(to_email=user.email, message=message)
             except Exception as e:
                 # Log email failure but don't fail the assignment
                 print(f"Email failed for user {user.email}: {e}")
@@ -220,7 +219,6 @@ def _auto_assign_awaiting_challenges(db: Session) -> None:
 
             # Send stage progression email
             try:
-                from app.tasks import send_challenge_objective_email
                 message = (
                     f"Congratulations! You have been automatically progressed to {next_stage}.\n\n"
                     f"Your new MT5 trading account details:\n"

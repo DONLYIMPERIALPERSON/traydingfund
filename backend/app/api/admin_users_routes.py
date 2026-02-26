@@ -7,6 +7,7 @@ from app.db.deps import get_db
 from app.models.challenge_account import ChallengeAccount
 from app.models.user import User
 from app.api.admin_workboard_routes import log_admin_activity
+from app.tasks import send_challenge_objective_email
 
 
 router = APIRouter(prefix="/admin/users", tags=["Admin Users"])
@@ -357,9 +358,14 @@ def send_user_email(
     subject = email_data.get("subject", "")
     message = email_data.get("message", "")
     template = email_data.get("template")
+    if template:
+        subject = f"{subject}"
 
-    # Here you would integrate with your email service
-    print(f"Email sent to user {user_id} ({user.email}): {subject}")
+    # Send email via task
+    try:
+        send_challenge_objective_email.delay(to_email=user.email, subject=subject, message=message)
+    except Exception:
+        pass
 
     log_admin_activity(
         db=db,

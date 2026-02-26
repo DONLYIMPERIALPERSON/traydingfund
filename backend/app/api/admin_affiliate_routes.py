@@ -16,6 +16,7 @@ from app.models.affiliate import (
 )
 from app.models.user import User
 from app.api.admin_workboard_routes import log_admin_activity
+from app.tasks import send_challenge_objective_email
 
 
 router = APIRouter(prefix="/admin/affiliate", tags=["Admin Affiliate"])
@@ -262,7 +263,19 @@ def approve_payout(
         "payout", payout_id
     )
 
-    # TODO: Send email notification to affiliate
+    # Send email notification to affiliate
+    if affiliate_user and affiliate_user.email:
+        try:
+            message = (
+                f"Your affiliate payout of ₦{payout.amount:,.2f} has been approved and will be processed shortly."
+            )
+            send_challenge_objective_email.delay(
+                to_email=affiliate_user.email,
+                subject="Affiliate Payout Approved",
+                message=message,
+            )
+        except Exception:
+            pass
 
     return {"message": "Payout approved successfully"}
 
@@ -323,7 +336,20 @@ def reject_payout(
         description, "payout", payout_id
     )
 
-    # TODO: Send email notification to affiliate with reason
+    # Send email notification to affiliate with reason
+    if affiliate_user and affiliate_user.email:
+        try:
+            message = (
+                f"Your affiliate payout of ₦{payout.amount:,.2f} was rejected. "
+                f"Reason: {reason or 'Not provided'}."
+            )
+            send_challenge_objective_email.delay(
+                to_email=affiliate_user.email,
+                subject="Affiliate Payout Rejected",
+                message=message,
+            )
+        except Exception:
+            pass
 
     return {"message": "Payout rejected successfully"}
 
@@ -441,7 +467,19 @@ def approve_milestone(
         "milestone", milestone_id
     )
 
-    # TODO: Send email notification to affiliate
+    # Send email notification to affiliate
+    if affiliate_user and affiliate_user.email:
+        try:
+            message = (
+                f"Your affiliate milestone reward (Level {milestone.level}) has been approved."
+            )
+            send_challenge_objective_email.delay(
+                to_email=affiliate_user.email,
+                subject="Affiliate Milestone Approved",
+                message=message,
+            )
+        except Exception:
+            pass
     # TODO: Create coupon or credit account
 
     return {"message": "Milestone approved successfully"}
@@ -503,6 +541,19 @@ def reject_milestone(
         description, "milestone", milestone_id
     )
 
-    # TODO: Send email notification to affiliate with reason
+    # Send email notification to affiliate with reason
+    if affiliate_user and affiliate_user.email:
+        try:
+            message = (
+                f"Your affiliate milestone reward (Level {milestone.level}) was rejected. "
+                f"Reason: {reason or 'Not provided'}."
+            )
+            send_challenge_objective_email.delay(
+                to_email=affiliate_user.email,
+                subject="Affiliate Milestone Rejected",
+                message=message,
+            )
+        except Exception:
+            pass
 
     return {"message": "Milestone rejected successfully"}

@@ -81,9 +81,6 @@ const DesktopStartChallengePage: React.FC = () => {
         setShowPaymentModal(true)
         setPaymentStatus('')
 
-        if (order.checkout_url) {
-          window.open(order.checkout_url, '_blank', 'noopener,noreferrer')
-        }
       })
       .catch((err: unknown) => {
         setPaymentStatus(err instanceof Error ? err.message : 'Failed to initialize payment')

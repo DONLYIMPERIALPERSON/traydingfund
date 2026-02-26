@@ -60,6 +60,42 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle }) =>
   const [newPassword, setNewPassword] = useState<string>('')
   const [confirmPassword, setConfirmPassword] = useState<string>('')
 
+  const validateNewPassword = useCallback((passwordValue: string, confirmValue: string) => {
+    if (!passwordValue.trim()) {
+      setError('Please enter a password')
+      return false
+    }
+    if (passwordValue.length < 6) {
+      setError('Password must be at least 6 characters long')
+      return false
+    }
+    if (passwordValue !== confirmValue) {
+      setError('Passwords do not match')
+      return false
+    }
+    return true
+  }, [])
+
+  const handleSetPasswordSubmit = useCallback(() => {
+    if (!validateNewPassword(newPassword, confirmPassword)) {
+      return
+    }
+    setError('')
+    submitInteraction('n6WbbqzlwS', { newPassword, confirmPassword })
+  }, [confirmPassword, newPassword, submitInteraction, validateNewPassword])
+
+  const handleReplacePasswordSubmit = useCallback(() => {
+    if (!password.trim()) {
+      setError('Please enter your current password')
+      return
+    }
+    if (!validateNewPassword(newPassword, confirmPassword)) {
+      return
+    }
+    setError('')
+    submitInteraction('update-password', { password, newPassword, confirmPassword })
+  }, [confirmPassword, newPassword, password, submitInteraction, validateNewPassword])
+
   const handleSuccess = useCallback(async (event: DescopeSuccessPayload) => {
     setError('')
     setInteractionLoading(false)
@@ -316,7 +352,7 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle }) =>
               className="submit-button"
               type="button"
               disabled={isBusy}
-              onClick={() => submitInteraction('n6WbbqzlwS', { newPassword, confirmPassword })}
+              onClick={handleSetPasswordSubmit}
             >
               {continueButtonText}
             </button>
@@ -366,7 +402,7 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle }) =>
               className="submit-button"
               type="button"
               disabled={isBusy}
-              onClick={() => submitInteraction('update-password', { password, newPassword, confirmPassword })}
+              onClick={handleReplacePasswordSubmit}
             >
               {isBusy ? 'Please wait...' : 'Update Password'}
             </button>

@@ -133,6 +133,7 @@ class UserChallengeAccountDetailResponse(BaseModel):
     passed_at: str | None
     mt5_account: str | None
     last_feed_at: str | None
+    last_feed_engine_id: str | None
     last_refresh_requested_at: str | None
     metrics: UserChallengeMetrics
     objectives: dict[str, UserChallengeObjectiveStatus]

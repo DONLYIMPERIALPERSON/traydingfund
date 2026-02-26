@@ -52,6 +52,11 @@ class ChallengeAccount(Base):
     breached_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     passed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    last_feed_engine_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    monitor_lease_owner: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    monitor_lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

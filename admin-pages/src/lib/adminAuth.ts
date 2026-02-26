@@ -1620,6 +1620,41 @@ export type AdminActivitiesResponse = {
   }
 }
 
+export type EmailLogItem = {
+  id: number
+  to_email: string
+  subject: string
+  status: string
+  created_at: string | null
+}
+
+export type EmailLogsResponse = {
+  emails: EmailLogItem[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    pages: number
+  }
+}
+
+export async function fetchEmailLogs(
+  page: number = 1,
+  limit: number = 10,
+  sessionToken?: string,
+): Promise<EmailLogsResponse> {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    limit: limit.toString(),
+  })
+
+  const response = await authFetch(`/admin/emails?${params.toString()}`, {}, sessionToken)
+  if (!response.ok) {
+    throw await parseBackendError('Failed to load email logs', response)
+  }
+  return response.json() as Promise<EmailLogsResponse>
+}
+
 export async function fetchAdminWorkboardStats(days: number = 30, sessionToken?: string): Promise<AdminWorkboardStats> {
   const response = await authFetch(`/admin/workboard/stats?days=${days}`, {}, sessionToken)
   if (!response.ok) {

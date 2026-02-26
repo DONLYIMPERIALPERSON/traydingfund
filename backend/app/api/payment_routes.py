@@ -18,7 +18,7 @@ from app.models.payment_order import PaymentOrder
 from app.models.user import User
 from app.schemas.payment import PaymentInitRequest, PaymentOrderResponse, PaymentStatusRefreshResponse
 from app.services.challenge_objectives import initialize_challenge_stage_tracking
-from app.services.email_service import send_welcome_email
+from app.tasks import send_welcome_email
 from app.services.palmpay_service import (
     PalmPayPaymentError,
     create_bank_transfer_order,

@@ -552,6 +552,7 @@ def get_my_challenge_account_detail(
         passed_at=challenge.passed_at.isoformat() if challenge.passed_at else None,
         mt5_account=mt5.account_number if mt5 else None,
         last_feed_at=challenge.last_feed_at.isoformat() if challenge.last_feed_at else None,
+        last_feed_engine_id=challenge.last_feed_engine_id,
         last_refresh_requested_at=challenge.last_refresh_requested_at.isoformat() if challenge.last_refresh_requested_at else None,
         metrics=UserChallengeMetrics(
             balance=round(balance, 2),

@@ -3,7 +3,7 @@ import secrets
 from datetime import datetime, timedelta
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func, select, desc
 from sqlalchemy.orm import Session
 
@@ -442,6 +442,7 @@ def save_bank_details(
 @router.post("/click")
 def track_affiliate_click(
     affiliate_code: str,
+    request: Request,
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
     """Track an affiliate click (called when someone visits /ref/{code})."""
@@ -454,10 +455,9 @@ def track_affiliate_click(
         )
 
     # Get client IP and User-Agent
-    # Note: In production, you'd get these from request headers
-    # For now, we'll use placeholder values
-    ip = "127.0.0.1"  # Would be request.client.host
-    ua = "Unknown"    # Would be request.headers.get("User-Agent", "Unknown")
+    forwarded_for = request.headers.get("X-Forwarded-For", "")
+    ip = forwarded_for.split(",")[0].strip() if forwarded_for else (request.client.host if request.client else "")
+    ua = request.headers.get("User-Agent", "Unknown")
 
     ip_hash = _hash_ip(ip)
     ua_hash = _hash_ua(ua)

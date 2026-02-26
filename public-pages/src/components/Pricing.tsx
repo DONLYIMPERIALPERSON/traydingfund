@@ -243,7 +243,7 @@ export default function Pricing() {
                 <Title
                     title="Trading"
                     heading="Choose Your NairaTrader Challenge"
-                    description="Complete our Trading Objectives to become eligible to gain your Funded Account."
+                    description="Complete our trading objectives to become eligible to gain your funded account."
                 />
 
                 <div className="md:hidden flex items-center gap-2 overflow-x-auto pb-3 mb-1">

@@ -12,7 +12,7 @@ from app.models.payment_order import PaymentOrder
 from app.models.user import User
 from app.models.challenge_account import ChallengeAccount
 from app.services.palmpay_service import query_payout_status
-from app.services.email_service import send_payout_notification
+from app.tasks import send_payout_notification
 from app.services.certificate_service import certificate_service
 from app.api.admin_workboard_routes import log_admin_activity
 router = APIRouter(prefix="/admin/payouts", tags=["Admin Payouts"])
@@ -248,7 +248,7 @@ def approve_payout(
                 f"Bank Account: ****{payout_order.payer_virtual_acc_no[-4:] if payout_order.payer_virtual_acc_no else '****'}\n\n"
                 f"You will receive an email notification once the payout is completed."
             )
-            send_payout_notification(to_email=user.email, subject="Payout Approved - Processing", message=message)
+            send_payout_notification.delay(to_email=user.email, subject="Payout Approved - Processing", message=message)
     except Exception:
         # Don't fail approval if email fails
         pass
@@ -322,7 +322,7 @@ def reject_payout(
                 f"Challenge ID: {payout_order.challenge_id}\n\n"
                 f"The funds have been restored to your account. You can try again or contact support if you have questions."
             )
-            send_payout_notification(to_email=user.email, subject="Payout Declined", message=message)
+            send_payout_notification.delay(to_email=user.email, subject="Payout Declined", message=message)
     except Exception:
         # Don't fail rejection if email fails
         pass

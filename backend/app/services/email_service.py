@@ -6,6 +6,8 @@ from urllib.request import Request, urlopen
 from fastapi import HTTPException, status
 
 from app.core.config import settings
+from app.db.session import SessionLocal
+from app.models.email_log import EmailLog
 
 
 EMAIL_TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates" / "emails"
@@ -47,7 +49,9 @@ def _render_admin_text_template(otp_code: str) -> str:
 
 
 def send_pin_otp_email(*, to_email: str, otp_code: str) -> None:
+    subject = "Your NairaTrader OTP Code"
     if not settings.resend_api_key:
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message="RESEND_API_KEY is not configured")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="RESEND_API_KEY is not configured",
@@ -56,7 +60,7 @@ def send_pin_otp_email(*, to_email: str, otp_code: str) -> None:
     payload = {
         "from": settings.resend_from_email,
         "to": [to_email],
-        "subject": "Your NairaTrader OTP Code",
+        "subject": subject,
         "html": _render_html_template(otp_code),
         "text": _render_text_template(otp_code),
     }
@@ -76,17 +80,21 @@ def send_pin_otp_email(*, to_email: str, otp_code: str) -> None:
     try:
         with urlopen(request, timeout=10) as response:
             if response.status >= 400:
+                _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=f"HTTP {response.status}")
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail="Failed to send OTP email",
                 )
+        _record_email_log(to_email=to_email, subject=subject, status="sent", error_message=None)
     except HTTPError as exc:
         error_detail = exc.read().decode("utf-8", errors="ignore")
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=error_detail or str(exc))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Resend API error: {error_detail or exc.reason}",
         ) from exc
     except URLError as exc:
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=str(exc))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to reach Resend API",
@@ -96,6 +104,7 @@ def send_pin_otp_email(*, to_email: str, otp_code: str) -> None:
 def send_payout_notification(*, to_email: str, subject: str = "Payout Update", message: str) -> None:
     """Send payout-related emails using the professional NairaTrader template."""
     if not settings.resend_api_key:
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message="RESEND_API_KEY is not configured")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="RESEND_API_KEY is not configured",
@@ -151,17 +160,21 @@ def send_payout_notification(*, to_email: str, subject: str = "Payout Update", m
     try:
         with urlopen(request, timeout=10) as response:
             if response.status >= 400:
+                _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=f"HTTP {response.status}")
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail="Failed to send payout notification email",
                 )
+        _record_email_log(to_email=to_email, subject=subject, status="sent", error_message=None)
     except HTTPError as exc:
         error_detail = exc.read().decode("utf-8", errors="ignore")
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=error_detail or str(exc))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Resend API error: {error_detail or exc.reason}",
         ) from exc
     except URLError as exc:
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=str(exc))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to reach Resend API",
@@ -169,7 +182,9 @@ def send_payout_notification(*, to_email: str, subject: str = "Payout Update", m
 
 
 def send_admin_settings_otp_email(*, to_email: str, otp_code: str) -> None:
+    subject = "Your NairaTrader Admin OTP Code"
     if not settings.resend_api_key:
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message="RESEND_API_KEY is not configured")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="RESEND_API_KEY is not configured",
@@ -178,7 +193,7 @@ def send_admin_settings_otp_email(*, to_email: str, otp_code: str) -> None:
     payload = {
         "from": settings.resend_from_email,
         "to": [to_email],
-        "subject": "Your NairaTrader Admin OTP Code",
+        "subject": subject,
         "html": _render_admin_html_template(otp_code),
         "text": _render_admin_text_template(otp_code),
     }
@@ -198,17 +213,21 @@ def send_admin_settings_otp_email(*, to_email: str, otp_code: str) -> None:
     try:
         with urlopen(request, timeout=10) as response:
             if response.status >= 400:
+                _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=f"HTTP {response.status}")
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail="Failed to send OTP email",
                 )
+        _record_email_log(to_email=to_email, subject=subject, status="sent", error_message=None)
     except HTTPError as exc:
         error_detail = exc.read().decode("utf-8", errors="ignore")
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=error_detail or str(exc))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Resend API error: {error_detail or exc.reason}",
         ) from exc
     except URLError as exc:
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=str(exc))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to reach Resend API",
@@ -248,7 +267,9 @@ def _render_welcome_text_template(message: str) -> str:
 
 def send_welcome_email(*, to_email: str, message: str) -> None:
     """Send welcome email using the same template as OTP emails."""
+    subject = "Welcome to NairaTrader - Your Challenge Account is Ready!"
     if not settings.resend_api_key:
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message="RESEND_API_KEY is not configured")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="RESEND_API_KEY is not configured",
@@ -257,7 +278,7 @@ def send_welcome_email(*, to_email: str, message: str) -> None:
     payload = {
         "from": settings.resend_from_email,
         "to": [to_email],
-        "subject": "Welcome to NairaTrader - Your Challenge Account is Ready!",
+        "subject": subject,
         "html": _render_welcome_html_template(message),
         "text": _render_welcome_text_template(message),
     }
@@ -277,17 +298,21 @@ def send_welcome_email(*, to_email: str, message: str) -> None:
     try:
         with urlopen(request, timeout=10) as response:
             if response.status >= 400:
+                _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=f"HTTP {response.status}")
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail="Failed to send welcome email",
                 )
+        _record_email_log(to_email=to_email, subject=subject, status="sent", error_message=None)
     except HTTPError as exc:
         error_detail = exc.read().decode("utf-8", errors="ignore")
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=error_detail or str(exc))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Resend API error: {error_detail or exc.reason}",
         ) from exc
     except URLError as exc:
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=str(exc))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to reach Resend API",
@@ -358,7 +383,9 @@ def _render_challenge_breach_text_template(message: str) -> str:
 
 def send_challenge_pass_email(*, to_email: str, message: str) -> None:
     """Send challenge stage pass email using the professional template."""
+    subject = "🎉 Congratulations! Challenge Stage Passed - NairaTrader"
     if not settings.resend_api_key:
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message="RESEND_API_KEY is not configured")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="RESEND_API_KEY is not configured",
@@ -367,7 +394,7 @@ def send_challenge_pass_email(*, to_email: str, message: str) -> None:
     payload = {
         "from": settings.resend_from_email,
         "to": [to_email],
-        "subject": "🎉 Congratulations! Challenge Stage Passed - NairaTrader",
+        "subject": subject,
         "html": _render_challenge_pass_html_template(message),
         "text": _render_challenge_pass_text_template(message),
     }
@@ -387,17 +414,21 @@ def send_challenge_pass_email(*, to_email: str, message: str) -> None:
     try:
         with urlopen(request, timeout=10) as response:
             if response.status >= 400:
+                _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=f"HTTP {response.status}")
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail="Failed to send challenge pass email",
                 )
+        _record_email_log(to_email=to_email, subject=subject, status="sent", error_message=None)
     except HTTPError as exc:
         error_detail = exc.read().decode("utf-8", errors="ignore")
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=error_detail or str(exc))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Resend API error: {error_detail or exc.reason}",
         ) from exc
     except URLError as exc:
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=str(exc))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to reach Resend API",
@@ -406,7 +437,9 @@ def send_challenge_pass_email(*, to_email: str, message: str) -> None:
 
 def send_challenge_breach_email(*, to_email: str, message: str) -> None:
     """Send challenge breach email using the professional template."""
+    subject = "⚠️ Challenge Account Breached - NairaTrader"
     if not settings.resend_api_key:
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message="RESEND_API_KEY is not configured")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="RESEND_API_KEY is not configured",
@@ -415,7 +448,7 @@ def send_challenge_breach_email(*, to_email: str, message: str) -> None:
     payload = {
         "from": settings.resend_from_email,
         "to": [to_email],
-        "subject": "⚠️ Challenge Account Breached - NairaTrader",
+        "subject": subject,
         "html": _render_challenge_breach_html_template(message),
         "text": _render_challenge_breach_text_template(message),
     }
@@ -435,17 +468,21 @@ def send_challenge_breach_email(*, to_email: str, message: str) -> None:
     try:
         with urlopen(request, timeout=10) as response:
             if response.status >= 400:
+                _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=f"HTTP {response.status}")
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail="Failed to send challenge breach email",
                 )
+        _record_email_log(to_email=to_email, subject=subject, status="sent", error_message=None)
     except HTTPError as exc:
         error_detail = exc.read().decode("utf-8", errors="ignore")
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=error_detail or str(exc))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Resend API error: {error_detail or exc.reason}",
         ) from exc
     except URLError as exc:
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=str(exc))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to reach Resend API",
@@ -455,6 +492,7 @@ def send_challenge_breach_email(*, to_email: str, message: str) -> None:
 def send_challenge_objective_email(*, to_email: str, subject: str, message: str) -> None:
     """Send challenge progression emails using the professional NairaTrader template."""
     if not settings.resend_api_key:
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message="RESEND_API_KEY is not configured")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="RESEND_API_KEY is not configured",
@@ -510,17 +548,21 @@ def send_challenge_objective_email(*, to_email: str, subject: str, message: str)
     try:
         with urlopen(request, timeout=10) as response:
             if response.status >= 400:
+                _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=f"HTTP {response.status}")
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail="Failed to send challenge notification email",
                 )
+        _record_email_log(to_email=to_email, subject=subject, status="sent", error_message=None)
     except HTTPError as exc:
         error_detail = exc.read().decode("utf-8", errors="ignore")
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=error_detail or str(exc))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Resend API error: {error_detail or exc.reason}",
         ) from exc
     except URLError as exc:
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=str(exc))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to reach Resend API",
@@ -528,14 +570,15 @@ def send_challenge_objective_email(*, to_email: str, subject: str, message: str)
 
 
 def send_kyc_approved_email(*, to_email: str, account_name: str, bank_name: str, bank_account_number: str) -> None:
+    subject = "KYC Approved - Withdrawal Profile Ready"
     if not settings.resend_api_key:
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message="RESEND_API_KEY is not configured")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="RESEND_API_KEY is not configured",
         )
 
     masked = f"****{bank_account_number[-4:]}" if len(bank_account_number) >= 4 else bank_account_number
-    subject = "KYC Approved - Withdrawal Profile Ready"
     message = (
         f"Your KYC profile has been approved automatically. Your verified payout details are {account_name} "
         f"({bank_name}, {masked}). You can now request withdrawals when eligible."
@@ -570,17 +613,21 @@ def send_kyc_approved_email(*, to_email: str, account_name: str, bank_name: str,
     try:
         with urlopen(request, timeout=10) as response:
             if response.status >= 400:
+                _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=f"HTTP {response.status}")
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail="Failed to send KYC approval email",
                 )
+        _record_email_log(to_email=to_email, subject=subject, status="sent", error_message=None)
     except HTTPError as exc:
         error_detail = exc.read().decode("utf-8", errors="ignore")
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=error_detail or str(exc))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Resend API error: {error_detail or exc.reason}",
         ) from exc
     except URLError as exc:
+        _record_email_log(to_email=to_email, subject=subject, status="failed", error_message=str(exc))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to reach Resend API",
@@ -621,6 +668,8 @@ def _render_announcement_text_template(subject: str, message: str) -> str:
 def send_announcement_email(*, to_emails: list[str], subject: str, message: str) -> None:
     """Send announcement emails to multiple recipients using the professional NairaTrader template."""
     if not settings.resend_api_key:
+        for email in to_emails:
+            _record_email_log(to_email=email, subject=subject, status="failed", error_message="RESEND_API_KEY is not configured")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="RESEND_API_KEY is not configured",
@@ -649,18 +698,50 @@ def send_announcement_email(*, to_emails: list[str], subject: str, message: str)
     try:
         with urlopen(request, timeout=30) as response:  # Longer timeout for bulk emails
             if response.status >= 400:
+                for email in to_emails:
+                    _record_email_log(to_email=email, subject=subject, status="failed", error_message=f"HTTP {response.status}")
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
                     detail="Failed to send announcement email",
                 )
+        for email in to_emails:
+            _record_email_log(to_email=email, subject=subject, status="sent", error_message=None)
     except HTTPError as exc:
         error_detail = exc.read().decode("utf-8", errors="ignore")
+        for email in to_emails:
+            _record_email_log(to_email=email, subject=subject, status="failed", error_message=error_detail or str(exc))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Resend API error: {error_detail or exc.reason}",
         ) from exc
     except URLError as exc:
+        for email in to_emails:
+            _record_email_log(to_email=email, subject=subject, status="failed", error_message=str(exc))
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Unable to reach Resend API",
         ) from exc
+
+
+def _record_email_log(
+    *,
+    to_email: str,
+    subject: str,
+    status: str,
+    error_message: str | None,
+) -> None:
+    try:
+        db = SessionLocal()
+        db.add(
+            EmailLog(
+                to_email=to_email,
+                subject=subject,
+                status=status,
+                error_message=error_message,
+            )
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()

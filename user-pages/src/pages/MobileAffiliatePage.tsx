@@ -79,7 +79,7 @@ const MobileAffiliatePage: React.FC = () => {
   }
 
   const formatCurrency = (amount: number) => {
-    return `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    return `N${amount.toLocaleString('en-NG', { maximumFractionDigits: 0 })}`
   }
 
   const getRewardStatusText = (reward: AffiliateReward) => {

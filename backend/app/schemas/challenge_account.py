@@ -185,6 +185,18 @@ class EngineActiveAccount(BaseModel):
     last_feed_at: datetime | None
 
 
+class EngineActiveAccountClaim(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    challenge_id: str
+    account_number: str
+    server: str
+    password: str
+    last_feed_at: datetime | None
+    lease_owner: str
+    lease_until: datetime
+
+
 class RefreshJobClaim(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

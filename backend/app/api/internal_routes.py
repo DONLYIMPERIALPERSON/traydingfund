@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import APIKeyHeader
@@ -12,6 +13,7 @@ from app.models.mt5_account import MT5Account
 from app.models.mt5_refresh_job import MT5RefreshJob, RefreshReason, RefreshStatus
 from app.schemas.challenge_account import (
     EngineActiveAccount,
+    EngineActiveAccountClaim,
     InternalChallengeFeedUpdateRequest,
     RefreshJobClaim,
     RefreshJobCompleteRequest,
@@ -21,6 +23,7 @@ from app.services.challenge_objectives import ASSIGNED_STAGES, process_challenge
 router = APIRouter(prefix="/internal", tags=["Internal"])
 feed_key_header = APIKeyHeader(name="X-Challenge-Feed-Secret", auto_error=False)
 engine_id_header = APIKeyHeader(name="X-Engine-Id", auto_error=False)
+logger = logging.getLogger(__name__)
 
 
 def _assert_feed_secret(secret: str | None) -> None:
@@ -42,6 +45,7 @@ def internal_feed_update(
     payload: InternalChallengeFeedUpdateRequest,
     db: Session = Depends(get_db),
     feed_secret: str | None = Depends(feed_key_header),
+    engine_id: str | None = Depends(engine_id_header),
 ) -> dict[str, str]:
     _assert_feed_secret(feed_secret)
 
@@ -91,6 +95,8 @@ def internal_feed_update(
 
     # Update last_feed_at timestamp
     updated_challenge.last_feed_at = datetime.now(timezone.utc)
+    if engine_id:
+        updated_challenge.last_feed_engine_id = engine_id
     db.commit()
     return {"status": "ok"}
 
@@ -125,6 +131,106 @@ def get_active_accounts(
 
     results = db.execute(query).fetchall()
     return [EngineActiveAccount.model_validate(row._asdict()) for row in results]
+
+
+@router.post("/engine/active-accounts/claim")
+def claim_active_accounts(
+    limit: int = 50,
+    lease_seconds: int = 45,
+    min_feed_age_seconds: int = 0,
+    db: Session = Depends(get_db),
+    feed_secret: str | None = Depends(feed_key_header),
+    engine_id: str | None = Depends(engine_id_header),
+) -> list[EngineActiveAccountClaim]:
+    _assert_feed_secret(feed_secret)
+
+    if not engine_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="X-Engine-Id header required",
+        )
+
+    now = datetime.now(timezone.utc)
+    lease_until = now + timedelta(seconds=lease_seconds)
+    min_feed_cutoff = now - timedelta(seconds=min_feed_age_seconds) if min_feed_age_seconds > 0 else None
+
+    claim_query = (
+        select(
+            ChallengeAccount.id,
+            ChallengeAccount.challenge_id,
+            MT5Account.account_number,
+            MT5Account.server,
+            MT5Account.investor_password.label("password"),
+            ChallengeAccount.last_feed_at,
+        )
+        .join(MT5Account, ChallengeAccount.active_mt5_account_id == MT5Account.id)
+        .where(
+            ChallengeAccount.objective_status == "active",
+            ChallengeAccount.current_stage.in_(["Phase 1", "Phase 2", "Funded"]),
+            MT5Account.status.in_(ASSIGNED_STAGES),
+            or_(
+                ChallengeAccount.monitor_lease_until.is_(None),
+                ChallengeAccount.monitor_lease_until < now,
+            ),
+            (
+                ChallengeAccount.last_feed_at.is_(None)
+                if min_feed_cutoff is None
+                else or_(
+                    ChallengeAccount.last_feed_at.is_(None),
+                    ChallengeAccount.last_feed_at < min_feed_cutoff,
+                )
+            ),
+        )
+        .order_by(ChallengeAccount.last_feed_at.asc().nullsfirst())
+        .limit(limit)
+        .with_for_update(skip_locked=True)
+    )
+
+    claimed_rows = db.execute(claim_query).fetchall()
+    if not claimed_rows:
+        logger.info(
+            "monitor-claim: no rows (engine_id=%s limit=%s lease_seconds=%s min_feed_age_seconds=%s)",
+            engine_id,
+            limit,
+            lease_seconds,
+            min_feed_age_seconds,
+        )
+        return []
+
+    claimed_ids = [row.id for row in claimed_rows]
+    db.execute(
+        update(ChallengeAccount)
+        .where(ChallengeAccount.id.in_(claimed_ids))
+        .values(
+            monitor_lease_owner=engine_id,
+            monitor_lease_until=lease_until,
+        )
+    )
+    db.commit()
+
+    logger.info(
+        "monitor-claim: claimed %s rows (engine_id=%s lease_until=%s min_feed_age_seconds=%s)",
+        len(claimed_rows),
+        engine_id,
+        lease_until.isoformat(),
+        min_feed_age_seconds,
+    )
+
+    response = []
+    for row in claimed_rows:
+        response.append(
+            EngineActiveAccountClaim(
+                challenge_id=row.challenge_id,
+                account_number=row.account_number,
+                server=row.server,
+                password=row.password,
+                last_feed_at=row.last_feed_at,
+                lease_owner=engine_id,
+                lease_until=lease_until,
+            )
+        )
+
+    return response
 
 
 @router.get("/engine/refresh-jobs")
