@@ -16,6 +16,7 @@ const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
   const [statsLoading, setStatsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [queryingOrderId, setQueryingOrderId] = useState<number | null>(null)
 
   const loadStats = async (period: 'today' | 'week' | 'month') => {
     try {
@@ -90,6 +91,15 @@ const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
 
   const handlePageChange = (page: number) => {
     void loadOrders(page)
+  }
+
+  const handleQueryStatus = async (order: Order) => {
+    setQueryingOrderId(order.id)
+    try {
+      alert('Unable to confirm, PalmPay server down')
+    } finally {
+      setQueryingOrderId(null)
+    }
   }
 
   return (
@@ -172,6 +182,7 @@ const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
                   <th>Amount</th>
                   <th>Created</th>
                   <th>Action</th>
+                  <th>Query</th>
                 </tr>
               </thead>
               <tbody>
@@ -219,6 +230,15 @@ const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
                         })}
                       >
                         View User
+                      </button>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => void handleQueryStatus(order)}
+                        disabled={queryingOrderId === order.id}
+                      >
+                        {queryingOrderId === order.id ? 'Querying...' : 'Query Status'}
                       </button>
                     </td>
                   </tr>

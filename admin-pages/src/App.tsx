@@ -140,6 +140,10 @@ function App() {
       return;
     }
 
+    if (activePage === 'userProfile') {
+      return;
+    }
+
     if (activePage !== firstAllowed && !authUser.allowed_pages.includes(activePage)) {
       setActivePage(firstAllowed as AdminPage);
     }
