@@ -17,6 +17,7 @@ const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [queryingOrderId, setQueryingOrderId] = useState<number | null>(null)
+  const [searchEmail, setSearchEmail] = useState('')
 
   const loadStats = async (period: 'today' | 'week' | 'month') => {
     try {
@@ -30,10 +31,15 @@ const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
     }
   }
 
-  const loadOrders = async (page: number = 1, period: 'today' | 'week' | 'month' = statsPeriod, statusFilterParam: string = statusFilter) => {
+  const loadOrders = async (
+    page: number = 1,
+    period: 'today' | 'week' | 'month' = statsPeriod,
+    statusFilterParam: string = statusFilter,
+    searchEmailParam: string = searchEmail,
+  ) => {
     try {
       setLoading(true)
-      const data = await fetchOrders(page, pageSize, period, statusFilterParam || undefined)
+      const data = await fetchOrders(page, pageSize, period, statusFilterParam || undefined, searchEmailParam || undefined)
       setOrders(data.orders)
       setTotalPages(data.pagination.pages)
       setCurrentPage(data.pagination.page)
@@ -52,6 +58,14 @@ const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
   useEffect(() => {
     void loadOrders(1, statsPeriod, statusFilter)
   }, [statusFilter])
+
+  useEffect(() => {
+    const debounce = window.setTimeout(() => {
+      void loadOrders(1, statsPeriod, statusFilter, searchEmail)
+    }, 400)
+
+    return () => window.clearTimeout(debounce)
+  }, [searchEmail, statsPeriod, statusFilter])
 
   useEffect(() => {
     void loadOrders(1)
@@ -111,6 +125,14 @@ const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
             <p>Track plan purchases and payment processing status.</p>
           </div>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <input
+              type="search"
+              value={searchEmail}
+              onChange={(e) => setSearchEmail(e.target.value)}
+              placeholder="Search user email"
+              className="period-selector-large"
+              style={{ minWidth: '220px' }}
+            />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
