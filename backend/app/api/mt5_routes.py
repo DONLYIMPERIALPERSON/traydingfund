@@ -647,3 +647,24 @@ You can now log in to your MT5 platform and start trading.
     db.commit()
     db.refresh(row)
     return MT5AccountResponse.model_validate(row)
+
+
+@router.delete("/accounts/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_mt5_account(
+    account_id: int,
+    _: User = Depends(get_current_admin_allowlisted),
+    db: Session = Depends(get_db),
+) -> None:
+    row = db.get(MT5Account, account_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="MT5 account not found")
+
+    if row.status in ASSIGNED_STAGES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Assigned MT5 accounts cannot be deleted",
+        )
+
+    db.delete(row)
+    db.commit()
+    return None

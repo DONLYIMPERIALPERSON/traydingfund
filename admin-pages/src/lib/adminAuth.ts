@@ -526,6 +526,13 @@ export async function uploadMT5AccountsTxt(content: string, sessionToken?: strin
   return response.json() as Promise<MT5AccountsResponse>
 }
 
+export async function deleteMT5Account(accountId: number, sessionToken?: string): Promise<void> {
+  const response = await authFetch(`/admin/mt5/accounts/${accountId}`, { method: 'DELETE' }, sessionToken)
+  if (!response.ok) {
+    throw await parseBackendError('Failed to delete MT5 account', response)
+  }
+}
+
 export async function fetchChallengeAccounts(sessionToken?: string): Promise<ChallengeAccountsResponse> {
   const response = await authFetch('/admin/challenge-accounts', {}, sessionToken)
   if (!response.ok) {

@@ -10,6 +10,7 @@ import {
   fetchPendingAssignments,
   generateCertificates,
   type ChallengeAccountListItem,
+  deleteMT5Account,
   type MT5Account,
   type Order,
   uploadMT5AccountsTxt,
@@ -35,6 +36,8 @@ const MT5Page = () => {
   const [summary, setSummary] = useState({ total: 0, ready: 0, assigned: 0, disabled: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [readySearch, setReadySearch] = useState('')
+  const [deletingAccountId, setDeletingAccountId] = useState<number | null>(null)
 
   const [selectedAccount, setSelectedAccount] = useState<MT5Account | null>(null)
   const [assignmentStage, setAssignmentStage] = useState<'Phase 1' | 'Phase 2' | 'Funded'>('Phase 1')
@@ -94,6 +97,12 @@ const MT5Page = () => {
       return acc
     }, {})
   }, [readyAccounts])
+
+  const filteredReadyAccounts = useMemo(() => {
+    const query = readySearch.trim().toLowerCase()
+    if (!query) return readyAccounts
+    return readyAccounts.filter((account) => account.account_number.toLowerCase().includes(query))
+  }, [readyAccounts, readySearch])
 
   const activeSizes = useMemo(
     () => publicAccountSizes.filter((size) => (accountSizeCounts[size] ?? 0) > 0).length,
@@ -208,6 +217,22 @@ const MT5Page = () => {
     }
   }
 
+  const handleDeleteAccount = async (account: MT5Account) => {
+    const confirmDelete = window.confirm(`Delete MT5 account ${account.account_number}? This cannot be undone.`)
+    if (!confirmDelete) return
+
+    setDeletingAccountId(account.id)
+    setError('')
+    try {
+      await deleteMT5Account(account.id)
+      await loadData()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete MT5 account')
+    } finally {
+      setDeletingAccountId(null)
+    }
+  }
+
   return (
     <section className="admin-page-stack">
       <div className="admin-dashboard-card" style={{ display: 'grid', gap: 12 }}>
@@ -308,7 +333,7 @@ const MT5Page = () => {
       </div>
 
       <div className="admin-table-card">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px 6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px 6px', gap: 12, flexWrap: 'wrap' }}>
           <h3 style={{ color: '#fff', margin: 0 }}>MT5 Accounts</h3>
           <div style={{ display: 'flex', gap: 8 }}>
             <button
@@ -378,6 +403,26 @@ const MT5Page = () => {
           </div>
         </div>
 
+        {activeTab === 'ready' && (
+          <div style={{ padding: '0 16px 12px' }}>
+            <input
+              type="search"
+              value={readySearch}
+              onChange={(event) => setReadySearch(event.target.value)}
+              placeholder="Search ready account number"
+              style={{
+                width: 'min(320px, 100%)',
+                borderRadius: 10,
+                border: '1px solid #2a2f3a',
+                background: '#0f131b',
+                color: '#e5e7eb',
+                padding: '8px 12px',
+                outline: 'none',
+              }}
+            />
+          </div>
+        )}
+
         {loading && <p style={{ color: '#9ca3af', padding: '0 16px 16px' }}>Loading MT5 inventory...</p>}
         {!loading && error && <p style={{ color: '#fca5a5', padding: '0 16px 16px' }}>{error}</p>}
 
@@ -392,10 +437,11 @@ const MT5Page = () => {
                 <th>Investor Password</th>
                 <th>Status</th>
                 <th>Action</th>
+                <th>Delete</th>
               </tr>
             </thead>
             <tbody>
-              {readyAccounts.map((account) => (
+              {filteredReadyAccounts.map((account) => (
                 <tr key={account.id}>
                   <td>{account.server}</td>
                   <td>{account.account_number}</td>
@@ -437,6 +483,26 @@ const MT5Page = () => {
                       }}
                     >
                       Assign Stage
+                    </button>
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteAccount(account)}
+                      disabled={deletingAccountId === account.id}
+                      style={{
+                        border: '1px solid rgba(239,68,68,0.5)',
+                        background: 'rgba(239,68,68,0.12)',
+                        color: '#fca5a5',
+                        borderRadius: 10,
+                        padding: '7px 10px',
+                        fontWeight: 700,
+                        fontSize: 12,
+                        cursor: deletingAccountId === account.id ? 'not-allowed' : 'pointer',
+                        opacity: deletingAccountId === account.id ? 0.7 : 1,
+                      }}
+                    >
+                      {deletingAccountId === account.id ? 'Deleting...' : 'Delete'}
                     </button>
                   </td>
                 </tr>
