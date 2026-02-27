@@ -36,7 +36,7 @@ const MT5Page = () => {
   const [summary, setSummary] = useState({ total: 0, ready: 0, assigned: 0, disabled: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [readySearch, setReadySearch] = useState('')
+  const [assignedSearch, setAssignedSearch] = useState('')
   const [deletingAccountId, setDeletingAccountId] = useState<number | null>(null)
 
   const [selectedAccount, setSelectedAccount] = useState<MT5Account | null>(null)
@@ -98,11 +98,11 @@ const MT5Page = () => {
     }, {})
   }, [readyAccounts])
 
-  const filteredReadyAccounts = useMemo(() => {
-    const query = readySearch.trim().toLowerCase()
-    if (!query) return readyAccounts
-    return readyAccounts.filter((account) => account.account_number.toLowerCase().includes(query))
-  }, [readyAccounts, readySearch])
+  const filteredAssignedAccounts = useMemo(() => {
+    const query = assignedSearch.trim().toLowerCase()
+    if (!query) return assignedAccounts
+    return assignedAccounts.filter((account) => account.account_number.toLowerCase().includes(query))
+  }, [assignedAccounts, assignedSearch])
 
   const activeSizes = useMemo(
     () => publicAccountSizes.filter((size) => (accountSizeCounts[size] ?? 0) > 0).length,
@@ -403,13 +403,13 @@ const MT5Page = () => {
           </div>
         </div>
 
-        {activeTab === 'ready' && (
+        {activeTab === 'assigned' && (
           <div style={{ padding: '0 16px 12px' }}>
             <input
               type="search"
-              value={readySearch}
-              onChange={(event) => setReadySearch(event.target.value)}
-              placeholder="Search ready account number"
+              value={assignedSearch}
+              onChange={(event) => setAssignedSearch(event.target.value)}
+              placeholder="Search assigned account number"
               style={{
                 width: 'min(320px, 100%)',
                 borderRadius: 10,
@@ -441,7 +441,7 @@ const MT5Page = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredReadyAccounts.map((account) => (
+              {readyAccounts.map((account) => (
                 <tr key={account.id}>
                   <td>{account.server}</td>
                   <td>{account.account_number}</td>
@@ -527,7 +527,7 @@ const MT5Page = () => {
               </tr>
             </thead>
             <tbody>
-              {assignedAccounts.map((account) => (
+              {filteredAssignedAccounts.map((account) => (
                 <tr key={account.id}>
                   <td>
                     <span
