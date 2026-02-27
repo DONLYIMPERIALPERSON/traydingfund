@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.pin_security import generate_otp_code, hash_secret, verify_secret
 from app.db.deps import get_db
 from app.data.banks import NIGERIAN_BANKS
+from app.models.admin_allowlist import AdminAllowlist
 from app.models.pin_otp import PinOtp
 from app.models.staff_salary import StaffSalary
 from app.models.user import User
@@ -72,11 +73,20 @@ def send_salary_disbursement_otp(
     if current_admin.role != "super_admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Super admin access required")
 
+    allow_entry = db.scalar(
+        select(AdminAllowlist).where(
+            (AdminAllowlist.email == current_admin.email)
+            | (AdminAllowlist.descope_user_id == current_admin.descope_user_id)
+        )
+    )
+    if allow_entry is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access denied")
+
     code = generate_otp_code()
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.pin_otp_expiry_minutes)
 
     otp_row = PinOtp(
-        user_id=current_admin.id,
+        user_id=allow_entry.id,
         purpose=ADMIN_SALARY_OTP_PURPOSE,
         code_hash=hash_secret(code),
         expires_at=expires_at,
@@ -145,6 +155,14 @@ def create_staff_salary(
     current_admin: User = Depends(get_current_admin_allowlisted),
     db: Session = Depends(get_db),
 ) -> StaffSalaryResponse:
+    allow_entry = db.scalar(
+        select(AdminAllowlist).where(
+            (AdminAllowlist.email == current_admin.email)
+            | (AdminAllowlist.descope_user_id == current_admin.descope_user_id)
+        )
+    )
+    if allow_entry is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access denied")
     bank_code = payload.bank_code.strip()
     account_number = payload.bank_account_number.strip()
     staff_name = payload.staff_name.strip()
@@ -167,8 +185,8 @@ def create_staff_salary(
         bank_name=bank_name,
         bank_account_number=account_number,
         salary_amount=payload.salary_amount,
-        created_by_admin_id=current_admin.id,
-        updated_by_admin_id=current_admin.id,
+        created_by_admin_id=allow_entry.id,
+        updated_by_admin_id=allow_entry.id,
     )
     db.add(staff)
     db.commit()
@@ -183,6 +201,14 @@ def update_staff_salary(
     current_admin: User = Depends(get_current_admin_allowlisted),
     db: Session = Depends(get_db),
 ) -> StaffSalaryResponse:
+    allow_entry = db.scalar(
+        select(AdminAllowlist).where(
+            (AdminAllowlist.email == current_admin.email)
+            | (AdminAllowlist.descope_user_id == current_admin.descope_user_id)
+        )
+    )
+    if allow_entry is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access denied")
     staff = db.get(StaffSalary, staff_id)
     if staff is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Staff record not found")
@@ -192,7 +218,7 @@ def update_staff_salary(
     if payload.salary_amount is not None:
         staff.salary_amount = payload.salary_amount
 
-    staff.updated_by_admin_id = current_admin.id
+    staff.updated_by_admin_id = allow_entry.id
 
     db.add(staff)
     db.commit()
@@ -241,7 +267,16 @@ def disburse_salaries(
     if current_admin.role != "super_admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Super admin access required")
 
-    _validate_and_consume_admin_otp(db, current_admin.id, payload.otp)
+    allow_entry = db.scalar(
+        select(AdminAllowlist).where(
+            (AdminAllowlist.email == current_admin.email)
+            | (AdminAllowlist.descope_user_id == current_admin.descope_user_id)
+        )
+    )
+    if allow_entry is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access denied")
+
+    _validate_and_consume_admin_otp(db, allow_entry.id, payload.otp)
 
     staff_list = db.scalars(select(StaffSalary).order_by(StaffSalary.created_at.desc())).all()
     if not staff_list:
