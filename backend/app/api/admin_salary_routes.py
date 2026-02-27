@@ -27,6 +27,7 @@ from app.schemas.salary import (
     StaffSalaryUpdateRequest,
 )
 from app.services.palmpay_service import PalmPayQueryError, PalmPayService, query_bank_account_name
+from app.tasks import send_admin_settings_otp_email
 
 
 router = APIRouter(prefix="/admin/salaries", tags=["Admin Salaries"])
@@ -86,7 +87,7 @@ def send_salary_disbursement_otp(
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.pin_otp_expiry_minutes)
 
     otp_row = PinOtp(
-        user_id=allow_entry.id,
+        user_id=current_admin.id,
         purpose=ADMIN_SALARY_OTP_PURPOSE,
         code_hash=hash_secret(code),
         expires_at=expires_at,
@@ -276,7 +277,7 @@ def disburse_salaries(
     if allow_entry is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access denied")
 
-    _validate_and_consume_admin_otp(db, allow_entry.id, payload.otp)
+    _validate_and_consume_admin_otp(db, current_admin.id, payload.otp)
 
     staff_list = db.scalars(select(StaffSalary).order_by(StaffSalary.created_at.desc())).all()
     if not staff_list:
