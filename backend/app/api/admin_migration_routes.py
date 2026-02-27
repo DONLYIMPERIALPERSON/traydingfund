@@ -238,7 +238,8 @@ def _process_funded_migration(
             account_number=request.bank_account_number,
             bank_code=request.bank_code,
             account_name=request.account_name,
-            description=f"Funded account migration withdrawal for {user.email}"
+            description=f"Funded account migration withdrawal for {user.email}",
+            order_prefix="nairatrader-migration",
         )
 
         request.withdrawal_amount = withdrawal_amount

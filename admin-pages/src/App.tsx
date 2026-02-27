@@ -21,6 +21,7 @@ import WorkBoardPage from './pages/WorkBoardPage'
 import MT5Page from './pages/MT5Page'
 import SendAnnouncementPage from './pages/SendAnnouncementPage'
 import EmailLogsPage from './pages/EmailLogsPage'
+import SalaryPage from './pages/SalaryPage'
 import MigrationRequestsPage from './pages/MigrationRequestsPage'
 import {
   adminLoginWithBackend,
@@ -34,7 +35,7 @@ import {
 import AdminAuthCard from './components/AdminAuthCard'
 import './App.css'
 
-type AdminPage = 'analysis' | 'users' | 'accounts' | 'fundedAccounts' | 'breaches' | 'orders' | 'payouts' | 'userProfile' | 'kycReview' | 'referrals' | 'financeAnalysis' | 'coupons' | 'supportTickets' | 'settings' | 'workBoard' | 'mt5' | 'sendAnnouncement' | 'migrationRequests' | 'emailLogs'
+type AdminPage = 'analysis' | 'users' | 'accounts' | 'fundedAccounts' | 'breaches' | 'orders' | 'payouts' | 'userProfile' | 'kycReview' | 'referrals' | 'financeAnalysis' | 'coupons' | 'supportTickets' | 'settings' | 'workBoard' | 'mt5' | 'sendAnnouncement' | 'migrationRequests' | 'emailLogs' | 'salary'
 
 const DEFAULT_SESSION_REFRESH_INTERVAL_MS = 5 * 60 * 1000
 
@@ -133,7 +134,7 @@ function App() {
   useEffect(() => {
     if (!authUser || authUser.role === 'super_admin' || !authUser.allowed_pages) return;
 
-    const possiblePages = ['analysis', 'users', 'accounts', 'fundedAccounts', 'breaches', 'orders', 'payouts', 'kycReview', 'referrals', 'financeAnalysis', 'coupons', 'supportTickets', 'settings', 'workBoard', 'mt5', 'sendAnnouncement', 'migrationRequests', 'emailLogs'];
+    const possiblePages = ['analysis', 'users', 'accounts', 'fundedAccounts', 'breaches', 'orders', 'payouts', 'kycReview', 'referrals', 'financeAnalysis', 'coupons', 'supportTickets', 'settings', 'workBoard', 'mt5', 'sendAnnouncement', 'migrationRequests', 'emailLogs', 'salary'];
     const firstAllowed = possiblePages.find(page => authUser.allowed_pages?.includes(page) ?? false);
     if (!firstAllowed) {
       setAuthError('No pages assigned to this admin account.');
@@ -312,6 +313,7 @@ function App() {
           {!authError && activePage === 'coupons' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('coupons'))) && <CouponsPage />}
           {!authError && activePage === 'sendAnnouncement' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('sendAnnouncement'))) && <SendAnnouncementPage />}
           {!authError && activePage === 'emailLogs' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('emailLogs'))) && <EmailLogsPage />}
+          {!authError && activePage === 'salary' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('salary'))) && <SalaryPage />}
           {!authError && activePage === 'supportTickets' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('supportTickets'))) && <SupportTicketsPage onOpenProfile={handleOpenUserProfile} />}
           {!authError && activePage === 'settings' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('settings'))) && <SettingsPage />}
           {!authError && activePage === 'kycReview' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('kycReview'))) && <KycReviewPage onOpenProfile={handleOpenUserProfile} />}
@@ -320,7 +322,7 @@ function App() {
           {!authError && activePage === 'userProfile' && selectedUser && (
             <UserProfilePage user={selectedUser} onBack={handleBackToUsers} />
           )}
-          {!authError && !['analysis', 'workBoard', 'users', 'accounts', 'fundedAccounts', 'breaches', 'mt5', 'orders', 'payouts', 'financeAnalysis', 'coupons', 'sendAnnouncement', 'supportTickets', 'settings', 'kycReview', 'referrals', 'migrationRequests', 'userProfile', 'emailLogs'].includes(activePage) && (
+          {!authError && !['analysis', 'workBoard', 'users', 'accounts', 'fundedAccounts', 'breaches', 'mt5', 'orders', 'payouts', 'financeAnalysis', 'coupons', 'sendAnnouncement', 'supportTickets', 'settings', 'kycReview', 'referrals', 'migrationRequests', 'userProfile', 'emailLogs', 'salary'].includes(activePage) && (
             <div className="admin-no-access">
               <h2>Access Denied</h2>
               <p>You do not have permission to access this page. Please select an available page from the sidebar.</p>

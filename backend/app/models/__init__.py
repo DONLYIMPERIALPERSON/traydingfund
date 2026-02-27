@@ -14,6 +14,7 @@ from app.models.payment_order import PaymentOrder
 from app.models.certificate import Certificate
 from app.models.email_log import EmailLog
 from app.models.migration_request import MigrationRequest
+from app.models.staff_salary import StaffSalary
 from app.models.support import SupportChat, SupportMessage
 
 __all__ = [
@@ -31,6 +32,7 @@ __all__ = [
     "Certificate",
     "EmailLog",
     "MigrationRequest",
+    "StaffSalary",
     "SupportChat",
     "SupportMessage",
 ]

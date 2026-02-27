@@ -18,6 +18,7 @@ const pageIdToDisplayName: Record<string, string> = {
   referrals: 'Affiliates',
   payouts: 'Payout Requests',
   orders: 'Orders',
+  salary: 'Salary',
   financeAnalysis: 'Financial Analysis & Settings',
   accounts: 'Challenges',
   fundedAccounts: 'Funded Accounts',
@@ -26,6 +27,8 @@ const pageIdToDisplayName: Record<string, string> = {
   coupons: 'Coupons',
   supportTickets: 'Support Tickets',
   sendAnnouncement: 'Send Announcement',
+  emailLogs: 'Email Logs',
+  migrationRequests: 'Migration Requests',
   settings: 'Settings',
 }
 

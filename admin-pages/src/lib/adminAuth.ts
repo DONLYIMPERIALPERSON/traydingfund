@@ -1696,3 +1696,167 @@ export async function fetchAdminActivities(
   }
   return response.json() as Promise<AdminActivitiesResponse>
 }
+
+export type SalaryBank = {
+  bank_code: string
+  bank_name: string
+}
+
+export type SalaryStaff = {
+  id: number
+  staff_name: string
+  bank_code: string
+  bank_name: string
+  bank_account_number: string
+  salary_amount: number
+  created_at: string
+  updated_at: string
+}
+
+export type SalaryStaffListResponse = {
+  staff: SalaryStaff[]
+  total_count: number
+  total_salary: number
+}
+
+export type SalaryDisbursementPreview = {
+  summary: {
+    total_staff: number
+    total_amount: number
+  }
+  staff: SalaryStaff[]
+}
+
+export type SalaryDisbursementResult = {
+  staff_id: number
+  staff_name: string
+  amount: number
+  status: string
+  reference?: string | null
+  message?: string | null
+}
+
+export type SalaryDisbursementResponse = {
+  summary: {
+    total_staff: number
+    total_amount: number
+  }
+  transfers: SalaryDisbursementResult[]
+}
+
+export async function fetchSalaryBanks(sessionToken?: string): Promise<{ banks: SalaryBank[] }> {
+  const response = await authFetch('/admin/salaries/banks', {}, sessionToken)
+  if (!response.ok) {
+    throw await parseBackendError('Failed to load banks', response)
+  }
+  return response.json() as Promise<{ banks: SalaryBank[] }>
+}
+
+export async function resolveSalaryAccountName(
+  payload: { bank_code: string; bank_account_number: string },
+  sessionToken?: string,
+): Promise<{ bank_code: string; bank_account_number: string; account_name: string }> {
+  const response = await authFetch(
+    '/admin/salaries/resolve-account',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    sessionToken,
+  )
+  if (!response.ok) {
+    throw await parseBackendError('Failed to verify bank account', response)
+  }
+  return response.json() as Promise<{ bank_code: string; bank_account_number: string; account_name: string }>
+}
+
+export async function fetchSalaryStaff(sessionToken?: string): Promise<SalaryStaffListResponse> {
+  const response = await authFetch('/admin/salaries', {}, sessionToken)
+  if (!response.ok) {
+    throw await parseBackendError('Failed to load staff salaries', response)
+  }
+  return response.json() as Promise<SalaryStaffListResponse>
+}
+
+export async function createSalaryStaff(
+  payload: { bank_code: string; bank_account_number: string; staff_name: string; salary_amount: number },
+  sessionToken?: string,
+): Promise<SalaryStaff> {
+  const response = await authFetch(
+    '/admin/salaries',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    sessionToken,
+  )
+  if (!response.ok) {
+    throw await parseBackendError('Failed to create staff salary', response)
+  }
+  return response.json() as Promise<SalaryStaff>
+}
+
+export async function updateSalaryStaff(
+  staffId: number,
+  payload: { staff_name?: string; salary_amount?: number },
+  sessionToken?: string,
+): Promise<SalaryStaff> {
+  const response = await authFetch(
+    `/admin/salaries/${staffId}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    sessionToken,
+  )
+  if (!response.ok) {
+    throw await parseBackendError('Failed to update staff salary', response)
+  }
+  return response.json() as Promise<SalaryStaff>
+}
+
+export async function deleteSalaryStaff(staffId: number, sessionToken?: string): Promise<{ message: string }> {
+  const response = await authFetch(`/admin/salaries/${staffId}`, { method: 'DELETE' }, sessionToken)
+  if (!response.ok) {
+    throw await parseBackendError('Failed to delete staff salary', response)
+  }
+  return response.json() as Promise<{ message: string }>
+}
+
+export async function previewSalaryDisbursement(sessionToken?: string): Promise<SalaryDisbursementPreview> {
+  const response = await authFetch('/admin/salaries/disburse/preview', {}, sessionToken)
+  if (!response.ok) {
+    throw await parseBackendError('Failed to load disbursement preview', response)
+  }
+  return response.json() as Promise<SalaryDisbursementPreview>
+}
+
+export async function sendSalaryDisbursementOtp(sessionToken?: string): Promise<{ message: string }> {
+  const response = await authFetch('/admin/salaries/send-otp', { method: 'POST' }, sessionToken)
+  if (!response.ok) {
+    throw await parseBackendError('Failed to send salary OTP', response)
+  }
+  return response.json() as Promise<{ message: string }>
+}
+
+export async function disburseSalaries(
+  payload: { otp: string; description?: string },
+  sessionToken?: string,
+): Promise<SalaryDisbursementResponse> {
+  const response = await authFetch(
+    '/admin/salaries/disburse',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    sessionToken,
+  )
+  if (!response.ok) {
+    throw await parseBackendError('Failed to disburse salaries', response)
+  }
+  return response.json() as Promise<SalaryDisbursementResponse>
+}
