@@ -54,7 +54,8 @@ const DesktopAccountOverviewPage: React.FC = () => {
 
     const pollInterval = setInterval(async () => {
       try {
-        const data = await fetchUserChallengeAccountDetail(challengeId!)
+        if (!challengeId) return
+        const data = await fetchUserChallengeAccountDetail(challengeId)
         setAccountData(data)
 
         // Stop polling if last_feed_at is newer than refresh time
@@ -345,7 +346,7 @@ const DesktopAccountOverviewPage: React.FC = () => {
                               }
                             }
                           }
-                          return objective.note || '00:00 Hours'
+                        return objective.note || '00:00 Hours'
                         })()}
                       </span>
                     ) : (

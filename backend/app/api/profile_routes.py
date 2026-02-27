@@ -535,9 +535,9 @@ def get_my_challenge_account_detail(
             note=f"Violations: {challenge.scalping_violations_count}",
         ),
         "min_trading_days": UserChallengeObjectiveStatus(
-            label="Min Trading Days",
+            label="Cool Down Period",
             status="passed" if min_days_met else "pending",
-            note=f"{stage_elapsed_hours:.2f}h / {min_days_required * 24:.2f}h",
+            note=f"{stage_elapsed_hours:.2f}h / 1.00h",
         ),
     }
 
