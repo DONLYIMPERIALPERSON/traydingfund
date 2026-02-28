@@ -54,8 +54,9 @@ class PayoutSummaryResponse(BaseModel):
 
 class PayoutRequest(BaseModel):
     """Request to initiate a payout"""
-    amount: float = Field(..., gt=0, description="Amount to withdraw")
+    amount: Optional[float] = Field(None, gt=0, description="Amount to withdraw (optional; defaults to max allowed)")
     account_id: Optional[int] = Field(None, description="Specific account to withdraw from (optional)")
+    pin: str = Field(..., min_length=4, max_length=4, pattern="^\\d{4}$", description="Transaction PIN")
 
 
 class PayoutRequestResponse(BaseModel):

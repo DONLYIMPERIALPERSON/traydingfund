@@ -12,11 +12,13 @@ from app.models.user_bank_account import UserBankAccount
 from app.models.payment_order import PaymentOrder
 from app.models.mt5_account import MT5Account
 from app.models.mt5_refresh_job import MT5RefreshJob, RefreshReason, RefreshStatus
+from app.models.user_pin import UserPin
 from app.services.challenge_objectives import compute_funded_payout_metrics, get_plan_for_account_size, _to_percent_number
 from app.services.palmpay_service import create_payout_order, query_payout_status
 from app.tasks import send_payout_notification
 from app.services.certificate_service import certificate_service
 from app.data.banks import NIGERIAN_BANKS
+from app.core.pin_security import verify_secret
 from app.schemas.payout import (
     PayoutSummaryResponse,
     FundedAccountPayout,
@@ -218,6 +220,13 @@ async def request_payout(
     if account.objective_status == "breached":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Account has been breached and is not eligible for payout")
 
+    user_pin = db.query(UserPin).filter(UserPin.user_id == current_user.id).first()
+    if user_pin is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Transaction PIN not set")
+
+    if not verify_secret(request.pin, user_pin.pin_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid transaction PIN")
+
     # Get the active MT5 account for verification
     mt5_account = db.get(MT5Account, account.active_mt5_account_id)
     if not mt5_account:
@@ -276,6 +285,9 @@ async def request_payout(
 
     # Apply withdrawal limits
     max_allowed_payout = min(available_payout, profit_cap_amount)
+
+    if request.amount is not None:
+        max_allowed_payout = min(max_allowed_payout, request.amount)
 
     if max_allowed_payout < min_withdrawal_amount:
         raise HTTPException(

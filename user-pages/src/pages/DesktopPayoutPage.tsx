@@ -64,7 +64,7 @@ const DesktopPayoutPage: React.FC = () => {
       // Show verification message
       setPinError('Verifying MT5 stats...')
 
-      const response = await payoutAPI.requestPayout(selectedAccountId)
+      const response = await payoutAPI.requestPayout(selectedAccountId, pinCode)
       setShowPinModal(false)
       setPinCode('')
       alert(response.message || 'Withdrawal request submitted successfully!')
@@ -73,7 +73,7 @@ const DesktopPayoutPage: React.FC = () => {
       const data = await payoutAPI.getPayoutSummary()
       setPayoutData(data)
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to submit withdrawal request'
+      const errorMessage = error instanceof Error ? error.message : String(error)
 
       // Handle verification timeout
       if (errorMessage.includes('Verification pending')) {
