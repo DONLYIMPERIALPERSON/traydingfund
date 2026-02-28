@@ -247,6 +247,7 @@ async def request_payout(
     )
     db.add(verification_job)
     db.flush()  # Get the job ID
+    db.commit()  # Make job visible to refresh engine
 
     # Wait for verification (up to 60 seconds)
     import time
