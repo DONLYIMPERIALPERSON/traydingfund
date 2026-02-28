@@ -311,7 +311,6 @@ async def request_payout(
 
     # Create payout order
     import uuid
-    from datetime import datetime, timezone
 
     provider_order_id = f"payout-{uuid.uuid4().hex[:24]}"
     notify_url = f"{settings.app_public_base_url.rstrip('/')}/payout/notify"
