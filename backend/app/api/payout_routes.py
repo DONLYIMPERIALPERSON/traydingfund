@@ -28,6 +28,10 @@ from app.schemas.payout import (
     PayoutRequestResponse
 )
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/payout", tags=["Payout"])
 
 
@@ -257,14 +261,36 @@ async def request_payout(
             # Check if last_feed_at was updated after job started
             db.refresh(account)
             if account.last_feed_at and account.last_feed_at > verification_job.started_at:
+                logger.info(
+                    "withdrawal-verify: done (job_id=%s account_id=%s last_feed_at=%s started_at=%s)",
+                    verification_job.id,
+                    account.id,
+                    account.last_feed_at,
+                    verification_job.started_at,
+                )
                 break  # Fresh data available
+
+        if verification_job.status in {RefreshStatus.failed, RefreshStatus.cancelled}:
+            logger.warning(
+                "withdrawal-verify: failed status (job_id=%s status=%s error=%s)",
+                verification_job.id,
+                verification_job.status,
+                verification_job.error,
+            )
+            break
 
         time.sleep(2)  # Poll every 2 seconds
 
     # Check if verification succeeded
     if verification_job.status != RefreshStatus.done or not (account.last_feed_at and account.last_feed_at > verification_job.started_at):
-        # Clean up failed verification job
-        db.delete(verification_job)
+        # Keep failed job for diagnostics
+        logger.warning(
+            "withdrawal-verify: timeout or stale feed (job_id=%s status=%s last_feed_at=%s started_at=%s)",
+            verification_job.id,
+            verification_job.status,
+            account.last_feed_at,
+            verification_job.started_at,
+        )
         db.commit()
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
