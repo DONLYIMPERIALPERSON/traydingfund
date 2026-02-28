@@ -481,6 +481,9 @@ async def payout_notify(request: Request, db: Session = Depends(get_db)):
 
     # Update order status
     if order_status == 2:  # Success
+        if payout_order.status == "completed":
+            return {"success": True, "message": "Notification already processed"}
+
         payout_order.status = "completed"
         payout_order.paid_at = datetime.now(timezone.utc)
         payout_order.provider_raw_response = payload
