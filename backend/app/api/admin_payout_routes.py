@@ -12,6 +12,7 @@ from app.models.admin_allowlist import AdminAllowlist
 from app.models.payment_order import PaymentOrder
 from app.models.user import User
 from app.models.challenge_account import ChallengeAccount
+from app.models.mt5_account import MT5Account
 from app.services.palmpay_service import create_payout_order, query_payout_status
 from app.tasks import send_payout_notification
 from app.services.certificate_service import certificate_service
@@ -146,6 +147,16 @@ def get_payout_requests(
     for payment_order, user_name, user_email in results:
         # Get account info from metadata_json
         metadata = payment_order.metadata_json or {}
+        mt5_account_number = metadata.get("mt5_account_number")
+        if not mt5_account_number and payment_order.assigned_mt5_account_id:
+            account = db.get(ChallengeAccount, payment_order.metadata_json.get("account_id")) if payment_order.metadata_json else None
+            if account and account.active_mt5_account_id:
+                mt5_account = db.get(MT5Account, account.active_mt5_account_id)
+                if mt5_account:
+                    mt5_account_number = mt5_account.account_number
+        if mt5_account_number:
+            metadata["mt5_account_number"] = mt5_account_number
+
         account_info = {
             "challenge_id": metadata.get("challenge_id", payment_order.challenge_id or "Unknown"),
             "account_size": metadata.get("account_size", payment_order.account_size or "Unknown"),

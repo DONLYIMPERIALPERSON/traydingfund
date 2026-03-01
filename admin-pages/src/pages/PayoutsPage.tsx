@@ -409,7 +409,12 @@ const PayoutsPage = ({ onOpenProfile }: { onOpenProfile?: (user: AdminUser) => v
                         <div style={{ fontSize: '12px', color: '#888' }}>{request.user.email}</div>
                       </div>
                     </td>
-                    <td>{request.amount_formatted}</td>
+                    <td>
+                      <div>{request.amount_formatted}</div>
+                      {request.metadata?.mt5_account_number && (
+                        <div style={{ fontSize: '12px', color: '#888' }}>MT5: {request.metadata.mt5_account_number}</div>
+                      )}
+                    </td>
                     <td>{approvalInfo.approvalType}</td>
                     <td>
                       <div>{approvalInfo.decision}</div>
@@ -438,8 +443,22 @@ const PayoutsPage = ({ onOpenProfile }: { onOpenProfile?: (user: AdminUser) => v
                         {request.status.replace('_', ' ').toUpperCase()}
                       </span>
                     </td>
-                    <td>{request.created_at ? new Date(request.created_at).toLocaleDateString() : '-'}</td>
-                    <td>{request.completed_at ? new Date(request.completed_at).toLocaleDateString() : '-'}</td>
+                    <td>
+                      {request.created_at ? (
+                        <div>
+                          <div>{new Date(request.created_at).toLocaleDateString()}</div>
+                          <div style={{ fontSize: '12px', color: '#888' }}>{new Date(request.created_at).toLocaleTimeString()}</div>
+                        </div>
+                      ) : '-'}
+                    </td>
+                    <td>
+                      {request.completed_at ? (
+                        <div>
+                          <div>{new Date(request.completed_at).toLocaleDateString()}</div>
+                          <div style={{ fontSize: '12px', color: '#888' }}>{new Date(request.completed_at).toLocaleTimeString()}</div>
+                        </div>
+                      ) : '-'}
+                    </td>
                   </tr>
                 )
               })}

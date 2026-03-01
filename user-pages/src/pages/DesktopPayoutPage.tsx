@@ -17,6 +17,22 @@ const DesktopPayoutPage: React.FC = () => {
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null)
   const [verifyingPin, setVerifyingPin] = useState(false)
 
+  const normalizeStatus = (status: string) => status.replace(/_/g, ' ').toLowerCase()
+  const resolveStatusLabel = (status: string) => {
+    if (status === 'pending_approval') return 'Pending approval'
+    if (status === 'processing') return 'Processing'
+    if (status === 'failed') return 'Pending approval'
+    if (status === 'completed') return 'Completed'
+    return normalizeStatus(status)
+  }
+
+  const resolveStatusClass = (status: string) => {
+    if (status === 'pending_approval' || status === 'failed') return 'pending'
+    if (status === 'processing') return 'processing'
+    if (status === 'completed') return 'completed'
+    return 'pending'
+  }
+
   useEffect(() => {
     const fetchPayoutData = async () => {
       try {
@@ -279,8 +295,8 @@ const DesktopPayoutPage: React.FC = () => {
                         </div>
                       </div>
                       <div className="history-item-right">
-                        <div className={`history-status ${withdrawal.status}`}>
-                          {withdrawal.status.charAt(0).toUpperCase() + withdrawal.status.slice(1)}
+                        <div className={`history-status ${resolveStatusClass(withdrawal.status)}`}>
+                          {resolveStatusLabel(withdrawal.status)}
                         </div>
                         <div className="history-time">
                           {formatTimeAgo(withdrawal.completed_at || withdrawal.requested_at)}

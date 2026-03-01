@@ -15,6 +15,21 @@ const MobilePayoutPage: React.FC = () => {
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null)
   const [verifyingPin, setVerifyingPin] = useState(false)
 
+  const normalizeStatus = (status: string) => status.replace(/_/g, ' ').toLowerCase()
+  const resolveStatusLabel = (status: string) => {
+    if (status === 'pending_approval') return 'Pending approval'
+    if (status === 'processing') return 'Processing'
+    if (status === 'failed') return 'Pending approval'
+    if (status === 'completed') return 'Completed'
+    return normalizeStatus(status)
+  }
+
+  const resolveStatusColor = (status: string) => {
+    if (status === 'completed') return '#FFD700'
+    if (status === 'processing') return '#FFA500'
+    return '#FFD700'
+  }
+
   useEffect(() => {
     const fetchPayoutData = async () => {
       try {
@@ -300,9 +315,9 @@ const MobilePayoutPage: React.FC = () => {
                           <div style={{
                             fontSize: '14px',
                             fontWeight: '600',
-                            color: withdrawal.status === 'completed' ? '#FFD700' : withdrawal.status === 'processing' ? '#FFA500' : '#FF6B6B'
+                            color: resolveStatusColor(withdrawal.status)
                           }}>
-                            {withdrawal.status.charAt(0).toUpperCase() + withdrawal.status.slice(1)}
+                            {resolveStatusLabel(withdrawal.status)}
                           </div>
                           <div style={{fontSize: '12px', color: 'rgba(255,255,255,0.5)'}}>
                             {formatTimeAgo(withdrawal.completed_at || withdrawal.requested_at)}

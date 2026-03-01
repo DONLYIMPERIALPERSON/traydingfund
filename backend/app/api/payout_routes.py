@@ -38,6 +38,11 @@ router = APIRouter(prefix="/payout", tags=["Payout"])
 WITHDRAWAL_COOLDOWN_HOURS = 72
 
 
+def _is_palmpay_insufficient_funds_error(message: str) -> bool:
+    lowered = (message or "").lower()
+    return any(token in lowered for token in ["insufficient", "insuff", "insufficient funds", "balance"])
+
+
 def _get_latest_withdrawal_time(db: Session, user_id: int) -> datetime | None:
     """Return the most recent payout request timestamp for the user."""
     latest = (
@@ -138,7 +143,7 @@ async def get_payout_summary(
     # Get withdrawal history
     withdrawal_history = db.query(PaymentOrder).filter(
         PaymentOrder.user_id == current_user.id,
-        PaymentOrder.status.in_(["completed", "processing"])
+        PaymentOrder.status.in_(["completed", "processing", "pending_approval"])
     ).order_by(PaymentOrder.created_at.desc()).limit(10).all()
 
     withdrawal_records = []
@@ -353,6 +358,7 @@ async def request_payout(
     notify_url = f"{settings.app_public_base_url.rstrip('/')}/payout/notify"
 
     palmpay_response = None
+    palmpay_error: str | None = None
     if not requires_admin_approval:
         # Create PalmPay payout order immediately for auto-approved payouts
         try:
@@ -368,10 +374,14 @@ async def request_payout(
                 remark=f"NairaTrader payout for {account.account_size} account"
             )
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Failed to initiate payout: {str(e)}"
-            )
+            palmpay_error = str(e)
+            if _is_palmpay_insufficient_funds_error(palmpay_error):
+                requires_admin_approval = True
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"Failed to initiate payout: {palmpay_error}"
+                )
 
     # Create payment order record
     payout_order = PaymentOrder(
@@ -403,7 +413,9 @@ async def request_payout(
             "bank_code": bank_account.bank_code,
             "bank_account_number": bank_account.bank_account_number,
             "bank_account_name": bank_account.account_name,
-            "bank_phone": getattr(bank_account, 'phone_number', None)
+            "bank_phone": getattr(bank_account, 'phone_number', None),
+            "auto_payout_fallback": bool(palmpay_error),
+            "auto_payout_error": palmpay_error
         }
     )
 
