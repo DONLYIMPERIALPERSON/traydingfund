@@ -79,7 +79,7 @@ def internal_feed_update(
         balance=payload.balance,
         equity=payload.equity if payload.equity is not None else payload.balance,
         closed_trade_durations_seconds=payload.closed_trade_durations_seconds,
-        scalping_breach_increment=payload.scalping_breach_increment or 0,
+        scalping_breach_increment=payload.scalping_breach_increment,
         equity_breach_signal=payload.equity_breach_signal or False,
         balance_breach_signal=payload.balance_breach_signal or False,
         stage_pass_signal=payload.stage_pass_signal,
