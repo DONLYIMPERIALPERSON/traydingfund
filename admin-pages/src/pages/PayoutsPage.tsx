@@ -324,7 +324,11 @@ const PayoutsPage = ({ onOpenProfile }: { onOpenProfile?: (user: AdminUser) => v
                   <td>
                     <div>
                       <div>{request.account.account_size}</div>
-                      <div style={{ fontSize: '12px', color: '#888' }}>{request.account.challenge_id}</div>
+                      {request.metadata?.mt5_account_number ? (
+                        <div style={{ fontSize: '12px', color: '#888' }}>MT5: {request.metadata.mt5_account_number}</div>
+                      ) : (
+                        <div style={{ fontSize: '12px', color: '#888' }}>MT5: -</div>
+                      )}
                     </div>
                   </td>
                   <td>{request.amount_formatted}</td>
@@ -339,7 +343,10 @@ const PayoutsPage = ({ onOpenProfile }: { onOpenProfile?: (user: AdminUser) => v
                       PENDING APPROVAL
                     </span>
                   </td>
-                  <td>{new Date(request.created_at).toLocaleDateString()}</td>
+                  <td>
+                    <div>{new Date(request.created_at).toLocaleDateString()}</div>
+                    <div style={{ fontSize: '12px', color: '#888' }}>{new Date(request.created_at).toLocaleTimeString()}</div>
+                  </td>
                   <td>
                     <div style={{ display: 'flex', gap: '4px', flexDirection: 'column' }}>
                       <button
