@@ -223,6 +223,21 @@ export type OrdersResponse = {
   }
 }
 
+export type OrderStatusQueryResult = {
+  order_id: number
+  provider_order_id: string
+  status: string
+  previous_status?: string
+  error?: string
+}
+
+export type QueryPendingOrdersResponse = {
+  total_checked: number
+  updated: number
+  failed: number
+  orders: OrderStatusQueryResult[]
+}
+
 export type ChallengeAccountsResponse = {
   accounts: ChallengeAccountListItem[]
 }
@@ -643,6 +658,22 @@ export async function fetchPendingAssignments(
     throw await parseBackendError('Failed to load pending assignments', response)
   }
   return response.json() as Promise<OrdersResponse>
+}
+
+export async function queryOrderStatus(orderId: number, sessionToken?: string): Promise<OrderStatusQueryResult> {
+  const response = await authFetch(`/admin/orders/${orderId}/query-status`, { method: 'POST' }, sessionToken)
+  if (!response.ok) {
+    throw await parseBackendError('Failed to query order status', response)
+  }
+  return response.json() as Promise<OrderStatusQueryResult>
+}
+
+export async function queryPendingOrders(sessionToken?: string): Promise<QueryPendingOrdersResponse> {
+  const response = await authFetch('/admin/orders/query-pending', { method: 'POST' }, sessionToken)
+  if (!response.ok) {
+    throw await parseBackendError('Failed to query pending orders', response)
+  }
+  return response.json() as Promise<QueryPendingOrdersResponse>
 }
 
 export async function generateCertificates(sessionToken?: string): Promise<{ message: string; generated: number; failed: number }> {
@@ -1293,6 +1324,7 @@ export type UserProfileData = {
   name: string
   email: string
   status: string
+  kyc_status: string
   trading: string
   accounts: string
   revenue: string
@@ -1306,7 +1338,7 @@ export type UserChallengeAccount = {
   trader_name: string | null
   trader_email?: string | null
   account_size: string
-  phase: 'Phase 1' | 'Phase 2' | 'Funded'
+  phase: 'Phase 1' | 'Phase 2' | 'Funded' | 'Withdrawn'
   mt5_account: string | null
   mt5_server: string | null
   mt5_password: string | null
@@ -1365,7 +1397,7 @@ export async function fetchUserProfile(userId: number, sessionToken?: string): P
 }
 
 export async function fetchUserChallengeAccounts(userId: number, sessionToken?: string): Promise<UserChallengeAccount[]> {
-  const response = await authFetch(`/admin/challenge-accounts?user_id=${userId}&active_only=true`, {}, sessionToken)
+  const response = await authFetch(`/admin/challenge-accounts?user_id=${userId}`, {}, sessionToken)
   if (!response.ok) {
     throw await parseBackendError('Failed to load user challenge accounts', response)
   }

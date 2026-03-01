@@ -44,6 +44,18 @@ def list_admin_users(
         else []
     )
 
+    payout_rows = (
+        db.scalars(
+            select(PaymentOrder).where(
+                PaymentOrder.user_id.in_(user_ids),
+                PaymentOrder.provider == "palmpay_payout",
+                PaymentOrder.status == "completed",
+            )
+        ).all()
+        if user_ids
+        else []
+    )
+
     challenges_by_user: dict[int, list[ChallengeAccount]] = {}
     for row in challenge_rows:
         challenges_by_user.setdefault(row.user_id, []).append(row)
@@ -52,6 +64,10 @@ def list_admin_users(
     for row in payment_rows:
         payments_by_user.setdefault(row.user_id, []).append(row)
 
+    payouts_by_user: dict[int, list[PaymentOrder]] = {}
+    for row in payout_rows:
+        payouts_by_user.setdefault(row.user_id, []).append(row)
+
     rows: list[dict[str, object]] = []
     funded_users = 0
     breached_users = 0
@@ -59,12 +75,13 @@ def list_admin_users(
     for user in users:
         user_challenges = challenges_by_user.get(user.id, [])
         user_payments = payments_by_user.get(user.id, [])
+        user_payouts = payouts_by_user.get(user.id, [])
 
         funded_count = sum(1 for row in user_challenges if row.current_stage == "Funded")
         challenge_count = sum(1 for row in user_challenges if row.current_stage in {"Phase 1", "Phase 2"})
         orders_count = len(user_payments)
 
-        payout_total = sum(float(row.funded_user_payout_amount or 0) for row in user_challenges)
+        payout_total = sum(float(row.net_amount_kobo or 0) for row in user_payouts) / 100
         revenue_total = sum(float(row.net_amount_kobo) for row in user_payments) / 100
 
         has_funded = funded_count > 0
@@ -134,12 +151,20 @@ def get_user_profile(
         )
     ).all()
 
+    payout_orders = db.scalars(
+        select(PaymentOrder).where(
+            PaymentOrder.user_id == user_id,
+            PaymentOrder.provider == "palmpay_payout",
+            PaymentOrder.status == "completed",
+        )
+    ).all()
+
     # Calculate stats
     funded_count = sum(1 for acc in challenge_accounts if acc.current_stage == "Funded")
     challenge_count = sum(1 for acc in challenge_accounts if acc.current_stage in {"Phase 1", "Phase 2"})
     orders_count = len(payment_orders)
 
-    payout_total = sum(float(acc.funded_user_payout_amount or 0) for acc in challenge_accounts)
+    payout_total = sum(float(order.net_amount_kobo or 0) for order in payout_orders) / 100
     revenue_total = sum(float(order.net_amount_kobo) for order in payment_orders) / 100
 
     # Determine trading status
@@ -163,6 +188,7 @@ def get_user_profile(
         "name": user.nick_name or user.full_name or user.email,
         "email": user.email,
         "status": user.status,
+        "kyc_status": user.kyc_status,
         "trading": trading_status,
         "accounts": f"{challenge_count} / {funded_count}",
         "revenue": _format_currency(revenue_total),

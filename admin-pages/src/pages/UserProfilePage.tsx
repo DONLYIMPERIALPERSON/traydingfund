@@ -280,7 +280,7 @@ const UserProfilePage = ({ user, onBack }: UserProfilePageProps) => {
                 <th>Challenge ID</th>
                 <th>MT5 Account</th>
                 <th>Account Size</th>
-                <th>Phase</th>
+                <th>Account Type</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -305,7 +305,7 @@ const UserProfilePage = ({ user, onBack }: UserProfilePageProps) => {
 
     if (activeTab === 'KYC') {
       // Show KYC status from user profile
-      const kycStatus = profileData?.status || 'Unknown'
+      const kycStatus = profileData?.kyc_status || 'Unknown'
       const kycStatusDisplay = kycStatus === 'active' ? 'Approved' :
                               kycStatus === 'pending' ? 'Pending Review' :
                               kycStatus === 'rejected' ? 'Rejected' :

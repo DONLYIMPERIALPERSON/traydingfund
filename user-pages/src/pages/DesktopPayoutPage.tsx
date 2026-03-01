@@ -4,7 +4,7 @@ import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
 import '../styles/DesktopPayoutPage.css'
-import { payoutAPI, formatCurrency, formatDate, formatTimeAgo, type PayoutSummaryResponse } from '../lib/payout'
+import { payoutAPI, formatCurrency, formatDate, formatTime, formatTimeAgo, type PayoutSummaryResponse } from '../lib/payout'
 
 const DesktopPayoutPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'request' | 'history'>('request')
@@ -267,7 +267,12 @@ const DesktopPayoutPage: React.FC = () => {
                         </div>
                         <div className="history-details">
                           <div className="history-amount">{formatCurrency(withdrawal.amount)}</div>
-                          <div className="history-date">{formatDate(withdrawal.requested_at)}</div>
+                          <div className="history-date">
+                            {formatDate(withdrawal.requested_at)} • {formatTime(withdrawal.requested_at)}
+                          </div>
+                          {withdrawal.mt5_account_number && (
+                            <div className="history-reference">MT5: {withdrawal.mt5_account_number}</div>
+                          )}
                           {withdrawal.reference && (
                             <div className="history-reference">Ref: {withdrawal.reference}</div>
                           )}

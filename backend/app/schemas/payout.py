@@ -28,6 +28,7 @@ class WithdrawalHistory(BaseModel):
     requested_at: datetime
     completed_at: Optional[datetime]
     reference: str
+    mt5_account_number: Optional[str] = None
 
     class Config:
         from_attributes = True

@@ -381,7 +381,7 @@ const MigratePage = () => {
 											: 'text-gray-300 hover:text-white hover:bg-gray-700/50'
 									}`}
 								>
-									Payout Request
+					KYC/Payout Request
 								</button>
 							</div>
 							<div className="mt-4 p-4 bg-gray-800/30 rounded-lg border border-gray-600/30">

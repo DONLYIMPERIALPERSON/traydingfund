@@ -22,6 +22,7 @@ export interface WithdrawalHistory {
   requested_at: string
   completed_at: string | null
   reference: string
+  mt5_account_number?: string | null
 }
 
 export interface PayoutEligibility {
@@ -112,6 +113,14 @@ export const formatDate = (dateString: string): string => {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
+  })
+}
+
+export const formatTime = (dateString: string): string => {
+  const date = new Date(dateString)
+  return date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
   })
 }
 

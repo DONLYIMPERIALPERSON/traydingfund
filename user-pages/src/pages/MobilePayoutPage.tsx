@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../styles/MobilePayoutPage.css'
-import { payoutAPI, formatCurrency, formatDate, formatTimeAgo, type PayoutSummaryResponse } from '../lib/payout'
+import { payoutAPI, formatCurrency, formatDate, formatTime, formatTimeAgo, type PayoutSummaryResponse } from '../lib/payout'
 
 const MobilePayoutPage: React.FC = () => {
   const navigate = useNavigate()
@@ -284,7 +284,14 @@ const MobilePayoutPage: React.FC = () => {
                       <div key={withdrawal.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px'}}>
                         <div>
                           <div style={{fontSize: '16px', fontWeight: '600', color: 'white'}}>{formatCurrency(withdrawal.amount)}</div>
-                          <div style={{fontSize: '12px', color: 'rgba(255,255,255,0.6)'}}>{formatDate(withdrawal.requested_at)}</div>
+                          <div style={{fontSize: '12px', color: 'rgba(255,255,255,0.6)'}}>
+                            {formatDate(withdrawal.requested_at)} • {formatTime(withdrawal.requested_at)}
+                          </div>
+                          {withdrawal.mt5_account_number && (
+                            <div style={{fontSize: '10px', color: 'rgba(255,255,255,0.5)'}}>
+                              MT5: {withdrawal.mt5_account_number}
+                            </div>
+                          )}
                           {withdrawal.reference && (
                             <div style={{fontSize: '10px', color: 'rgba(255,255,255,0.5)'}}>Ref: {withdrawal.reference}</div>
                           )}

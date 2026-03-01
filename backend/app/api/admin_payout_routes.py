@@ -6,12 +6,13 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_admin_allowlisted
+from app.core.config import settings
 from app.db.deps import get_db
 from app.models.admin_allowlist import AdminAllowlist
 from app.models.payment_order import PaymentOrder
 from app.models.user import User
 from app.models.challenge_account import ChallengeAccount
-from app.services.palmpay_service import query_payout_status
+from app.services.palmpay_service import create_payout_order, query_payout_status
 from app.tasks import send_payout_notification
 from app.services.certificate_service import certificate_service
 from app.api.admin_workboard_routes import log_admin_activity
@@ -193,21 +194,61 @@ def approve_payout(
     if payout_order.status != "pending_approval":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payout is not pending approval")
 
-    # Update status to processing (this will trigger PalmPay payout)
-    payout_order.status = "processing"
     payout_order.metadata_json = payout_order.metadata_json or {}
     payout_order.metadata_json["approved_by"] = current_admin.full_name or current_admin.email
     payout_order.metadata_json["approved_at"] = datetime.now(timezone.utc).isoformat()
 
+    if not payout_order.provider_order_no:
+        # Trigger PalmPay payout only after admin approval
+        payee_name = payout_order.metadata_json.get("bank_account_name") or payout_order.payer_account_name
+        payee_bank_code = payout_order.metadata_json.get("bank_code")
+        payee_bank_acc_no = payout_order.metadata_json.get("bank_account_number") or payout_order.payer_virtual_acc_no
+        payee_phone_no = payout_order.metadata_json.get("bank_phone")
+
+        if not payee_bank_code or not payee_bank_acc_no or not payee_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing payout bank details for approval."
+            )
+
+        notify_url = f"{payout_order.provider_raw_response.get('notifyUrl')}" if isinstance(payout_order.provider_raw_response, dict) else None
+        if not notify_url:
+            notify_url = f"{settings.app_public_base_url.rstrip('/')}/payout/notify"
+
+        try:
+            palmpay_response = create_payout_order(
+                order_id=payout_order.provider_order_id,
+                amount_kobo=int(payout_order.net_amount_kobo),
+                payee_name=payee_name,
+                payee_bank_code=payee_bank_code,
+                payee_bank_acc_no=payee_bank_acc_no,
+                payee_phone_no=payee_phone_no,
+                currency=payout_order.currency or "NGN",
+                notify_url=notify_url,
+                remark=f"NairaTrader payout for {payout_order.account_size} account"
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Failed to initiate payout: {str(e)}"
+            )
+
+        payout_order.provider_order_no = palmpay_response.get("orderNo")
+        payout_order.provider_raw_response = palmpay_response
+
+    # Update status to processing after payout is created
+    payout_order.status = "processing"
+
     db.add(payout_order)
     db.commit()
 
+    user = db.get(User, payout_order.user_id)
     log_admin_activity(
         db=db,
         admin_id=current_admin.id,
         admin_name=current_admin.full_name or current_admin.email,
         action="approve_payout",
-        description=f"Approved payout of ₦{(payout_order.net_amount_kobo / 100):,.0f} for user {user.email}",
+        description=f"Approved payout of ₦{(payout_order.net_amount_kobo / 100):,.0f} for user {user.email if user else payout_order.user_id}",
         entity_type="payout",
         entity_id=payout_order.id
     )
@@ -239,7 +280,6 @@ def approve_payout(
 
     # Send notification email to user
     try:
-        user = db.get(User, payout_order.user_id)
         if user:
             message = (
                 f"Your payout request of ₦{(payout_order.net_amount_kobo / 100):,.2f} has been approved and is now being processed.\n\n"
@@ -302,18 +342,22 @@ def reject_payout(
     db.add(payout_order)
     db.commit()
 
+    user = db.get(User, payout_order.user_id)
+
     log_admin_activity(
         db=db,
         admin_id=current_admin.id,
         admin_name=current_admin.full_name or current_admin.email,
         action="reject_payout",
-        description=f"Rejected payout of ₦{(payout_order.net_amount_kobo / 100):,.0f} for user {user.email} with reason: {reason}",
+        description=(
+            f"Rejected payout of ₦{(payout_order.net_amount_kobo / 100):,.0f} for user "
+            f"{user.email if user else payout_order.user_id} with reason: {reason}"
+        ),
         entity_type="payout",
         entity_id=payout_order.id
     )
     # Send notification email to user
     try:
-        user = db.get(User, payout_order.user_id)
         if user:
             message = (
                 f"Unfortunately, your payout request of ₦{(payout_order.net_amount_kobo / 100):,.2f} has been declined.\n\n"

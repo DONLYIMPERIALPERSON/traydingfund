@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react'
 import type { AdminUser } from './UsersPage'
-import { fetchOrderStats, fetchOrders, type OrderStats, type Order } from '../lib/adminAuth'
+import {
+  fetchOrderStats,
+  fetchOrders,
+  queryPendingOrders,
+  queryOrderStatus,
+  type OrderStats,
+  type Order,
+} from '../lib/adminAuth'
 
 interface OrdersPageProps {
   onOpenProfile: (user: AdminUser) => void
@@ -17,6 +24,8 @@ const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [queryingOrderId, setQueryingOrderId] = useState<number | null>(null)
+  const [queryPendingLoading, setQueryPendingLoading] = useState(false)
+  const [queryPendingMessage, setQueryPendingMessage] = useState<string>('')
   const [searchEmail, setSearchEmail] = useState('')
 
   const loadStats = async (period: 'today' | 'week' | 'month') => {
@@ -110,9 +119,34 @@ const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
   const handleQueryStatus = async (order: Order) => {
     setQueryingOrderId(order.id)
     try {
-      alert('Unable to confirm, PalmPay server down')
+      const result = await queryOrderStatus(order.id)
+      if (result.error) {
+        alert(`PalmPay query failed: ${result.error}`)
+      } else {
+        alert(`Order updated from ${result.previous_status ?? 'unknown'} to ${result.status}.`)
+      }
+      await loadStats(statsPeriod)
+      await loadOrders(currentPage)
     } finally {
       setQueryingOrderId(null)
+    }
+  }
+
+  const handleQueryPending = async () => {
+    setQueryPendingLoading(true)
+    setQueryPendingMessage('')
+    try {
+      const result = await queryPendingOrders()
+      setQueryPendingMessage(
+        `Checked ${result.total_checked} pending orders. Updated ${result.updated}, failed ${result.failed}.`
+      )
+      await loadStats(statsPeriod)
+      await loadOrders(currentPage)
+    } catch (error) {
+      console.error('Failed to query pending orders:', error)
+      setQueryPendingMessage('Failed to query pending orders. Please try again.')
+    } finally {
+      setQueryPendingLoading(false)
     }
   }
 
@@ -125,6 +159,14 @@ const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
             <p>Track plan purchases and payment processing status.</p>
           </div>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button
+              type="button"
+              className="period-selector-large"
+              onClick={() => void handleQueryPending()}
+              disabled={queryPendingLoading}
+            >
+              {queryPendingLoading ? 'Querying Pending...' : 'Query Pending Transactions'}
+            </button>
             <input
               type="search"
               value={searchEmail}
@@ -190,6 +232,11 @@ const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
         <div className="table-header">
           <h3>Recent Orders</h3>
         </div>
+        {queryPendingMessage && (
+          <div className="notice" style={{ marginBottom: '12px' }}>
+            {queryPendingMessage}
+          </div>
+        )}
         {loading ? (
           <div className="loading-state">Loading orders...</div>
         ) : (

@@ -1,5 +1,5 @@
 from typing import List
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -34,6 +34,32 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/payout", tags=["Payout"])
+
+WITHDRAWAL_COOLDOWN_HOURS = 72
+
+
+def _get_latest_withdrawal_time(db: Session, user_id: int) -> datetime | None:
+    """Return the most recent payout request timestamp for the user."""
+    latest = (
+        db.query(PaymentOrder.created_at)
+        .filter(PaymentOrder.user_id == user_id)
+        .filter(PaymentOrder.provider == "palmpay_payout")
+        .filter(PaymentOrder.status.in_(["pending_approval", "processing", "completed"]))
+        .order_by(PaymentOrder.created_at.desc())
+        .first()
+    )
+    return latest[0] if latest else None
+
+
+def _get_withdrawal_cooldown_remaining(latest_withdrawal_at: datetime | None) -> timedelta | None:
+    if not latest_withdrawal_at:
+        return None
+    now = datetime.now(timezone.utc)
+    elapsed = now - latest_withdrawal_at
+    remaining = timedelta(hours=WITHDRAWAL_COOLDOWN_HOURS) - elapsed
+    if remaining.total_seconds() <= 0:
+        return None
+    return remaining
 
 
 @router.get("/summary", response_model=PayoutSummaryResponse)
@@ -117,13 +143,19 @@ async def get_payout_summary(
 
     withdrawal_records = []
     for withdrawal in withdrawal_history:
+        mt5_account_number = None
+        if withdrawal.assigned_mt5_account_id:
+            mt5_account = db.get(MT5Account, withdrawal.assigned_mt5_account_id)
+            if mt5_account:
+                mt5_account_number = mt5_account.account_number
         withdrawal_records.append(WithdrawalHistory(
             id=withdrawal.id,
             amount=withdrawal.net_amount_kobo / 100,  # Convert from kobo to NGN
             status=withdrawal.status,
             requested_at=withdrawal.created_at,
             completed_at=withdrawal.paid_at,  # Use paid_at instead of completed_at
-            reference=withdrawal.provider_order_id or ""  # Use provider_order_id as reference
+            reference=withdrawal.provider_order_id or "",  # Use provider_order_id as reference
+            mt5_account_number=mt5_account_number
         ))
 
     # Check payout eligibility
@@ -139,22 +171,30 @@ async def get_payout_summary(
     if total_available_payout <= 0:
         ineligibility_reasons.append("No available payout. You need to generate profits from trading first.")
 
-    # Check for breached accounts
-    breached_accounts = db.query(ChallengeAccount).filter(
+    # Only consider active, non-breached funded accounts for eligibility
+    eligible_funded_accounts = db.query(ChallengeAccount).filter(
         ChallengeAccount.user_id == current_user.id,
         ChallengeAccount.current_stage == "Funded",
-        ChallengeAccount.objective_status == "breached"
+        ChallengeAccount.objective_status != "breached"
     ).all()
 
-    if breached_accounts:
-        ineligibility_reasons.append(f"You have {len(breached_accounts)} breached account(s). Breached accounts are not eligible for payout.")
+    if not eligible_funded_accounts:
+        ineligibility_reasons.append("No active funded account eligible for payout.")
 
     # Check minimum payout threshold
     if total_available_payout > 0 and total_available_payout < 1000:
         ineligibility_reasons.append(f"Available payout (₦{total_available_payout:,.2f}) is below minimum withdrawal amount (₦1,000).")
 
+    latest_withdrawal_at = _get_latest_withdrawal_time(db, current_user.id)
+    cooldown_remaining = _get_withdrawal_cooldown_remaining(latest_withdrawal_at)
+    if cooldown_remaining:
+        remaining_hours = int(cooldown_remaining.total_seconds() // 3600) + 1
+        ineligibility_reasons.append(
+            f"Withdrawal cooldown active. Please wait about {remaining_hours} hour(s) before requesting another payout."
+        )
+
     eligibility = PayoutEligibility(
-        is_eligible=bool(bank_account and total_available_payout > 0 and not ineligibility_reasons),
+        is_eligible=bool(bank_account and total_available_payout > 0 and eligible_funded_accounts and not ineligibility_reasons),
         has_verified_bank_account=bool(bank_account),
         has_available_payout=total_available_payout > 0,
         minimum_payout_amount=1000,  # Should come from config
@@ -188,7 +228,8 @@ async def check_payout_eligibility(
     # Check for funded accounts with available payout
     funded_accounts = db.query(ChallengeAccount).filter(
         ChallengeAccount.user_id == current_user.id,
-        ChallengeAccount.current_stage == "Funded"
+        ChallengeAccount.current_stage == "Funded",
+        ChallengeAccount.objective_status != "breached"
     ).all()
 
     total_available = 0
@@ -196,14 +237,23 @@ async def check_payout_eligibility(
         compute_funded_payout_metrics(db, account, account.latest_balance or 0)
         total_available += account.funded_user_payout_amount or 0
 
+    latest_withdrawal_at = _get_latest_withdrawal_time(db, current_user.id)
+    cooldown_remaining = _get_withdrawal_cooldown_remaining(latest_withdrawal_at)
+
     return {
-        "eligible": bool(bank_account and total_available > 0),
+        "eligible": bool(bank_account and total_available > 0 and funded_accounts and cooldown_remaining is None),
         "has_bank_account": bool(bank_account),
         "has_funded_accounts": len(funded_accounts) > 0,
         "available_payout": total_available,
         "reasons": [
             "No verified bank account" if not bank_account else None,
-            "No available payout" if total_available == 0 else None
+            "No available payout" if total_available == 0 else None,
+            "No active funded account eligible for payout." if not funded_accounts else None,
+            (
+                "Withdrawal cooldown active. Please wait 72 hours after your last payout before requesting another."
+                if cooldown_remaining is not None
+                else None
+            )
         ]
     }
 
@@ -230,6 +280,18 @@ async def request_payout(
 
     if account.objective_status == "breached":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Account has been breached and is not eligible for payout")
+
+    latest_withdrawal_at = _get_latest_withdrawal_time(db, current_user.id)
+    cooldown_remaining = _get_withdrawal_cooldown_remaining(latest_withdrawal_at)
+    if cooldown_remaining:
+        remaining_hours = int(cooldown_remaining.total_seconds() // 3600) + 1
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Withdrawal cooldown active. "
+                f"Please wait about {remaining_hours} hour(s) before requesting another payout."
+            ),
+        )
 
     user_pin = db.query(UserPin).filter(UserPin.user_id == current_user.id).first()
     if user_pin is None:
@@ -290,31 +352,33 @@ async def request_payout(
     provider_order_id = f"payout-{uuid.uuid4().hex[:24]}"
     notify_url = f"{settings.app_public_base_url.rstrip('/')}/payout/notify"
 
-    # Create PalmPay payout order
-    try:
-        palmpay_response = create_payout_order(
-            order_id=provider_order_id,
-            amount_kobo=int(max_allowed_payout * 100),  # Convert to kobo
-            payee_name=bank_account.account_name,
-            payee_bank_code=bank_account.bank_code,
-            payee_bank_acc_no=bank_account.bank_account_number,
-            payee_phone_no=getattr(bank_account, 'phone_number', None),
-            currency="NGN",
-            notify_url=notify_url,
-            remark=f"NairaTrader payout for {account.account_size} account"
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to initiate payout: {str(e)}"
-        )
+    palmpay_response = None
+    if not requires_admin_approval:
+        # Create PalmPay payout order immediately for auto-approved payouts
+        try:
+            palmpay_response = create_payout_order(
+                order_id=provider_order_id,
+                amount_kobo=int(max_allowed_payout * 100),  # Convert to kobo
+                payee_name=bank_account.account_name,
+                payee_bank_code=bank_account.bank_code,
+                payee_bank_acc_no=bank_account.bank_account_number,
+                payee_phone_no=getattr(bank_account, 'phone_number', None),
+                currency="NGN",
+                notify_url=notify_url,
+                remark=f"NairaTrader payout for {account.account_size} account"
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Failed to initiate payout: {str(e)}"
+            )
 
     # Create payment order record
     payout_order = PaymentOrder(
         user_id=current_user.id,
         provider="palmpay_payout",
         provider_order_id=provider_order_id,
-        provider_order_no=palmpay_response.get("orderNo"),
+        provider_order_no=palmpay_response.get("orderNo") if palmpay_response else None,
         status="pending_approval" if requires_admin_approval else "processing",
         assignment_status="assigned",
         currency="NGN",
@@ -335,7 +399,11 @@ async def request_payout(
             "requires_admin_approval": requires_admin_approval,
             "payout_percentage": round(payout_percentage, 2),
             "min_withdrawal_amount": min_withdrawal_amount,
-            "profit_cap_amount": profit_cap_amount
+            "profit_cap_amount": profit_cap_amount,
+            "bank_code": bank_account.bank_code,
+            "bank_account_number": bank_account.bank_account_number,
+            "bank_account_name": bank_account.account_name,
+            "bank_phone": getattr(bank_account, 'phone_number', None)
         }
     )
 

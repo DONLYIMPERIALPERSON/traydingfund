@@ -5,11 +5,13 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.api.payment_routes import _assign_phase1_account_for_paid_order
 from app.core.auth import get_current_admin_allowlisted
 from app.db.deps import get_db
 from app.models.admin_allowlist import AdminAllowlist
 from app.models.payment_order import PaymentOrder
 from app.models.user import User
+from app.services.palmpay_service import PalmPayPaymentError, map_order_status, query_order_status
 
 router = APIRouter(prefix="/admin/orders", tags=["Admin Orders"])
 
@@ -164,6 +166,127 @@ def get_orders(
             "total": total_count,
             "pages": (total_count + limit - 1) // limit,
         },
+    }
+
+
+@router.post("/{order_id}/query-status")
+def query_order_status_for_admin(
+    order_id: int,
+    current_admin: AdminAllowlist = Depends(get_current_admin_allowlisted),
+    db: Session = Depends(get_db),
+) -> dict[str, object]:
+    order = db.get(PaymentOrder, order_id)
+    if order is None:
+        return {"message": "Order not found"}
+
+    previous_status = order.status
+
+    try:
+        status_data = query_order_status(order_id=order.provider_order_id, order_no=order.provider_order_no)
+    except PalmPayPaymentError as exc:
+        return {
+            "order_id": order.id,
+            "provider_order_id": order.provider_order_id,
+            "status": order.status,
+            "previous_status": previous_status,
+            "error": str(exc),
+        }
+
+    order.status = map_order_status(status_data.get("orderStatus"))
+    order.provider_raw_response = status_data
+    if status_data.get("orderNo"):
+        order.provider_order_no = str(status_data.get("orderNo"))
+
+    order.payer_account_type = str(status_data.get("payerAccountType") or order.payer_account_type or "") or None
+    order.payer_account_id = str(status_data.get("payerAccountId") or order.payer_account_id or "") or None
+    order.payer_bank_name = str(status_data.get("payerBankName") or order.payer_bank_name or "") or None
+    order.payer_account_name = str(status_data.get("payerAccountName") or order.payer_account_name or "") or None
+    order.payer_virtual_acc_no = str(status_data.get("payerVirtualAccNo") or order.payer_virtual_acc_no or "") or None
+
+    if order.status == "paid" and order.paid_at is None:
+        order.paid_at = datetime.now(timezone.utc)
+        _assign_phase1_account_for_paid_order(db, order)
+
+    db.add(order)
+    db.commit()
+
+    return {
+        "order_id": order.id,
+        "provider_order_id": order.provider_order_id,
+        "status": order.status,
+        "previous_status": previous_status,
+    }
+
+
+@router.post("/query-pending")
+def query_pending_orders(
+    current_admin: AdminAllowlist = Depends(get_current_admin_allowlisted),
+    db: Session = Depends(get_db),
+) -> dict[str, object]:
+    pending_orders = db.scalars(
+        select(PaymentOrder)
+        .where(
+            PaymentOrder.provider == "palmpay",
+            PaymentOrder.status.in_(["pending", "created"]),
+        )
+        .order_by(PaymentOrder.created_at.asc())
+    ).all()
+
+    results: list[dict[str, object]] = []
+    updated = 0
+    failed = 0
+
+    for order in pending_orders:
+        previous_status = order.status
+        try:
+            status_data = query_order_status(order_id=order.provider_order_id, order_no=order.provider_order_no)
+        except PalmPayPaymentError as exc:
+            failed += 1
+            results.append(
+                {
+                    "order_id": order.id,
+                    "provider_order_id": order.provider_order_id,
+                    "status": order.status,
+                    "previous_status": previous_status,
+                    "error": str(exc),
+                }
+            )
+            continue
+
+        order.status = map_order_status(status_data.get("orderStatus"))
+        order.provider_raw_response = status_data
+        if status_data.get("orderNo"):
+            order.provider_order_no = str(status_data.get("orderNo"))
+
+        order.payer_account_type = str(status_data.get("payerAccountType") or order.payer_account_type or "") or None
+        order.payer_account_id = str(status_data.get("payerAccountId") or order.payer_account_id or "") or None
+        order.payer_bank_name = str(status_data.get("payerBankName") or order.payer_bank_name or "") or None
+        order.payer_account_name = str(status_data.get("payerAccountName") or order.payer_account_name or "") or None
+        order.payer_virtual_acc_no = str(status_data.get("payerVirtualAccNo") or order.payer_virtual_acc_no or "") or None
+
+        if order.status == "paid" and order.paid_at is None:
+            order.paid_at = datetime.now(timezone.utc)
+            _assign_phase1_account_for_paid_order(db, order)
+
+        db.add(order)
+        updated += 1
+        results.append(
+            {
+                "order_id": order.id,
+                "provider_order_id": order.provider_order_id,
+                "status": order.status,
+                "previous_status": previous_status,
+            }
+        )
+
+    if pending_orders:
+        db.commit()
+
+    return {
+        "total_checked": len(pending_orders),
+        "updated": updated,
+        "failed": failed,
+        "orders": results,
     }
 
 
