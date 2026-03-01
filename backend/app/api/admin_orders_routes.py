@@ -31,18 +31,19 @@ def get_orders_stats(
     else:  # month
         start_date = now - timedelta(days=30)
 
-    # Base query for the period
-    period_query = select(PaymentOrder).where(PaymentOrder.created_at >= start_date)
-
     # Total orders in period
     total_orders = db.scalar(
-        select(func.count(PaymentOrder.id)).where(PaymentOrder.created_at >= start_date)
+        select(func.count(PaymentOrder.id)).where(
+            PaymentOrder.created_at >= start_date,
+            PaymentOrder.provider == "palmpay",
+        )
     ) or 0
 
     # Paid orders in period
     paid_orders = db.scalar(
         select(func.count(PaymentOrder.id)).where(
             PaymentOrder.created_at >= start_date,
+            PaymentOrder.provider == "palmpay",
             PaymentOrder.status == "paid"
         )
     ) or 0
@@ -51,6 +52,7 @@ def get_orders_stats(
     pending_orders = db.scalar(
         select(func.count(PaymentOrder.id)).where(
             PaymentOrder.created_at >= start_date,
+            PaymentOrder.provider == "palmpay",
             PaymentOrder.status.in_(["pending", "created"])
         )
     ) or 0
@@ -59,6 +61,7 @@ def get_orders_stats(
     failed_orders = db.scalar(
         select(func.count(PaymentOrder.id)).where(
             PaymentOrder.created_at >= start_date,
+            PaymentOrder.provider == "palmpay",
             PaymentOrder.status.in_(["failed", "expired"])
         )
     ) or 0
@@ -67,6 +70,7 @@ def get_orders_stats(
     total_volume_kobo = db.scalar(
         select(func.sum(PaymentOrder.net_amount_kobo)).where(
             PaymentOrder.created_at >= start_date,
+            PaymentOrder.provider == "palmpay",
             PaymentOrder.status == "paid"
         )
     ) or 0
@@ -111,7 +115,10 @@ def get_orders(
         PaymentOrder,
         User.full_name,
         User.email,
-    ).join(User, PaymentOrder.user_id == User.id).where(PaymentOrder.created_at >= start_date)
+    ).join(User, PaymentOrder.user_id == User.id).where(
+        PaymentOrder.created_at >= start_date,
+        PaymentOrder.provider == "palmpay",
+    )
 
     # Apply filters
     if status_filter:
@@ -303,6 +310,7 @@ def get_pending_assignments(
         User.full_name,
         User.email,
     ).join(User, PaymentOrder.user_id == User.id).where(
+        PaymentOrder.provider == "palmpay",
         PaymentOrder.status == "paid",
         PaymentOrder.assignment_status == "awaiting_account"
     )

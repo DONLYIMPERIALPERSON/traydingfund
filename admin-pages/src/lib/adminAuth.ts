@@ -1423,6 +1423,7 @@ export async function fetchUserPayouts(userId: number, page: number = 1, limit: 
   const params = new URLSearchParams({
     page: page.toString(),
     limit: limit.toString(),
+    period: 'all',
     search: userId.toString(), // Search by user ID
   })
 

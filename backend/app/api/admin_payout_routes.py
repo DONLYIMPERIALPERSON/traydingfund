@@ -90,7 +90,7 @@ def get_payout_stats(
 def get_payout_requests(
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(50, ge=1, le=100, description="Items per page"),
-    period: Literal["today", "week", "month"] = Query("today", description="Time period filter"),
+    period: Literal["today", "week", "month", "all"] = Query("today", description="Time period filter"),
     status_filter: str | None = Query(None, description="Filter by status"),
     search: str | None = Query(None, description="Search by order ID, user name, or email"),
     current_admin: AdminAllowlist = Depends(get_current_admin_allowlisted),
@@ -98,11 +98,12 @@ def get_payout_requests(
 ) -> dict[str, object]:
     # Calculate start date based on period
     now = datetime.now(timezone.utc)
+    start_date = None
     if period == "today":
         start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
     elif period == "week":
         start_date = now - timedelta(days=7)
-    else:  # month
+    elif period == "month":
         start_date = now - timedelta(days=30)
 
     # Base query with period filter - get account info from metadata_json
@@ -111,9 +112,10 @@ def get_payout_requests(
         User.full_name,
         User.email,
     ).join(User, PaymentOrder.user_id == User.id).where(
-        PaymentOrder.created_at >= start_date,
         PaymentOrder.provider == "palmpay_payout"
     )
+    if start_date:
+        query = query.where(PaymentOrder.created_at >= start_date)
 
     # Apply filters
     if status_filter:
