@@ -3,6 +3,7 @@ import {
   fetchAdminAllowlist,
   createAdminAllowlistEntry,
   updateAdminAllowlistEntry,
+  deleteAdminAllowlistEntry,
   type AdminAllowlistEntry,
 } from '../lib/adminAuth'
 import './SettingsPage.css'
@@ -49,6 +50,10 @@ const SettingsPage = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [editingAdmin, setEditingAdmin] = useState<AdminAllowlistEntry | null>(null)
+  const [editingPages, setEditingPages] = useState<string[]>([])
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [deletingAdminId, setDeletingAdminId] = useState<number | null>(null)
 
   const totalAdmins = useMemo(() => admins.length, [admins])
 
@@ -126,6 +131,55 @@ const SettingsPage = () => {
   const getAllowedPagesDisplay = (allowedPages: string[] | null) => {
     if (!allowedPages || allowedPages.length === 0) return 'All Pages'
     return allowedPages.map(pageId => pageIdToDisplayName[pageId] || pageId).join(', ')
+  }
+
+  const openEditModal = (admin: AdminAllowlistEntry) => {
+    const currentPages = admin.allowed_pages && admin.allowed_pages.length > 0
+      ? admin.allowed_pages.map((pageId) => pageIdToDisplayName[pageId] || pageId)
+      : [...availablePages]
+    setEditingPages(currentPages)
+    setEditingAdmin(admin)
+  }
+
+  const toggleEditingPage = (page: string) => {
+    setEditingPages((prev) => (prev.includes(page) ? prev.filter((p) => p !== page) : [...prev, page]))
+  }
+
+  const saveEditedPages = async () => {
+    if (!editingAdmin) return
+    setSavingEdit(true)
+    setError('')
+
+    try {
+      const pageIds = editingPages
+        .map((displayName) => displayNameToPageId[displayName])
+        .filter(Boolean)
+
+      const allowedPages = editingPages.length === availablePages.length ? [] : pageIds
+      await updateAdminAllowlistEntry(editingAdmin.id, { allowed_pages: allowedPages })
+      await loadAdmins()
+      setEditingAdmin(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update admin pages')
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
+  const handleDeleteAdmin = async (admin: AdminAllowlistEntry) => {
+    const confirmDelete = window.confirm(`Delete admin ${admin.email}? This cannot be undone.`)
+    if (!confirmDelete) return
+
+    setDeletingAdminId(admin.id)
+    setError('')
+    try {
+      await deleteAdminAllowlistEntry(admin.id)
+      await loadAdmins()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete admin')
+    } finally {
+      setDeletingAdminId(null)
+    }
   }
 
   return (
@@ -254,12 +308,18 @@ const SettingsPage = () => {
                       <button
                         type="button"
                         className="settings-edit-btn"
-                        onClick={() => {
-                          // Could implement edit modal here
-                          alert('Edit functionality can be implemented with a modal')
-                        }}
+                        onClick={() => openEditModal(admin)}
                       >
                         Edit Pages
+                      </button>
+                      <button
+                        type="button"
+                        className="settings-delete-btn"
+                        onClick={() => void handleDeleteAdmin(admin)}
+                        disabled={deletingAdminId === admin.id}
+                        style={{ marginLeft: 8, opacity: deletingAdminId === admin.id ? 0.7 : 1 }}
+                      >
+                        {deletingAdminId === admin.id ? 'Deleting...' : 'Delete'}
                       </button>
                     </td>
                   </tr>
@@ -267,6 +327,73 @@ const SettingsPage = () => {
               </tbody>
             </table>
           )}
+        </div>
+      )}
+
+      {editingAdmin && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'grid',
+            placeItems: 'center',
+            padding: 16,
+            zIndex: 50,
+          }}
+        >
+          <div
+            style={{
+              width: 'min(100%, 520px)',
+              borderRadius: 14,
+              border: '1px solid rgba(255,255,255,0.16)',
+              background: '#0f131b',
+              color: '#fff',
+              padding: 16,
+              display: 'grid',
+              gap: 12,
+            }}
+          >
+            <div>
+              <h3 style={{ margin: 0 }}>Edit Allowed Pages</h3>
+              <p style={{ margin: '6px 0 0', color: '#9ca3af', fontSize: 13 }}>{editingAdmin.email}</p>
+            </div>
+
+            <div className="settings-pages-block">
+              <p className="settings-pages-label">Allowed Pages</p>
+              <div className="settings-pages-grid">
+                {availablePages.map((page) => (
+                  <label key={page} className="settings-page-item">
+                    <input
+                      type="checkbox"
+                      checked={editingPages.includes(page)}
+                      onChange={() => toggleEditingPage(page)}
+                    />
+                    {page}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button
+                type="button"
+                className="settings-tab-btn"
+                onClick={() => setEditingAdmin(null)}
+                style={{ background: 'transparent' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="settings-create-btn"
+                onClick={() => void saveEditedPages()}
+                disabled={savingEdit}
+              >
+                {savingEdit ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>

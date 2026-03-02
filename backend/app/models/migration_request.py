@@ -28,6 +28,10 @@ class MigrationRequest(Base):
     processed_by_admin_id: Mapped[int | None] = mapped_column(ForeignKey("admin_allowlist.id"), nullable=True)
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    locked_by_admin_id: Mapped[int | None] = mapped_column(ForeignKey("admin_allowlist.id"), nullable=True)
+    locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    lock_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     # For approved funded requests
     withdrawal_amount: Mapped[float | None] = mapped_column(nullable=True)
     transfer_reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -43,3 +47,4 @@ class MigrationRequest(Base):
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="migration_requests")
     processed_by_admin: Mapped["AdminAllowlist"] = relationship("AdminAllowlist")
+    locked_by_admin: Mapped["AdminAllowlist"] = relationship("AdminAllowlist", foreign_keys=[locked_by_admin_id])

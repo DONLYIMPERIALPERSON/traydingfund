@@ -23,6 +23,7 @@ router = APIRouter(tags=["Challenge Config"])
 
 CHALLENGE_CONFIG_KEY = "public_challenge_plans"
 HERO_STATS_CONFIG_KEY = "public_hero_payout_stats"
+PAYOUT_CONFIG_KEY = "payout_auto_approval_config"
 
 DEFAULT_PLANS: list[dict[str, object]] = [
     {
@@ -118,6 +119,10 @@ DEFAULT_HERO_STATS: dict[str, str] = {
     "trusted_traders": "50000",
 }
 
+DEFAULT_PAYOUT_CONFIG: dict[str, object] = {
+    "auto_approval_threshold_percent": 15,
+}
+
 ADMIN_CHALLENGE_OTP_PURPOSE = "admin_challenge_cfg"
 
 
@@ -143,6 +148,28 @@ def _get_or_seed_hero_stats_config(db: Session) -> ChallengeConfig:
     db.commit()
     db.refresh(row)
     return row
+
+
+def _get_or_seed_payout_config(db: Session) -> ChallengeConfig:
+    row = db.scalar(select(ChallengeConfig).where(ChallengeConfig.config_key == PAYOUT_CONFIG_KEY))
+    if row is not None:
+        return row
+
+    row = ChallengeConfig(config_key=PAYOUT_CONFIG_KEY, config_value=DEFAULT_PAYOUT_CONFIG)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def _normalize_payout_config(raw_value: dict[str, object] | list[dict[str, object]]) -> dict[str, object]:
+    if not isinstance(raw_value, dict):
+        return DEFAULT_PAYOUT_CONFIG.copy()
+
+    normalized = DEFAULT_PAYOUT_CONFIG.copy()
+    if "auto_approval_threshold_percent" in raw_value:
+        normalized["auto_approval_threshold_percent"] = raw_value["auto_approval_threshold_percent"]
+    return normalized
 
 
 def _normalize_hero_stats(raw_value: dict[str, object] | list[dict[str, object]]) -> dict[str, str]:
@@ -230,6 +257,15 @@ def get_admin_hero_stats(
     return {"stats": _normalize_hero_stats(row.config_value)}
 
 
+@router.get("/admin/payouts/config")
+def get_admin_payout_config(
+    _: User = Depends(get_current_admin_allowlisted),
+    db: Session = Depends(get_db),
+) -> dict[str, object]:
+    row = _get_or_seed_payout_config(db)
+    return {"config": _normalize_payout_config(row.config_value)}
+
+
 @router.post("/admin/challenges/config/send-otp")
 def send_admin_challenge_config_otp(
     current_admin: User = Depends(get_current_admin_allowlisted),
@@ -282,3 +318,33 @@ def update_admin_hero_stats(
     db.commit()
     db.refresh(row)
     return {"stats": _normalize_hero_stats(row.config_value)}
+
+
+@router.put("/admin/payouts/config")
+def update_admin_payout_config(
+    payload: dict,
+    current_admin: User = Depends(get_current_admin_allowlisted),
+    db: Session = Depends(get_db),
+) -> dict[str, object]:
+    _validate_and_consume_admin_otp(db, current_admin.id, payload.get("otp", ""))
+
+    threshold = payload.get("auto_approval_threshold_percent")
+    if threshold is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="auto_approval_threshold_percent is required")
+
+    try:
+        threshold_value = float(threshold)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="auto_approval_threshold_percent must be a number")
+
+    if threshold_value <= 0 or threshold_value > 100:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="auto_approval_threshold_percent must be between 0 and 100")
+
+    row = _get_or_seed_payout_config(db)
+    row.config_value = {
+        "auto_approval_threshold_percent": threshold_value,
+    }
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {"config": _normalize_payout_config(row.config_value)}

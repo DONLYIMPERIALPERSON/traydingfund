@@ -217,8 +217,12 @@ const MT5Page = () => {
     }
   }
 
-  const handleDeleteAccount = async (account: MT5Account) => {
-    const confirmDelete = window.confirm(`Delete MT5 account ${account.account_number}? This cannot be undone.`)
+  const handleDeleteAccount = async (account: MT5Account, isAssigned?: boolean) => {
+    const confirmDelete = window.confirm(
+      isAssigned
+        ? `Delete assigned MT5 account ${account.account_number}? This will unassign the user and mark their challenge as awaiting next stage.`
+        : `Delete MT5 account ${account.account_number}? This cannot be undone.`,
+    )
     if (!confirmDelete) return
 
     setDeletingAccountId(account.id)
@@ -524,6 +528,7 @@ const MT5Page = () => {
                 <th>Account Size</th>
                 <th>Password</th>
                 <th>Investor Password</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -552,6 +557,26 @@ const MT5Page = () => {
                   <td>{account.account_size}</td>
                   <td>{account.password}</td>
                   <td>{account.investor_password}</td>
+                  <td>
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteAccount(account, true)}
+                      disabled={deletingAccountId === account.id}
+                      style={{
+                        border: '1px solid rgba(239,68,68,0.5)',
+                        background: 'rgba(239,68,68,0.12)',
+                        color: '#fca5a5',
+                        borderRadius: 10,
+                        padding: '7px 10px',
+                        fontWeight: 700,
+                        fontSize: 12,
+                        cursor: deletingAccountId === account.id ? 'not-allowed' : 'pointer',
+                        opacity: deletingAccountId === account.id ? 0.7 : 1,
+                      }}
+                    >
+                      {deletingAccountId === account.id ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

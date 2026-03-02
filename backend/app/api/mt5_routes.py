@@ -659,11 +659,24 @@ def delete_mt5_account(
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="MT5 account not found")
 
-    if row.status in ASSIGNED_STAGES:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Assigned MT5 accounts cannot be deleted",
+    challenges = db.scalars(
+        select(ChallengeAccount).where(
+            ChallengeAccount.active_mt5_account_id == row.id
         )
+    ).all()
+
+    if challenges:
+        for challenge in challenges:
+            challenge.objective_status = "awaiting_next_stage_account"
+            challenge.passed_stage = challenge.current_stage
+            challenge.active_mt5_account_id = None
+            if challenge.phase1_mt5_account_id == row.id:
+                challenge.phase1_mt5_account_id = None
+            if challenge.phase2_mt5_account_id == row.id:
+                challenge.phase2_mt5_account_id = None
+            if challenge.funded_mt5_account_id == row.id:
+                challenge.funded_mt5_account_id = None
+            db.add(challenge)
 
     db.delete(row)
     db.commit()

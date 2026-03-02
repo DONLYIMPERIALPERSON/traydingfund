@@ -13,6 +13,7 @@ const FundedAccountsPage = ({ onOpenProfile }: FundedAccountsPageProps) => {
   const [topTraders, setTopTraders] = useState<ChallengeAccountListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const leaderboardPageSize = 3
   const fundedListPageSize = 10
 
@@ -49,17 +50,37 @@ const FundedAccountsPage = ({ onOpenProfile }: FundedAccountsPageProps) => {
     })
   }
 
-  const totalLeaderboardPages = Math.ceil(topTraders.length / leaderboardPageSize)
+  const filteredLeaderboard = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return topTraders
+    return topTraders.filter((row) => {
+      const email = row.trader_email?.toLowerCase() || ''
+      const accountNumber = row.mt5_account?.toLowerCase() || ''
+      return email.includes(query) || accountNumber.includes(query)
+    })
+  }, [topTraders, searchQuery])
+
+  const filteredFundedAccounts = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return fundedAccounts
+    return fundedAccounts.filter((row) => {
+      const email = row.trader_email?.toLowerCase() || ''
+      const accountNumber = row.mt5_account?.toLowerCase() || ''
+      return email.includes(query) || accountNumber.includes(query)
+    })
+  }, [fundedAccounts, searchQuery])
+
+  const totalLeaderboardPages = Math.ceil(filteredLeaderboard.length / leaderboardPageSize)
   const paginatedLeaderboard = useMemo(() => {
     const start = (leaderboardPage - 1) * leaderboardPageSize
-    return topTraders.slice(start, start + leaderboardPageSize)
-  }, [topTraders, leaderboardPage])
+    return filteredLeaderboard.slice(start, start + leaderboardPageSize)
+  }, [filteredLeaderboard, leaderboardPage])
 
-  const totalFundedPages = Math.max(1, Math.ceil(fundedAccounts.length / fundedListPageSize))
+  const totalFundedPages = Math.max(1, Math.ceil(filteredFundedAccounts.length / fundedListPageSize))
   const paginatedFundedAccounts = useMemo(() => {
     const start = (fundedListPage - 1) * fundedListPageSize
-    return fundedAccounts.slice(start, start + fundedListPageSize)
-  }, [fundedAccounts, fundedListPage])
+    return filteredFundedAccounts.slice(start, start + fundedListPageSize)
+  }, [filteredFundedAccounts, fundedListPage])
 
   return (
     <section className="admin-page-stack">
@@ -76,7 +97,30 @@ const FundedAccountsPage = ({ onOpenProfile }: FundedAccountsPageProps) => {
       </div>
 
       <div className="admin-table-card">
-        <h3 style={{ color: '#fff', margin: 0, padding: '14px 16px 8px' }}>Top 10 Profitable Traders</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px 8px', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <h3 style={{ color: '#fff', margin: 0 }}>Top 10 Profitable Traders</h3>
+            <p style={{ color: '#9ca3af', margin: '4px 0 0' }}>Search by trader email or MT5 account number.</p>
+          </div>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => {
+              setSearchQuery(event.target.value)
+              setLeaderboardPage(1)
+              setFundedListPage(1)
+            }}
+            placeholder="Search by email or MT5 account"
+            style={{
+              border: '1px solid #2a2f3a',
+              background: '#0f172a',
+              color: '#e5e7eb',
+              borderRadius: 10,
+              padding: '8px 12px',
+              minWidth: 240,
+            }}
+          />
+        </div>
         <table className="admin-table">
           <thead>
             <tr>
@@ -117,7 +161,7 @@ const FundedAccountsPage = ({ onOpenProfile }: FundedAccountsPageProps) => {
           }}
         >
           <small style={{ color: '#d1d5db', fontWeight: 600 }}>
-            Showing {(leaderboardPage - 1) * leaderboardPageSize + 1} - {Math.min(leaderboardPage * leaderboardPageSize, topTraders.length)} of {topTraders.length}
+            Showing {filteredLeaderboard.length === 0 ? 0 : (leaderboardPage - 1) * leaderboardPageSize + 1} - {Math.min(leaderboardPage * leaderboardPageSize, filteredLeaderboard.length)} of {filteredLeaderboard.length}
           </small>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
@@ -212,7 +256,7 @@ const FundedAccountsPage = ({ onOpenProfile }: FundedAccountsPageProps) => {
           }}
         >
           <small style={{ color: '#d1d5db', fontWeight: 600 }}>
-            Showing {fundedAccounts.length === 0 ? 0 : (fundedListPage - 1) * fundedListPageSize + 1} - {Math.min(fundedListPage * fundedListPageSize, fundedAccounts.length)} of {fundedAccounts.length}
+            Showing {filteredFundedAccounts.length === 0 ? 0 : (fundedListPage - 1) * fundedListPageSize + 1} - {Math.min(fundedListPage * fundedListPageSize, filteredFundedAccounts.length)} of {filteredFundedAccounts.length}
           </small>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button

@@ -11,6 +11,7 @@ const AccountsPage = ({ onOpenProfile }: AccountsPageProps) => {
   const [rows, setRows] = useState<ChallengeAccountListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const rowsPerPage = 10
 
   useEffect(() => {
@@ -30,15 +31,25 @@ const AccountsPage = ({ onOpenProfile }: AccountsPageProps) => {
     void load()
   }, [])
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / rowsPerPage))
+  const filteredRows = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return rows
+    return rows.filter((row) => {
+      const email = row.trader_email?.toLowerCase() || ''
+      const accountNumber = row.mt5_account?.toLowerCase() || ''
+      return email.includes(query) || accountNumber.includes(query)
+    })
+  }, [rows, searchQuery])
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / rowsPerPage))
   const paginatedRows = useMemo(() => {
     const startIndex = (currentPage - 1) * rowsPerPage
-    return rows.slice(startIndex, startIndex + rowsPerPage)
-  }, [rows, currentPage])
+    return filteredRows.slice(startIndex, startIndex + rowsPerPage)
+  }, [filteredRows, currentPage])
 
-  const activeChallengesCount = rows.length // All rows are active since we filter by active status
-  const phase1Count = rows.filter((row) => row.phase === 'Phase 1').length
-  const phase2Count = rows.filter((row) => row.phase === 'Phase 2').length
+  const activeChallengesCount = filteredRows.length // All rows are active since we filter by active status
+  const phase1Count = filteredRows.filter((row) => row.phase === 'Phase 1').length
+  const phase2Count = filteredRows.filter((row) => row.phase === 'Phase 2').length
 
   return (
     <section className="admin-page-stack">
@@ -63,6 +74,29 @@ const AccountsPage = ({ onOpenProfile }: AccountsPageProps) => {
       </div>
 
       <div className="admin-table-card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px 0', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <h3 style={{ color: '#fff', margin: 0 }}>Active Challenge Accounts</h3>
+            <p style={{ color: '#9ca3af', margin: '4px 0 0' }}>Search by trader email or MT5 account number.</p>
+          </div>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => {
+              setSearchQuery(event.target.value)
+              setCurrentPage(1)
+            }}
+            placeholder="Search by email or MT5 account"
+            style={{
+              border: '1px solid #2a2f3a',
+              background: '#0f172a',
+              color: '#e5e7eb',
+              borderRadius: 10,
+              padding: '8px 12px',
+              minWidth: 240,
+            }}
+          />
+        </div>
         {loading && <p style={{ color: '#9ca3af', padding: '12px 16px 10px', margin: 0 }}>Loading challenge accounts...</p>}
         {!loading && error && <p style={{ color: '#fca5a5', padding: '12px 16px 10px', margin: 0 }}>{error}</p>}
 
@@ -125,7 +159,7 @@ const AccountsPage = ({ onOpenProfile }: AccountsPageProps) => {
           }}
         >
           <small style={{ color: '#d1d5db', fontWeight: 600 }}>
-            Showing {rows.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1} - {Math.min(currentPage * rowsPerPage, rows.length)} of {rows.length}
+            Showing {filteredRows.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1} - {Math.min(currentPage * rowsPerPage, filteredRows.length)} of {filteredRows.length}
           </small>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <button

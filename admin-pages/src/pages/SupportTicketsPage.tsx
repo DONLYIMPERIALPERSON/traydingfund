@@ -15,9 +15,11 @@ import {
 
 interface SupportTicketsPageProps {
   onOpenProfile: (user: AdminUser) => void
+  initialChatId?: string | null
+  onChatOpened?: () => void
 }
 
-const SupportTicketsPage = ({ onOpenProfile }: SupportTicketsPageProps) => {
+const SupportTicketsPage = ({ onOpenProfile, initialChatId, onChatOpened }: SupportTicketsPageProps) => {
   const [tickets, setTickets] = useState<SupportTicket[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -35,6 +37,15 @@ const SupportTicketsPage = ({ onOpenProfile }: SupportTicketsPageProps) => {
     const timer = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(timer)
   }, [activeTab])
+
+  useEffect(() => {
+    if (!initialChatId || tickets.length === 0) return
+    const ticket = tickets.find((item) => item.id === initialChatId)
+    if (ticket) {
+      void handleTicketClick(ticket)
+      onChatOpened?.()
+    }
+  }, [initialChatId, tickets])
 
   const loadTickets = async () => {
     try {

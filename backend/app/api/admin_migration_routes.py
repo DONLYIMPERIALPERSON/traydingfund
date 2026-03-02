@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -14,7 +14,7 @@ from app.models.challenge_account import ChallengeAccount
 from app.models.migration_request import MigrationRequest
 from app.models.mt5_account import MT5Account
 from app.models.user import User
-from app.schemas.migration_request import MigrationRequestResponse, MigrationRequestUpdate
+from app.schemas.migration_request import MigrationRequestResponse, MigrationRequestUpdate, MigrationRequestLockResponse
 from app.services.challenge_objectives import rollover_funded_account_after_withdrawal
 from app.tasks import send_challenge_objective_email
 from app.services.palmpay_service import PalmPayService
@@ -22,6 +22,65 @@ from app.api.admin_workboard_routes import log_admin_activity
 
 
 router = APIRouter(prefix="/admin/migration-requests", tags=["Admin Migration"])
+
+LOCK_LEASE_SECONDS = 300
+
+
+def _get_admin_entry(db: Session, current_admin: User) -> AdminAllowlist:
+    admin_entry = db.scalar(
+        select(AdminAllowlist).where(
+            (AdminAllowlist.email == current_admin.email)
+            | (AdminAllowlist.descope_user_id == current_admin.descope_user_id)
+        )
+    )
+    if not admin_entry:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin not found in allowlist")
+    return admin_entry
+
+
+def _is_lock_active(request: MigrationRequest, *, now: datetime) -> bool:
+    return request.lock_expires_at is not None and request.lock_expires_at > now
+
+
+def _ensure_lock_owner(request: MigrationRequest, admin_entry: AdminAllowlist, *, now: datetime) -> None:
+    if request.status != "pending":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Migration request already processed")
+    if request.locked_by_admin_id is None or request.lock_expires_at is None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Migration request is not locked")
+    if not _is_lock_active(request, now=now):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Migration request lock expired")
+    if request.locked_by_admin_id != admin_entry.id:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Migration request locked by another admin")
+
+
+@router.post("/{request_id}/claim", response_model=MigrationRequestLockResponse)
+def claim_migration_request(
+    request_id: int,
+    current_admin: User = Depends(get_current_admin_allowlisted),
+    db: Session = Depends(get_db),
+) -> MigrationRequestLockResponse:
+    request = db.get(MigrationRequest, request_id)
+    if not request:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Migration request not found")
+
+    if request.status != "pending":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Migration request already processed")
+
+    admin_entry = _get_admin_entry(db, current_admin)
+    now = datetime.now(timezone.utc)
+
+    if _is_lock_active(request, now=now) and request.locked_by_admin_id != admin_entry.id:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Migration request locked by another admin")
+
+    request.locked_by_admin_id = admin_entry.id
+    request.locked_at = now
+    request.lock_expires_at = now + timedelta(seconds=LOCK_LEASE_SECONDS)
+
+    db.add(request)
+    db.commit()
+    db.refresh(request)
+
+    return MigrationRequestLockResponse.model_validate(request)
 
 
 
@@ -32,6 +91,20 @@ def list_migration_requests(
     _: User = Depends(get_current_admin_allowlisted),
     db: Session = Depends(get_db),
 ) -> list[MigrationRequestResponse]:
+    now = datetime.now(timezone.utc)
+    db.query(MigrationRequest).filter(
+        MigrationRequest.lock_expires_at.is_not(None),
+        MigrationRequest.lock_expires_at < now,
+    ).update(
+        {
+            MigrationRequest.locked_by_admin_id: None,
+            MigrationRequest.locked_at: None,
+            MigrationRequest.lock_expires_at: None,
+        },
+        synchronize_session=False,
+    )
+    db.commit()
+
     query = select(MigrationRequest)
 
     if status_filter:
@@ -68,22 +141,21 @@ def update_migration_request(
     if update_data.status not in ["approved", "declined"]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status")
 
-    # Find the admin_allowlist entry for this admin user
-    admin_entry = db.scalar(
-        select(AdminAllowlist).where(
-            (AdminAllowlist.email == current_admin.email) |
-            (AdminAllowlist.descope_user_id == current_admin.descope_user_id)
-        )
-    )
+    if update_data.status == "declined" and not update_data.admin_notes:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Decline reason is required")
 
-    if not admin_entry:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin not found in allowlist")
+    admin_entry = _get_admin_entry(db, current_admin)
+    now = datetime.now(timezone.utc)
+    _ensure_lock_owner(request, admin_entry, now=now)
 
     # Update the request
     request.status = update_data.status
     request.admin_notes = update_data.admin_notes
     request.processed_by_admin_id = admin_entry.id  # Use admin_allowlist.id, not users.id
-    request.processed_at = datetime.now(timezone.utc)
+    request.processed_at = now
+    request.locked_by_admin_id = None
+    request.locked_at = None
+    request.lock_expires_at = None
 
     if update_data.status == "approved":
         try:
@@ -103,6 +175,21 @@ def update_migration_request(
             db.rollback()
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to process migration: {str(e)}")
     elif update_data.status == "declined":
+        decline_reason = update_data.admin_notes or "No specific reason provided."
+        user = db.get(User, request.user_id)
+        try:
+            if user and user.email:
+                send_challenge_objective_email.delay(
+                    to_email=user.email,
+                    subject="Migration Request Declined",
+                    message=(
+                        "Your migration request has been declined.\n\n"
+                        f"Reason: {decline_reason}\n\n"
+                        "If you have questions, please contact support."
+                    ),
+                )
+        except Exception:
+            pass
         # Log the decline activity
         log_admin_activity(
             db,
@@ -337,6 +424,9 @@ def delete_migration_request(
 
     if request.status == "approved":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete approved requests")
+
+    if request.locked_by_admin_id is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot delete a locked migration request")
 
     db.delete(request)
     db.commit()

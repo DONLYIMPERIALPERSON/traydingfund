@@ -88,6 +88,7 @@ function App() {
   const [authRetryKey, setAuthRetryKey] = useState(0)
   const [authBlocked, setAuthBlocked] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [supportChatId, setSupportChatId] = useState<string | null>(null)
 
   useEffect(() => {
     void descopeSdk.refresh().catch(() => {
@@ -182,6 +183,11 @@ function App() {
   const handleOpenUserProfile = (user: AdminUser) => {
     setSelectedUser(user)
     setActivePage('userProfile')
+  }
+
+  const handleOpenSupportChat = (chatId: string) => {
+    setSupportChatId(chatId)
+    setActivePage('supportTickets')
   }
 
   const handleBackToUsers = () => {
@@ -314,13 +320,23 @@ function App() {
           {!authError && activePage === 'sendAnnouncement' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('sendAnnouncement'))) && <SendAnnouncementPage />}
           {!authError && activePage === 'emailLogs' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('emailLogs'))) && <EmailLogsPage />}
           {!authError && activePage === 'salary' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('salary'))) && <SalaryPage />}
-          {!authError && activePage === 'supportTickets' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('supportTickets'))) && <SupportTicketsPage onOpenProfile={handleOpenUserProfile} />}
+          {!authError && activePage === 'supportTickets' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('supportTickets'))) && (
+            <SupportTicketsPage
+              onOpenProfile={handleOpenUserProfile}
+              initialChatId={supportChatId}
+              onChatOpened={() => setSupportChatId(null)}
+            />
+          )}
           {!authError && activePage === 'settings' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('settings'))) && <SettingsPage />}
           {!authError && activePage === 'kycReview' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('kycReview'))) && <KycReviewPage onOpenProfile={handleOpenUserProfile} />}
           {!authError && activePage === 'referrals' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('referrals'))) && <ReferralsPage />}
           {!authError && activePage === 'migrationRequests' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('migrationRequests'))) && <MigrationRequestsPage />}
           {!authError && activePage === 'userProfile' && selectedUser && (
-            <UserProfilePage user={selectedUser} onBack={handleBackToUsers} />
+            <UserProfilePage
+              user={selectedUser}
+              onBack={handleBackToUsers}
+              onOpenSupportChat={handleOpenSupportChat}
+            />
           )}
           {!authError && !['analysis', 'workBoard', 'users', 'accounts', 'fundedAccounts', 'breaches', 'mt5', 'orders', 'payouts', 'financeAnalysis', 'coupons', 'sendAnnouncement', 'supportTickets', 'settings', 'kycReview', 'referrals', 'migrationRequests', 'userProfile', 'emailLogs', 'salary'].includes(activePage) && (
             <div className="admin-no-access">

@@ -22,6 +22,7 @@ export type AdminAuthMeResponse = {
   role: string
   status: string
   allowed_pages?: string[]
+  admin_allowlist_id?: number
 }
 
 export type AdminEmailPrecheckResponse = {
@@ -136,6 +137,7 @@ export type ChallengeBreachListItem = {
   challenge_id: string
   user_id: number
   trader_name: string | null
+  trader_email?: string | null
   account_size: string
   phase: 'Phase 1' | 'Phase 2' | 'Funded'
   mt5_account: string | null
@@ -356,6 +358,39 @@ export async function sendAdminChallengeConfigOtp(sessionToken?: string): Promis
     throw await parseBackendError('Failed to send admin OTP', response)
   }
   return response.json() as Promise<{ message: string }>
+}
+
+export type PayoutConfig = {
+  auto_approval_threshold_percent: number
+}
+
+export async function fetchAdminPayoutConfig(sessionToken?: string): Promise<PayoutConfig> {
+  const response = await authFetch('/admin/payouts/config', {}, sessionToken)
+  if (!response.ok) {
+    throw await parseBackendError('Failed to load payout config', response)
+  }
+  const data = await response.json() as { config: PayoutConfig }
+  return data.config
+}
+
+export async function updateAdminPayoutConfig(
+  payload: { otp: string; auto_approval_threshold_percent: number },
+  sessionToken?: string,
+): Promise<PayoutConfig> {
+  const response = await authFetch(
+    '/admin/payouts/config',
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    sessionToken,
+  )
+  if (!response.ok) {
+    throw await parseBackendError('Failed to update payout config', response)
+  }
+  const data = await response.json() as { config: PayoutConfig }
+  return data.config
 }
 
 export async function fetchAdminHeroStats(sessionToken?: string): Promise<HeroStatsResponse> {
@@ -988,6 +1023,13 @@ export async function updateAdminAllowlistEntry(
   return response.json() as Promise<AdminAllowlistEntry>
 }
 
+export async function deleteAdminAllowlistEntry(entryId: number, sessionToken?: string): Promise<void> {
+  const response = await authFetch(`/admin/auth/allowlist/${entryId}`, { method: 'DELETE' }, sessionToken)
+  if (!response.ok) {
+    throw await parseBackendError('Failed to delete admin allowlist entry', response)
+  }
+}
+
 export type SendAnnouncementRequest = {
   subject: string
   message: string
@@ -1325,6 +1367,14 @@ export type UserProfileData = {
   email: string
   status: string
   kyc_status: string
+  bank_account?: {
+    bank_code: string
+    bank_name?: string | null
+    bank_account_number: string
+    account_name: string
+    is_verified: boolean
+    verified_at: string | null
+  } | null
   trading: string
   accounts: string
   revenue: string
@@ -1342,6 +1392,7 @@ export type UserChallengeAccount = {
   mt5_account: string | null
   mt5_server: string | null
   mt5_password: string | null
+  assigned_at?: string | null
   objective_status: string | null
   breached_reason: string | null
   breached_at: string | null
@@ -1469,6 +1520,17 @@ export type MigrationRequest = {
   created_at: string
   processed_at: string | null
   processed_by_admin_id: number | null
+  locked_by_admin_id: number | null
+  locked_at: string | null
+  lock_expires_at: string | null
+}
+
+export type MigrationRequestLock = {
+  id: number
+  status: string
+  locked_by_admin_id: number | null
+  locked_at: string | null
+  lock_expires_at: string | null
 }
 
 export async function fetchMigrationRequests(sessionToken?: string): Promise<MigrationRequest[]> {
@@ -1477,6 +1539,14 @@ export async function fetchMigrationRequests(sessionToken?: string): Promise<Mig
     throw await parseBackendError('Failed to load migration requests', response)
   }
   return response.json() as Promise<MigrationRequest[]>
+}
+
+export async function claimMigrationRequest(requestId: number, sessionToken?: string): Promise<MigrationRequestLock> {
+  const response = await authFetch(`/admin/migration-requests/${requestId}/claim`, { method: 'POST' }, sessionToken)
+  if (!response.ok) {
+    throw await parseBackendError('Failed to claim migration request', response)
+  }
+  return response.json() as Promise<MigrationRequestLock>
 }
 
 export async function updateMigrationRequestStatus(

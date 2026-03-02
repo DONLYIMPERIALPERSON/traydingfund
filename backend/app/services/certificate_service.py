@@ -234,12 +234,12 @@ class CertificateService:
             if certificate_data['certificate_type'] == 'funding':
                 try:
                     # Use custom fonts for funded certificates
-                    font_name = ImageFont.truetype(str(fonts_path / "AlexBrush-Regular.ttf"), 120)
+                    font_name = ImageFont.truetype(str(fonts_path / "OpenSans-Bold.ttf"), 132)
                     font_date = ImageFont.truetype(str(fonts_path / "OpenSans-Regular.ttf"), 48)  # Increased size
                 except:
                     # Fallback to system fonts
                     try:
-                        font_name = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", 120)
+                        font_name = ImageFont.truetype("/System/Library/Fonts/Arial Bold.ttf", 132)
                         font_date = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", 24)
                     except:
                         font_name = ImageFont.load_default()
@@ -247,7 +247,7 @@ class CertificateService:
             elif certificate_data['certificate_type'] == 'payout':
                 try:
                     # Use custom fonts for payout certificates
-                    font_name = ImageFont.truetype(str(fonts_path / "AlexBrush-Regular.ttf"), 120)
+                    font_name = ImageFont.truetype(str(fonts_path / "OpenSans-Bold.ttf"), 132)
                     # Try to use bold font for amount, fallback to regular if not available
                     try:
                         font_amount = ImageFont.truetype(str(fonts_path / "OpenSans-Bold.ttf"), 72)  # Larger and bold for amount
@@ -257,7 +257,7 @@ class CertificateService:
                 except:
                     # Fallback to system fonts
                     try:
-                        font_name = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", 120)
+                        font_name = ImageFont.truetype("/System/Library/Fonts/Arial Bold.ttf", 132)
                         font_amount = ImageFont.truetype("/System/Library/Fonts/Arial Bold.ttf", 72)
                         font_date = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", 42)
                     except:

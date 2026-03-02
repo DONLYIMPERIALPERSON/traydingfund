@@ -115,8 +115,7 @@ def upgrade() -> None:
         },
     ]
 
-    bind = op.get_bind()
-    bind.execute(
+    connection.execute(
         sa.text(
             """
             INSERT INTO challenge_config (config_key, config_value)
@@ -127,6 +126,20 @@ def upgrade() -> None:
         {
             "config_key": "public_challenge_plans",
             "config_value": json.dumps(default_plans),
+        },
+    )
+
+    connection.execute(
+        sa.text(
+            """
+            INSERT INTO challenge_config (config_key, config_value)
+            VALUES (:config_key, CAST(:config_value AS JSONB))
+            ON CONFLICT (config_key) DO NOTHING
+            """
+        ),
+        {
+            "config_key": "payout_auto_approval_config",
+            "config_value": json.dumps({"auto_approval_threshold_percent": 15}),
         },
     )
 

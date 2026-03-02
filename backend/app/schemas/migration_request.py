@@ -33,10 +33,24 @@ class MigrationRequestResponse(MigrationRequestBase):
     admin_notes: Optional[str] = None
     processed_by_admin_id: Optional[int] = None
     processed_at: Optional[datetime] = None
+    locked_by_admin_id: Optional[int] = None
+    locked_at: Optional[datetime] = None
+    lock_expires_at: Optional[datetime] = None
     withdrawal_amount: Optional[float] = None
     transfer_reference: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class MigrationRequestLockResponse(BaseModel):
+    id: int
+    status: str
+    locked_by_admin_id: Optional[int] = None
+    locked_at: Optional[datetime] = None
+    lock_expires_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

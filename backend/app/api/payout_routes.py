@@ -1,7 +1,7 @@
 from typing import List
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.deps import get_db
@@ -15,6 +15,8 @@ from app.models.mt5_account import MT5Account
 from app.models.mt5_refresh_job import MT5RefreshJob, RefreshReason, RefreshStatus
 from app.models.user_pin import UserPin
 from app.services.challenge_objectives import compute_funded_payout_metrics, get_plan_for_account_size, _to_percent_number, compute_unrealized_pnl
+from app.models.challenge_config import ChallengeConfig
+from app.api.challenge_config_routes import PAYOUT_CONFIG_KEY, DEFAULT_PAYOUT_CONFIG
 from app.services.palmpay_service import create_payout_order, query_payout_status
 from app.tasks import send_payout_notification
 from app.services.certificate_service import certificate_service
@@ -36,6 +38,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/payout", tags=["Payout"])
 
 WITHDRAWAL_COOLDOWN_HOURS = 72
+
+
+def _get_auto_approval_threshold_percent(db: Session) -> float:
+    row = db.scalar(select(ChallengeConfig).where(ChallengeConfig.config_key == PAYOUT_CONFIG_KEY))
+    if row is None or not isinstance(row.config_value, dict):
+        return float(DEFAULT_PAYOUT_CONFIG.get("auto_approval_threshold_percent", 15))
+    try:
+        return float(row.config_value.get("auto_approval_threshold_percent", 15))
+    except (TypeError, ValueError):
+        return 15.0
 
 
 def _is_palmpay_insufficient_funds_error(message: str) -> bool:
@@ -96,8 +108,8 @@ async def get_payout_summary(
         plan = get_plan_for_account_size(db, account.account_size)
         profit_split_percent = _to_percent_number(plan.get("profit_split") if plan else "80", fallback=80)
 
-        # Calculate minimum withdrawal amount (fixed minimum of ₦1,000)
-        min_withdrawal_amount = 1000
+        # Calculate minimum withdrawal amount (10% of account size)
+        min_withdrawal_amount = account.initial_balance * 0.10
 
         # Get the raw available payout
         raw_available_payout = account.funded_user_payout_amount or 0
@@ -187,8 +199,14 @@ async def get_payout_summary(
         ineligibility_reasons.append("No active funded account eligible for payout.")
 
     # Check minimum payout threshold
-    if total_available_payout > 0 and total_available_payout < 1000:
-        ineligibility_reasons.append(f"Available payout (₦{total_available_payout:,.2f}) is below minimum withdrawal amount (₦1,000).")
+    minimum_payout_threshold = min(
+        (account.initial_balance * 0.10 for account in eligible_funded_accounts),
+        default=0,
+    )
+    if total_available_payout > 0 and minimum_payout_threshold > 0 and total_available_payout < minimum_payout_threshold:
+        ineligibility_reasons.append(
+            f"Available payout (₦{total_available_payout:,.2f}) is below minimum withdrawal amount (₦{minimum_payout_threshold:,.2f})."
+        )
 
     latest_withdrawal_at = _get_latest_withdrawal_time(db, current_user.id)
     cooldown_remaining = _get_withdrawal_cooldown_remaining(latest_withdrawal_at)
@@ -202,7 +220,7 @@ async def get_payout_summary(
         is_eligible=bool(bank_account and total_available_payout > 0 and eligible_funded_accounts and not ineligibility_reasons),
         has_verified_bank_account=bool(bank_account),
         has_available_payout=total_available_payout > 0,
-        minimum_payout_amount=1000,  # Should come from config
+        minimum_payout_amount=minimum_payout_threshold or 0,
         bank_account_masked=bank_account.bank_account_number[-4:] if bank_account else None,
         ineligibility_reasons=ineligibility_reasons
     )
@@ -322,7 +340,7 @@ async def request_payout(
 
     # Get available payout and limits
     available_payout = account.funded_user_payout_amount or 0
-    min_withdrawal_amount = 1000  # Fixed minimum of ₦1,000
+    min_withdrawal_amount = account.initial_balance * 0.10
     profit_cap_amount = account.funded_profit_cap_amount or 0
 
     # Apply withdrawal limits
@@ -349,7 +367,8 @@ async def request_payout(
     # Determine if admin approval is needed (payout > 15% of account size)
     account_size_value = account.initial_balance
     payout_percentage = (max_allowed_payout / account_size_value) * 100
-    requires_admin_approval = payout_percentage > 15
+    auto_approval_threshold_percent = _get_auto_approval_threshold_percent(db)
+    requires_admin_approval = payout_percentage > auto_approval_threshold_percent
 
     # Create payout order
     import uuid

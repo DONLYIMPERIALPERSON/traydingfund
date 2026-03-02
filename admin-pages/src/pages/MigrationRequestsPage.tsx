@@ -1,11 +1,25 @@
 import { useMemo, useState, useEffect } from 'react'
-import { fetchMigrationRequests, updateMigrationRequestStatus, type MigrationRequest } from '../lib/adminAuth'
+import {
+  fetchMigrationRequests,
+  updateMigrationRequestStatus,
+  claimMigrationRequest,
+  getPersistedAdminUser,
+  type MigrationRequest,
+} from '../lib/adminAuth'
 import './MigrationRequestsPage.css'
 
 interface PayoutModalProps {
   isOpen: boolean
   onClose: () => void
   onConfirm: (amount: number) => void
+  request: MigrationRequest | null
+  loading: boolean
+}
+
+interface DeclineModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onConfirm: (reason: string) => void
   request: MigrationRequest | null
   loading: boolean
 }
@@ -69,13 +83,77 @@ const PayoutModal: React.FC<PayoutModalProps> = ({ isOpen, onClose, onConfirm, r
   )
 }
 
+const DeclineModal: React.FC<DeclineModalProps> = ({ isOpen, onClose, onConfirm, request, loading }) => {
+  const [reason, setReason] = useState('')
+
+  useEffect(() => {
+    if (isOpen) {
+      setReason('')
+    }
+  }, [isOpen])
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (reason.trim()) {
+      onConfirm(reason.trim())
+    }
+  }
+
+  if (!isOpen || !request) return null
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>Decline Migration Request</h3>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          <div className="payout-info">
+            <p><strong>User:</strong> {request.user_name || request.user_email}</p>
+            <p><strong>Request Type:</strong> {request.request_type === 'funded' ? 'Funded Account' : 'Phase 2'}</p>
+            <p><strong>Account Size:</strong> {request.account_size}</p>
+          </div>
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label htmlFor="decline-reason">Decline Reason</label>
+              <textarea
+                id="decline-reason"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Provide a reason to send to the user"
+                rows={4}
+                required
+                autoFocus
+              />
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn-secondary" onClick={onClose} disabled={loading}>
+                Cancel
+              </button>
+              <button type="submit" className="btn-primary" disabled={loading || !reason.trim()}>
+                {loading ? 'Sending...' : 'Send Decline'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const MigrationRequestsPage = () => {
   const [requests, setRequests] = useState<MigrationRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [filter, setFilter] = useState('all')
   const [processingId, setProcessingId] = useState<number | null>(null)
+  const [lockingId, setLockingId] = useState<number | null>(null)
   const [payoutModal, setPayoutModal] = useState<{ isOpen: boolean; request: MigrationRequest | null }>({
+    isOpen: false,
+    request: null
+  })
+  const [declineModal, setDeclineModal] = useState<{ isOpen: boolean; request: MigrationRequest | null }>({
     isOpen: false,
     request: null
   })
@@ -99,12 +177,26 @@ const MigrationRequestsPage = () => {
 
   const handleApproveClick = (request: MigrationRequest) => {
     if (request.request_type === 'funded') {
-      // Show payout modal for funded migrations
       setPayoutModal({ isOpen: true, request })
     } else {
-      // Directly approve Phase 2 migrations
       handleStatusUpdate(request.id, 'approved')
     }
+  }
+
+  const handleClaimRequest = async (request: MigrationRequest) => {
+    setLockingId(request.id)
+    try {
+      await claimMigrationRequest(request.id)
+      await loadRequests()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to claim migration request')
+    } finally {
+      setLockingId(null)
+    }
+  }
+
+  const handleDeclineClick = (request: MigrationRequest) => {
+    setDeclineModal({ isOpen: true, request })
   }
 
   const handlePayoutConfirm = async (amount: number) => {
@@ -118,6 +210,22 @@ const MigrationRequestsPage = () => {
       await loadRequests() // Reload to get updated data
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to approve migration request')
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleDeclineConfirm = async (reason: string) => {
+    if (!declineModal.request) return
+
+    setProcessingId(declineModal.request.id)
+    setDeclineModal({ isOpen: false, request: null })
+
+    try {
+      await updateMigrationRequestStatus(declineModal.request.id, 'declined', reason)
+      await loadRequests()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to decline migration request')
     } finally {
       setProcessingId(null)
     }
@@ -139,6 +247,18 @@ const MigrationRequestsPage = () => {
     if (filter === 'all') return requests
     return requests.filter(req => req.status === filter)
   }, [requests, filter])
+
+  const [currentTime, setCurrentTime] = useState(Date.now())
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setCurrentTime(Date.now())
+    }, 1000)
+    return () => window.clearInterval(interval)
+  }, [])
+
+  const now = currentTime
+  const adminUser = getPersistedAdminUser()
+  const adminAllowlistId = adminUser?.admin_allowlist_id ?? null
 
   const stats = useMemo(() => {
     const total = requests.length
@@ -253,24 +373,57 @@ const MigrationRequestsPage = () => {
                   </td>
                   <td>{new Date(request.created_at).toLocaleDateString()}</td>
                   <td>
-                    {request.status === 'pending' && (
-                      <div className="migration-actions">
-                        <button
-                          className="migration-action-btn approve"
-                          onClick={() => handleApproveClick(request)}
-                          disabled={processingId === request.id}
-                        >
-                          {processingId === request.id ? 'Processing...' : 'Approve'}
-                        </button>
-                        <button
-                          className="migration-action-btn decline"
-                          onClick={() => handleStatusUpdate(request.id, 'declined')}
-                          disabled={processingId === request.id}
-                        >
-                          {processingId === request.id ? 'Processing...' : 'Decline'}
-                        </button>
-                      </div>
-                    )}
+                    {request.status === 'pending' && (() => {
+                      const lockExpiresAt = request.lock_expires_at ? new Date(request.lock_expires_at).getTime() : null
+                      const lockActive = lockExpiresAt !== null && lockExpiresAt > now
+                      const isLockedByMe = lockActive && adminAllowlistId !== null && request.locked_by_admin_id === adminAllowlistId
+                      const isLockedByOther = lockActive && request.locked_by_admin_id !== null && request.locked_by_admin_id !== adminAllowlistId
+
+                      const remainingSeconds = lockExpiresAt ? Math.max(Math.ceil((lockExpiresAt - now) / 1000), 0) : 0
+                      const minutesLeft = Math.floor(remainingSeconds / 60)
+                      const secondsLeft = remainingSeconds % 60
+                      const countdownLabel = `${minutesLeft}:${secondsLeft.toString().padStart(2, '0')}`
+
+                      if (isLockedByOther) {
+                        return (
+                          <span style={{ color: '#fbbf24', fontSize: '12px' }}>
+                            Locked by another admin ({countdownLabel})
+                          </span>
+                        )
+                      }
+
+                      if (!lockActive || isLockedByMe) {
+                        return (
+                          <div className="migration-actions">
+                            {!isLockedByMe && (
+                              <button
+                                className="migration-action-btn claim"
+                                onClick={() => handleClaimRequest(request)}
+                                disabled={lockingId === request.id || processingId === request.id}
+                              >
+                                {lockingId === request.id ? 'Claiming...' : 'Claim'}
+                              </button>
+                            )}
+                            <button
+                              className="migration-action-btn approve"
+                              onClick={() => handleApproveClick(request)}
+                              disabled={processingId === request.id || !isLockedByMe}
+                            >
+                              {processingId === request.id ? 'Processing...' : `Approve (${countdownLabel})`}
+                            </button>
+                            <button
+                              className="migration-action-btn decline"
+                              onClick={() => handleDeclineClick(request)}
+                              disabled={processingId === request.id || !isLockedByMe}
+                            >
+                              {processingId === request.id ? 'Processing...' : `Decline (${countdownLabel})`}
+                            </button>
+                          </div>
+                        )
+                      }
+
+                      return null
+                    })()}
                     {request.status !== 'pending' && (
                       <span style={{ color: '#9ca3af', fontSize: '12px' }}>
                         {request.status === 'approved' ? 'Approved' : 'Declined'}
@@ -289,6 +442,13 @@ const MigrationRequestsPage = () => {
         onClose={() => setPayoutModal({ isOpen: false, request: null })}
         onConfirm={handlePayoutConfirm}
         request={payoutModal.request}
+        loading={!!processingId}
+      />
+      <DeclineModal
+        isOpen={declineModal.isOpen}
+        onClose={() => setDeclineModal({ isOpen: false, request: null })}
+        onConfirm={handleDeclineConfirm}
+        request={declineModal.request}
         loading={!!processingId}
       />
     </section>

@@ -37,6 +37,8 @@ def serialize_user(user: User, db: Session | None = None) -> dict[str, str | int
                 result["allowed_pages"] = json.loads(allowlist_entry.allowed_pages)
             except (json.JSONDecodeError, TypeError):
                 result["allowed_pages"] = []
+        if allowlist_entry:
+            result["admin_allowlist_id"] = allowlist_entry.id
 
     return result
 

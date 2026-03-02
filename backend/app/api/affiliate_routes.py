@@ -18,6 +18,7 @@ from app.models.affiliate import (
     AffiliateClick,
 )
 from app.models.user import User
+from app.models.payment_order import PaymentOrder
 from app.models.user_bank_account import UserBankAccount
 from app.schemas.affiliate import (
     AffiliateDashboard,
@@ -511,6 +512,20 @@ def create_commission(
     if existing:
         return {"message": "Commission already exists for this order"}
 
+    order = db.get(PaymentOrder, order_id)
+    if order is None or order.status != "paid":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Order not found or not paid",
+        )
+
+    commission_amount = round((order.net_amount_kobo / 100) * 0.10, 2)
+    if commission_amount <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Order amount is too low for commission",
+        )
+
     # Create commission
     commission = AffiliateCommission(
         affiliate_id=affiliate_id,
@@ -518,7 +533,7 @@ def create_commission(
         customer_user_id=customer_user_id,
         customer_email=customer_email,
         unique_customer_key=unique_key,
-        amount=amount,
+        amount=commission_amount,
         status="approved",
         product_summary=product_summary,
         created_at=datetime.utcnow(),

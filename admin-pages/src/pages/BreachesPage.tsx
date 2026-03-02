@@ -14,6 +14,7 @@ const BreachesPage = ({ onOpenProfile }: BreachesPageProps) => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [statsWindow, setStatsWindow] = useState<StatsWindow>('today')
+  const [searchQuery, setSearchQuery] = useState('')
   const rowsPerPage = 10
 
   useEffect(() => {
@@ -33,16 +34,26 @@ const BreachesPage = ({ onOpenProfile }: BreachesPageProps) => {
     void load()
   }, [])
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / rowsPerPage))
+  const filteredRows = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return rows
+    return rows.filter((row) => {
+      const email = row.trader_email?.toLowerCase() || ''
+      const accountNumber = row.mt5_account?.toLowerCase() || ''
+      return email.includes(query) || accountNumber.includes(query)
+    })
+  }, [rows, searchQuery])
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / rowsPerPage))
   const paginatedBreaches = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage
-    return rows.slice(start, start + rowsPerPage)
-  }, [rows, currentPage])
+    return filteredRows.slice(start, start + rowsPerPage)
+  }, [filteredRows, currentPage])
 
   const statsRows = useMemo(() => {
     const now = new Date()
 
-    return rows.filter((row) => {
+    return filteredRows.filter((row) => {
       if (!row.breached_at) return false
       const breachedDate = new Date(row.breached_at)
       if (Number.isNaN(breachedDate.getTime())) return false
@@ -63,7 +74,7 @@ const BreachesPage = ({ onOpenProfile }: BreachesPageProps) => {
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
       return breachedDate >= startOfMonth
     })
-  }, [rows, statsWindow])
+  }, [filteredRows, statsWindow])
 
   const maxDDBreaches = statsRows.filter((row) => row.breach_reason === 'drawdown_limit').length
   const scalpingBreaches = statsRows.filter((row) => row.breach_reason === 'scalping_rule').length
@@ -156,7 +167,29 @@ const BreachesPage = ({ onOpenProfile }: BreachesPageProps) => {
       </div>
 
       <div className="admin-table-card">
-        <h3 style={{ color: '#fff', margin: 0, padding: '14px 16px 8px' }}>Breached Accounts</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px 8px', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <h3 style={{ color: '#fff', margin: 0 }}>Breached Accounts</h3>
+            <p style={{ color: '#9ca3af', margin: '4px 0 0' }}>Search by trader email or MT5 account number.</p>
+          </div>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => {
+              setSearchQuery(event.target.value)
+              setCurrentPage(1)
+            }}
+            placeholder="Search by email or MT5 account"
+            style={{
+              border: '1px solid #2a2f3a',
+              background: '#0f172a',
+              color: '#e5e7eb',
+              borderRadius: 10,
+              padding: '8px 12px',
+              minWidth: 240,
+            }}
+          />
+        </div>
         {loading && <p style={{ color: '#9ca3af', margin: 0, padding: '2px 16px 12px' }}>Loading breached accounts...</p>}
         {!loading && error && <p style={{ color: '#fca5a5', margin: 0, padding: '2px 16px 12px' }}>{error}</p>}
         <table className="admin-table">
@@ -192,12 +225,13 @@ const BreachesPage = ({ onOpenProfile }: BreachesPageProps) => {
                       type="button"
                       onClick={() =>
                         onOpenProfile({
+                          user_id: row.user_id,
                           name: row.trader_name ?? `User ${row.user_id}`,
-                          email: `user${row.user_id}@mail.com`,
-                          accounts: row.phase === 'Funded' ? '0 / 1' : '1 / 0',
-                          revenue: '₦0',
-                          orders: '1',
-                          payouts: row.phase === 'Funded' ? '₦120,000' : '₦0',
+                          email: row.trader_email ?? '',
+                          accounts: '',
+                          revenue: '',
+                          orders: '',
+                          payouts: '',
                         })
                       }
                     >
@@ -212,7 +246,7 @@ const BreachesPage = ({ onOpenProfile }: BreachesPageProps) => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', padding: '0 16px 16px', gap: 12 }}>
           <small style={{ color: '#fff' }}>
-            Showing {rows.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1} - {Math.min(currentPage * rowsPerPage, rows.length)} of {rows.length}
+            Showing {filteredRows.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1} - {Math.min(currentPage * rowsPerPage, filteredRows.length)} of {filteredRows.length}
           </small>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button

@@ -96,7 +96,7 @@ async def get_chat(
 async def assign_chat(
     chat_id: str,
     payload: dict,
-    _: User = Depends(get_current_admin_allowlisted),
+    current_admin: User = Depends(get_current_admin_allowlisted),
     db: Session = Depends(get_db)
 ):
     admin_name = payload.get("admin_name")
@@ -127,7 +127,7 @@ async def assign_chat(
 async def send_support_message(
     chat_id: str,
     payload: dict,
-    _: User = Depends(get_current_admin_allowlisted),
+    current_admin: User = Depends(get_current_admin_allowlisted),
     db: Session = Depends(get_db)
 ):
     """Send a message as support"""

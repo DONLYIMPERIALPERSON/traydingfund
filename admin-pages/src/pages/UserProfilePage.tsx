@@ -38,9 +38,10 @@ const profileTabs = [
 interface UserProfilePageProps {
   user: AdminUser
   onBack: () => void
+  onOpenSupportChat?: (chatId: string) => void
 }
 
-const UserProfilePage = ({ user, onBack }: UserProfilePageProps) => {
+const UserProfilePage = ({ user, onBack, onOpenSupportChat }: UserProfilePageProps) => {
   const [activeTab, setActiveTab] = useState(profileTabs[0])
 
   // Data states
@@ -281,6 +282,7 @@ const UserProfilePage = ({ user, onBack }: UserProfilePageProps) => {
                 <th>MT5 Account</th>
                 <th>Account Size</th>
                 <th>Account Type</th>
+                <th>Assigned At</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -291,11 +293,12 @@ const UserProfilePage = ({ user, onBack }: UserProfilePageProps) => {
                   <td>{account.mt5_account || 'N/A'}</td>
                   <td>{account.account_size}</td>
                   <td>{account.phase}</td>
+                  <td>{account.assigned_at ? new Date(account.assigned_at).toLocaleString() : 'N/A'}</td>
                   <td>{account.objective_status || 'Unknown'}</td>
                 </tr>
               ))}
               {challengeAccounts.length === 0 && (
-                <tr><td colSpan={5}>No challenge accounts found</td></tr>
+                <tr><td colSpan={6}>No challenge accounts found</td></tr>
               )}
             </tbody>
           </table>
@@ -310,6 +313,8 @@ const UserProfilePage = ({ user, onBack }: UserProfilePageProps) => {
                               kycStatus === 'pending' ? 'Pending Review' :
                               kycStatus === 'rejected' ? 'Rejected' :
                               kycStatus === 'not_started' ? 'Not Started' : kycStatus
+      const bankAccount = profileData?.bank_account
+      const accountNumber = bankAccount?.bank_account_number || 'Not provided'
 
       return (
         <div className="admin-profile-kyc">
@@ -329,6 +334,23 @@ const UserProfilePage = ({ user, onBack }: UserProfilePageProps) => {
               <p><strong>Can Trade:</strong> {kycStatus === 'active' ? 'Yes' : 'No'}</p>
               <p><strong>Can Withdraw:</strong> {kycStatus === 'active' ? 'Yes' : 'No'}</p>
               <p><strong>Trading Status:</strong> {profileData?.trading || 'None'}</p>
+            </article>
+          </div>
+
+          <div className="admin-profile-grid">
+            <article>
+              <h4>KYC Bank Details</h4>
+              <p><strong>Account Name:</strong> {bankAccount?.account_name || 'Not provided'}</p>
+              <p><strong>Bank:</strong> {bankAccount?.bank_name || bankAccount?.bank_code || 'Not provided'}</p>
+              <p><strong>Account Number:</strong> {accountNumber}</p>
+            </article>
+            <article>
+              <h4>Bank Verification</h4>
+              <p><strong>Verified:</strong> {bankAccount?.is_verified ? 'Yes' : 'No'}</p>
+              <p><strong>Verified At:</strong> {bankAccount?.verified_at
+                ? new Date(bankAccount.verified_at).toLocaleString()
+                : 'Not verified'}
+              </p>
             </article>
           </div>
 
@@ -449,7 +471,11 @@ const UserProfilePage = ({ user, onBack }: UserProfilePageProps) => {
             </thead>
             <tbody>
               {supportTickets.map((ticket) => (
-                <tr key={ticket.id}>
+                <tr
+                  key={ticket.id}
+                  onClick={() => onOpenSupportChat?.(ticket.id)}
+                  style={{ cursor: onOpenSupportChat ? 'pointer' : 'default' }}
+                >
                   <td>{ticket.id}</td>
                   <td>{ticket.subject}</td>
                   <td>{ticket.priority}</td>

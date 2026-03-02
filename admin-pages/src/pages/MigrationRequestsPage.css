@@ -170,6 +170,15 @@
   background: #fecaca;
 }
 
+.migration-action-btn.claim {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.migration-action-btn.claim:hover {
+  background: #c7d2fe;
+}
+
 .migration-action-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -273,6 +282,23 @@
   border-radius: 0.375rem;
   color: #ffffff;
   font-size: 0.875rem;
+}
+
+.form-group textarea {
+  width: 100%;
+  padding: 0.75rem;
+  background: #374151;
+  border: 1px solid #4b5563;
+  border-radius: 0.375rem;
+  color: #ffffff;
+  font-size: 0.875rem;
+  resize: vertical;
+}
+
+.form-group textarea:focus {
+  outline: none;
+  border-color: #fbbf24;
+  box-shadow: 0 0 0 1px #fbbf24;
 }
 
 .form-group input:focus {

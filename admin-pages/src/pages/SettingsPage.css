@@ -65,6 +65,17 @@
   font-weight: 600;
 }
 
+.settings-edit-btn {
+  border: 1px solid rgba(59, 130, 246, 0.7);
+  background: rgba(59, 130, 246, 0.16);
+  color: #bfdbfe;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .settings-pages-block {
   border: 1px solid #374151;
   border-radius: 12px;

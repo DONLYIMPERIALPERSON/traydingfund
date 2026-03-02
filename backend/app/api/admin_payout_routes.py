@@ -124,10 +124,14 @@ def get_payout_requests(
 
     if search:
         search_term = f"%{search}%"
+        user_id_filter = None
+        if search.isdigit():
+            user_id_filter = int(search)
         query = query.where(
             PaymentOrder.provider_order_id.ilike(search_term) |
             User.full_name.ilike(search_term) |
-            User.email.ilike(search_term)
+            User.email.ilike(search_term) |
+            (PaymentOrder.user_id == user_id_filter if user_id_filter is not None else False)
         )
 
     # Get total count

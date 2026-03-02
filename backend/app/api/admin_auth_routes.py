@@ -200,3 +200,18 @@ def update_allowlist_entry(
         db.refresh(row)
 
     return _serialize_allowlist(row)
+
+
+@router.delete("/allowlist/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_allowlist_entry(
+    entry_id: int,
+    _: User = Depends(get_current_super_admin),
+    db: Session = Depends(get_db),
+) -> None:
+    row = db.get(AdminAllowlist, entry_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Allowlist entry not found")
+
+    db.delete(row)
+    db.commit()
+    return None

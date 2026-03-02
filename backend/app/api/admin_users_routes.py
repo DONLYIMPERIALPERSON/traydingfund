@@ -7,6 +7,8 @@ from app.db.deps import get_db
 from app.models.challenge_account import ChallengeAccount
 from app.models.payment_order import PaymentOrder
 from app.models.user import User
+from app.models.user_bank_account import UserBankAccount
+from app.data.banks import NIGERIAN_BANKS
 from app.api.admin_workboard_routes import log_admin_activity
 from app.tasks import send_challenge_objective_email
 
@@ -144,6 +146,14 @@ def get_user_profile(
         select(ChallengeAccount).where(ChallengeAccount.user_id == user_id)
     ).all()
 
+    bank_account = db.scalar(select(UserBankAccount).where(UserBankAccount.user_id == user_id))
+    bank_name = None
+    if bank_account:
+        bank_name = next(
+            (bank["bank_name"] for bank in NIGERIAN_BANKS if bank["bank_code"] == bank_account.bank_code),
+            None,
+        )
+
     payment_orders = db.scalars(
         select(PaymentOrder).where(
             PaymentOrder.user_id == user_id,
@@ -189,6 +199,18 @@ def get_user_profile(
         "email": user.email,
         "status": user.status,
         "kyc_status": user.kyc_status,
+        "bank_account": (
+            {
+                "bank_code": bank_account.bank_code,
+                "bank_name": bank_name,
+                "bank_account_number": bank_account.bank_account_number,
+                "account_name": bank_account.account_name,
+                "is_verified": bank_account.is_verified,
+                "verified_at": bank_account.verified_at.isoformat() if bank_account.verified_at else None,
+            }
+            if bank_account
+            else None
+        ),
         "trading": trading_status,
         "accounts": f"{challenge_count} / {funded_count}",
         "revenue": _format_currency(revenue_total),
