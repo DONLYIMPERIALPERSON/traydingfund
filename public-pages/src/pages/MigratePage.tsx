@@ -312,8 +312,8 @@ const MigratePage = () => {
 										<div>
 											<p className="font-medium text-white text-lg">
 												{request.request_type === 'phase2' ? 'Phase 2' :
-												 request.request_type === 'funded_request' ? 'Funded Account' :
-												 'Payout'} - {request.account_size}
+											 request.request_type === 'funded_request' ? 'Funded Account' :
+											 'KYC/Payout request'} - {request.account_size}
 											</p>
 											<p className="text-sm text-gray-400 mt-1">
 												Submitted: {new Date(request.created_at).toLocaleDateString()}
