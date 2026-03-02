@@ -19,13 +19,15 @@ import {
 type TabMode = 'ready' | 'assigned' | 'pending-assign' | 'awaiting-next-stage'
 
 const publicAccountSizes = [
-  '₦200k Account',
-  '₦400k Account',
-  '₦600k Account',
-  '₦800k Account',
-  '₦1.5m Account',
-  '₦3m Account',
+  { value: '₦200k', label: '₦200k Account' },
+  { value: '₦400k', label: '₦400k Account' },
+  { value: '₦600k', label: '₦600k Account' },
+  { value: '₦800k', label: '₦800k Account' },
+  { value: '₦1.5m', label: '₦1.5m Account' },
+  { value: '₦3m', label: '₦3m Account' },
 ]
+
+const normalizeAccountSize = (size: string) => size.replace(/\s*Account$/i, '').trim()
 
 const MT5Page = () => {
   const [activeTab, setActiveTab] = useState<TabMode>('ready')
@@ -93,7 +95,8 @@ const MT5Page = () => {
 
   const accountSizeCounts = useMemo(() => {
     return readyAccounts.reduce<Record<string, number>>((acc, account) => {
-      acc[account.account_size] = (acc[account.account_size] ?? 0) + 1
+      const normalized = normalizeAccountSize(account.account_size)
+      acc[normalized] = (acc[normalized] ?? 0) + 1
       return acc
     }, {})
   }, [readyAccounts])
@@ -105,7 +108,7 @@ const MT5Page = () => {
   }, [assignedAccounts, assignedSearch])
 
   const activeSizes = useMemo(
-    () => publicAccountSizes.filter((size) => (accountSizeCounts[size] ?? 0) > 0).length,
+    () => publicAccountSizes.filter((size) => (accountSizeCounts[size.value] ?? 0) > 0).length,
     [accountSizeCounts],
   )
 
@@ -325,10 +328,10 @@ const MT5Page = () => {
 
         <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
           {publicAccountSizes.map((size) => {
-            const count = accountSizeCounts[size] ?? 0
+            const count = accountSizeCounts[size.value] ?? 0
             return (
-              <div key={size} style={{ border: '1px solid #2a2f3a', borderRadius: 12, padding: 12, background: count > 0 ? 'rgba(245,158,11,0.08)' : '#11151d' }}>
-                <p style={{ margin: 0, color: '#d1d5db', fontSize: 12 }}>{size}</p>
+              <div key={size.value} style={{ border: '1px solid #2a2f3a', borderRadius: 12, padding: 12, background: count > 0 ? 'rgba(245,158,11,0.08)' : '#11151d' }}>
+                <p style={{ margin: 0, color: '#d1d5db', fontSize: 12 }}>{size.label}</p>
                 <p style={{ margin: '6px 0 0', color: '#fff', fontWeight: 800, fontSize: 18 }}>{count}</p>
               </div>
             )
