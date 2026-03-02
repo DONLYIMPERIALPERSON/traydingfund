@@ -46,5 +46,11 @@ class MigrationRequest(Base):
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="migration_requests")
-    processed_by_admin: Mapped["AdminAllowlist"] = relationship("AdminAllowlist")
-    locked_by_admin: Mapped["AdminAllowlist"] = relationship("AdminAllowlist", foreign_keys=[locked_by_admin_id])
+    processed_by_admin: Mapped["AdminAllowlist"] = relationship(
+        "AdminAllowlist",
+        foreign_keys=[processed_by_admin_id],
+    )
+    locked_by_admin: Mapped["AdminAllowlist"] = relationship(
+        "AdminAllowlist",
+        foreign_keys=[locked_by_admin_id],
+    )
