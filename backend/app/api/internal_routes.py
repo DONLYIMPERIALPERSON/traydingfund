@@ -73,14 +73,6 @@ def internal_feed_update(
     if challenge is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Challenge account not found")
 
-    if account_number.strip() == "298668033":
-        logger.info(
-            "scalping-debug account=%s scalping_breach_increment=%s durations=%s",
-            account_number,
-            payload.scalping_breach_increment,
-            payload.closed_trade_durations_seconds,
-        )
-
     # Dispatch feed processing to the task so breach/pass emails are triggered consistently
     process_mt5_feed.delay(
         challenge_id=challenge.challenge_id,
