@@ -34,6 +34,10 @@ MT5-Live-01,10314522,Tr@de#8722,Inv@2211,₦400k Account,Ready
 """
 
 
+def _normalize_account_size(size: str) -> str:
+    return size.replace(" Account", "").strip()
+
+
 def _generate_challenge_id(db: Session, *, prefix: str = "CH") -> str:
     latest = db.scalar(select(ChallengeAccount.id).order_by(ChallengeAccount.id.desc()))
     next_seq = (latest + 1) if latest else 1
@@ -367,12 +371,13 @@ def create_mt5_accounts(
 
     created_rows: list[MT5Account] = []
     for item in payload.accounts:
+        normalized_size = _normalize_account_size(item.account_size)
         row = MT5Account(
             server=item.server.strip(),
             account_number=item.account_number.strip(),
             password=item.password,
             investor_password=item.investor_password,
-            account_size=item.account_size.strip(),
+            account_size=normalized_size,
             status=item.status,
             assignment_mode=None,
             assigned_user_id=None,
@@ -416,12 +421,13 @@ def upload_mt5_accounts_from_txt(
 
     created_rows: list[MT5Account] = []
     for row in parsed_rows:
+        normalized_size = _normalize_account_size(row["account_size"])
         account = MT5Account(
             server=row["server"],
             account_number=row["account_number"],
             password=row["password"],
             investor_password=row["investor_password"],
-            account_size=row["account_size"],
+            account_size=normalized_size,
             status=row["status"],
             assignment_mode=None,
             assigned_user_id=None,
