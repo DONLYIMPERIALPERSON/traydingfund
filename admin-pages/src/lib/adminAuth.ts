@@ -1470,12 +1470,18 @@ export async function fetchUserOrders(userId: number, page: number = 1, limit: n
   return response.json() as Promise<{ orders: UserOrder[], pagination: any }>
 }
 
-export async function fetchUserPayouts(userId: number, page: number = 1, limit: number = 50, sessionToken?: string): Promise<{ payouts: UserPayout[], pagination: any }> {
+export async function fetchUserPayouts(
+  userId: number,
+  page: number = 1,
+  limit: number = 50,
+  sessionToken?: string,
+): Promise<{ payouts: UserPayout[], pagination: any }> {
   const params = new URLSearchParams({
     page: page.toString(),
     limit: limit.toString(),
     period: 'all',
     search: userId.toString(), // Search by user ID
+    status_filter: 'completed', // Only show processed payouts
   })
 
   const response = await authFetch(`/admin/payouts?${params.toString()}`, {}, sessionToken)
