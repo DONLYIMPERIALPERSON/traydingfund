@@ -97,7 +97,7 @@ async def create_chat(
             chat_id=chat_id,
             sender=MessageSender.user,
             message=chat_data.message,
-            is_read=True  # User's own messages are auto-read
+            is_read=False  # Unread for admin until marked
         )
         db.add(message)
 
@@ -134,7 +134,7 @@ async def send_message(
         chat_id=chat_id,
         sender=MessageSender.user,
         message=message_data.message,
-        is_read=True  # User's own messages are auto-read
+        is_read=False  # Unread for admin until marked
     )
     db.add(message)
 
@@ -194,7 +194,7 @@ async def send_message_with_image(
         sender=MessageSender.user,
         message=message,
         image_url=image_url,
-        is_read=True  # User's own messages are auto-read
+        is_read=False  # Unread for admin until marked
     )
     db.add(message_obj)
 
