@@ -118,7 +118,7 @@ async def assign_chat(
         action="assign_chat",
         description=f"Assigned chat {chat_id} to {admin_name}",
         entity_type="support_chat",
-        entity_id=chat_id
+        extra_data=chat_id,
     )
 
     return {"message": f"Chat assigned to {admin_name}"}
@@ -170,7 +170,7 @@ async def send_support_message(
         action="send_support_message",
         description=f"Sent support message in chat {chat_id}",
         entity_type="support_chat",
-        entity_id=chat_id
+        extra_data=chat_id,
     )
 
     return message_obj
@@ -199,7 +199,7 @@ async def close_chat(
         action="close_chat",
         description=f"Closed support chat {chat_id}",
         entity_type="support_chat",
-        entity_id=chat_id
+        extra_data=chat_id,
     )
 
     return {"message": "Chat closed"}
@@ -232,7 +232,7 @@ async def mark_user_messages_as_read(
         action="mark_chat_read",
         description=f"Marked user messages as read in chat {chat_id}",
         entity_type="support_chat",
-        entity_id=chat_id
+        extra_data=chat_id,
     )
 
     return {"message": "User messages marked as read"}
