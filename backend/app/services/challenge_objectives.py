@@ -188,11 +188,12 @@ def _assign_next_stage_account(
     next_stage: str,
     now: datetime,
 ) -> tuple[ChallengeAccount, MT5Account] | None:
+    normalized_size = challenge.account_size.replace(" Account", "").strip()
     next_mt5 = db.scalar(
         select(MT5Account)
         .where(
             MT5Account.status == "Ready",
-            MT5Account.account_size == challenge.account_size,
+            MT5Account.account_size.in_([normalized_size, f"{normalized_size} Account"]),
         )
         .order_by(MT5Account.id.asc())
     )
@@ -361,11 +362,12 @@ def rollover_funded_account_after_withdrawal(
     if active is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Active funded MT5 account not found")
 
+    normalized_size = challenge.account_size.replace(" Account", "").strip()
     replacement = db.scalar(
         select(MT5Account)
         .where(
             MT5Account.status == "Ready",
-            MT5Account.account_size == challenge.account_size,
+            MT5Account.account_size.in_([normalized_size, f"{normalized_size} Account"]),
         )
         .order_by(MT5Account.id.asc())
     )
