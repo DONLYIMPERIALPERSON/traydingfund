@@ -46,7 +46,10 @@ async def get_all_support_chats(
         elif status == "open":
             query = query.filter(SupportChat.status == ChatStatus.open)
 
-    chats = query.order_by(SupportChat.updated_at.desc()).all()
+    chats = query.order_by(
+        SupportChat.assigned_to.is_not(None),
+        SupportChat.created_at.asc(),
+    ).all()
 
     result = []
     for chat in chats:
@@ -178,7 +181,7 @@ async def send_support_message(
 @router.post("/chats/{chat_id}/close")
 async def close_chat(
     chat_id: str,
-    _: User = Depends(get_current_admin_allowlisted),
+    current_admin: User = Depends(get_current_admin_allowlisted),
     db: Session = Depends(get_db)
 ):
     """Close a support chat"""
