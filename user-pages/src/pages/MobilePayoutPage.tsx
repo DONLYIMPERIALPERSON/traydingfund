@@ -277,6 +277,32 @@ const MobilePayoutPage: React.FC = () => {
                   >
                     {payoutData.eligibility.is_eligible ? 'Request Withdrawal' : 'Not Eligible'}
                   </button>
+
+                  {!payoutData.eligibility.is_eligible && payoutData.eligibility.ineligibility_reasons.length > 0 && (
+                    <div
+                      style={{
+                        marginTop: '16px',
+                        background: 'rgba(255,255,255,0.05)',
+                        borderRadius: '12px',
+                        padding: '14px',
+                        border: '1px solid rgba(255,215,0,0.2)'
+                      }}
+                    >
+                      <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px'}}>
+                        <i className="fas fa-info-circle" style={{color: '#FFD700'}}></i>
+                        <span style={{fontSize: '13px', color: 'rgba(255,255,255,0.9)', fontWeight: 600}}>
+                          Why you're not eligible
+                        </span>
+                      </div>
+                      <ul style={{margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                        {payoutData.eligibility.ineligibility_reasons.map((reason, index) => (
+                          <li key={index} style={{fontSize: '12px', color: 'rgba(255,255,255,0.75)'}}>
+                            {reason}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
