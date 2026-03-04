@@ -1,6 +1,7 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -113,14 +114,16 @@ def get_affiliate_dashboard(
         select(func.sum(AffiliateCommission.amount))
         .where(AffiliateCommission.affiliate_id == current_user.id)
         .where(AffiliateCommission.status == "approved")
-    ) or 0.0
+    )
 
     total_payouts = db.scalar(
         select(func.sum(AffiliatePayout.amount))
         .where(AffiliatePayout.affiliate_id == current_user.id)
         .where(AffiliatePayout.status == "approved")
-    ) or 0.0
+    )
 
+    total_commissions = total_commissions if total_commissions is not None else Decimal("0")
+    total_payouts = total_payouts if total_payouts is not None else Decimal("0")
     available_balance = total_commissions - total_payouts
 
     # Total earned (all approved commissions, excluding manual adjustments)
@@ -129,7 +132,8 @@ def get_affiliate_dashboard(
         .where(AffiliateCommission.affiliate_id == current_user.id)
         .where(AffiliateCommission.status == "approved")
         .where(AffiliateCommission.unique_customer_key.not_like("manual%"))
-    ) or 0.0
+    )
+    total_earned = total_earned if total_earned is not None else Decimal("0")
 
     # Unique referrals (distinct customers)
     referrals = db.scalar(
@@ -146,8 +150,8 @@ def get_affiliate_dashboard(
     ) or 0
 
     stats = AffiliateStats(
-        available_balance=round(available_balance, 2),
-        total_earned=round(total_earned, 2),
+        available_balance=round(float(available_balance), 2),
+        total_earned=round(float(total_earned), 2),
         referrals=referrals,
         impressions=impressions,
     )
@@ -265,8 +269,9 @@ def request_payout(
 ) -> dict[str, str]:
     """Request a payout for available balance."""
     # Check minimum payout amount
-    min_payout = 3000.0  # ₦3,000 minimum
-    if request.amount < min_payout:
+    min_payout = Decimal("3000")  # ₦3,000 minimum
+    requested_amount = Decimal(str(request.amount))
+    if requested_amount < min_payout:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Minimum payout amount is ₦{min_payout:,.0f}",
@@ -277,17 +282,19 @@ def request_payout(
         select(func.sum(AffiliateCommission.amount))
         .where(AffiliateCommission.affiliate_id == current_user.id)
         .where(AffiliateCommission.status == "approved")
-    ) or 0.0
+    )
 
     total_payouts = db.scalar(
         select(func.sum(AffiliatePayout.amount))
         .where(AffiliatePayout.affiliate_id == current_user.id)
         .where(AffiliatePayout.status == "approved")
-    ) or 0.0
+    )
 
+    total_commissions = total_commissions if total_commissions is not None else Decimal("0")
+    total_payouts = total_payouts if total_payouts is not None else Decimal("0")
     available_balance = total_commissions - total_payouts
 
-    if request.amount > available_balance:
+    if requested_amount > available_balance:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Requested amount exceeds available balance",
