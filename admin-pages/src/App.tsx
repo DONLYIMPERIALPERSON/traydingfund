@@ -312,9 +312,18 @@ function App() {
           {!authError && activePage === 'accounts' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('accounts'))) && <AccountsPage onOpenProfile={handleOpenUserProfile} />}
           {!authError && activePage === 'fundedAccounts' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('fundedAccounts'))) && <FundedAccountsPage onOpenProfile={handleOpenUserProfile} />}
           {!authError && activePage === 'breaches' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('breaches'))) && <BreachesPage onOpenProfile={handleOpenUserProfile} />}
-          {!authError && activePage === 'mt5' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('mt5'))) && <MT5Page />}
-          {!authError && activePage === 'orders' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('orders'))) && <OrdersPage onOpenProfile={handleOpenUserProfile} />}
-          {!authError && activePage === 'payouts' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('payouts'))) && <PayoutsPage onOpenProfile={handleOpenUserProfile} />}
+          {!authError && activePage === 'mt5' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('mt5'))) && (
+            <MT5Page isSuperAdmin={authUser.role === 'super_admin'} />
+          )}
+          {!authError && activePage === 'orders' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('orders'))) && (
+            <OrdersPage onOpenProfile={handleOpenUserProfile} isSuperAdmin={authUser.role === 'super_admin'} />
+          )}
+          {!authError && activePage === 'payouts' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('payouts'))) && (
+            <PayoutsPage
+              onOpenProfile={handleOpenUserProfile}
+              isSuperAdmin={authUser.role === 'super_admin'}
+            />
+          )}
           {!authError && activePage === 'financeAnalysis' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('financeAnalysis'))) && <FinanceAnalysisPage />}
           {!authError && activePage === 'coupons' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('coupons'))) && <CouponsPage />}
           {!authError && activePage === 'sendAnnouncement' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('sendAnnouncement'))) && <SendAnnouncementPage />}

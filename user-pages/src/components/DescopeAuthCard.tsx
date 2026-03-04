@@ -3,6 +3,7 @@ import { Descope } from '@descope/react-sdk'
 import { useNavigate } from 'react-router-dom'
 
 import { loginWithBackend, persistAuthUser } from '../lib/auth'
+import { attachAffiliateAttribution } from '../lib/affiliate'
 import './DescopeAuthCard.css'
 
 
@@ -139,6 +140,19 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle }) =>
       const sessionJwt = event?.detail?.sessionJwt
       const user = await loginWithBackend(sessionJwt)
       persistAuthUser(user)
+
+      try {
+        const raw = localStorage.getItem('nairatrader_referral_code')
+        if (raw) {
+          const parsed = JSON.parse(raw) as { code?: string; timestamp?: number }
+          if (parsed?.code) {
+            await attachAffiliateAttribution({ affiliate_code: parsed.code })
+          }
+        }
+      } catch (err) {
+        console.warn('Affiliate attribution failed', err)
+      }
+
       navigate('/')
     } catch (err) {
       console.error('Login finalization failed', err)

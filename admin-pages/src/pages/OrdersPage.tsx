@@ -13,7 +13,7 @@ interface OrdersPageProps {
   onOpenProfile: (user: AdminUser) => void
 }
 
-const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
+const OrdersPage = ({ onOpenProfile, isSuperAdmin }: OrdersPageProps & { isSuperAdmin: boolean }) => {
   const pageSize = 10
   const [statsPeriod, setStatsPeriod] = useState<'today' | 'week' | 'month'>('week')
   const [statusFilter, setStatusFilter] = useState<string>('')
@@ -60,9 +60,11 @@ const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
   }
 
   useEffect(() => {
-    void loadStats(statsPeriod)
+    if (isSuperAdmin) {
+      void loadStats(statsPeriod)
+    }
     void loadOrders(1, statsPeriod)
-  }, [statsPeriod])
+  }, [statsPeriod, isSuperAdmin])
 
   useEffect(() => {
     void loadOrders(1, statsPeriod, statusFilter)
@@ -125,7 +127,9 @@ const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
       } else {
         alert(`Order updated from ${result.previous_status ?? 'unknown'} to ${result.status}.`)
       }
-      await loadStats(statsPeriod)
+      if (isSuperAdmin) {
+        await loadStats(statsPeriod)
+      }
       await loadOrders(currentPage)
     } finally {
       setQueryingOrderId(null)
@@ -140,7 +144,9 @@ const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
       setQueryPendingMessage(
         `Checked ${result.total_checked} pending orders. Updated ${result.updated}, failed ${result.failed}.`
       )
-      await loadStats(statsPeriod)
+      if (isSuperAdmin) {
+        await loadStats(statsPeriod)
+      }
       await loadOrders(currentPage)
     } catch (error) {
       console.error('Failed to query pending orders:', error)
@@ -201,32 +207,34 @@ const OrdersPage = ({ onOpenProfile }: OrdersPageProps) => {
         </div>
       </div>
 
-      <div className="admin-kpi-grid">
-        <article className="admin-kpi-card">
-          <h3>Total Orders</h3>
-          <strong>{statsLoading ? '...' : stats?.total_orders ?? 0}</strong>
-        </article>
-        <article className="admin-kpi-card">
-          <h3>Paid Orders</h3>
-          <strong>{statsLoading ? '...' : stats?.paid_orders ?? 0}</strong>
-        </article>
-        <article className="admin-kpi-card">
-          <h3>Pending Orders</h3>
-          <strong>{statsLoading ? '...' : stats?.pending_orders ?? 0}</strong>
-        </article>
-        <article className="admin-kpi-card">
-          <h3>Failed Orders</h3>
-          <strong>{statsLoading ? '...' : stats?.failed_orders ?? 0}</strong>
-        </article>
-        <article className="admin-kpi-card">
-          <h3>Total Volume</h3>
-          <strong>{statsLoading ? '...' : stats?.total_volume_formatted ?? '₦0'}</strong>
-        </article>
-        <article className="admin-kpi-card">
-          <h3>Success Rate</h3>
-          <strong>{statsLoading ? '...' : stats?.success_rate_formatted ?? '0%'}</strong>
-        </article>
-      </div>
+      {isSuperAdmin && (
+        <div className="admin-kpi-grid">
+          <article className="admin-kpi-card">
+            <h3>Total Orders</h3>
+            <strong>{statsLoading ? '...' : stats?.total_orders ?? 0}</strong>
+          </article>
+          <article className="admin-kpi-card">
+            <h3>Paid Orders</h3>
+            <strong>{statsLoading ? '...' : stats?.paid_orders ?? 0}</strong>
+          </article>
+          <article className="admin-kpi-card">
+            <h3>Pending Orders</h3>
+            <strong>{statsLoading ? '...' : stats?.pending_orders ?? 0}</strong>
+          </article>
+          <article className="admin-kpi-card">
+            <h3>Failed Orders</h3>
+            <strong>{statsLoading ? '...' : stats?.failed_orders ?? 0}</strong>
+          </article>
+          <article className="admin-kpi-card">
+            <h3>Total Volume</h3>
+            <strong>{statsLoading ? '...' : stats?.total_volume_formatted ?? '₦0'}</strong>
+          </article>
+          <article className="admin-kpi-card">
+            <h3>Success Rate</h3>
+            <strong>{statsLoading ? '...' : stats?.success_rate_formatted ?? '0%'}</strong>
+          </article>
+        </div>
+      )}
 
       <div className="admin-table-card">
         <div className="table-header">

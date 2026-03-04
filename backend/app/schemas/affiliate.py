@@ -150,6 +150,10 @@ class AffiliateDashboard(BaseModel):
     bank_details: Optional[BankDetails] = None
 
 
+class AffiliateAttributionRequest(BaseModel):
+    affiliate_code: str = Field(..., min_length=1, max_length=64)
+
+
 class PayoutRequest(BaseModel):
     amount: float = Field(..., ge=0)
 

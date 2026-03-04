@@ -100,6 +100,16 @@ function App() {
   const descopeSdk = useDescope()
   useSession()
 
+  const storeReferralCode = (code: string) => {
+    if (!code) return
+    try {
+      const payload = { code, timestamp: Date.now() }
+      localStorage.setItem('nairatrader_referral_code', JSON.stringify(payload))
+    } catch {
+      // ignore storage errors
+    }
+  }
+
   useEffect(() => {
     const path = window.location.pathname
     if (path.startsWith('/ref/')) {
@@ -113,6 +123,8 @@ function App() {
         window.location.replace('/login')
         return
       }
+
+      storeReferralCode(code)
 
       fetch(`${backendUrl}/affiliate/click?affiliate_code=${encodeURIComponent(code)}`, { method: 'POST' })
         .catch(() => {

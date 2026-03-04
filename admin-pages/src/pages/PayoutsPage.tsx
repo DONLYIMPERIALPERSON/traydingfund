@@ -24,7 +24,13 @@ interface AdminUser {
   payouts: string
 }
 
-const PayoutsPage = ({ onOpenProfile }: { onOpenProfile?: (user: AdminUser) => void }) => {
+const PayoutsPage = ({
+  onOpenProfile,
+  isSuperAdmin,
+}: {
+  onOpenProfile?: (user: AdminUser) => void
+  isSuperAdmin: boolean
+}) => {
   const [payoutRequests, setPayoutRequests] = useState<PayoutRequest[]>([])
   const [stats, setStats] = useState<PayoutStats | null>(null)
   const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month'>('today')
@@ -65,6 +71,7 @@ const PayoutsPage = ({ onOpenProfile }: { onOpenProfile?: (user: AdminUser) => v
   }, [selectedPeriod])
 
   useEffect(() => {
+    if (!isSuperAdmin) return
     const loadConfig = async () => {
       setConfigLoading(true)
       setConfigError(null)
@@ -80,7 +87,7 @@ const PayoutsPage = ({ onOpenProfile }: { onOpenProfile?: (user: AdminUser) => v
     }
 
     loadConfig()
-  }, [])
+  }, [isSuperAdmin])
 
   const handlePeriodChange = (period: 'today' | 'week' | 'month') => {
     setSelectedPeriod(period)
@@ -270,86 +277,88 @@ const PayoutsPage = ({ onOpenProfile }: { onOpenProfile?: (user: AdminUser) => v
           </div>
         </div>
 
-        <div style={{ marginTop: 18, borderTop: '1px solid #1f2937', paddingTop: 16 }}>
-          <h3 style={{ margin: 0, color: '#fff' }}>Auto-Approval Threshold</h3>
-          <p style={{ margin: '6px 0 12px', color: '#9ca3af' }}>
-            Payouts above this percentage of account size will require admin approval. Current: {payoutConfig?.auto_approval_threshold_percent ?? '—'}%
-          </p>
-          {configError && <p style={{ color: '#fca5a5', marginTop: 0 }}>{configError}</p>}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-            <label style={{ display: 'grid', gap: 6, color: '#d1d5db', fontSize: 13 }}>
-              Threshold (%)
-              <input
-                type="number"
-                min={1}
-                max={100}
-                step={0.1}
-                value={configPercent}
-                onChange={(event) => setConfigPercent(event.target.value)}
-                disabled={configLoading}
-                style={{
-                  borderRadius: 8,
-                  border: '1px solid #374151',
-                  background: '#111827',
-                  color: '#fff',
-                  padding: '8px 10px',
-                  minWidth: 120,
-                }}
-              />
-            </label>
-            <label style={{ display: 'grid', gap: 6, color: '#d1d5db', fontSize: 13 }}>
-              OTP
-              <input
-                type="text"
-                value={configOtp}
-                onChange={(event) => setConfigOtp(event.target.value)}
-                placeholder="Enter OTP"
-                style={{
-                  borderRadius: 8,
-                  border: '1px solid #374151',
-                  background: '#111827',
-                  color: '#fff',
-                  padding: '8px 10px',
-                  minWidth: 140,
-                }}
-              />
-            </label>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 16 }}>
-              <button
-                type="button"
-                onClick={handleSendConfigOtp}
-                style={{
-                  border: '1px solid #374151',
-                  background: '#111827',
-                  color: '#e5e7eb',
-                  borderRadius: 8,
-                  padding: '8px 12px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                Send OTP
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveConfig}
-                disabled={savingConfig}
-                style={{
-                  border: '1px solid #f59e0b',
-                  background: '#f59e0b',
-                  color: '#111827',
-                  borderRadius: 8,
-                  padding: '8px 12px',
-                  fontWeight: 700,
-                  cursor: savingConfig ? 'not-allowed' : 'pointer',
-                  opacity: savingConfig ? 0.7 : 1,
-                }}
-              >
-                {savingConfig ? 'Saving...' : 'Save Threshold'}
-              </button>
+        {isSuperAdmin && (
+          <div style={{ marginTop: 18, borderTop: '1px solid #1f2937', paddingTop: 16 }}>
+            <h3 style={{ margin: 0, color: '#fff' }}>Auto-Approval Threshold</h3>
+            <p style={{ margin: '6px 0 12px', color: '#9ca3af' }}>
+              Payouts above this percentage of account size will require admin approval. Current: {payoutConfig?.auto_approval_threshold_percent ?? '—'}%
+            </p>
+            {configError && <p style={{ color: '#fca5a5', marginTop: 0 }}>{configError}</p>}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <label style={{ display: 'grid', gap: 6, color: '#d1d5db', fontSize: 13 }}>
+                Threshold (%)
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  step={0.1}
+                  value={configPercent}
+                  onChange={(event) => setConfigPercent(event.target.value)}
+                  disabled={configLoading}
+                  style={{
+                    borderRadius: 8,
+                    border: '1px solid #374151',
+                    background: '#111827',
+                    color: '#fff',
+                    padding: '8px 10px',
+                    minWidth: 120,
+                  }}
+                />
+              </label>
+              <label style={{ display: 'grid', gap: 6, color: '#d1d5db', fontSize: 13 }}>
+                OTP
+                <input
+                  type="text"
+                  value={configOtp}
+                  onChange={(event) => setConfigOtp(event.target.value)}
+                  placeholder="Enter OTP"
+                  style={{
+                    borderRadius: 8,
+                    border: '1px solid #374151',
+                    background: '#111827',
+                    color: '#fff',
+                    padding: '8px 10px',
+                    minWidth: 140,
+                  }}
+                />
+              </label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 16 }}>
+                <button
+                  type="button"
+                  onClick={handleSendConfigOtp}
+                  style={{
+                    border: '1px solid #374151',
+                    background: '#111827',
+                    color: '#e5e7eb',
+                    borderRadius: 8,
+                    padding: '8px 12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Send OTP
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveConfig}
+                  disabled={savingConfig}
+                  style={{
+                    border: '1px solid #f59e0b',
+                    background: '#f59e0b',
+                    color: '#111827',
+                    borderRadius: 8,
+                    padding: '8px 12px',
+                    fontWeight: 700,
+                    cursor: savingConfig ? 'not-allowed' : 'pointer',
+                    opacity: savingConfig ? 0.7 : 1,
+                  }}
+                >
+                  {savingConfig ? 'Saving...' : 'Save Threshold'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Tab Selector */}
         <div style={{ marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>

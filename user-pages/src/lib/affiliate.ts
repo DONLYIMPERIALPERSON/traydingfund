@@ -62,6 +62,10 @@ export type BankDetailsUpdate = {
   account_number: string
 }
 
+export type AffiliateAttributionRequest = {
+  affiliate_code: string
+}
+
 function parseBackendError(prefix: string, status: number, rawText: string): Error {
   let detail = rawText
   try {
@@ -148,6 +152,20 @@ export async function updateBankDetails(bankDetails: BankDetailsUpdate): Promise
   if (!response.ok) {
     const errorText = await response.text()
     throw parseBackendError('Bank details update failed', response.status, errorText)
+  }
+
+  return response.json() as Promise<{ message: string }>
+}
+
+export async function attachAffiliateAttribution(payload: AffiliateAttributionRequest): Promise<{ message: string }> {
+  const response = await authFetch('/affiliate/attribution', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw parseBackendError('Affiliate attribution failed', response.status, errorText)
   }
 
   return response.json() as Promise<{ message: string }>

@@ -15,11 +15,21 @@ from app.models.affiliate import (
     AffiliateClick,
 )
 from app.models.user import User
+from app.models.challenge_account import ChallengeAccount
+from app.models.mt5_account import MT5Account
+from app.services.challenge_objectives import initialize_challenge_stage_tracking
 from app.api.admin_workboard_routes import log_admin_activity
 from app.tasks import send_challenge_objective_email
 
 
 router = APIRouter(prefix="/admin/affiliate", tags=["Admin Affiliate"])
+
+REWARD_AMOUNT_BY_LEVEL = {
+    5: 200000,
+    15: 400000,
+    30: 600000,
+    50: 800000,
+}
 
 
 @router.get("/overview")
@@ -447,9 +457,52 @@ def approve_milestone(
     )
     affiliate_name = affiliate_user.username if affiliate_user else f"User #{milestone.affiliate_id}"
 
+    reward_amount = REWARD_AMOUNT_BY_LEVEL.get(milestone.level)
+    if reward_amount is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported milestone reward level",
+        )
+    reward_size = f"₦{reward_amount/1000:,.0f}k"
+
+    mt5 = db.scalar(
+        select(MT5Account)
+        .where(MT5Account.status == "Ready", MT5Account.account_size == reward_size)
+        .order_by(MT5Account.id.asc())
+        .with_for_update(skip_locked=True)
+    )
+    if mt5 is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="No ready MT5 account available for this reward size",
+        )
+
+    challenge_id = f"RW-{milestone.id:05d}"
+    challenge = ChallengeAccount(
+        challenge_id=challenge_id,
+        user_id=milestone.affiliate_id,
+        account_size=reward_size,
+        current_stage="Phase 1",
+        phase1_mt5_account_id=mt5.id,
+        phase2_mt5_account_id=None,
+        funded_mt5_account_id=None,
+        active_mt5_account_id=mt5.id,
+    )
+    initialize_challenge_stage_tracking(challenge, account_size=reward_size)
+    db.add(challenge)
+    db.flush()
+
+    mt5.status = "Phase 1"
+    mt5.assignment_mode = "automatic"
+    mt5.assigned_user_id = milestone.affiliate_id
+    mt5.assigned_by_admin_name = "Affiliate Reward"
+    mt5.assigned_at = datetime.utcnow()
+    db.add(mt5)
+
     # Update milestone status
     milestone.status = "approved"
     milestone.processed_at = datetime.utcnow()
+    db.add(milestone)
     db.commit()
 
     # Log admin activity
@@ -471,7 +524,14 @@ def approve_milestone(
     if affiliate_user and affiliate_user.email:
         try:
             message = (
-                f"Your affiliate milestone reward (Level {milestone.level}) has been approved."
+                f"Your affiliate milestone reward (Level {milestone.level}) has been approved.\n\n"
+                f"Challenge ID: {challenge.challenge_id}\n"
+                f"Account Size: {reward_size}\n"
+                f"MT5 Server: {mt5.server}\n"
+                f"Account Number: {mt5.account_number}\n"
+                f"Password: {mt5.password}\n"
+                f"Investor Password: {mt5.investor_password}\n\n"
+                "You can now log in to your MT5 platform and start trading."
             )
             send_challenge_objective_email.delay(
                 to_email=affiliate_user.email,
@@ -480,9 +540,7 @@ def approve_milestone(
             )
         except Exception:
             pass
-    # TODO: Create coupon or credit account
-
-    return {"message": "Milestone approved successfully"}
+    return {"message": f"Milestone approved successfully. {reward_size} account assigned"}
 
 
 @router.post("/milestones/{milestone_id}/reject")

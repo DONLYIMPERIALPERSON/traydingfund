@@ -1,4 +1,6 @@
-from sqlalchemy import String
+from datetime import datetime
+
+from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -16,6 +18,14 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(50), nullable=False, default="user")
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="active")
     kyc_status: Mapped[str] = mapped_column(String(30), nullable=False, default="not_started")
+    referral_affiliate_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("affiliates.user_id"),
+        nullable=True,
+        index=True,
+    )
+    referral_clicked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    referral_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     certificates: Mapped[list["Certificate"]] = relationship("Certificate", back_populates="user")

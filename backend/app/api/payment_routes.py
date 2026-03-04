@@ -15,6 +15,7 @@ from app.models.challenge_account import ChallengeAccount
 from app.models.challenge_config import ChallengeConfig
 from app.models.mt5_account import MT5Account
 from app.models.payment_order import PaymentOrder
+from app.models.affiliate import AffiliateCommission
 from app.models.user import User
 from app.schemas.payment import PaymentInitRequest, PaymentOrderResponse, PaymentStatusRefreshResponse
 from app.services.challenge_objectives import initialize_challenge_stage_tracking
@@ -178,6 +179,48 @@ def _assign_phase1_account_for_paid_order(db: Session, order: PaymentOrder) -> s
     return challenge_id
 
 
+def _create_affiliate_commission_for_order(db: Session, order: PaymentOrder) -> None:
+    if not order.paid_at:
+        return
+
+    user = db.get(User, order.user_id)
+    if user is None or user.referral_affiliate_id is None:
+        return
+
+    now = datetime.now(timezone.utc)
+    if user.referral_expires_at is None or user.referral_expires_at < now:
+        return
+
+    affiliate_id = user.referral_affiliate_id
+    if affiliate_id == user.id:
+        return
+
+    existing = db.scalar(
+        select(AffiliateCommission.id)
+        .where(AffiliateCommission.affiliate_id == affiliate_id)
+        .where(AffiliateCommission.order_id == order.id)
+    )
+    if existing:
+        return
+
+    commission_amount = round((order.net_amount_kobo / 100) * 0.10, 2)
+    if commission_amount <= 0:
+        return
+
+    commission = AffiliateCommission(
+        affiliate_id=affiliate_id,
+        order_id=order.id,
+        customer_user_id=user.id,
+        customer_email=user.email,
+        unique_customer_key=f"u:{user.id}",
+        amount=commission_amount,
+        status="approved",
+        product_summary=f"{order.account_size} challenge",
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(commission)
+
+
 @router.post("/payments/palmpay/init", response_model=PaymentOrderResponse)
 def init_palmpay_bank_transfer(
     payload: PaymentInitRequest,
@@ -320,6 +363,7 @@ def refresh_payment_order_status(
 
     if order.status == "paid":
         challenge_id = _assign_phase1_account_for_paid_order(db, order)
+        _create_affiliate_commission_for_order(db, order)
         db.commit()
         message = "Payment successful and account assigned" if challenge_id else "Payment successful, awaiting MT5 account assignment"
         return PaymentStatusRefreshResponse(
@@ -376,6 +420,7 @@ async def palmpay_notify(request: Request, db: Session = Depends(get_db)) -> str
     if order.status == "paid" and order.paid_at is None:
         order.paid_at = datetime.now(timezone.utc)
         _assign_phase1_account_for_paid_order(db, order)
+        _create_affiliate_commission_for_order(db, order)
 
     db.add(order)
     db.commit()

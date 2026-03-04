@@ -16,6 +16,13 @@ from app.models.email_log import EmailLog
 from app.models.migration_request import MigrationRequest
 from app.models.staff_salary import StaffSalary
 from app.models.support import SupportChat, SupportMessage
+from app.models.affiliate import (
+    Affiliate,
+    AffiliateClick,
+    AffiliateCommission,
+    AffiliateMilestone,
+    AffiliatePayout,
+)
 
 __all__ = [
     "User",
@@ -35,4 +42,9 @@ __all__ = [
     "StaffSalary",
     "SupportChat",
     "SupportMessage",
+    "Affiliate",
+    "AffiliateClick",
+    "AffiliateCommission",
+    "AffiliateMilestone",
+    "AffiliatePayout",
 ]

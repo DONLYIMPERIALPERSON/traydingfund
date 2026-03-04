@@ -1,6 +1,6 @@
 import hashlib
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -8,7 +8,7 @@ from sqlalchemy import func, select, desc
 from sqlalchemy.orm import Session
 
 from app.api.auth_routes import serialize_user
-from app.core.auth import get_current_user
+from app.core.auth import get_current_user, verify_descope_jwt, _get_or_upsert_user_from_payload
 from app.db.deps import get_db
 from app.models.affiliate import (
     Affiliate,
@@ -26,6 +26,7 @@ from app.schemas.affiliate import (
     AffiliateReward,
     AffiliateTransaction,
     AffiliatePayoutHistory,
+    AffiliateAttributionRequest,
     PayoutRequest,
     MilestoneClaimRequest,
     BankDetails,
@@ -77,6 +78,23 @@ def _hash_ip(ip: str) -> str:
 def _hash_ua(ua: str) -> str:
     """Hash user agent for privacy."""
     return hashlib.sha256(ua.encode()).hexdigest()[:64]
+
+
+def _get_optional_user(request: Request, db: Session) -> User | None:
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.lower().startswith("bearer "):
+        return None
+    token = auth_header.split(" ", 1)[1].strip()
+    if not token:
+        return None
+    try:
+        payload = verify_descope_jwt(token)
+    except HTTPException:
+        return None
+    try:
+        return _get_or_upsert_user_from_payload(payload, db)
+    except HTTPException:
+        return None
 
 
 @router.get("/dashboard", response_model=AffiliateDashboard)
@@ -154,7 +172,7 @@ def get_affiliate_dashboard(
             progress = target
             remaining = 0
         elif lifetime_referrals >= target:
-            status_str = "claimable"
+            status_str = "live"
             progress = target
             remaining = 0
         elif i == 0 or lifetime_referrals >= MILESTONE_TARGETS[i-1]:
@@ -171,8 +189,8 @@ def get_affiliate_dashboard(
         rewards.append(AffiliateReward(
             amount=amount,
             status=status_str,
-            progress=progress if status_str in ["live", "claimable"] else None,
-            target=target if status_str in ["live", "claimable"] else None,
+            progress=progress if status_str == "live" else None,
+            target=target if status_str == "live" else None,
             remaining=remaining if status_str == "live" else None,
         ))
 
@@ -471,9 +489,43 @@ def track_affiliate_click(
         created_at=datetime.utcnow(),
     )
     db.add(click)
+
+    current_user = _get_optional_user(request, db)
+    if current_user:
+        now = datetime.now(timezone.utc)
+        current_user.referral_affiliate_id = affiliate.user_id
+        current_user.referral_clicked_at = now
+        current_user.referral_expires_at = now + timedelta(days=30)
+        db.add(current_user)
+
     db.commit()
 
     return {"message": "Click tracked"}
+
+
+@router.post("/attribution")
+def attach_affiliate_attribution(
+    payload: AffiliateAttributionRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    """Attach last-click affiliate attribution for the logged-in user."""
+    affiliate_code = payload.affiliate_code.strip()
+    affiliate = db.scalar(select(Affiliate).where(Affiliate.code == affiliate_code))
+    if not affiliate:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Affiliate code not found",
+        )
+
+    now = datetime.now(timezone.utc)
+    current_user.referral_affiliate_id = affiliate.user_id
+    current_user.referral_clicked_at = now
+    current_user.referral_expires_at = now + timedelta(days=30)
+    db.add(current_user)
+    db.commit()
+
+    return {"message": "Affiliate attribution saved"}
 
 
 @router.post("/commission")

@@ -29,7 +29,7 @@ const publicAccountSizes = [
 
 const normalizeAccountSize = (size: string) => size.replace(/\s*Account$/i, '').trim()
 
-const MT5Page = () => {
+const MT5Page = ({ isSuperAdmin }: { isSuperAdmin: boolean }) => {
   const [activeTab, setActiveTab] = useState<TabMode>('ready')
   const [readyAccounts, setReadyAccounts] = useState<MT5Account[]>([])
   const [assignedAccounts, setAssignedAccounts] = useState<MT5Account[]>([])
@@ -40,6 +40,10 @@ const MT5Page = () => {
   const [error, setError] = useState('')
   const [readySearch, setReadySearch] = useState('')
   const [assignedSearch, setAssignedSearch] = useState('')
+  const [readySizeFilter, setReadySizeFilter] = useState('')
+  const [assignedSizeFilter, setAssignedSizeFilter] = useState('')
+  const [awaitingSizeFilter, setAwaitingSizeFilter] = useState('')
+  const [pendingSizeFilter, setPendingSizeFilter] = useState('')
   const [deletingAccountId, setDeletingAccountId] = useState<number | null>(null)
 
   const [selectedAccount, setSelectedAccount] = useState<MT5Account | null>(null)
@@ -104,15 +108,33 @@ const MT5Page = () => {
 
   const filteredReadyAccounts = useMemo(() => {
     const query = readySearch.trim().toLowerCase()
-    if (!query) return readyAccounts
-    return readyAccounts.filter((account) => account.account_number.toLowerCase().includes(query))
-  }, [readyAccounts, readySearch])
+    return readyAccounts.filter((account) => {
+      const matchesQuery = !query || account.account_number.toLowerCase().includes(query)
+      const matchesSize = !readySizeFilter || account.account_size === readySizeFilter
+      return matchesQuery && matchesSize
+    })
+  }, [readyAccounts, readySearch, readySizeFilter])
 
   const filteredAssignedAccounts = useMemo(() => {
     const query = assignedSearch.trim().toLowerCase()
-    if (!query) return assignedAccounts
-    return assignedAccounts.filter((account) => account.account_number.toLowerCase().includes(query))
-  }, [assignedAccounts, assignedSearch])
+    return assignedAccounts.filter((account) => {
+      const matchesQuery = !query || account.account_number.toLowerCase().includes(query)
+      const matchesSize = !assignedSizeFilter || account.account_size === assignedSizeFilter
+      return matchesQuery && matchesSize
+    })
+  }, [assignedAccounts, assignedSearch, assignedSizeFilter])
+
+  const filteredAwaitingNextStageAccounts = useMemo(() => {
+    return awaitingNextStageAccounts.filter((account) => {
+      return !awaitingSizeFilter || account.account_size === awaitingSizeFilter
+    })
+  }, [awaitingNextStageAccounts, awaitingSizeFilter])
+
+  const filteredPendingAssignments = useMemo(() => {
+    return pendingAssignments.filter((order) => {
+      return !pendingSizeFilter || order.account_size === pendingSizeFilter
+    })
+  }, [pendingAssignments, pendingSizeFilter])
 
   const activeSizes = useMemo(
     () => publicAccountSizes.filter((size) => (accountSizeCounts[size.value] ?? 0) > 0).length,
@@ -290,27 +312,29 @@ const MT5Page = () => {
               {generatingCertificates ? 'Generating...' : 'Generate Certificates'}
             </button>
 
-            <label
-              style={{
-                border: '1px solid #f59e0b',
-                background: '#f59e0b',
-                color: '#111827',
-                borderRadius: 10,
-                padding: '10px 14px',
-                fontWeight: 700,
-                cursor: uploading ? 'not-allowed' : 'pointer',
-                opacity: uploading ? 0.7 : 1,
-              }}
-            >
-              {uploading ? 'Uploading...' : 'Upload'}
-              <input
-                type="file"
-                accept=".txt,.csv,text/plain"
-                onChange={handleUploadFile}
-                disabled={uploading}
-                style={{ display: 'none' }}
-              />
-            </label>
+            {isSuperAdmin && (
+              <label
+                style={{
+                  border: '1px solid #f59e0b',
+                  background: '#f59e0b',
+                  color: '#111827',
+                  borderRadius: 10,
+                  padding: '10px 14px',
+                  fontWeight: 700,
+                  cursor: uploading ? 'not-allowed' : 'pointer',
+                  opacity: uploading ? 0.7 : 1,
+                }}
+              >
+                {uploading ? 'Uploading...' : 'Upload'}
+                <input
+                  type="file"
+                  accept=".txt,.csv,text/plain"
+                  onChange={handleUploadFile}
+                  disabled={uploading}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            )}
           </div>
         </div>
 
@@ -418,7 +442,7 @@ const MT5Page = () => {
         </div>
 
         {activeTab === 'assigned' && (
-          <div style={{ padding: '0 16px 12px' }}>
+          <div style={{ padding: '0 16px 12px', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <input
               type="search"
               value={assignedSearch}
@@ -434,11 +458,29 @@ const MT5Page = () => {
                 outline: 'none',
               }}
             />
+            <select
+              value={assignedSizeFilter}
+              onChange={(event) => setAssignedSizeFilter(event.target.value)}
+              style={{
+                borderRadius: 10,
+                border: '1px solid #2a2f3a',
+                background: '#0f131b',
+                color: '#e5e7eb',
+                padding: '8px 12px',
+                outline: 'none',
+                minWidth: 160,
+              }}
+            >
+              <option value="">All Sizes</option>
+              {publicAccountSizes.map((size) => (
+                <option key={`assigned-${size.value}`} value={size.value}>{size.label}</option>
+              ))}
+            </select>
           </div>
         )}
 
         {activeTab === 'ready' && (
-          <div style={{ padding: '0 16px 12px' }}>
+          <div style={{ padding: '0 16px 12px', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <input
               type="search"
               value={readySearch}
@@ -454,6 +496,70 @@ const MT5Page = () => {
                 outline: 'none',
               }}
             />
+            <select
+              value={readySizeFilter}
+              onChange={(event) => setReadySizeFilter(event.target.value)}
+              style={{
+                borderRadius: 10,
+                border: '1px solid #2a2f3a',
+                background: '#0f131b',
+                color: '#e5e7eb',
+                padding: '8px 12px',
+                outline: 'none',
+                minWidth: 160,
+              }}
+            >
+              <option value="">All Sizes</option>
+              {publicAccountSizes.map((size) => (
+                <option key={`ready-${size.value}`} value={size.value}>{size.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {activeTab === 'awaiting-next-stage' && (
+          <div style={{ padding: '0 16px 12px', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <select
+              value={awaitingSizeFilter}
+              onChange={(event) => setAwaitingSizeFilter(event.target.value)}
+              style={{
+                borderRadius: 10,
+                border: '1px solid #2a2f3a',
+                background: '#0f131b',
+                color: '#e5e7eb',
+                padding: '8px 12px',
+                outline: 'none',
+                minWidth: 160,
+              }}
+            >
+              <option value="">All Sizes</option>
+              {publicAccountSizes.map((size) => (
+                <option key={`awaiting-${size.value}`} value={size.value}>{size.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {activeTab === 'pending-assign' && (
+          <div style={{ padding: '0 16px 12px', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <select
+              value={pendingSizeFilter}
+              onChange={(event) => setPendingSizeFilter(event.target.value)}
+              style={{
+                borderRadius: 10,
+                border: '1px solid #2a2f3a',
+                background: '#0f131b',
+                color: '#e5e7eb',
+                padding: '8px 12px',
+                outline: 'none',
+                minWidth: 160,
+              }}
+            >
+              <option value="">All Sizes</option>
+              {publicAccountSizes.map((size) => (
+                <option key={`pending-${size.value}`} value={size.value}>{size.label}</option>
+              ))}
+            </select>
           </div>
         )}
 
@@ -470,8 +576,8 @@ const MT5Page = () => {
                 <th>Password</th>
                 <th>Investor Password</th>
                 <th>Status</th>
-                <th>Action</th>
-                <th>Delete</th>
+                {isSuperAdmin && <th>Action</th>}
+                {isSuperAdmin && <th>Delete</th>}
               </tr>
             </thead>
             <tbody>
@@ -497,48 +603,52 @@ const MT5Page = () => {
                       {account.status}
                     </span>
                   </td>
-                  <td>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedAccount(account)
-                        setFormError('')
-                        setFormSuccess('')
-                      }}
-                      style={{
-                        border: '1px solid #f59e0b',
-                        background: 'rgba(245,158,11,0.12)',
-                        color: '#fcd34d',
-                        borderRadius: 10,
-                        padding: '7px 10px',
-                        fontWeight: 700,
-                        fontSize: 12,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Assign Stage
-                    </button>
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteAccount(account)}
-                      disabled={deletingAccountId === account.id}
-                      style={{
-                        border: '1px solid rgba(239,68,68,0.5)',
-                        background: 'rgba(239,68,68,0.12)',
-                        color: '#fca5a5',
-                        borderRadius: 10,
-                        padding: '7px 10px',
-                        fontWeight: 700,
-                        fontSize: 12,
-                        cursor: deletingAccountId === account.id ? 'not-allowed' : 'pointer',
-                        opacity: deletingAccountId === account.id ? 0.7 : 1,
-                      }}
-                    >
-                      {deletingAccountId === account.id ? 'Deleting...' : 'Delete'}
-                    </button>
-                  </td>
+                  {isSuperAdmin && (
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedAccount(account)
+                          setFormError('')
+                          setFormSuccess('')
+                        }}
+                        style={{
+                          border: '1px solid #f59e0b',
+                          background: 'rgba(245,158,11,0.12)',
+                          color: '#fcd34d',
+                          borderRadius: 10,
+                          padding: '7px 10px',
+                          fontWeight: 700,
+                          fontSize: 12,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Assign Stage
+                      </button>
+                    </td>
+                  )}
+                  {isSuperAdmin && (
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteAccount(account)}
+                        disabled={deletingAccountId === account.id}
+                        style={{
+                          border: '1px solid rgba(239,68,68,0.5)',
+                          background: 'rgba(239,68,68,0.12)',
+                          color: '#fca5a5',
+                          borderRadius: 10,
+                          padding: '7px 10px',
+                          fontWeight: 700,
+                          fontSize: 12,
+                          cursor: deletingAccountId === account.id ? 'not-allowed' : 'pointer',
+                          opacity: deletingAccountId === account.id ? 0.7 : 1,
+                        }}
+                      >
+                        {deletingAccountId === account.id ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -558,7 +668,7 @@ const MT5Page = () => {
                 <th>Account Size</th>
                 <th>Password</th>
                 <th>Investor Password</th>
-                <th>Action</th>
+                {isSuperAdmin && <th>Action</th>}
               </tr>
             </thead>
             <tbody>
@@ -587,26 +697,28 @@ const MT5Page = () => {
                   <td>{account.account_size}</td>
                   <td>{account.password}</td>
                   <td>{account.investor_password}</td>
-                  <td>
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteAccount(account, true)}
-                      disabled={deletingAccountId === account.id}
-                      style={{
-                        border: '1px solid rgba(239,68,68,0.5)',
-                        background: 'rgba(239,68,68,0.12)',
-                        color: '#fca5a5',
-                        borderRadius: 10,
-                        padding: '7px 10px',
-                        fontWeight: 700,
-                        fontSize: 12,
-                        cursor: deletingAccountId === account.id ? 'not-allowed' : 'pointer',
-                        opacity: deletingAccountId === account.id ? 0.7 : 1,
-                      }}
-                    >
-                      {deletingAccountId === account.id ? 'Deleting...' : 'Delete'}
-                    </button>
-                  </td>
+                  {isSuperAdmin && (
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteAccount(account, true)}
+                        disabled={deletingAccountId === account.id}
+                        style={{
+                          border: '1px solid rgba(239,68,68,0.5)',
+                          background: 'rgba(239,68,68,0.12)',
+                          color: '#fca5a5',
+                          borderRadius: 10,
+                          padding: '7px 10px',
+                          fontWeight: 700,
+                          fontSize: 12,
+                          cursor: deletingAccountId === account.id ? 'not-allowed' : 'pointer',
+                          opacity: deletingAccountId === account.id ? 0.7 : 1,
+                        }}
+                      >
+                        {deletingAccountId === account.id ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -626,7 +738,7 @@ const MT5Page = () => {
               </tr>
             </thead>
             <tbody>
-              {awaitingNextStageAccounts.map((account) => (
+              {filteredAwaitingNextStageAccounts.map((account) => (
                 <tr key={account.challenge_id}>
                   <td>{account.challenge_id}</td>
                   <td>{account.trader_name || `User ${account.user_id}`}</td>
@@ -668,7 +780,7 @@ const MT5Page = () => {
               </tr>
             </thead>
             <tbody>
-              {pendingAssignments.map((order) => (
+              {filteredPendingAssignments.map((order) => (
                 <tr key={order.id}>
                   <td>{order.provider_order_id}</td>
                   <td>{order.user.name}</td>
@@ -698,7 +810,7 @@ const MT5Page = () => {
         )}
       </div>
 
-      {selectedAccount && (
+      {selectedAccount && isSuperAdmin && (
         <div
           style={{
             position: 'fixed',
