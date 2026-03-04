@@ -35,6 +35,7 @@ def _serialize_allowlist(entry: AdminAllowlist) -> dict[str, str | int | bool | 
         "require_mfa": entry.require_mfa,
         "mfa_enrolled": entry.mfa_enrolled,
         "allowed_pages": allowed_pages,
+        "can_assign_mt5": entry.can_assign_mt5,
         "created_by_user_id": entry.created_by_user_id,
     }
 
@@ -129,6 +130,7 @@ def add_allowlist_entry(
         status="active",
         require_mfa=payload.require_mfa,
         allowed_pages=allowed_pages_json,
+        can_assign_mt5=bool(payload.can_assign_mt5),
         created_by_user_id=current_super_admin.id,
     )
     db.add(row)
@@ -156,6 +158,7 @@ def bootstrap_allowlist_entry(
         role=payload.role,
         status="active",
         require_mfa=payload.require_mfa,
+        can_assign_mt5=bool(payload.can_assign_mt5),
         created_by_user_id=None,
     )
     db.add(row)
@@ -193,6 +196,9 @@ def update_allowlist_entry(
         if allowed_pages_json != row.allowed_pages:
             row.allowed_pages = allowed_pages_json
             changed = True
+    if payload.can_assign_mt5 is not None and payload.can_assign_mt5 != row.can_assign_mt5:
+        row.can_assign_mt5 = payload.can_assign_mt5
+        changed = True
 
     if changed:
         db.add(row)

@@ -23,6 +23,7 @@ export type AdminAuthMeResponse = {
   status: string
   allowed_pages?: string[]
   admin_allowlist_id?: number
+  can_assign_mt5?: boolean
 }
 
 export type AdminEmailPrecheckResponse = {
@@ -957,6 +958,7 @@ export type AdminAllowlistEntry = {
   mfa_enrolled: boolean
   allowed_pages: string[] | null
   created_by_user_id: number | null
+  can_assign_mt5?: boolean
 }
 
 export type AdminAllowlistResponse = {
@@ -979,6 +981,7 @@ export async function createAdminAllowlistEntry(
     role: 'admin' | 'super_admin'
     require_mfa?: boolean
     allowed_pages?: string[]
+    can_assign_mt5?: boolean
   },
   sessionToken?: string,
 ): Promise<AdminAllowlistEntry> {
@@ -1005,6 +1008,7 @@ export async function updateAdminAllowlistEntry(
     status?: 'active' | 'disabled'
     require_mfa?: boolean
     allowed_pages?: string[]
+    can_assign_mt5?: boolean
   },
   sessionToken?: string,
 ): Promise<AdminAllowlistEntry> {

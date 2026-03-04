@@ -39,6 +39,7 @@ def serialize_user(user: User, db: Session | None = None) -> dict[str, str | int
                 result["allowed_pages"] = []
         if allowlist_entry:
             result["admin_allowlist_id"] = allowlist_entry.id
+            result["can_assign_mt5"] = allowlist_entry.can_assign_mt5
 
     return result
 

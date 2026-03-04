@@ -29,7 +29,7 @@ const publicAccountSizes = [
 
 const normalizeAccountSize = (size: string) => size.replace(/\s*Account$/i, '').trim()
 
-const MT5Page = ({ isSuperAdmin }: { isSuperAdmin: boolean }) => {
+const MT5Page = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; canAssignMt5: boolean }) => {
   const [activeTab, setActiveTab] = useState<TabMode>('ready')
   const [readyAccounts, setReadyAccounts] = useState<MT5Account[]>([])
   const [assignedAccounts, setAssignedAccounts] = useState<MT5Account[]>([])
@@ -576,7 +576,7 @@ const MT5Page = ({ isSuperAdmin }: { isSuperAdmin: boolean }) => {
                 <th>Password</th>
                 <th>Investor Password</th>
                 <th>Status</th>
-                {isSuperAdmin && <th>Action</th>}
+                {(isSuperAdmin || canAssignMt5) && <th>Action</th>}
                 {isSuperAdmin && <th>Delete</th>}
               </tr>
             </thead>
@@ -603,7 +603,7 @@ const MT5Page = ({ isSuperAdmin }: { isSuperAdmin: boolean }) => {
                       {account.status}
                     </span>
                   </td>
-                  {isSuperAdmin && (
+                  {(isSuperAdmin || canAssignMt5) && (
                     <td>
                       <button
                         type="button"
@@ -668,7 +668,7 @@ const MT5Page = ({ isSuperAdmin }: { isSuperAdmin: boolean }) => {
                 <th>Account Size</th>
                 <th>Password</th>
                 <th>Investor Password</th>
-                {isSuperAdmin && <th>Action</th>}
+                {(isSuperAdmin || canAssignMt5) && <th>Action</th>}
               </tr>
             </thead>
             <tbody>
@@ -697,7 +697,7 @@ const MT5Page = ({ isSuperAdmin }: { isSuperAdmin: boolean }) => {
                   <td>{account.account_size}</td>
                   <td>{account.password}</td>
                   <td>{account.investor_password}</td>
-                  {isSuperAdmin && (
+                  {(isSuperAdmin || canAssignMt5) && (
                     <td>
                       <button
                         type="button"
@@ -810,7 +810,7 @@ const MT5Page = ({ isSuperAdmin }: { isSuperAdmin: boolean }) => {
         )}
       </div>
 
-      {selectedAccount && isSuperAdmin && (
+      {selectedAccount && (isSuperAdmin || canAssignMt5) && (
         <div
           style={{
             position: 'fixed',

@@ -45,6 +45,7 @@ const SettingsPage = () => {
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<'admin' | 'super_admin'>('admin')
   const [requireMfa, setRequireMfa] = useState(true)
+  const [canAssignMt5, setCanAssignMt5] = useState(false)
   const [selectedPages, setSelectedPages] = useState<string[]>(['Support Tickets'])
   const [admins, setAdmins] = useState<AdminAllowlistEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -52,6 +53,7 @@ const SettingsPage = () => {
   const [submitting, setSubmitting] = useState(false)
   const [editingAdmin, setEditingAdmin] = useState<AdminAllowlistEntry | null>(null)
   const [editingPages, setEditingPages] = useState<string[]>([])
+  const [editingCanAssignMt5, setEditingCanAssignMt5] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
   const [deletingAdminId, setDeletingAdminId] = useState<number | null>(null)
 
@@ -92,6 +94,7 @@ const SettingsPage = () => {
         full_name: name.trim(),
         role,
         require_mfa: requireMfa,
+        can_assign_mt5: canAssignMt5,
         allowed_pages: pageIds,
       })
 
@@ -103,6 +106,7 @@ const SettingsPage = () => {
       setEmail('')
       setRole('admin')
       setRequireMfa(true)
+      setCanAssignMt5(false)
       setSelectedPages(['Support Tickets'])
       setActiveTab('admins')
     } catch (err) {
@@ -118,6 +122,7 @@ const SettingsPage = () => {
     status?: 'active' | 'disabled'
     require_mfa?: boolean
     allowed_pages?: string[]
+    can_assign_mt5?: boolean
   }) => {
     try {
       setError('')
@@ -138,6 +143,7 @@ const SettingsPage = () => {
       ? admin.allowed_pages.map((pageId) => pageIdToDisplayName[pageId] || pageId)
       : [...availablePages]
     setEditingPages(currentPages)
+    setEditingCanAssignMt5(Boolean(admin.can_assign_mt5))
     setEditingAdmin(admin)
   }
 
@@ -156,7 +162,10 @@ const SettingsPage = () => {
         .filter(Boolean)
 
       const allowedPages = editingPages.length === availablePages.length ? [] : pageIds
-      await updateAdminAllowlistEntry(editingAdmin.id, { allowed_pages: allowedPages })
+      await updateAdminAllowlistEntry(editingAdmin.id, {
+        allowed_pages: allowedPages,
+        can_assign_mt5: editingCanAssignMt5,
+      })
       await loadAdmins()
       setEditingAdmin(null)
     } catch (err) {
@@ -237,6 +246,15 @@ const SettingsPage = () => {
               Require MFA
             </label>
 
+            <label className="settings-checkbox-label">
+              <input
+                type="checkbox"
+                checked={canAssignMt5}
+                onChange={(event) => setCanAssignMt5(event.target.checked)}
+              />
+              Allow MT5 Assign
+            </label>
+
             <div className="settings-pages-block">
               <p className="settings-pages-label">Allowed Pages</p>
               <div className="settings-pages-grid">
@@ -276,6 +294,7 @@ const SettingsPage = () => {
                   <th>Role</th>
                   <th>Status</th>
                   <th>MFA Required</th>
+                  <th>MT5 Assign</th>
                   <th>Allowed Pages</th>
                   <th>Actions</th>
                 </tr>
@@ -301,6 +320,13 @@ const SettingsPage = () => {
                         type="checkbox"
                         checked={admin.require_mfa}
                         onChange={(event) => updateAdmin(admin.id, { require_mfa: event.target.checked })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(admin.can_assign_mt5)}
+                        onChange={(event) => updateAdmin(admin.id, { can_assign_mt5: event.target.checked })}
                       />
                     </td>
                     <td>{getAllowedPagesDisplay(admin.allowed_pages)}</td>
@@ -374,6 +400,15 @@ const SettingsPage = () => {
                 ))}
               </div>
             </div>
+
+            <label className="settings-checkbox-label" style={{ marginTop: 8 }}>
+              <input
+                type="checkbox"
+                checked={editingCanAssignMt5}
+                onChange={(event) => setEditingCanAssignMt5(event.target.checked)}
+              />
+              Allow MT5 Assign
+            </label>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button

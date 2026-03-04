@@ -9,6 +9,7 @@ class AdminAllowlistCreateRequest(BaseModel):
     role: str = Field(default="admin", pattern="^(admin|super_admin)$")
     require_mfa: bool = True
     allowed_pages: list[str] | None = Field(default=None, description="List of allowed page IDs for this admin")
+    can_assign_mt5: bool | None = Field(default=None, description="Allow admin to assign MT5 accounts")
 
 
 class AdminAllowlistUpdateRequest(BaseModel):
@@ -19,3 +20,4 @@ class AdminAllowlistUpdateRequest(BaseModel):
     status: str | None = Field(default=None, pattern="^(active|disabled)$")
     require_mfa: bool | None = None
     allowed_pages: list[str] | None = Field(default=None, description="List of allowed page IDs for this admin")
+    can_assign_mt5: bool | None = Field(default=None, description="Allow admin to assign MT5 accounts")

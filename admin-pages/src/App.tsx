@@ -313,7 +313,10 @@ function App() {
           {!authError && activePage === 'fundedAccounts' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('fundedAccounts'))) && <FundedAccountsPage onOpenProfile={handleOpenUserProfile} />}
           {!authError && activePage === 'breaches' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('breaches'))) && <BreachesPage onOpenProfile={handleOpenUserProfile} />}
           {!authError && activePage === 'mt5' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('mt5'))) && (
-            <MT5Page isSuperAdmin={authUser.role === 'super_admin'} />
+            <MT5Page
+              isSuperAdmin={authUser.role === 'super_admin'}
+              canAssignMt5={Boolean(authUser.can_assign_mt5)}
+            />
           )}
           {!authError && activePage === 'orders' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('orders'))) && (
             <OrdersPage onOpenProfile={handleOpenUserProfile} isSuperAdmin={authUser.role === 'super_admin'} />

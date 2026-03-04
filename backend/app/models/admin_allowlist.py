@@ -17,3 +17,4 @@ class AdminAllowlist(Base):
     mfa_enrolled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     allowed_pages: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON string of allowed page IDs
     created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    can_assign_mt5: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
