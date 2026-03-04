@@ -537,7 +537,7 @@ def get_my_challenge_account_detail(
         "min_trading_days": UserChallengeObjectiveStatus(
             label="Cool Down Period",
             status="passed" if min_days_met else "pending",
-            note=f"{stage_elapsed_hours:.2f}h / 1.00h",
+            note=f"{stage_elapsed_hours:.2f}h / 24.00h",
         ),
     }
 
