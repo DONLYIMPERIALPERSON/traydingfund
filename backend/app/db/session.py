@@ -12,6 +12,8 @@ engine = create_engine(
     # causing 504 timeouts. Each request gets a fresh DB connection.
     poolclass=NullPool,
     pool_pre_ping=True,
+    # Avoid rollback-on-close errors if SSL connection is already dropped.
+    pool_reset_on_return=None,
     connect_args={
         "connect_timeout": 10,
         "keepalives": 1,
