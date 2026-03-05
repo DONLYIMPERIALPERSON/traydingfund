@@ -7,12 +7,13 @@ from app.core.config import settings
 engine = create_engine(
     settings.database_url,
     # NOTE:
-    # psycopg + pool_pre_ping can raise intermittent autocommit/ACTIVE-transaction
-    # errors when a stale SSL socket is being recovered. We prefer short-lived,
-    # recycled pooled connections with TCP keepalives for better resilience.
-    pool_pre_ping=False,
+    # Use a larger pool and pre-ping to avoid pool exhaustion and stale
+    # connections during bursts.
+    pool_pre_ping=True,
     pool_recycle=300,
     pool_timeout=30,
+    pool_size=10,
+    max_overflow=20,
     pool_use_lifo=True,
     connect_args={
         "connect_timeout": 10,
