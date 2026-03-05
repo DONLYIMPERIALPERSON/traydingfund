@@ -1,4 +1,5 @@
 from sqlalchemy import create_engine
+from sqlalchemy.pool import NullPool
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
@@ -7,14 +8,10 @@ from app.core.config import settings
 engine = create_engine(
     settings.database_url,
     # NOTE:
-    # Use a larger pool and pre-ping to avoid pool exhaustion and stale
-    # connections during bursts.
+    # Disable pooling to avoid stale SSL connections and pool exhaustion
+    # causing 504 timeouts. Each request gets a fresh DB connection.
+    poolclass=NullPool,
     pool_pre_ping=True,
-    pool_recycle=300,
-    pool_timeout=30,
-    pool_size=10,
-    max_overflow=20,
-    pool_use_lifo=True,
     connect_args={
         "connect_timeout": 10,
         "keepalives": 1,
