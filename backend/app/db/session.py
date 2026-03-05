@@ -21,6 +21,9 @@ engine = create_engine(
         "keepalives_idle": 30,
         "keepalives_interval": 10,
         "keepalives_count": 5,
+        # Enforce timeouts at the DB connection level to prevent
+        # long-lived idle transactions from exhausting the pool.
+        "options": "-c statement_timeout=30000 -c idle_in_transaction_session_timeout=10000",
     },
 )
 
