@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     challenge_feed_secret: str
     challenge_scalping_min_seconds: int
     challenge_scalping_max_violations: int
+    mt5_vps_base_url: str = ""
+    mt5_vps_secret: str = ""
     palmpay_base_url: str
     palmpay_country_code: str
     palmpay_app_id: str
