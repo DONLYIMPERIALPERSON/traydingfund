@@ -649,7 +649,7 @@ def refresh_challenge_account(
     payload = {"payload": {"account": mt5.account_number, "password": mt5.password}}
 
     try:
-        response = requests.post(vps_url, headers=headers, json=payload, timeout=120)
+        response = requests.post(vps_url, headers=headers, json=payload, timeout=30)
     except requests.RequestException as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"VPS request failed: {exc}") from exc
 
