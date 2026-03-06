@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -237,14 +238,26 @@ def query_pending_orders(
     current_admin: AdminAllowlist = Depends(get_current_admin_allowlisted),
     db: Session = Depends(get_db),
 ) -> dict[str, object]:
-    pending_orders = db.scalars(
-        select(PaymentOrder)
-        .where(
-            PaymentOrder.provider == "palmpay",
-            PaymentOrder.status.in_(["pending", "created"]),
+    try:
+        pending_orders = db.scalars(
+            select(PaymentOrder)
+            .where(
+                PaymentOrder.provider == "palmpay",
+                PaymentOrder.status.in_(["pending", "created"]),
+            )
+            .order_by(PaymentOrder.created_at.asc())
+        ).all()
+    except Exception as exc:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "total_checked": 0,
+                "updated": 0,
+                "failed": 0,
+                "orders": [],
+                "error": f"Failed to load pending orders: {exc}",
+            },
         )
-        .order_by(PaymentOrder.created_at.asc())
-    ).all()
 
     results: list[dict[str, object]] = []
     updated = 0
