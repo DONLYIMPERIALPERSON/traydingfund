@@ -210,19 +210,26 @@ def query_order_status_for_admin(
     order.payer_account_name = str(status_data.get("payerAccountName") or order.payer_account_name or "") or None
     order.payer_virtual_acc_no = str(status_data.get("payerVirtualAccNo") or order.payer_virtual_acc_no or "") or None
 
+    assignment_error: str | None = None
     if order.status == "paid" and order.paid_at is None:
         order.paid_at = datetime.now(timezone.utc)
-        _assign_phase1_account_for_paid_order(db, order)
+        try:
+            _assign_phase1_account_for_paid_order(db, order)
+        except Exception as exc:
+            assignment_error = f"Assignment error: {exc}"
 
     db.add(order)
     db.commit()
 
-    return {
+    response = {
         "order_id": order.id,
         "provider_order_id": order.provider_order_id,
         "status": order.status,
         "previous_status": previous_status,
     }
+    if assignment_error:
+        response["error"] = assignment_error
+    return response
 
 
 @router.post("/query-pending")
@@ -283,20 +290,28 @@ def query_pending_orders(
         order.payer_account_name = str(status_data.get("payerAccountName") or order.payer_account_name or "") or None
         order.payer_virtual_acc_no = str(status_data.get("payerVirtualAccNo") or order.payer_virtual_acc_no or "") or None
 
+        assignment_error: str | None = None
         if order.status == "paid" and order.paid_at is None:
             order.paid_at = datetime.now(timezone.utc)
-            _assign_phase1_account_for_paid_order(db, order)
+            try:
+                _assign_phase1_account_for_paid_order(db, order)
+            except Exception as exc:
+                assignment_error = f"Assignment error: {exc}"
 
         db.add(order)
-        updated += 1
-        results.append(
-            {
-                "order_id": order.id,
-                "provider_order_id": order.provider_order_id,
-                "status": order.status,
-                "previous_status": previous_status,
-            }
-        )
+        if assignment_error:
+            failed += 1
+        else:
+            updated += 1
+        result_item = {
+            "order_id": order.id,
+            "provider_order_id": order.provider_order_id,
+            "status": order.status,
+            "previous_status": previous_status,
+        }
+        if assignment_error:
+            result_item["error"] = assignment_error
+        results.append(result_item)
 
     if pending_orders:
         db.commit()
