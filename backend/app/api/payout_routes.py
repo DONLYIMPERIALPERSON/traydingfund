@@ -328,16 +328,25 @@ async def request_payout(
     if not mt5:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No active MT5 account found for this challenge")
 
-    job = MT5RefreshJob(
-        account_number=mt5.account_number,
-        reason=RefreshReason.withdrawal_verify,
-        status=RefreshStatus.queued,
-        requested_by_user_id=current_user.id,
-        engine_id="withdrawal-verify",
+    existing_job = db.scalar(
+        select(MT5RefreshJob).where(
+            MT5RefreshJob.account_number == mt5.account_number,
+            MT5RefreshJob.status.in_([RefreshStatus.queued, RefreshStatus.processing]),
+        )
     )
-    db.add(job)
-    db.commit()
-    db.refresh(job)
+    if existing_job:
+        job = existing_job
+    else:
+        job = MT5RefreshJob(
+            account_number=mt5.account_number,
+            reason=RefreshReason.withdrawal_verify,
+            status=RefreshStatus.queued,
+            requested_by_user_id=current_user.id,
+            engine_id="withdrawal-verify",
+        )
+        db.add(job)
+        db.commit()
+        db.refresh(job)
 
     run_mt5_refresh_job.delay(
         job_id=job.id,

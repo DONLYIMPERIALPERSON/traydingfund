@@ -638,6 +638,15 @@ def refresh_challenge_account(
     if not settings.mt5_vps_base_url or not settings.mt5_vps_secret:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="VPS refresh is not configured")
 
+    existing_job = db.scalar(
+        select(MT5RefreshJob).where(
+            MT5RefreshJob.account_number == mt5.account_number,
+            MT5RefreshJob.status.in_([RefreshStatus.queued, RefreshStatus.processing]),
+        )
+    )
+    if existing_job:
+        return ChallengeRefreshResponse(status=existing_job.status, job_id=existing_job.id)
+
     job = MT5RefreshJob(
         account_number=mt5.account_number,
         reason=RefreshReason.user_refresh,
