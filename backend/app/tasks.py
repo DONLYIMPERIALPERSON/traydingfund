@@ -178,11 +178,24 @@ def run_mt5_refresh_job(
         if result_dict is None:
             raise RuntimeError("VPS job timed out")
 
-        balance = float(result_dict.get("Balance") or 0)
-        equity = float(result_dict.get("Equity") or balance)
+        result_text = str(result_dict.get("Result") or "")
+        result_flag = result_text.upper()
+        raw_balance = result_dict.get("Balance")
+        raw_equity = result_dict.get("Equity")
+        error_markers = {
+            "NO CONNECTION",
+            "SERVER ERROR",
+            "PASSWORD",
+            "INVALID",
+        }
+
+        if (raw_balance is None and raw_equity is None) or any(marker in result_flag for marker in error_markers):
+            raise RuntimeError(f"VPS error: {result_text or 'invalid balance data'}")
+
+        balance = float(raw_balance or 0)
+        equity = float(raw_equity if raw_equity is not None else balance)
         scalp_trades = int(result_dict.get("Scalp Trades") or 0)
         max_dd_percent = float(result_dict.get("Maximum DD") or 0)
-        result_flag = str(result_dict.get("Result") or "").upper()
         drawdown_time = result_dict.get("Drawdown Time")
 
         equity_breach_signal = result_flag == "BREACHED" or max_dd_percent >= 20
