@@ -140,7 +140,7 @@ def run_mt5_refresh_job(
             f"{base_url}/submit-job",
             headers=headers,
             json=submit_payload,
-            timeout=15,
+            timeout=60,
         )
         if submit_response.status_code != 200:
             raise RuntimeError(f"VPS submit failed: {submit_response.text}")
@@ -162,7 +162,7 @@ def run_mt5_refresh_job(
         result_dict: dict | None = None
 
         while time.time() < deadline:
-            status_response = requests.get(status_url, headers=headers, timeout=10)
+            status_response = requests.get(status_url, headers=headers, timeout=20)
             if status_response.status_code != 200:
                 raise RuntimeError(f"VPS status error: {status_response.text}")
 
