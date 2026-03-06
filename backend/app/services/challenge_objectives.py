@@ -292,7 +292,10 @@ def process_challenge_feed(
         challenge.today_lots_total = max(today_lots_total, 0)
 
     if fast_trade_count > 0:
-        challenge.scalping_violations_count += fast_trade_count
+        if scalping_breach_increment is not None:
+            challenge.scalping_violations_count = fast_trade_count
+        else:
+            challenge.scalping_violations_count += fast_trade_count
 
     if challenge.objective_status == "active":
         if equity_breach_signal is True:
