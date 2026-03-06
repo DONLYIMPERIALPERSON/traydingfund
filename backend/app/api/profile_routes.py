@@ -511,7 +511,7 @@ def get_my_challenge_account_detail(
     max_dd_breached = challenge.breached_reason in {"drawdown_limit", "equity_signal", "balance_signal"}
     scalping_breached = challenge.breached_reason == "scalping_rule"
 
-    balance = float(challenge.latest_balance or challenge.initial_balance)
+    balance = float(challenge.latest_balance if challenge.latest_balance is not None else challenge.initial_balance)
     equity = float(challenge.latest_equity if challenge.latest_equity is not None else balance)
 
     # For breached accounts, show red X only for the breached objective
