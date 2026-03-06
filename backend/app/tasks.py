@@ -1,4 +1,11 @@
+import json
+import time
+from datetime import datetime, timezone
+
+import requests
+
 from app.core.celery import celery_app
+from app.core.config import settings
 from app.services.email_service import (
     send_pin_otp_email as sync_send_pin_otp_email,
     send_payout_notification as sync_send_payout_notification,
@@ -12,6 +19,7 @@ from app.services.email_service import (
 )
 from app.models.challenge_account import ChallengeAccount
 from app.models.mt5_account import MT5Account
+from app.models.mt5_refresh_job import MT5RefreshJob, RefreshStatus
 from app.models.user import User
 from app.services.challenge_objectives import (
     process_challenge_feed,
@@ -21,7 +29,6 @@ from app.services.challenge_objectives import (
     is_min_trading_days_met,
 )
 from app.db.session import SessionLocal
-from datetime import datetime
 
 @celery_app.task
 def send_pin_otp_email(to_email: str, otp_code: str):
@@ -72,6 +79,157 @@ def _try_send_challenge_mail(*, user: User | None, subject: str, message: str) -
             send_challenge_objective_email.delay(to_email=user.email, subject=subject, message=message)
     except Exception as exc:
         print(f"Failed to queue challenge email for {user.email}: {exc}")
+
+
+def _ensure_result_dict(result: dict | str | None) -> dict:
+    if result is None:
+        return {}
+    if isinstance(result, dict):
+        return result
+    if isinstance(result, str):
+        try:
+            return json.loads(result)
+        except json.JSONDecodeError:
+            return {"raw": result}
+    return {"raw": str(result)}
+
+
+def _parse_observed_at(drawdown_time: str | None) -> datetime:
+    if not drawdown_time or drawdown_time == "N/A":
+        return datetime.now(timezone.utc)
+    try:
+        return datetime.strptime(drawdown_time, "%Y.%m.%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return datetime.now(timezone.utc)
+
+
+@celery_app.task(bind=True, max_retries=0)
+def run_mt5_refresh_job(
+    self,
+    job_id: int,
+    challenge_id: str,
+    account_number: str,
+    password: str,
+) -> dict:
+    db = SessionLocal()
+    job = None
+    try:
+        job = db.get(MT5RefreshJob, job_id)
+        if job is None:
+            return {"error": "Refresh job not found"}
+
+        job.status = RefreshStatus.processing
+        job.started_at = datetime.now(timezone.utc)
+        db.add(job)
+        db.commit()
+
+        if not settings.mt5_vps_base_url or not settings.mt5_vps_secret:
+            raise RuntimeError("VPS refresh is not configured")
+
+        base_url = settings.mt5_vps_base_url.rstrip("/")
+        headers = {
+            "Content-Type": "application/json",
+            "X-MT5-VPS-SECRET": settings.mt5_vps_secret,
+        }
+
+        submit_payload = {
+            "job_type": "manual_refresh",
+            "payload": {"account": account_number, "password": password},
+        }
+        submit_response = requests.post(
+            f"{base_url}/submit-job",
+            headers=headers,
+            json=submit_payload,
+            timeout=15,
+        )
+        if submit_response.status_code != 200:
+            raise RuntimeError(f"VPS submit failed: {submit_response.text}")
+
+        submit_body = submit_response.json()
+        if submit_body.get("status") == "max_limit_hit":
+            message = _ensure_result_dict(submit_body.get("result")).get(
+                "message",
+                "Daily request limit exceeded",
+            )
+            raise RuntimeError(message)
+
+        vps_job_id = submit_body.get("job_id")
+        if not vps_job_id:
+            raise RuntimeError("VPS did not return job_id")
+
+        status_url = f"{base_url}/job-status/{vps_job_id}"
+        deadline = time.time() + 240
+        result_dict: dict | None = None
+
+        while time.time() < deadline:
+            status_response = requests.get(status_url, headers=headers, timeout=10)
+            if status_response.status_code != 200:
+                raise RuntimeError(f"VPS status error: {status_response.text}")
+
+            status_body = status_response.json()
+            status_value = status_body.get("status")
+            if status_value in {"done", "error"}:
+                if status_value == "error":
+                    raise RuntimeError(f"VPS job failed: {status_body.get('result')}")
+                result_dict = _ensure_result_dict(status_body.get("result"))
+                break
+            time.sleep(5)
+
+        if result_dict is None:
+            raise RuntimeError("VPS job timed out")
+
+        balance = float(result_dict.get("Balance") or 0)
+        equity = float(result_dict.get("Equity") or balance)
+        scalp_trades = int(result_dict.get("Scalp Trades") or 0)
+        max_dd_percent = float(result_dict.get("Maximum DD") or 0)
+        result_flag = str(result_dict.get("Result") or "").upper()
+        drawdown_time = result_dict.get("Drawdown Time")
+
+        equity_breach_signal = result_flag == "BREACHED" or max_dd_percent >= 20
+        observed_at = _parse_observed_at(drawdown_time)
+
+        challenge = db.query(ChallengeAccount).filter(ChallengeAccount.challenge_id == challenge_id).first()
+        if not challenge:
+            raise RuntimeError("Challenge not found")
+
+        process_challenge_feed(
+            db,
+            challenge=challenge,
+            balance=balance,
+            equity=equity,
+            closed_trade_durations_seconds=[],
+            scalping_breach_increment=scalp_trades,
+            equity_breach_signal=equity_breach_signal,
+            balance_breach_signal=False,
+            stage_pass_signal=None,
+            closed_trades_count_increment=0,
+            winning_trades_count_increment=0,
+            lots_traded_increment=0,
+            today_closed_pnl=None,
+            today_trades_count=None,
+            today_lots_total=None,
+            observed_at=observed_at,
+        )
+
+        challenge.last_refresh_requested_at = datetime.now(timezone.utc)
+        job.status = RefreshStatus.done
+        job.finished_at = datetime.now(timezone.utc)
+        db.add(job)
+        db.add(challenge)
+        db.commit()
+        db.refresh(challenge)
+
+        return {"status": "done", "job_id": job_id}
+    except Exception as exc:
+        if job is not None:
+            job.status = RefreshStatus.failed
+            job.error = str(exc)
+            job.finished_at = datetime.now(timezone.utc)
+            db.add(job)
+            db.commit()
+        return {"status": "failed", "error": str(exc)}
+    finally:
+        db.close()
 
 @celery_app.task(bind=True, max_retries=3)
 def process_mt5_feed(

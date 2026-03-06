@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-import requests
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -9,10 +8,9 @@ from app.api.auth_routes import serialize_user
 from app.core.auth import get_current_user
 from app.core.config import settings
 from app.db.deps import get_db
-from app.models.bank_directory import BankDirectory
 from app.models.challenge_account import ChallengeAccount
 from app.models.mt5_account import MT5Account
-from app.models.mt5_refresh_job import MT5RefreshJob
+from app.models.mt5_refresh_job import MT5RefreshJob, RefreshReason, RefreshStatus
 from app.models.user import User
 from app.models.user_bank_account import UserBankAccount
 from app.schemas.profile import (
@@ -33,16 +31,15 @@ from app.schemas.profile import (
     VerifyBankAccountRequest,
     WithdrawalPrecheckResponse,
 )
-from app.schemas.challenge_account import ChallengeRefreshRequest, ChallengeRefreshResponse
+from app.schemas.challenge_account import ChallengeRefreshResponse
 from app.services.challenge_objectives import (
     ASSIGNED_STAGES,
     compute_max_permitted_loss_left,
     compute_unrealized_pnl,
     compute_win_rate,
     is_min_trading_days_met,
-    process_challenge_feed,
 )
-from app.tasks import send_kyc_approved_email
+from app.tasks import run_mt5_refresh_job, send_kyc_approved_email
 from app.data.banks import NIGERIAN_BANKS
 from app.services.palmpay_service import PalmPayQueryError, query_bank_account_name
 
@@ -641,62 +638,22 @@ def refresh_challenge_account(
     if not settings.mt5_vps_base_url or not settings.mt5_vps_secret:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="VPS refresh is not configured")
 
-    vps_url = settings.mt5_vps_base_url.rstrip("/") + "/run-check"
-    headers = {
-        "Content-Type": "application/json",
-        "X-MT5-VPS-SECRET": settings.mt5_vps_secret,
-    }
-    payload = {"payload": {"account": mt5.account_number, "password": mt5.password}}
+    job = MT5RefreshJob(
+        account_number=mt5.account_number,
+        reason=RefreshReason.user_refresh,
+        status=RefreshStatus.queued,
+        requested_by_user_id=current_user.id,
+        engine_id="async-refresh",
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
 
-    try:
-        response = requests.post(vps_url, headers=headers, json=payload, timeout=30)
-    except requests.RequestException as exc:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"VPS request failed: {exc}") from exc
-
-    if response.status_code != 200:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"VPS error: {response.text}")
-
-    vps_body = response.json()
-    result = vps_body.get("result", {}) if isinstance(vps_body, dict) else {}
-
-    balance = float(result.get("Balance") or 0)
-    equity = float(result.get("Equity") or balance)
-    scalp_trades = int(result.get("Scalp Trades") or 0)
-    max_dd_percent = float(result.get("Maximum DD") or 0)
-    result_flag = str(result.get("Result") or "").upper()
-    drawdown_time = result.get("Drawdown Time")
-
-    equity_breach_signal = result_flag == "BREACHED" or max_dd_percent >= 20
-
-    observed_at = now
-    if drawdown_time and drawdown_time != "N/A":
-        try:
-            observed_at = datetime.strptime(drawdown_time, "%Y.%m.%d %H:%M:%S").replace(tzinfo=timezone.utc)
-        except ValueError:
-            observed_at = now
-
-    updated_challenge, _ = process_challenge_feed(
-        db,
-        challenge=challenge,
-        balance=balance,
-        equity=equity,
-        closed_trade_durations_seconds=[],
-        scalping_breach_increment=scalp_trades,
-        equity_breach_signal=equity_breach_signal,
-        balance_breach_signal=False,
-        stage_pass_signal=None,
-        closed_trades_count_increment=0,
-        winning_trades_count_increment=0,
-        lots_traded_increment=0,
-        today_closed_pnl=None,
-        today_trades_count=None,
-        today_lots_total=None,
-        observed_at=observed_at,
+    run_mt5_refresh_job.delay(
+        job_id=job.id,
+        challenge_id=challenge.challenge_id,
+        account_number=mt5.account_number,
+        password=mt5.password,
     )
 
-    challenge.last_refresh_requested_at = now
-    db.add(challenge)
-    db.commit()
-    db.refresh(updated_challenge)
-
-    return ChallengeRefreshResponse(status="queued", job_id=0)
+    return ChallengeRefreshResponse(status="queued", job_id=job.id)
