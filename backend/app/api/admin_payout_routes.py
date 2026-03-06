@@ -342,18 +342,9 @@ def reject_payout(
     if payout_order.metadata_json.get("account_id"):
         account = db.get(ChallengeAccount, payout_order.metadata_json["account_id"])
         if account:
-            # Restore the payout amount
-            account.funded_user_payout_amount = (account.funded_user_payout_amount or 0) + (payout_order.net_amount_kobo / 100)
-            account.withdrawal_count -= 1  # Decrement withdrawal count
-
-            # Reactivate the account
+            account.withdrawal_count = max((account.withdrawal_count or 0) - 1, 0)
             account.current_stage = "Funded"
             account.objective_status = "active"
-
-            # Reinitialize challenge tracking
-            from app.services.challenge_objectives import initialize_challenge_stage_tracking
-            initialize_challenge_stage_tracking(account, account_size=account.account_size, now=datetime.now(timezone.utc))
-
             db.add(account)
 
     db.add(payout_order)
