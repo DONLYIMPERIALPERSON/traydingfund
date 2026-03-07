@@ -1,9 +1,15 @@
 {
   "version": 2,
-  "rootDirectory": "public-pages",
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
+  "builds": [
+    {
+      "src": "public-pages/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "(.*)", "destination": "/index.html" }
   ]
 }
