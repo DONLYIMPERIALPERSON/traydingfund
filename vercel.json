@@ -5,15 +5,8 @@
       "src": "public-pages/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "public-pages/dist"
+        "distDir": "dist"
       }
     }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "public-pages/dist/$1"
-    }
-  ],
-  "outputDirectory": "public-pages/dist"
+  ]
 }
