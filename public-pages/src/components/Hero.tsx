@@ -53,12 +53,12 @@ export default function Hero() {
                             <h1 className="text-5xl md:text-7xl font-extrabold leading-tight mb-8 max-w-4xl">
                                 Grow &amp; Monetize <br />
                                 <span className="bg-clip-text text-transparent bg-linear-to-r from-[#ffd700] to-[#caa200]">
-                                    Your Demo Trading
+                                    Your Funded Journey
                                 </span>
                             </h1>
 
                             <p className="text-gray-200 text-lg md:text-2xl font-semibold max-w-3xl mb-10">
-                                TraydingFund (Trayding Fund) empowers traders to sharpen skills on our simulated platform and earn real rewards as you progress.
+                                TraydingFund (Trayding Fund) empowers traders with clear objectives, consistent growth, and real rewards as you progress.
                             </p>
 
                             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10 w-full">
