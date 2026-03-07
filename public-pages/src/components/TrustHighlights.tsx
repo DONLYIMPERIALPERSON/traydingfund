@@ -1,49 +1,49 @@
 export default function TrustHighlights() {
     const highlights = [
         {
-            title: 'Small Trader, Huge Capital',
-            desc: 'Maintain low drawdown and a few successful payouts to qualify for a scaled-up account.',
+            title: 'Scale with Confidence',
+            desc: 'Trade within clear drawdown limits and earn bigger buying power as you stay consistent.',
         },
         {
-            title: '₦200k and ₦400k Traders',
-            desc: '₦1.5M free instant funded account will be issued with automatic payout activated as you sabi trade, we sabi scale.',
+            title: 'Speedy Payouts',
+            desc: 'Trayding Fund processes rewards fast so you can reinvest, withdraw, or keep compounding.',
         },
         {
-            title: '₦600k and ₦800k Traders',
-            desc: 'If you sabi trade, we sabi scale! ₦3M free instant funded account will be issued with automatic payout activated.',
+            title: 'Trader-First Rules',
+            desc: 'Simplified objectives and transparent rules designed to keep you focused on performance.',
         },
     ];
 
     const mockReviews = [
         {
-            name: 'Chinedu A.',
-            title: 'Fast payout and clear rules',
-            review: 'I requested payout and got it quickly. The rules are simple and fair compared to most firms I have tried.',
+            name: 'Alex M.',
+            title: 'Fast payouts and clarity',
+            review: 'I received my payout quickly and the rules are straightforward. Trayding Fund keeps things simple.',
         },
         {
-            name: 'Aisha M.',
-            title: 'Best local prop firm experience',
-            review: 'As a Nigerian trader, this feels built for us. Support is responsive and the account objectives are straightforward.',
+            name: 'Sofia R.',
+            title: 'Support that responds',
+            review: 'Live chat helped me immediately and the platform made the objectives easy to track.',
         },
         {
-            name: 'Tobi K.',
-            title: 'Room to trade properly',
-            review: 'The drawdown structure gives enough breathing space to execute my strategy without unnecessary pressure.',
+            name: 'Daniel H.',
+            title: 'Built for real traders',
+            review: 'The drawdown limits are fair and the process feels designed for consistent performance.',
         },
     ];
 
     return (
-        <section className="py-20 border-t border-white/6 bg-white/2">
+        <section className="py-14 md:py-20 border-t border-white/6 bg-white/2">
             <div className="max-w-6xl mx-auto px-4">
                 <div className="text-center mb-12">
-                    <p className="text-sm font-medium text-yellow-300 uppercase tracking-wide mb-3">
-                        SCALE FROM 0 TO 100
+                    <p className="text-sm font-medium text-[#ffd700] uppercase tracking-wide mb-3">
+                        THE TRAYDING FUND EDGE
                     </p>
                     <h2 className="text-2xl md:text-4xl text-white font-semibold">
-                        Free 1.5M or 3M Live Funded Account
+                        Real funding, real speed, real trader focus
                     </h2>
                     <p className="max-w-2xl mx-auto text-sm text-gray-400 my-3">
-                        Yes, you heard it correctly — no evaluation, just a live funded account with instant payout enabled.
+                        Everything we build is designed to help you trade, scale, and withdraw with confidence.
                     </p>
                 </div>
 
@@ -53,7 +53,7 @@ export default function TrustHighlights() {
                             key={i}
                             className="rounded-2xl p-6 bg-white/5 border border-white/10 transition duration-300 hover:border-white/20 hover:-translate-y-1"
                         >
-                            <h3 className="text-lg font-semibold text-yellow-300 mb-2">{item.title}</h3>
+                            <h3 className="text-lg font-semibold text-[#ffd700] mb-2">{item.title}</h3>
                             <p className="text-sm text-gray-300 leading-relaxed">{item.desc}</p>
                         </div>
                     ))}

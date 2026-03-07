@@ -144,8 +144,8 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
     switch (screenName) {
       case 'Welcome':
         return (
-          <div className="naira-auth-stack">
-            <label className="form-label naira-auth-label">Email</label>
+          <div className="trayding-auth-stack">
+            <label className="form-label trayding-auth-label">Email</label>
             <div className="input-group">
               <i className="fas fa-envelope input-icon" />
               <input
@@ -195,14 +195,14 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
               {continueButtonText}
             </button>
 
-            <p className="naira-auth-continue-note">Continue securely with your NairaTrader account.</p>
+            <p className="trayding-auth-continue-note">Continue securely with your Trayding Fund account.</p>
           </div>
         )
 
       case 'Sign In':
         return (
-          <div className="naira-auth-stack">
-            <label className="form-label naira-auth-label">Password</label>
+          <div className="trayding-auth-stack">
+            <label className="form-label trayding-auth-label">Password</label>
             <div className="input-group">
               <i className="fas fa-lock input-icon" />
               <input
@@ -252,10 +252,10 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
               {loading ? 'Signing in...' : continueButtonText}
             </button>
 
-            <p className="naira-auth-continue-note">Continue securely with your NairaTrader account.</p>
+            <p className="trayding-auth-continue-note">Continue securely with your Trayding Fund account.</p>
 
             <button
-              className="submit-button naira-auth-secondary-btn"
+              className="submit-button trayding-auth-secondary-btn"
               type="button"
               disabled={isBusy}
               onClick={() => submitInteraction('tZbr-2eP17')}
@@ -284,8 +284,8 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
             : ''
 
         return (
-          <div className="naira-auth-stack">
-            <p className="naira-auth-helper">
+          <div className="trayding-auth-stack">
+            <p className="trayding-auth-helper">
               Enter the 6-digit code sent to {maskedEmail || 'your email'}
             </p>
             <div className="input-group">
@@ -338,7 +338,7 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
             </button>
 
             <button
-              className="submit-button naira-auth-secondary-btn"
+              className="submit-button trayding-auth-secondary-btn"
               type="button"
               disabled={isBusy}
               onClick={() => submitInteraction('resend')}
@@ -363,8 +363,8 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
 
       case 'Set Password':
         return (
-          <div className="naira-auth-stack">
-            <label className="form-label naira-auth-label">Password</label>
+          <div className="trayding-auth-stack">
+            <label className="form-label trayding-auth-label">Password</label>
             <div className="input-group">
               <i className="fas fa-lock input-icon" />
               <input
@@ -376,7 +376,7 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
               />
             </div>
 
-            <label className="form-label naira-auth-label">Confirm Password</label>
+            <label className="form-label trayding-auth-label">Confirm Password</label>
             <div className="input-group">
               <i className="fas fa-lock input-icon" />
               <input
@@ -401,8 +401,8 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
 
       case 'Replace Expired Password':
         return (
-          <div className="naira-auth-stack">
-            <label className="form-label naira-auth-label">Existing Password</label>
+          <div className="trayding-auth-stack">
+            <label className="form-label trayding-auth-label">Existing Password</label>
             <div className="input-group">
               <i className="fas fa-lock input-icon" />
               <input
@@ -414,7 +414,7 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
               />
             </div>
 
-            <label className="form-label naira-auth-label">New Password</label>
+            <label className="form-label trayding-auth-label">New Password</label>
             <div className="input-group">
               <i className="fas fa-lock input-icon" />
               <input
@@ -426,7 +426,7 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
               />
             </div>
 
-            <label className="form-label naira-auth-label">Confirm Password</label>
+            <label className="form-label trayding-auth-label">Confirm Password</label>
             <div className="input-group">
               <i className="fas fa-lock input-icon" />
               <input
@@ -450,13 +450,13 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
         )
 
       default:
-        return <p className="naira-auth-helper">Loading authentication step...</p>
+        return <p className="trayding-auth-helper">Loading authentication step...</p>
     }
   }
 
   if (!projectId) {
     return (
-      <div className="naira-auth-error">
+      <div className="trayding-auth-error">
         Missing <code>VITE_DESCOPE_PROJECT_ID</code>.
       </div>
     )
@@ -465,7 +465,7 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
   return (
     <div className="descope-auth-container">
       <h2 className="form-title">{title}</h2>
-      <p className="naira-auth-subtitle">{subtitle}</p>
+      <p className="trayding-auth-subtitle">{subtitle}</p>
 
       <Descope
         flowId="sign-up-or-in-passwords"
@@ -476,8 +476,8 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
         {renderCustomScreen()}
       </Descope>
 
-      {loading && <p className="naira-auth-helper">Finalizing sign in...</p>}
-      {error && <p className="naira-auth-error">{error}</p>}
+      {loading && <p className="trayding-auth-helper">Finalizing sign in...</p>}
+      {error && <p className="trayding-auth-error">{error}</p>}
     </div>
   )
 }

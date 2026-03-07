@@ -1,4 +1,4 @@
-.naira-auth-subtitle {
+.trayding-auth-subtitle {
   text-align: center;
   margin-top: -6px;
   margin-bottom: 16px;
@@ -6,17 +6,17 @@
   font-size: 14px;
 }
 
-.naira-auth-stack {
+.trayding-auth-stack {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.naira-auth-label {
+.trayding-auth-label {
   margin-bottom: 2px;
 }
 
-.naira-auth-helper {
+.trayding-auth-helper {
   text-align: center;
   color: rgba(255, 255, 255, 0.78);
   font-size: 13px;
@@ -24,7 +24,7 @@
   margin: 4px 0;
 }
 
-.naira-auth-continue-note {
+.trayding-auth-continue-note {
   text-align: center;
   color: rgba(255, 255, 255, 0.7);
   font-size: 12px;
@@ -32,7 +32,7 @@
   margin: -6px 0 2px;
 }
 
-.naira-auth-error {
+.trayding-auth-error {
   text-align: center;
   color: #ff7373;
   background: rgba(255, 115, 115, 0.12);
@@ -44,7 +44,7 @@
   word-break: break-word;
 }
 
-.naira-auth-secondary-btn {
+.trayding-auth-secondary-btn {
   background: rgba(255, 255, 255, 0.12) !important;
   color: #fff !important;
   box-shadow: none !important;
@@ -52,7 +52,7 @@
   margin-top: -2px;
 }
 
-.naira-auth-secondary-btn:hover {
+.trayding-auth-secondary-btn:hover {
   background: rgba(255, 255, 255, 0.2) !important;
   transform: none !important;
 }
@@ -78,7 +78,7 @@
 }
 
 /* Style inner custom auth area without affecting the rest of the app */
-.form-content .naira-auth-stack .form-input {
+.form-content .trayding-auth-stack .form-input {
   width: 100% !important;
   background: transparent !important;
   border: 2px solid rgba(255, 255, 255, 0.5) !important;
@@ -92,7 +92,7 @@
   outline: none !important;
 }
 
-.form-content .naira-auth-stack .form-input:focus {
+.form-content .trayding-auth-stack .form-input:focus {
   border-color: #facc15 !important;
   box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.2), 0 4px 12px rgba(250, 204, 21, 0.15) !important;
   outline: 5px solid #ffffff !important;
@@ -102,19 +102,19 @@
 }
 
 @media (max-width: 768px) {
-  .naira-auth-subtitle {
+  .trayding-auth-subtitle {
     font-size: 13px;
     margin-bottom: 12px;
   }
 
-  .naira-auth-helper,
-  .naira-auth-error {
+  .trayding-auth-helper,
+  .trayding-auth-error {
     font-size: 12px;
   }
 }
 
 /* Mobile page-specific branding overrides */
-.mobile-auth-page .naira-auth-subtitle {
+.mobile-auth-page .trayding-auth-subtitle {
   color: rgba(255, 255, 255, 0.72);
   margin-bottom: 10px;
 }
@@ -123,11 +123,11 @@
   display: none;
 }
 
-.mobile-auth-page .naira-auth-stack {
+.mobile-auth-page .trayding-auth-stack {
   gap: 10px;
 }
 
-.mobile-auth-page .form-label.naira-auth-label {
+.mobile-auth-page .form-label.trayding-auth-label {
   color: rgba(255, 255, 255, 0.84);
   font-size: 13px;
   margin-bottom: 0;
@@ -188,30 +188,30 @@
 
 .submit-button:disabled,
 .mobile-auth-page .submit-button:disabled,
-.naira-auth-secondary-btn:disabled {
+.trayding-auth-secondary-btn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
   transform: none !important;
   box-shadow: none !important;
 }
 
-.mobile-auth-page .naira-auth-secondary-btn {
+.mobile-auth-page .trayding-auth-secondary-btn {
   background: rgba(255, 255, 255, 0.1) !important;
   border: 1px solid rgba(255, 255, 255, 0.22) !important;
   color: #fff !important;
   box-shadow: none !important;
 }
 
-.mobile-auth-page .naira-auth-helper {
+.mobile-auth-page .trayding-auth-helper {
   color: rgba(255, 255, 255, 0.72);
   margin: 2px 0 4px;
 }
 
-.mobile-auth-page .naira-auth-continue-note {
+.mobile-auth-page .trayding-auth-continue-note {
   color: rgba(255, 255, 255, 0.68);
 }
 
-.mobile-auth-page .naira-auth-error {
+.mobile-auth-page .trayding-auth-error {
   margin-top: 8px;
   border-radius: 12px;
 }

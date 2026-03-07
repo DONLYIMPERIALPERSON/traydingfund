@@ -1,24 +1,18 @@
-import { ArrowRightIcon, PlayIcon, ZapIcon, CheckIcon } from 'lucide-react';
+import { ArrowRightIcon, PlayIcon } from 'lucide-react';
 import { PrimaryButton, GhostButton } from './Buttons';
 import { useEffect, useState } from 'react';
 
 const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_URL;
 
-const HERO_STATS_CACHE_KEY = 'nairatrader_public_hero_stats_v1';
+const HERO_STATS_CACHE_KEY = 'traydingfund_public_hero_stats_v1';
 const HERO_STATS_CACHE_TTL_MS = 1000 * 60 * 15;
 
 type HeroStats = {
     total_paid_out: string;
-    paid_this_month: string;
-    paid_today: string;
-    trusted_traders: string;
 };
 
 const defaultHeroStats: HeroStats = {
     total_paid_out: '1000000000',
-    paid_this_month: '97999480',
-    paid_today: '11551014',
-    trusted_traders: '50000',
 };
 
 type CachedHeroStats = {
@@ -26,12 +20,12 @@ type CachedHeroStats = {
     stats: HeroStats;
 };
 
-const formatNaira = (value: string) => {
-    const clean = value.replace(/^₦\s*/i, '').replace(/,/g, '').trim();
+const formatTraydingValue = (value: string) => {
+    const clean = value.replace(/^\$\s*/i, '').replace(/,/g, '').trim();
     const asNumber = Number(clean);
 
     if (!Number.isFinite(asNumber)) {
-        return `₦${clean || '0'}`;
+        return `$${clean || '0'}`;
     }
 
     const hasDecimal = clean.includes('.');
@@ -40,29 +34,23 @@ const formatNaira = (value: string) => {
         maximumFractionDigits: 2,
     });
 
-    return `₦${formatted}`;
+    return `$${formatted}`;
 };
 
-const formatNairaBillionFriendly = (value: string) => {
-    const clean = value.replace(/^₦\s*/i, '').replace(/,/g, '').trim();
+const formatTraydingBillionFriendly = (value: string) => {
+    const clean = value.replace(/^\$\s*/i, '').replace(/,/g, '').trim();
     const asNumber = Number(clean);
-    if (!Number.isFinite(asNumber)) return formatNaira(value);
+    if (!Number.isFinite(asNumber)) return formatTraydingValue(value);
 
     if (asNumber >= 1_000_000_000) {
         const inBillions = asNumber / 1_000_000_000;
         const display = Number.isInteger(inBillions) ? String(inBillions) : inBillions.toFixed(1);
-        return `₦${display} Billion`;
+        return `$${display} Billion`;
     }
 
-    return formatNaira(value);
+    return formatTraydingValue(value);
 };
 
-const formatCountWithCommas = (value: string) => {
-    const clean = value.replace(/,/g, '').trim();
-    const asNumber = Number(clean);
-    if (!Number.isFinite(asNumber)) return value;
-    return asNumber.toLocaleString('en-US', { maximumFractionDigits: 0 });
-};
 
 export default function Hero() {
     const [heroStats, setHeroStats] = useState<HeroStats>(defaultHeroStats);
@@ -120,19 +108,23 @@ export default function Hero() {
 
 
 
-    const trustedUserImages = [
-        '/trusted-user-images/09527d0d-f2d0-45f4-8610-1e81ef095a6b.jpg',
-        '/trusted-user-images/9720027.jpg',
-        '/trusted-user-images/11475208.jpg'
-    ];
-
     const trustedLogosText = [
-        'Everything Now Instant',
-        'No Daily Loss Limit',
-        'No KYC wahala',
-        'No Consistency Rule',
-        '80% Profit Split',
-        '60secs Auto Payout Approval'
+        {
+            title: 'Rewards',
+            subtitle: 'Fast and easy rewards withdrawals',
+        },
+        {
+            title: 'Advanced Support',
+            subtitle: 'Dedicated support via Live chat, email, or WhatsApp',
+        },
+        {
+            title: 'Tools & Services',
+            subtitle: 'Tailored tools & services to support your growth',
+        },
+        {
+            title: 'Free Trial',
+            subtitle: 'As many Free Trials as you need',
+        },
     ];
 
     return (
@@ -154,114 +146,66 @@ export default function Hero() {
                 }
             `}</style>
             <section id="home" className="relative z-10">
-                <div className="max-w-6xl mx-auto px-4 min-h-screen md:min-h-[74vh] max-md:w-screen max-md:overflow-hidden pt-32 md:pt-32 flex items-center md:items-start justify-center">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
-                        <div className="text-left">
-                            <a href="/#" className="inline-flex items-center gap-3 pl-3 pr-4 py-1.5 rounded-full bg-white/10 mb-6 justify-start">
-                                <div className="flex -space-x-2">
-                                    {trustedUserImages.map((src, i) => (
-                                        <img
-                                            key={i}
-                                            src={src}
-                                            alt={`Client ${i + 1}`}
-                                            className="size-6 rounded-full border border-black/50"
-                                            width={40}
-                                            height={40}
-                                        />
-                                    ))}
-                                </div>
-                                <span className="text-xs text-gray-200/90">
-                                    Trusted by {formatCountWithCommas(heroStats.trusted_traders)}+ Traders
+                <div className="max-w-5xl mx-auto px-4 min-h-screen md:min-h-[74vh] max-md:w-screen max-md:overflow-hidden pt-24 md:pt-32 flex items-center justify-center">
+                    <div className="flex flex-col items-center text-center gap-10">
+                        <div className="flex flex-col items-center text-center">
+                            <a href="/#" className="inline-flex items-center px-5 py-2 rounded-full bg-white/10 mb-8 justify-center">
+                                <span className="text-sm md:text-base text-gray-200/90 font-semibold tracking-wide">
+                                    Modern Prop Trading - Easy Rules
                                 </span>
                             </a>
 
-                            <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-6 max-w-xl">
-                                Over {formatNairaBillionFriendly(heroStats.total_paid_out)} <br />
-                                <span className="bg-clip-text text-transparent bg-linear-to-r from-yellow-300 to-yellow-500">
-                                    Paid Out
+                            <h1 className="text-5xl md:text-7xl font-extrabold leading-tight mb-8 max-w-4xl">
+                                Grow &amp; Monetize <br />
+                                <span className="bg-clip-text text-transparent bg-linear-to-r from-[#ffd700] to-[#caa200]">
+                                    Your Demo Trading
                                 </span>
                             </h1>
 
-                            <p className="text-gray-300 max-w-lg mb-8">
-                                80% profit split, 1min super-fast auto payout, instant phase activation, and automatic KYC. Join the first Naira Prop Firm now.
+                            <p className="text-gray-200 text-lg md:text-2xl font-semibold max-w-3xl mb-10">
+                                Sharpen your trading skills on our simulated platform and earn real rewards as you progress.
                             </p>
 
-                            <div className="flex flex-col sm:flex-row items-center gap-4 mb-8">
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10 w-full">
                                 <a href="/#pricing" className="w-full sm:w-auto">
-                                    <PrimaryButton className="max-sm:w-full py-3 px-7">
+                                    <PrimaryButton className="max-sm:w-full py-4 px-10 text-base md:text-lg">
                                         Start a Challenge
                                         <ArrowRightIcon className="size-4" />
                                     </PrimaryButton>
                                 </a>
 
                                 <a href="/#how-it-works" className="w-full sm:w-auto">
-                                    <GhostButton className="max-sm:w-full max-sm:justify-center py-3 px-5">
+                                    <GhostButton className="max-sm:w-full max-sm:justify-center py-4 px-8 text-base md:text-lg">
                                         <PlayIcon className="size-4" />
                                         How it works
                                     </GhostButton>
                                 </a>
                             </div>
 
-                            <div className="flex sm:inline-flex overflow-hidden items-center max-sm:justify-center text-sm text-gray-200 bg-white/10 rounded">
-                                <div className="flex items-center gap-2 p-2 px-3 sm:px-6.5 hover:bg-white/3 transition-colors">
-                                    <ZapIcon className="size-4 text-yellow-300" />
-                                    <div>
-                                        <div>Paid last month</div>
-                                        <div className="text-xs text-gray-400">
-                                            {formatNaira(heroStats.paid_this_month)}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="hidden sm:block h-6 w-px bg-white/6" />
-
-                                <div className="flex items-center gap-2 p-2 px-3 sm:px-6.5 hover:bg-white/3 transition-colors">
-                                    <CheckIcon className="size-4 text-yellow-300" />
-                                    <div>
-                                        <div>Paid last week</div>
-                                        <div className="text-xs text-gray-400">
-                                            {formatNaira(heroStats.paid_today)}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Hero Image */}
-                        <div>
-                            <img
-                                src="/hero5.png"
-                                alt="Hero"
-                                className="w-full h-auto rounded-3xl shadow-2xl"
-                            />
-
-                            <div className="mt-4 flex gap-3 items-center justify-start flex-wrap">
-                                <div className="text-sm text-gray-400 flex items-center gap-2">
-                                    <div className="relative flex h-3.5 w-3.5 items-center justify-center">
-                                        <span className="absolute inline-flex h-full w-full rounded-full bg-yellow-300 opacity-75 animate-ping duration-300" />
-
-                                        <span className="relative inline-flex size-2 rounded-full bg-yellow-300" />
-                                    </div>
-                                    Pioneer of the world's highest 20% max drawdown
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
             </section>
 
             {/* LOGO MARQUEE */}
-            <section className="border-y border-white/6 bg-white/1 max-md:mt-10">
+            <section className="border-y border-white/6 bg-white/1 max-md:mt-4">
                 <div className="max-w-6xl mx-auto px-6">
                     <div className="w-full overflow-hidden py-6">
                         <div className="flex gap-14 items-center justify-center animate-marquee whitespace-nowrap">
                             {trustedLogosText.concat(trustedLogosText).map((logo, i) => (
                                 <span
                                     key={i}
-                                    className="mx-6 inline-flex items-center gap-2 text-sm md:text-base font-semibold text-gray-400 hover:text-gray-300 tracking-wide transition-colors"
+                                    className="mx-8 inline-flex items-start gap-2 text-left text-base md:text-lg font-semibold text-white tracking-wide transition-colors"
                                 >
-                                    <span className="inline-block size-2 rounded-full bg-yellow-300" />
-                                    {logo}
+                                    <span className="inline-block size-2 rounded-full bg-[#ffd700]" />
+                                    <span className="flex flex-col">
+                                        <span className="font-semibold text-white">
+                                            {logo.title}
+                                        </span>
+                                        <span className="text-sm md:text-base font-medium text-white/85">
+                                            {logo.subtitle}
+                                        </span>
+                                    </span>
                                 </span>
                             ))}
                         </div>

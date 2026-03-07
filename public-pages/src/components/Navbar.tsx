@@ -6,7 +6,6 @@ export default function Navbar() {
 
     const navLinks = [
         { name: 'Home', href: '/#', isSection: true, sectionId: 'home' },
-        { name: 'Why choose us', href: '/#features', isSection: true, sectionId: 'features' },
         { name: 'Challenges', href: '/#pricing', isSection: true, sectionId: 'pricing' },
         { name: 'Rules', href: '/rules', isSection: false },
         { name: 'Contact', href: '/contact', isSection: false },
@@ -30,10 +29,11 @@ export default function Navbar() {
     };
 
     return (
-        <nav className='fixed top-5 left-0 right-0 z-50 px-4'>
+        <nav className='fixed top-3 md:top-5 left-0 right-0 z-50 px-4'>
             <div className='max-w-6xl mx-auto flex items-center justify-between bg-white rounded-2xl p-3 shadow-[0_0_24px_rgba(0,0,0,0.1)]'>
-                <a href='/#'>
-                    <img src='/logo.webp' alt="NairaTrader logo" className="h-8" />
+                <a href='/#' className="flex items-center gap-2">
+                    <img src='/logo.png' alt="Trayding Fund logo" className="h-8" />
+                    <span className="text-lg font-bold tracking-wide text-[#008ea4]">TRAYDINGFUND</span>
                 </a>
 
                 <div className='hidden md:flex items-center gap-8 text-sm font-medium text-gray-900'>
@@ -45,7 +45,12 @@ export default function Navbar() {
                 </div>
 
                 <div className='hidden md:flex items-center gap-3'>
-                    <a href="https://app.nairatrader.com" className='inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-medium text-white bg-black hover:bg-gray-800 active:scale-95 transition-all'>Dashboard</a>
+                    <a
+                        href="https://app.traydingfund.com"
+                        className='inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-medium text-white bg-[#008ea4] hover:bg-[#00798b] active:scale-95 transition-all'
+                    >
+                        Dashboard
+                    </a>
                 </div>
 
                 <button onClick={() => setIsOpen(!isOpen)} className='md:hidden text-gray-900'>
@@ -59,7 +64,13 @@ export default function Navbar() {
                     </a>
                 ))}
 
-                <a href="https://app.nairatrader.com" onClick={() => setIsOpen(false)} className='inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-medium text-white bg-black hover:bg-gray-800 active:scale-95 transition-all'>Dashboard</a>
+                <a
+                    href="https://app.traydingfund.com"
+                    onClick={() => setIsOpen(false)}
+                    className='inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-medium text-white bg-[#008ea4] hover:bg-[#00798b] active:scale-95 transition-all'
+                >
+                    Dashboard
+                </a>
 
                 <button
                     onClick={() => setIsOpen(false)}
