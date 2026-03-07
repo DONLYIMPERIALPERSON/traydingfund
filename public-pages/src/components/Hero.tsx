@@ -58,7 +58,7 @@ export default function Hero() {
                             </h1>
 
                             <p className="text-gray-200 text-lg md:text-2xl font-semibold max-w-3xl mb-10">
-                                Sharpen your trading skills on our simulated platform and earn real rewards as you progress.
+                                TraydingFund (Trayding Fund) empowers traders to sharpen skills on our simulated platform and earn real rewards as you progress.
                             </p>
 
                             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10 w-full">
