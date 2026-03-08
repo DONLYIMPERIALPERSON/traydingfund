@@ -102,7 +102,7 @@ export default function Pricing() {
                 </div>
 
                 <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-10">
-                    <p className="text-sm font-medium text-[#ffd700] uppercase tracking-wide mb-3">
+                    <p className="text-sm font-medium text-[#ffd700] uppercase tracking-wide mb-3 text-center">
                         MACHEFUNDED'S – ACCOUNT SIZES &amp; PRICING
                     </p>
 
