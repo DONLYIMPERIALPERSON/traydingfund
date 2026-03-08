@@ -33,7 +33,10 @@ export default function Navbar() {
             <div className='max-w-6xl mx-auto flex items-center justify-between bg-white rounded-2xl p-3 shadow-[0_0_24px_rgba(0,0,0,0.1)]'>
                 <a href='/#' className="flex items-center gap-2">
                     <img src='/logo.png' alt="MacheFunded logo" className="h-8" />
-                    <span className="text-lg font-bold tracking-wide text-[#008ea4]">MACHEFUNDED</span>
+                    <span className="text-lg font-bold tracking-wide">
+                        <span className="text-[#008ea4]">MACHE</span>
+                        <span className="text-black">FUNDED</span>
+                    </span>
                 </a>
 
                 <div className='hidden md:flex items-center gap-8 text-sm font-medium text-gray-900'>
