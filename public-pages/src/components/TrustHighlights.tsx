@@ -6,7 +6,7 @@ export default function TrustHighlights() {
         },
         {
             title: 'Speedy Payouts',
-            desc: 'Trayding Fund processes rewards fast so you can reinvest, withdraw, or keep compounding.',
+            desc: 'MacheFunded processes rewards fast so you can reinvest, withdraw, or keep compounding.',
         },
         {
             title: 'Trader-First Rules',
@@ -18,7 +18,7 @@ export default function TrustHighlights() {
         {
             name: 'Alex M.',
             title: 'Fast payouts and clarity',
-            review: 'I received my payout quickly and the rules are straightforward. Trayding Fund keeps things simple.',
+            review: 'I received my payout quickly and the rules are straightforward. MacheFunded keeps things simple.',
         },
         {
             name: 'Sofia R.',
@@ -36,8 +36,8 @@ export default function TrustHighlights() {
         <section className="py-14 md:py-20 border-t border-white/6 bg-white/2">
             <div className="max-w-6xl mx-auto px-4">
                 <div className="text-center mb-12">
-                    <p className="text-sm font-medium text-[#ffd700] uppercase tracking-wide mb-3">
-                        THE TRAYDING FUND EDGE
+                    <p className="text-xs uppercase tracking-[0.3em] text-[#ffd700] font-semibold mb-4">
+                        THE MACHEFUNDED EDGE
                     </p>
                     <h2 className="text-2xl md:text-4xl text-white font-semibold">
                         Real funding, real speed, real trader focus

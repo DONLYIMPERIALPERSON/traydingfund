@@ -195,7 +195,7 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
               {continueButtonText}
             </button>
 
-            <p className="trayding-auth-continue-note">Continue securely with your Trayding Fund account.</p>
+            <p className="trayding-auth-continue-note">Continue securely with your MacheFunded account.</p>
           </div>
         )
 
@@ -252,7 +252,7 @@ const DescopeAuthCard: React.FC<DescopeAuthCardProps> = ({ title, subtitle, onSu
               {loading ? 'Signing in...' : continueButtonText}
             </button>
 
-            <p className="trayding-auth-continue-note">Continue securely with your Trayding Fund account.</p>
+            <p className="trayding-auth-continue-note">Continue securely with your MacheFunded account.</p>
 
             <button
               className="submit-button trayding-auth-secondary-btn"

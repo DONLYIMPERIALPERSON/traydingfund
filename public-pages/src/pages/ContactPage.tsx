@@ -12,7 +12,7 @@ export default function ContactPage() {
             <section className="max-w-6xl mx-auto">
                 <div className="text-center mb-10">
                     <p className="text-sm font-medium text-[#ffd700] uppercase tracking-wide mb-3">Contact</p>
-                    <h1 className="text-3xl md:text-5xl font-semibold text-white">Get in touch with Trayding Fund</h1>
+                    <h1 className="text-3xl md:text-5xl font-semibold text-white">Get in touch with MacheFunded</h1>
                     <p className="text-gray-300 mt-3 max-w-2xl mx-auto">
                         Reach our team through phone, WhatsApp, or our social communities. We’re available to support you at every stage.
                     </p>

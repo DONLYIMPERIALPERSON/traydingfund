@@ -78,7 +78,7 @@ export default function Pricing() {
             <div className="max-w-6xl mx-auto px-4">
                 <div className="text-center mb-10">
                     <h2 className="text-2xl md:text-4xl text-white font-semibold">
-                        Choose Your TraydingFund Challenge
+                        Choose Your MacheFunded Challenge
                     </h2>
                     <p className="text-gray-300 mt-3 max-w-2xl mx-auto">
                         Complete the Trayding Objectives to become eligible to gain your funded Account.
@@ -102,8 +102,8 @@ export default function Pricing() {
                 </div>
 
                 <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-10">
-                    <h3 className="text-center text-white font-semibold text-lg md:text-2xl mb-6">
-                        TRAYDINGFUNDS – ACCOUNT SIZES &amp; PRICING
+                    <p className="text-sm font-medium text-[#ffd700] uppercase tracking-wide mb-3">
+                        MACHEFUNDED – ACCOUNT SIZES &amp; PRICING
                     </h3>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
