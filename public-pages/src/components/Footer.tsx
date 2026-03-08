@@ -6,7 +6,7 @@ export default function Footer() {
                 <div className="flex flex-col md:flex-row items-start justify-between gap-10 py-10 border-b border-white/10">
                     <div>
                         <div className="flex items-center gap-2">
-                            <img src='/logo.png' alt="MacheFunded logo" className="h-8" />
+                            <img src='/logo.png' alt="MacheFunded logo" className="h-8 rounded-md" />
                             <span className="text-sm font-bold tracking-wide text-white">MACHEFUNDED</span>
                         </div>
                         <p className="max-w-[410px] mt-6 text-sm leading-relaxed">
