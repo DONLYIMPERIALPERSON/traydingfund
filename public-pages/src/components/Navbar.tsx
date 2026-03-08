@@ -49,7 +49,7 @@ export default function Navbar() {
 
                 <div className='hidden md:flex items-center gap-3'>
                     <a
-                        href="https://app.traydingfund.com"
+                        href="https://app.machefunded.com"
                         className='inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-medium text-white bg-[#008ea4] hover:bg-[#00798b] active:scale-95 transition-all'
                     >
                         Dashboard
@@ -68,7 +68,7 @@ export default function Navbar() {
                 ))}
 
                 <a
-                    href="https://app.traydingfund.com"
+                    href="https://app.machefunded.com"
                     onClick={() => setIsOpen(false)}
                     className='inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-medium text-white bg-[#008ea4] hover:bg-[#00798b] active:scale-95 transition-all'
                 >

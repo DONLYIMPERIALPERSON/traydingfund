@@ -16,7 +16,7 @@ export default function Footer() {
                 </div>
 
                 <p className="py-4 text-center text-sm text-gray-400">
-                    Copyright © 2026 by traydingfund.com
+                    Copyright © 2026 by machefunded.com
                 </p>
             </div>
         </footer>

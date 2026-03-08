@@ -2,8 +2,8 @@ import { Mail, MessageCircle, Users } from 'lucide-react';
 
 const socialLinks = [
     { name: 'Discord', color: '#5865F2', url: 'https://discord.gg/HR6QW83W6' },
-    { name: 'X', color: '#ffffff', url: 'https://x.com/traydingfund?s=21' },
-    { name: 'Instagram', color: '#E1306C', url: 'https://www.instagram.com/traydingfund?igsh=Y2g0d3BrbnFkbmNl&utm_source=qr' },
+    { name: 'X', color: '#ffffff', url: 'https://x.com/machefunded?s=21' },
+    { name: 'Instagram', color: '#E1306C', url: 'https://www.instagram.com/machefunded?igsh=Y2g0d3BrbnFkbmNl&utm_source=qr' },
 ];
 
 export default function ContactPage() {
@@ -26,12 +26,12 @@ export default function ContactPage() {
                         </div>
                         <p className="text-gray-300 mb-4">Chat with our support team on WhatsApp.</p>
                         <a
-                            href="https://wa.me/0000000000"
+                            href="https://wa.me/447888378812"
                             target="_blank"
                             rel="noreferrer"
                             className="flex items-center justify-between rounded-lg border border-white/15 bg-white/5 px-4 py-3 hover:bg-white/10 transition"
                         >
-                            <span>+000 000 0000</span>
+                            <span>+44 7888 378 812</span>
                             <MessageCircle className="w-4 h-4 text-green-400" />
                         </a>
                     </div>
@@ -43,10 +43,10 @@ export default function ContactPage() {
                         </div>
                         <p className="text-gray-300 mb-4">Send us an email and we’ll respond quickly.</p>
                         <a
-                            href="mailto:help@traydingfund.com"
+                            href="mailto:help@machefunded.com"
                             className="flex items-center justify-between rounded-lg border border-white/15 bg-white/5 px-4 py-3 hover:bg-white/10 transition"
                         >
-                            <span>help@traydingfund.com</span>
+                            <span>help@machefunded.com</span>
                             <Mail className="w-4 h-4 text-[#ffd700]" />
                         </a>
                     </div>
