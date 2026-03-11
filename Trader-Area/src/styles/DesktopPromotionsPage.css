@@ -1,0 +1,291 @@
+/* Desktop Promotions Page Styles */
+
+.promotions-page {
+  background-color: #f8f9fa;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+}
+
+.promotions-page .page-header {
+  margin-bottom: 32px;
+  text-align: left !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+}
+
+.promotions-page .page-header h1 {
+  font-size: 32px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 8px !important;
+  text-align: left !important;
+  display: block !important;
+  width: 100% !important;
+  clear: both !important;
+  float: none !important;
+}
+
+.promotions-page .page-header p {
+  font-size: 16px;
+  color: #666;
+  text-align: left !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  clear: both !important;
+  float: none !important;
+}
+
+.promotions-page .back-button {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background-color: transparent !important;
+  border: none !important;
+  color: #666 !important;
+  cursor: pointer !important;
+  font-size: 16px !important;
+  padding: 8px 0 !important;
+  transition: color 0.2s !important;
+  margin-bottom: 24px !important;
+  text-align: left !important;
+  justify-content: flex-start !important;
+  width: fit-content !important;
+}
+
+.promotions-page .back-button i {
+  color: #000;
+}
+
+.promotions-page .back-button:hover {
+  color: #333;
+}
+
+.promotions-page .promotions-content {
+  width: 100%;
+}
+
+/* Tabs */
+.promotions-page .tabs-container {
+  display: flex;
+  background: rgba(255,255,255,0.05);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 32px;
+  border: 1px solid rgba(0,0,0,0.1);
+}
+
+.promotions-page .tab-button {
+  flex: 1;
+  padding: 14px 20px;
+  background: transparent;
+  color: #666;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.promotions-page .tab-button.active {
+  background: rgba(255,215,0,0.8);
+  color: #000;
+  box-shadow: 0 2px 4px rgba(255,215,0,0.3);
+}
+
+.promotions-page .tab-button:hover:not(.active) {
+  background: rgba(0,0,0,0.05);
+  color: #333;
+}
+
+/* Tab Content */
+.promotions-page .tab-content {
+  background-color: white;
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border: 1px solid #e0e0e0;
+}
+
+.promotions-page .tab-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 24px;
+}
+
+/* Giveaway Card */
+.promotions-page .giveaway-card {
+  background: linear-gradient(135deg, rgba(255,215,0,0.1) 0%, rgba(255,215,0,0.05) 100%);
+  border: 1px solid rgba(255,215,0,0.2);
+  border-radius: 12px;
+  padding: 32px;
+  margin-bottom: 24px;
+}
+
+.promotions-page .giveaway-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #FFD700;
+  margin-bottom: 16px;
+  text-shadow: 0 2px 8px rgba(255, 215, 0, 0.5);
+}
+
+.promotions-page .giveaway-timer {
+  font-size: 18px;
+  color: rgba(0,0,0,0.8);
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+
+.promotions-page .giveaway-description {
+  font-size: 16px;
+  color: #333;
+  margin-bottom: 32px;
+  line-height: 1.6;
+}
+
+.promotions-page .giveaway-actions {
+  display: flex;
+  gap: 16px;
+}
+
+.promotions-page .primary-button {
+  flex: 1;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(255,215,0,0.3);
+}
+
+.promotions-page .primary-button:hover {
+  background: linear-gradient(135deg, #FFC107 0%, #FF8C00 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(255,215,0,0.4);
+}
+
+.promotions-page .secondary-button {
+  flex: 1;
+  padding: 16px 24px;
+  background: rgba(255,255,255,0.1);
+  color: #333;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.promotions-page .secondary-button:hover {
+  background: rgba(255,255,255,0.2);
+  border-color: rgba(255,255,255,0.4);
+}
+
+/* Discount Card */
+.promotions-page .discount-card {
+  background: linear-gradient(135deg, rgba(255,215,0,0.1) 0%, rgba(255,215,0,0.05) 100%);
+  border: 1px solid rgba(255,215,0,0.2);
+  border-radius: 12px;
+  padding: 32px;
+}
+
+.promotions-page .discount-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.promotions-page .discount-code {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+}
+
+.promotions-page .discount-amount {
+  font-size: 20px;
+  font-weight: 600;
+  color: #000;
+}
+
+.promotions-page .discount-details {
+  margin-bottom: 24px;
+}
+
+.promotions-page .discount-expiry,
+.promotions-page .discount-usage {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.promotions-page .copy-button {
+  width: 100%;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(255,215,0,0.3);
+}
+
+.promotions-page .copy-button:hover {
+  background: linear-gradient(135deg, #FFC107 0%, #FF8C00 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(255,215,0,0.4);
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .promotions-page .giveaway-actions {
+    flex-direction: column;
+  }
+
+  .promotions-page .primary-button,
+  .promotions-page .secondary-button {
+    flex: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .promotions-page .tab-content {
+    margin: 0 -16px 16px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
+  .promotions-page .giveaway-card,
+  .promotions-page .discount-card {
+    margin: 0 -16px 16px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
+  .promotions-page .tabs-container {
+    margin: 0 -16px 24px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
+  .promotions-page .giveaway-actions {
+    flex-direction: column;
+  }
+}

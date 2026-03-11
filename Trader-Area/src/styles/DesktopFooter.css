@@ -1,0 +1,27 @@
+.desktop-footer {
+  background-color: #f8f9fa;
+  border-top: 1px solid #e0e0e0;
+  padding: 20px 0;
+  margin-top: auto;
+}
+
+.desktop-footer__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  text-align: right;
+}
+
+.desktop-footer__text {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .desktop-footer__inner {
+    text-align: center;
+    padding: 0 16px;
+  }
+}

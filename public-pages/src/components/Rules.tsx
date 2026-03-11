@@ -6,25 +6,28 @@ const rulesData = [
             'Max Drawdown: 5%',
             'Profit Split: 50%',
             'Withdrawals: Every 14 days',
+            'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach',
         ],
     },
     {
         title: '1-Step Accounts',
         items: [
             'Max Drawdown: 15%',
-            'Profit Target: 7%',
+            'Profit Target: 10%',
             'Profit Split: 80%',
             'Withdrawals: Weekly',
+            'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach',
         ],
     },
     {
         title: '2-Step Accounts',
         items: [
             'Max Drawdown: 15%',
-            'Phase 1 Target: 7%',
-            'Phase 2 Target: 4%',
+            'Phase 1 Target: 10%',
+            'Phase 2 Target: 5%',
             'Profit Split: 80%',
             'Withdrawals: Weekly',
+            'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach',
         ],
     },
 ];

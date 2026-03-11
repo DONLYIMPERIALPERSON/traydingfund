@@ -1,0 +1,615 @@
+/* Desktop KYC Page Styles */
+
+.kyc-page {
+  background-color: #f8f9fa;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+}
+
+.kyc-page .kyc-content-wrapper {
+  margin-left: 280px;
+  padding: 24px;
+  padding-top: 80px;
+  min-height: 100vh;
+}
+
+.kyc-page .page-header {
+  margin-bottom: 32px;
+  text-align: left !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+}
+
+.kyc-page .page-header h1 {
+  font-size: 32px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 8px !important;
+  text-align: left !important;
+  display: block !important;
+  width: 100% !important;
+  clear: both !important;
+  float: none !important;
+}
+
+.kyc-page .page-header p {
+  font-size: 16px;
+  color: #666;
+  text-align: left !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  clear: both !important;
+  float: none !important;
+}
+
+.kyc-page .back-button {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background-color: transparent !important;
+  border: none !important;
+  color: #666 !important;
+  cursor: pointer !important;
+  font-size: 16px !important;
+  padding: 8px 0 !important;
+  transition: color 0.2s !important;
+  margin-bottom: 24px !important;
+  text-align: left !important;
+  justify-content: flex-start !important;
+  width: fit-content !important;
+}
+
+.kyc-page .back-button i {
+  color: #0b9fb8;
+}
+
+.kyc-page .back-button:hover {
+  color: #333;
+}
+
+.kyc-page .kyc-content {
+  width: 100%;
+}
+
+/* Status Card */
+.kyc-page .status-card {
+  background-color: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border: 1px solid #e0e0e0;
+  margin-bottom: 24px;
+}
+
+/* KYC Records */
+.kyc-page .kyc-records-section {
+  background-color: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border: 1px solid #e0e0e0;
+  margin-bottom: 24px;
+}
+
+.kyc-page .kyc-records-table-wrap {
+  overflow-x: auto;
+}
+
+.kyc-page .kyc-records-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 860px;
+}
+
+.kyc-page .kyc-records-table th,
+.kyc-page .kyc-records-table td {
+  text-align: left;
+  padding: 12px;
+  border-bottom: 1px solid #efefef;
+  font-size: 14px;
+  color: #333;
+}
+
+.kyc-page .kyc-records-table th {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #777;
+  font-weight: 700;
+}
+
+.kyc-page .kyc-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.kyc-page .kyc-status-badge.pending {
+  background: rgba(255, 193, 7, 0.15);
+  color: #8a6d00;
+}
+
+.kyc-page .kyc-status-badge.approved {
+  background: rgba(40, 167, 69, 0.12);
+  color: #1f8b3a;
+}
+
+.kyc-page .kyc-status-badge.declined {
+  background: rgba(220, 53, 69, 0.12);
+  color: #b42333;
+}
+
+/* KYC Submission Form */
+.kyc-page .kyc-form-section {
+  background-color: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border: 1px solid #e0e0e0;
+  margin-bottom: 24px;
+}
+
+.kyc-page .kyc-form-section .status-icon {
+  background: #0b9fb8;
+  color: #fff;
+}
+
+.kyc-page .status-icon--locked {
+  background: #6b7280;
+}
+
+.kyc-page .kyc-form-error {
+  margin: 2px 0 14px;
+  color: #d9534f;
+  font-size: 13px;
+}
+
+.kyc-page .status-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.kyc-page .status-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: white;
+}
+
+.kyc-page .status-approved .status-icon {
+  background-color: #28a745;
+}
+
+.kyc-page .status-pending .status-icon {
+  background-color: #ffc107;
+}
+
+.kyc-page .status-declined .status-icon {
+  background-color: #dc3545;
+}
+
+.kyc-page .status-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.kyc-page .status-subtitle {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 4px 0 0 0;
+}
+
+.kyc-page .status-approved .status-subtitle {
+  color: #28a745;
+}
+
+.kyc-page .status-pending .status-subtitle {
+  color: #856404;
+}
+
+.kyc-page .status-declined .status-subtitle {
+  color: #dc3545;
+}
+
+/* Bank Details Section */
+.kyc-page .bank-details-section {
+  background-color: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border: 1px solid #e0e0e0;
+  margin-bottom: 24px;
+}
+
+.kyc-page .section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.kyc-page .section-icon {
+  color: #0b9fb8;
+  font-size: 24px;
+  width: 24px;
+  text-align: center;
+}
+
+.kyc-page .section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.kyc-page .bank-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+}
+
+.kyc-page .detail-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.kyc-page .detail-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.kyc-page .detail-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.kyc-page .account-number {
+  font-family: 'Courier New', monospace;
+  letter-spacing: 1px;
+}
+
+/* Update Form Section */
+.kyc-page .update-form-section {
+  background-color: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border: 1px solid #e0e0e0;
+  margin-bottom: 24px;
+}
+
+.kyc-page .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.kyc-page .form-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.kyc-page .form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.kyc-page .form-input {
+  padding: 12px 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 16px;
+  background-color: white;
+  transition: border-color 0.2s;
+}
+
+.kyc-page .form-input:focus {
+  outline: none;
+  border-color: #0b9fb8;
+  box-shadow: 0 0 0 2px rgba(11, 159, 184, 0.1);
+}
+
+.kyc-page .account-number-input {
+  font-family: 'Courier New', monospace;
+}
+
+.kyc-page .submit-button {
+  width: 100%;
+  background: #0b9fb8;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(11,159,184,0.3);
+}
+
+.kyc-page .submit-button:hover {
+  background: #008ea4;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(11,159,184,0.4);
+}
+
+/* Information Cards */
+.kyc-page .info-card {
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border: 1px solid #e0e0e0;
+  margin-bottom: 24px;
+}
+
+.kyc-page .info-card.warning {
+  background-color: rgba(11, 159, 184, 0.05);
+  border-color: rgba(11, 159, 184, 0.2);
+}
+
+.kyc-page .info-card.info {
+  background-color: rgba(29, 161, 242, 0.05);
+  border-color: rgba(29, 161, 242, 0.2);
+}
+
+.kyc-page .info-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.kyc-page .info-icon {
+  font-size: 20px;
+  margin-top: 2px;
+}
+
+.kyc-page .warning .info-icon {
+  color: #0b9fb8;
+}
+
+.kyc-page .info .info-icon {
+  color: #0b9fb8;
+}
+
+.kyc-page .kyc-form-success {
+  margin: 2px 0 14px;
+  color: #1f8b3a;
+  font-size: 13px;
+  border: 1px solid rgba(31, 139, 58, 0.3);
+  background: rgba(31, 139, 58, 0.08);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.kyc-page .upload-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.kyc-page .upload-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 16px;
+  background: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kyc-page .upload-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.kyc-page .upload-header h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.kyc-page .upload-hint {
+  font-size: 11px;
+  font-weight: 600;
+  color: #0b9fb8;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.kyc-page .upload-preview {
+  background: #fff;
+  border-radius: 10px;
+  border: 1px dashed rgba(11, 159, 184, 0.3);
+  min-height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  text-align: center;
+}
+
+.kyc-page .upload-preview img {
+  max-width: 100%;
+  max-height: 180px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.kyc-page .upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #0b9fb8;
+}
+
+.kyc-page .upload-placeholder i {
+  font-size: 28px;
+}
+
+.kyc-page .upload-placeholder p {
+  margin: 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.kyc-page .upload-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.kyc-page .upload-button {
+  background: #0b9fb8;
+  color: #fff;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.kyc-page .upload-button:hover {
+  background: #008ea4;
+}
+
+.kyc-page .upload-remove {
+  border: none;
+  background: rgba(220, 53, 69, 0.12);
+  color: #b42333;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.kyc-page .kyc-verified-text {
+  color: #555;
+  margin: 8px 0 16px;
+}
+
+.kyc-page .kyc-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.kyc-page .kyc-status-pill.approved {
+  background: rgba(40, 167, 69, 0.15);
+  color: #1f8b3a;
+}
+
+.kyc-page .info-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.kyc-page .info-content {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.5;
+}
+
+.kyc-page .info-content div {
+  margin-bottom: 8px;
+}
+
+.kyc-page .info-content div:last-child {
+  margin-bottom: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .kyc-page .kyc-content-wrapper {
+    margin-left: 0;
+    padding: 20px 16px 32px;
+    padding-top: 96px;
+  }
+
+  .kyc-page .bank-details-grid,
+  .kyc-page .form-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .kyc-page .kyc-content {
+    margin: 0;
+  }
+
+  .kyc-page .status-card,
+  .kyc-page .kyc-records-section,
+  .kyc-page .kyc-form-section,
+  .kyc-page .info-card {
+    margin: 0 -12px 16px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
+  .kyc-page .bank-details-grid,
+  .kyc-page .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kyc-page .status-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .kyc-page .kyc-content-wrapper {
+    padding: 16px 12px 28px;
+    padding-top: 96px;
+  }
+}

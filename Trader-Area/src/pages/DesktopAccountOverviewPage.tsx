@@ -1,0 +1,215 @@
+import React, { useEffect, useState, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import DesktopHeader from '../components/DesktopHeader'
+import DesktopSidebar from '../components/DesktopSidebar'
+import DesktopFooter from '../components/DesktopFooter'
+import { fetchUserChallengeAccountDetail, type UserChallengeAccountDetailResponse } from '../lib/auth'
+import '../styles/DesktopAccountOverviewPage.css'
+
+const DesktopAccountOverviewPage: React.FC = () => {
+  const [searchParams] = useSearchParams()
+  const [accountData, setAccountData] = useState<UserChallengeAccountDetailResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const formatUsd = (value: number) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const formatSignedUsd = (value: number) => `${value >= 0 ? '+' : ''}$${Math.abs(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+  const challengeId = searchParams.get('challenge_id')
+
+  const loadAccountData = useCallback(async () => {
+    if (!challengeId) return
+
+    try {
+      const data = await fetchUserChallengeAccountDetail(challengeId)
+      setAccountData(data)
+      setError('')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load account details')
+    }
+  }, [challengeId])
+
+  useEffect(() => {
+    if (!challengeId) {
+      setError('Challenge ID is required')
+      setLoading(false)
+      return
+    }
+
+    loadAccountData().finally(() => setLoading(false))
+  }, [challengeId, loadAccountData])
+
+
+
+  if (loading) {
+    return (
+      <div className="account-overview-page">
+        <DesktopHeader />
+        <DesktopSidebar />
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'white' }}>
+          Loading account details...
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !accountData) {
+    return (
+      <div className="account-overview-page">
+        <DesktopHeader />
+        <DesktopSidebar />
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#ff8b8b' }}>
+          {error || 'Account not found'}
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="account-overview-page">
+      <DesktopHeader />
+      <DesktopSidebar />
+      <div className="account-overview-content">
+        {/* Back Button */}
+        <div className="back-button">
+          <button onClick={() => window.history.back()}>
+            <i className="fas fa-arrow-left"></i>
+            Back to Accounts Overview
+          </button>
+        </div>
+
+        {/* Page Header */}
+        <div className="page-header">
+          <div className="page-header-left">
+            <div className="page-header-content">
+              <h1>Account Overview</h1>
+              <p>Detailed metrics and performance data for your trading account</p>
+            </div>
+          </div>
+          <div className="page-header-right"></div>
+        </div>
+
+        {/* Balance Overview Section */}
+        <div className="balance-overview-section">
+          <div className="balance-overview-header">
+            <span className="balance-overview-title">Balance Overview</span>
+            <span className="connection-status">Live</span>
+          </div>
+          <div className="balance-grid">
+            <div className="balance-card">
+              <div className="balance-card-header">
+                <i className="fas fa-wallet"></i>
+                Balance
+              </div>
+              <div className="balance-value">{formatUsd(accountData.metrics.balance)}</div>
+            </div>
+            <div className="balance-card">
+              <div className="balance-card-header">
+                <i className="fas fa-chart-line"></i>
+                Equity
+              </div>
+              <div className="balance-value">{formatUsd(accountData.metrics.equity)}</div>
+            </div>
+            <div className="balance-card">
+              <div className="balance-card-header">
+                <i className="fas fa-chart-simple"></i>
+                Unrealized PnL
+              </div>
+              <div className={`balance-value ${accountData.metrics.unrealized_pnl >= 0 ? 'positive' : 'negative'}`}>
+                {formatSignedUsd(accountData.metrics.unrealized_pnl)}
+              </div>
+            </div>
+            {accountData.phase === 'Funded' && (
+              <div className="balance-card">
+                <div className="balance-card-header">
+                  <i className="fas fa-trophy"></i>
+                  Total Profit
+                </div>
+                <div className={`balance-value ${(accountData.funded_profit_raw || 0) >= 0 ? 'positive' : 'negative'}`}>
+                  {formatSignedUsd(accountData.funded_profit_raw || 0)}
+                </div>
+              </div>
+            )}
+            <div className="balance-card today-profit">
+              <div className="balance-card-header">
+                Remaining loss limit
+                <i
+                  className="fas fa-info-circle"
+                  style={{ marginLeft: '6px', fontSize: '12px', opacity: 0.8 }}
+                  title="Amount left before account breaches maximum drawdown."
+                ></i>
+              </div>
+              <div className="balance-value">{formatUsd(accountData.metrics.max_permitted_loss_left)}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Trading Objective Section */}
+        <div className="trading-objective-section">
+          <div className="trading-objective-header">
+            <span className="trading-objective-title">Trading Objective</span>
+          </div>
+          <div className="objectives-list">
+            {Object.entries(accountData.objectives)
+              .filter(([key]) => !(accountData.phase === 'Funded' && key === 'profit_target'))
+              .map(([key, objective]) => (
+                <div key={key} className="objective-item">
+                <div className="objective-content">
+                  <i className={`fas fa-${key === 'max_drawdown' ? 'circle-exclamation' : key === 'profit_target' ? 'bullseye' : key === 'scalping_rule' ? 'hourglass-half' : 'calendar-days'} objective-icon ${key === 'max_drawdown' ? 'max-loss' : key === 'profit_target' ? 'profit-target' : key === 'scalping_rule' ? 'time-rule' : 'trading-days'}`}></i>
+                  <div className="objective-text-section">
+                    <span className="objective-text">
+                      {key === 'min_trading_days' ? 'Cool Down Period' : objective.label}
+                    </span>
+                    {key === 'min_trading_days' ? (
+                      <span className="objective-info">
+                        {(() => {
+                          if (objective.note) {
+                            // Parse format like "11.50h / 24.00h"
+                            const match = objective.note.match(/(\d+(?:\.\d+)?)h\s*\/\s*(\d+(?:\.\d+)?)h/)
+                            if (match) {
+                              const elapsedHours = parseFloat(match[1] || '0')
+                              const totalHours = parseFloat(match[2] || '0')
+                              const remainingHours = Math.max(0, totalHours - elapsedHours)
+
+                              if (remainingHours <= 0) {
+                                return 'Complete'
+                              }
+
+                              const hours = Math.floor(remainingHours)
+                              const minutes = Math.floor((remainingHours - hours) * 60)
+
+                              if (hours > 0) {
+                                if (minutes > 0) {
+                                  return `${hours} hour${hours > 1 ? 's' : ''} ${minutes} minute${minutes > 1 ? 's' : ''} left`
+                                } else {
+                                  return `${hours} hour${hours > 1 ? 's' : ''} left`
+                                }
+                              } else if (minutes > 0) {
+                                return `${minutes} minute${minutes > 1 ? 's' : ''} left`
+                              } else {
+                                return 'Complete'
+                              }
+                            }
+                          }
+                        return objective.note || '00:00 Hours'
+                        })()}
+                      </span>
+                    ) : (
+                      objective.note && <span className="objective-info">{objective.note}</span>
+                    )}
+                  </div>
+                </div>
+                <i className={`fas fa-${objective.status === 'passed' ? 'check-circle' : objective.status === 'breached' ? 'times-circle' : 'far fa-circle'} objective-status ${objective.status === 'passed' ? 'completed' : objective.status === 'breached' ? 'breached' : 'pending'}`} style={objective.status === 'breached' ? {color: '#e74c3c'} : undefined}></i>
+              </div>
+            ))}
+          </div>
+          <div className="objective-progress-bar"></div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <DesktopFooter />
+    </div>
+  )
+}
+
+export default DesktopAccountOverviewPage

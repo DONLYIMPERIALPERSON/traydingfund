@@ -3,6 +3,9 @@ import { useState } from 'react';
 type PricingTier = {
     account: string;
     price: string;
+    originalPrice?: string;
+    discountPrice?: string;
+    discountBadge?: string;
 };
 
 type PricingTab = {
@@ -17,55 +20,58 @@ const pricingTabs: PricingTab[] = [
         key: 'twoPhase',
         label: '2 Step',
         tiers: [
-            { account: '$2K', price: '$5' },
-            { account: '$10K', price: '$29' },
-            { account: '$30K', price: '$69' },
-            { account: '$50K', price: '$99' },
-            { account: '$100K', price: '$179' },
-            { account: '$200K', price: '$329' },
+            { account: '$2,000', price: '$12', originalPrice: '$12', discountPrice: '$5', discountBadge: '58% OFF' },
+            { account: '$10,000', price: '$81' },
+            { account: '$30,000', price: '$163' },
+            { account: '$50,000', price: '$203' },
+            { account: '$100,000', price: '$354' },
+            { account: '$200,000', price: '$681' },
         ],
         rules: [
             'Max Drawdown: 15%',
-            'Phase 1 Target: 7%',
-            'Phase 2 Target: 4%',
+            'Phase 1 Target: 10%',
+            'Phase 2 Target: 5%',
             'Profit Split: 80%',
             'Withdrawals: Weekly',
+            'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach',
         ],
     },
     {
         key: 'onePhase',
         label: '1 Step',
         tiers: [
-            { account: '$2K', price: '$9' },
-            { account: '$10K', price: '$49' },
-            { account: '$30K', price: '$119' },
-            { account: '$50K', price: '$179' },
-            { account: '$100K', price: '$299' },
-            { account: '$200K', price: '$549' },
+            { account: '$2,000', price: '$26', originalPrice: '$26', discountPrice: '$11', discountBadge: '58% OFF' },
+            { account: '$10,000', price: '$108' },
+            { account: '$30,000', price: '$203' },
+            { account: '$50,000', price: '$299' },
+            { account: '$100,000', price: '$450' },
+            { account: '$200,000', price: '$885' },
         ],
         rules: [
             'Max Drawdown: 15%',
-            'Profit Target: 7%',
+            'Profit Target: 10%',
             'Profit Split: 80%',
             'Withdrawals: Weekly',
+            'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach',
         ],
     },
     {
         key: 'instant',
         label: 'Instant Funded',
         tiers: [
-            { account: '$2K', price: '$29' },
-            { account: '$10K', price: '$99' },
-            { account: '$30K', price: '$249' },
-            { account: '$50K', price: '$399' },
-            { account: '$100K', price: '$699' },
-            { account: '$200K', price: '$1299' },
+            { account: '$2,000', price: '$53', originalPrice: '$53', discountPrice: '$22', discountBadge: '58% OFF' },
+            { account: '$10,000', price: '$163' },
+            { account: '$30,000', price: '$381' },
+            { account: '$50,000', price: '$612' },
+            { account: '$100,000', price: '$1,091' },
+            { account: '$200,000', price: '$1,910' },
         ],
         rules: [
             'Daily Drawdown: 2%',
             'Max Drawdown: 5%',
             'Profit Split: 50%',
             'Withdrawals: Every 14 days',
+            'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach',
         ],
     },
 ];
@@ -112,10 +118,22 @@ export default function Pricing() {
                                 key={`${activeTab.key}-${tier.account}`}
                                 className="relative rounded-2xl border border-white/15 bg-gradient-to-b from-white/10 to-white/5 p-6 shadow-[0_0_20px_rgba(255,255,255,0.08)] transition duration-300 hover:-translate-y-1 hover:border-[#ffd700]/40 hover:shadow-[0_0_26px_rgba(250,204,21,0.18)]"
                             >
+                                {tier.discountBadge && (
+                                    <div className="absolute -top-3 left-4 rounded-full bg-[#ffd700] px-3 py-1 text-xs font-semibold text-black">
+                                        {tier.discountBadge}
+                                    </div>
+                                )}
                                 <div className="absolute -top-6 -right-6 h-16 w-16 rounded-full bg-[#ffd700]/10 blur-2xl" />
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="text-white text-lg font-semibold">{tier.account}</div>
-                                    <div className="text-[#ffd700] text-lg font-bold">{tier.price}</div>
+                                    {tier.discountPrice ? (
+                                        <div className="text-right">
+                                            <div className="text-xs text-white/80 line-through">{tier.originalPrice}</div>
+                                            <div className="text-[#ffd700] text-lg font-bold">{tier.discountPrice}</div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-[#ffd700] text-lg font-bold">{tier.price}</div>
+                                    )}
                                 </div>
                                 <div className="space-y-2 text-sm text-gray-200">
                                     {activeTab.rules.map((rule) => (
@@ -125,6 +143,9 @@ export default function Pricing() {
                                         </div>
                                     ))}
                                 </div>
+                            <button className="mt-5 w-full rounded-xl bg-[#0b9fb8] py-2 text-sm font-semibold text-white transition hover:bg-[#008ea4]">
+                                Start Now
+                            </button>
                             </div>
                         ))}
                     </div>
