@@ -13,10 +13,19 @@ import {
   type SalaryDisbursementPreview,
   type SalaryDisbursementResponse,
   type SalaryStaff,
-} from '../lib/adminAuth'
+} from '../lib/adminMock'
 import './SalaryPage.css'
 
-type SalaryTab = 'add' | 'list'
+type SalaryTab = 'add' | 'list' | 'profitSplit'
+
+type ProfitSplitHistoryItem = {
+  id: number
+  created_at: string
+  total_amount: number
+  admin_one_amount: number
+  admin_two_amount: number
+  status: 'Completed' | 'Pending'
+}
 
 const SalaryPage = () => {
   const [activeTab, setActiveTab] = useState<SalaryTab>('add')
@@ -44,6 +53,25 @@ const SalaryPage = () => {
   const [otpSubmitting, setOtpSubmitting] = useState(false)
   const [preview, setPreview] = useState<SalaryDisbursementPreview | null>(null)
   const [disbursementResult, setDisbursementResult] = useState<SalaryDisbursementResponse | null>(null)
+  const [profitAmount, setProfitAmount] = useState('')
+  const [profitSplitHistory, setProfitSplitHistory] = useState<ProfitSplitHistoryItem[]>([
+    {
+      id: 1,
+      created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+      total_amount: 200000,
+      admin_one_amount: 100000,
+      admin_two_amount: 100000,
+      status: 'Completed',
+    },
+    {
+      id: 2,
+      created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+      total_amount: 150000,
+      admin_one_amount: 75000,
+      admin_two_amount: 75000,
+      status: 'Completed',
+    },
+  ])
 
   const selectedBank = useMemo(
     () => banks.find((bank) => bank.bank_code === selectedBankCode) || null,
@@ -235,6 +263,31 @@ const SalaryPage = () => {
     }
   }
 
+  const parsedProfitAmount = Number(profitAmount)
+  const isProfitAmountValid = Number.isFinite(parsedProfitAmount) && parsedProfitAmount > 0
+  const adminSplitAmount = isProfitAmountValid ? parsedProfitAmount / 2 : 0
+
+  const formatCurrency = (amount: number) => `$${amount.toLocaleString()}`
+
+  const handleProfitWithdraw = () => {
+    if (!isProfitAmountValid) {
+      setFormError('Enter a valid amount for admin profit split.')
+      return
+    }
+
+    setFormError('')
+    const newEntry: ProfitSplitHistoryItem = {
+      id: Date.now(),
+      created_at: new Date().toISOString(),
+      total_amount: parsedProfitAmount,
+      admin_one_amount: adminSplitAmount,
+      admin_two_amount: adminSplitAmount,
+      status: 'Pending',
+    }
+    setProfitSplitHistory((prev) => [newEntry, ...prev])
+    setProfitAmount('')
+  }
+
   return (
     <section className="admin-page-stack salary-page">
       <div className="admin-dashboard-card">
@@ -248,6 +301,13 @@ const SalaryPage = () => {
         </button>
         <button type="button" className={activeTab === 'list' ? 'active' : ''} onClick={() => setActiveTab('list')}>
           Staff List
+        </button>
+        <button
+          type="button"
+          className={activeTab === 'profitSplit' ? 'active' : ''}
+          onClick={() => setActiveTab('profitSplit')}
+        >
+          Admin Profit Split
         </button>
       </div>
 
@@ -289,7 +349,7 @@ const SalaryPage = () => {
               <input type="text" value={accountName} readOnly placeholder="Verified account name" />
             </label>
             <label>
-              Salary Amount (₦)
+              Salary Amount ($)
               <input
                 type="number"
                 value={salaryAmount}
@@ -317,7 +377,7 @@ const SalaryPage = () => {
           <div className="salary-list-header">
             <div>
               <h3>Staff Salaries</h3>
-              <p>Total monthly payroll: ₦{totalSalary.toLocaleString()}</p>
+              <p>Total monthly payroll: ${totalSalary.toLocaleString()}</p>
             </div>
             <button type="button" className="primary" onClick={openOtpModal}>
               Disburse Salary
@@ -357,7 +417,7 @@ const SalaryPage = () => {
                           onChange={(event) => setEditAmount(event.target.value)}
                         />
                       ) : (
-                        `₦${staff.salary_amount.toLocaleString()}`
+                        `$${staff.salary_amount.toLocaleString()}`
                       )}
                     </td>
                     <td>
@@ -381,13 +441,80 @@ const SalaryPage = () => {
         </div>
       )}
 
+      {activeTab === 'profitSplit' && (
+        <div className="admin-dashboard-card salary-split-card">
+          <h3>Admin Profit Split</h3>
+          <p className="salary-helper">Split withdrawals evenly between Admin 1 and Admin 2 (50/50).</p>
+
+          <div className="salary-split-grid">
+            <label>
+              Amount ($)
+              <input
+                type="number"
+                value={profitAmount}
+                onChange={(event) => {
+                  setProfitAmount(event.target.value)
+                  if (formError) setFormError('')
+                }}
+                placeholder="Enter amount"
+              />
+            </label>
+            <label>
+              Admin 1 Split (50%)
+              <input value={isProfitAmountValid ? formatCurrency(adminSplitAmount) : '$0'} readOnly />
+            </label>
+            <label>
+              Admin 2 Split (50%)
+              <input value={isProfitAmountValid ? formatCurrency(adminSplitAmount) : '$0'} readOnly />
+            </label>
+          </div>
+
+          {formError && <p className="salary-error">{formError}</p>}
+
+          <div className="salary-form-actions">
+            <button type="button" className="primary" onClick={handleProfitWithdraw}>
+              Withdraw
+            </button>
+          </div>
+
+          <div className="salary-history">
+            <div className="salary-history-header">
+              <h4>Previous Withdrawals</h4>
+              <p>History of admin profit split withdrawals.</p>
+            </div>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Total Amount</th>
+                  <th>Admin 1 (50%)</th>
+                  <th>Admin 2 (50%)</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {profitSplitHistory.map((entry) => (
+                  <tr key={entry.id}>
+                    <td>{new Date(entry.created_at).toLocaleDateString()}</td>
+                    <td>{formatCurrency(entry.total_amount)}</td>
+                    <td>{formatCurrency(entry.admin_one_amount)}</td>
+                    <td>{formatCurrency(entry.admin_two_amount)}</td>
+                    <td>{entry.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {otpModalOpen && (
         <div className="salary-modal-backdrop" onClick={() => setOtpModalOpen(false)}>
           <div className="salary-modal" onClick={(event) => event.stopPropagation()}>
             <h3>Disburse Salaries</h3>
             {preview && (
               <p className="salary-warning">
-                You are about to pay a total of ₦{preview.summary.total_amount.toLocaleString()} to {preview.summary.total_staff} staff.
+                You are about to pay a total of ${preview.summary.total_amount.toLocaleString()} to {preview.summary.total_staff} staff.
               </p>
             )}
             <label>
@@ -418,7 +545,7 @@ const SalaryPage = () => {
                 <ul>
                   {disbursementResult.transfers.map((transfer) => (
                     <li key={transfer.staff_id} className={transfer.status === 'success' ? 'success' : 'failed'}>
-                      <strong>{transfer.staff_name}</strong> — ₦{transfer.amount.toLocaleString()} ({transfer.status})
+                      <strong>{transfer.staff_name}</strong> — ${transfer.amount.toLocaleString()} ({transfer.status})
                       {transfer.reference && <span> • Ref: {transfer.reference}</span>}
                       {transfer.message && <span> • {transfer.message}</span>}
                     </li>

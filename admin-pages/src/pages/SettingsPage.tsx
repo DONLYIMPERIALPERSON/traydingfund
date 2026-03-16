@@ -5,7 +5,7 @@ import {
   updateAdminAllowlistEntry,
   deleteAdminAllowlistEntry,
   type AdminAllowlistEntry,
-} from '../lib/adminAuth'
+} from '../lib/adminMock'
 import './SettingsPage.css'
 
 type SettingsTab = 'addAdmin' | 'admins'
@@ -24,12 +24,10 @@ const pageIdToDisplayName: Record<string, string> = {
   accounts: 'Challenges',
   fundedAccounts: 'Funded Accounts',
   breaches: 'Breaches',
-  mt5: 'MT5',
+  mt5: 'cTrader',
   coupons: 'Coupons',
   supportTickets: 'Support Tickets',
   sendAnnouncement: 'Send Announcement',
-  emailLogs: 'Email Logs',
-  migrationRequests: 'Migration Requests',
   settings: 'Settings',
 }
 
@@ -226,7 +224,7 @@ const SettingsPage = () => {
 
             <label>
               Admin Email
-              <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="agent@nairatrader.com" />
+              <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="agent@$trader.com" />
             </label>
 
             <label>
@@ -252,7 +250,7 @@ const SettingsPage = () => {
                 checked={canAssignMt5}
                 onChange={(event) => setCanAssignMt5(event.target.checked)}
               />
-              Allow MT5 Assign
+              Allow cTrader Assign
             </label>
 
             <div className="settings-pages-block">
@@ -294,7 +292,7 @@ const SettingsPage = () => {
                   <th>Role</th>
                   <th>Status</th>
                   <th>MFA Required</th>
-                  <th>MT5 Assign</th>
+                  <th>cTrader Assign</th>
                   <th>Allowed Pages</th>
                   <th>Actions</th>
                 </tr>
@@ -407,7 +405,7 @@ const SettingsPage = () => {
                 checked={editingCanAssignMt5}
                 onChange={(event) => setEditingCanAssignMt5(event.target.checked)}
               />
-              Allow MT5 Assign
+              Allow cTrader Assign
             </label>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>

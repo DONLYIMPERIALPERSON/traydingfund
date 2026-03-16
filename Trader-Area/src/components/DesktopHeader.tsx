@@ -1,6 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { clearPersistedAuthUser, logoutFromBackend } from '../lib/auth'
+import { clearPersistedAuthUser, logoutFromBackend } from '../mocks/auth'
 import { useSidebar } from '../contexts/SidebarContext'
 
 const DesktopHeader: React.FC = () => {

@@ -9,7 +9,11 @@ const AdminHeader = ({ roleLabel = 'Admin', fullName }: AdminHeaderProps) => {
   return (
     <header className="admin-header">
       <div className="admin-header-left">
-        <img src="/white-logo.svg" alt="NairaTrader" className="admin-header-logo" />
+        <img src="/logo.webp" alt="MacheFunded" className="admin-header-logo" />
+        <span className="admin-header-wordmark">
+          <span className="admin-header-wordmark-accent">MACHE</span>
+          <span className="admin-header-wordmark-base">FUNDED</span>
+        </span>
       </div>
       <div className="admin-header-right">
         {fullName ? <span className="admin-header-email">{fullName}</span> : null}

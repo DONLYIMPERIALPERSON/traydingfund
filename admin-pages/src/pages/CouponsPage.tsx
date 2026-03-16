@@ -7,7 +7,7 @@ import {
   updateAdminCouponStatus,
   type AdminCoupon,
   type ChallengePlanConfig,
-} from '../lib/adminAuth'
+} from '../lib/adminMock'
 import './CouponsPage.css'
 
 type CouponStatus = 'Active' | 'Expired'
@@ -58,7 +58,7 @@ const CouponsPage = () => {
     if (coupon.discount_type === 'percent') {
       return `${coupon.discount_value}%`
     }
-    return `₦${coupon.discount_value.toLocaleString()}`
+    return `$${coupon.discount_value.toLocaleString()}`
   }
 
   const activeCount = useMemo(() => coupons.filter((c) => getCouponStatus(c) === 'Active').length, [coupons])
@@ -165,7 +165,7 @@ const CouponsPage = () => {
             <div className="coupon-inline-controls">
               <select value={discountType} onChange={(event) => setDiscountType(event.target.value as 'percent' | 'fixed')}>
                 <option value="percent">Percent (%)</option>
-                <option value="fixed">Fixed (₦)</option>
+                <option value="fixed">Fixed ($)</option>
               </select>
               <input
                 value={discountValue}

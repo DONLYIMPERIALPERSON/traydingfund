@@ -1,8 +1,0 @@
-YOUR OTP VALIDATION CODE
-Dear User,
-You are attempting to access a secure area that requires One-Time Password (OTP) verification. Please use the code below to proceed with your request:
-OTP Code: 681248
-This code is valid for one-time use only and will expire within five minutes. If you did not initiate this request, please ignore this message.
-Thank you for choosing our service.
-Best regards, NairaTrader Team 
-© 2026 NairaTrader. All Rights Reserved.

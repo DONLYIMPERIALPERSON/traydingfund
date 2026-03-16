@@ -5,13 +5,9 @@ import {
   fetchPayoutRequests,
   approvePayout,
   rejectPayout,
-  fetchAdminPayoutConfig,
-  updateAdminPayoutConfig,
-  sendAdminChallengeConfigOtp,
-  type PayoutConfig,
   type PayoutStats,
   type PayoutRequest
-} from '../lib/adminAuth'
+} from '../lib/adminMock'
 import './PayoutsPage.css'
 
 interface AdminUser {
@@ -33,17 +29,11 @@ const PayoutsPage = ({
 }) => {
   const [payoutRequests, setPayoutRequests] = useState<PayoutRequest[]>([])
   const [stats, setStats] = useState<PayoutStats | null>(null)
-  const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month'>('today')
+  const selectedPeriod: 'today' = 'today'
   const [activeTab, setActiveTab] = useState<'requests' | 'history'>('requests')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [generatingCertificates, setGeneratingCertificates] = useState(false)
-  const [payoutConfig, setPayoutConfig] = useState<PayoutConfig | null>(null)
-  const [configError, setConfigError] = useState<string | null>(null)
-  const [configLoading, setConfigLoading] = useState(false)
-  const [configOtp, setConfigOtp] = useState('')
-  const [configPercent, setConfigPercent] = useState('')
-  const [savingConfig, setSavingConfig] = useState(false)
 
   const fetchPayoutData = async () => {
     try {
@@ -68,30 +58,8 @@ const PayoutsPage = ({
 
   useEffect(() => {
     fetchPayoutData()
-  }, [selectedPeriod])
+  }, [])
 
-  useEffect(() => {
-    if (!isSuperAdmin) return
-    const loadConfig = async () => {
-      setConfigLoading(true)
-      setConfigError(null)
-      try {
-        const config = await fetchAdminPayoutConfig()
-        setPayoutConfig(config)
-        setConfigPercent(String(config.auto_approval_threshold_percent ?? ''))
-      } catch (err) {
-        setConfigError(err instanceof Error ? err.message : 'Failed to load payout config')
-      } finally {
-        setConfigLoading(false)
-      }
-    }
-
-    loadConfig()
-  }, [isSuperAdmin])
-
-  const handlePeriodChange = (period: 'today' | 'week' | 'month') => {
-    setSelectedPeriod(period)
-  }
 
   const requestRows = payoutRequests.filter((request) => request.status === 'pending_approval')
   const historyRows = payoutRequests.filter((request) => request.status !== 'pending_approval')
@@ -187,43 +155,6 @@ const PayoutsPage = ({
     }
   }
 
-  const handleSendConfigOtp = async () => {
-    try {
-      const result = await sendAdminChallengeConfigOtp()
-      alert(result.message || 'OTP sent. Check your admin email.')
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to send OTP')
-    }
-  }
-
-  const handleSaveConfig = async () => {
-    const percentValue = Number(configPercent)
-    if (!Number.isFinite(percentValue)) {
-      alert('Enter a valid percentage number')
-      return
-    }
-    if (!configOtp.trim()) {
-      alert('Enter the OTP sent to your email')
-      return
-    }
-
-    setSavingConfig(true)
-    setConfigError(null)
-    try {
-      const updated = await updateAdminPayoutConfig({
-        otp: configOtp.trim(),
-        auto_approval_threshold_percent: percentValue,
-      })
-      setPayoutConfig(updated)
-      setConfigPercent(String(updated.auto_approval_threshold_percent ?? ''))
-      setConfigOtp('')
-      alert('Payout auto-approval threshold updated!')
-    } catch (err) {
-      setConfigError(err instanceof Error ? err.message : 'Failed to update payout config')
-    } finally {
-      setSavingConfig(false)
-    }
-  }
 
   if (loading) {
     return (
@@ -277,89 +208,6 @@ const PayoutsPage = ({
           </div>
         </div>
 
-        {isSuperAdmin && (
-          <div style={{ marginTop: 18, borderTop: '1px solid #1f2937', paddingTop: 16 }}>
-            <h3 style={{ margin: 0, color: '#fff' }}>Auto-Approval Threshold</h3>
-            <p style={{ margin: '6px 0 12px', color: '#9ca3af' }}>
-              Payouts above this percentage of account size will require admin approval. Current: {payoutConfig?.auto_approval_threshold_percent ?? '—'}%
-            </p>
-            {configError && <p style={{ color: '#fca5a5', marginTop: 0 }}>{configError}</p>}
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-              <label style={{ display: 'grid', gap: 6, color: '#d1d5db', fontSize: 13 }}>
-                Threshold (%)
-                <input
-                  type="number"
-                  min={1}
-                  max={100}
-                  step={0.1}
-                  value={configPercent}
-                  onChange={(event) => setConfigPercent(event.target.value)}
-                  disabled={configLoading}
-                  style={{
-                    borderRadius: 8,
-                    border: '1px solid #374151',
-                    background: '#111827',
-                    color: '#fff',
-                    padding: '8px 10px',
-                    minWidth: 120,
-                  }}
-                />
-              </label>
-              <label style={{ display: 'grid', gap: 6, color: '#d1d5db', fontSize: 13 }}>
-                OTP
-                <input
-                  type="text"
-                  value={configOtp}
-                  onChange={(event) => setConfigOtp(event.target.value)}
-                  placeholder="Enter OTP"
-                  style={{
-                    borderRadius: 8,
-                    border: '1px solid #374151',
-                    background: '#111827',
-                    color: '#fff',
-                    padding: '8px 10px',
-                    minWidth: 140,
-                  }}
-                />
-              </label>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 16 }}>
-                <button
-                  type="button"
-                  onClick={handleSendConfigOtp}
-                  style={{
-                    border: '1px solid #374151',
-                    background: '#111827',
-                    color: '#e5e7eb',
-                    borderRadius: 8,
-                    padding: '8px 12px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Send OTP
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveConfig}
-                  disabled={savingConfig}
-                  style={{
-                    border: '1px solid #f59e0b',
-                    background: '#f59e0b',
-                    color: '#111827',
-                    borderRadius: 8,
-                    padding: '8px 12px',
-                    fontWeight: 700,
-                    cursor: savingConfig ? 'not-allowed' : 'pointer',
-                    opacity: savingConfig ? 0.7 : 1,
-                  }}
-                >
-                  {savingConfig ? 'Saving...' : 'Save Threshold'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Tab Selector */}
         <div style={{ marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button
@@ -390,48 +238,6 @@ const PayoutsPage = ({
           </button>
         </div>
 
-        {/* Time Period Filter */}
-        <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
-          <button
-            onClick={() => handlePeriodChange('today')}
-            style={{
-              padding: '8px 16px',
-              background: selectedPeriod === 'today' ? '#FFD700' : '#333',
-              color: selectedPeriod === 'today' ? '#000' : '#fff',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            Today
-          </button>
-          <button
-            onClick={() => handlePeriodChange('week')}
-            style={{
-              padding: '8px 16px',
-              background: selectedPeriod === 'week' ? '#FFD700' : '#333',
-              color: selectedPeriod === 'week' ? '#000' : '#fff',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            This Week
-          </button>
-          <button
-            onClick={() => handlePeriodChange('month')}
-            style={{
-              padding: '8px 16px',
-              background: selectedPeriod === 'month' ? '#FFD700' : '#333',
-              color: selectedPeriod === 'month' ? '#000' : '#fff',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            This Month
-          </button>
-        </div>
       </div>
 
       <div className="admin-kpi-grid">
@@ -445,7 +251,7 @@ const PayoutsPage = ({
         </article>
         <article className="admin-kpi-card">
           <h3>Paid {selectedPeriod === 'today' ? 'Today' : selectedPeriod === 'week' ? 'This Week' : 'This Month'}</h3>
-          <strong>{stats?.paid_today_formatted || '₦0'}</strong>
+          <strong>{stats?.paid_today_formatted || '$0'}</strong>
         </article>
         <article className="admin-kpi-card">
           <h3>Rejected</h3>

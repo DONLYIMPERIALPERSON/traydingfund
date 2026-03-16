@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { AdminUser } from './UsersPage'
-import { fetchFundedChallengeAccounts, fetchProfitableFundedAccounts, type ChallengeAccountListItem } from '../lib/adminAuth'
+import { fetchFundedChallengeAccounts, fetchProfitableFundedAccounts, type ChallengeAccountListItem } from '../lib/adminMock'
 
 interface FundedAccountsPageProps {
   onOpenProfile: (user: AdminUser) => void
@@ -138,7 +138,7 @@ const FundedAccountsPage = ({ onOpenProfile }: FundedAccountsPageProps) => {
                 <td>#{(leaderboardPage - 1) * leaderboardPageSize + index + 1}</td>
                 <td>{row.trader_name ?? `User ${row.user_id}`}</td>
                 <td>{row.account_size}</td>
-                <td>{row.profit ?? '₦0'}</td>
+                <td>{row.profit ?? '$0'}</td>
                 <td>{row.win_rate ?? '0%'}</td>
                 <td>
                   <button type="button" onClick={() => openProfileFromRow(row)}>
@@ -233,7 +233,7 @@ const FundedAccountsPage = ({ onOpenProfile }: FundedAccountsPageProps) => {
                   <td>{row.account_size}</td>
                   <td>{row.mt5_account ?? '-'}</td>
                   <td>{row.phase}</td>
-                  <td>{row.current_pnl ?? '₦0'}</td>
+                  <td>{row.current_pnl ?? '$0'}</td>
                   <td>
                     <button type="button" onClick={() => openProfileFromRow(row)}>
                       View Profile

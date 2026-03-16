@@ -11,7 +11,7 @@ import {
   type SupportChat,
   type SupportMessage,
   getPersistedAdminUser
-} from '../lib/adminAuth'
+} from '../lib/adminMock'
 
 interface SupportTicketsPageProps {
   onOpenProfile: (user: AdminUser) => void
@@ -142,9 +142,9 @@ const SupportTicketsPage = ({ onOpenProfile, initialChatId, onChatOpened }: Supp
       name: ticket.user_name,
       email: ticket.user_email,
       accounts: '1 / 0',
-      revenue: '₦0',
+      revenue: '$0',
       orders: '1',
-      payouts: '₦0',
+      payouts: '$0',
     })
   }
 

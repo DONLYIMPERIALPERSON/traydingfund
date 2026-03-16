@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { fetchAdminKycProfiles, type AdminKycProfileItem } from '../lib/adminAuth'
+import { fetchAdminKycProfiles, type AdminKycProfileItem } from '../lib/adminMock'
 import './KycReviewPage.css'
 import type { AdminUser } from './UsersPage'
 
@@ -92,9 +92,9 @@ const KycReviewPage = ({ onOpenProfile }: KycReviewPageProps) => {
                           name: row.name,
                           email: row.email,
                           accounts: `${row.total_challenge_accounts} / ${row.funded_accounts}`,
-                          revenue: '₦0',
+                          revenue: '$0',
                           orders: String(row.total_challenge_accounts),
-                          payouts: '₦0',
+                          payouts: '$0',
                         })
                       }
                     >

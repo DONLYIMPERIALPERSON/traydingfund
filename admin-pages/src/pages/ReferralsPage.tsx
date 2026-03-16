@@ -3,26 +3,21 @@ import {
   fetchAffiliateOverview,
   fetchAffiliateCommissions,
   fetchAffiliatePayouts,
-  fetchAffiliateMilestones,
   approveAffiliatePayout,
   rejectAffiliatePayout,
-  approveAffiliateMilestone,
-  rejectAffiliateMilestone,
   type AffiliateOverviewStats,
   type AffiliateCommission,
   type AffiliatePayout,
-  type AffiliateMilestone,
-} from '../lib/adminAuth'
+} from '../lib/adminMock'
 import './ReferralsPage.css'
 
 interface ReferralsPageProps {}
 
 const ReferralsPage = ({}: ReferralsPageProps) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'commissions' | 'payouts' | 'milestones'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'commissions' | 'payouts'>('overview')
   const [overview, setOverview] = useState<AffiliateOverviewStats | null>(null)
   const [commissions, setCommissions] = useState<AffiliateCommission[]>([])
   const [payouts, setPayouts] = useState<AffiliatePayout[]>([])
-  const [milestones, setMilestones] = useState<AffiliateMilestone[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -61,14 +56,6 @@ const ReferralsPage = ({}: ReferralsPageProps) => {
     }
   }
 
-  const loadMilestones = async () => {
-    try {
-      const data = await fetchAffiliateMilestones()
-      setMilestones(data.milestones)
-    } catch (err) {
-      console.error('Failed to load milestones:', err)
-    }
-  }
 
   const handleTabChange = (tab: typeof activeTab) => {
     setActiveTab(tab)
@@ -76,8 +63,6 @@ const ReferralsPage = ({}: ReferralsPageProps) => {
       loadCommissions()
     } else if (tab === 'payouts' && payouts.length === 0) {
       loadPayouts()
-    } else if (tab === 'milestones' && milestones.length === 0) {
-      loadMilestones()
     }
   }
 
@@ -104,28 +89,6 @@ const ReferralsPage = ({}: ReferralsPageProps) => {
     }
   }
 
-  const handleApproveMilestone = async (milestoneId: number) => {
-    try {
-      await approveAffiliateMilestone(milestoneId)
-      // Reload milestones
-      loadMilestones()
-      loadOverview()
-    } catch (err) {
-      alert('Failed to approve milestone')
-    }
-  }
-
-  const handleRejectMilestone = async (milestoneId: number) => {
-    const reason = prompt('Reason for rejection (optional):')
-    try {
-      await rejectAffiliateMilestone(milestoneId, reason || undefined)
-      // Reload milestones
-      loadMilestones()
-      loadOverview()
-    } catch (err) {
-      alert('Failed to reject milestone')
-    }
-  }
 
   if (loading) {
     return (
@@ -178,12 +141,6 @@ const ReferralsPage = ({}: ReferralsPageProps) => {
           >
             Payouts
           </button>
-          <button
-            className={activeTab === 'milestones' ? 'active' : ''}
-            onClick={() => handleTabChange('milestones')}
-          >
-            Milestones
-          </button>
         </div>
       </div>
 
@@ -196,19 +153,15 @@ const ReferralsPage = ({}: ReferralsPageProps) => {
             </article>
             <article className="admin-kpi-card">
               <h3>Total Commissions</h3>
-              <strong>₦{overview.total_commissions.toLocaleString()}</strong>
+              <strong>${overview.total_commissions.toLocaleString()}</strong>
             </article>
             <article className="admin-kpi-card">
               <h3>Total Paid Out</h3>
-              <strong>₦{overview.total_paid_out.toLocaleString()}</strong>
+              <strong>${overview.total_paid_out.toLocaleString()}</strong>
             </article>
             <article className="admin-kpi-card">
               <h3>Pending Payouts</h3>
-              <strong>{overview.pending_payouts_count} (₦{overview.pending_payouts_sum.toLocaleString()})</strong>
-            </article>
-            <article className="admin-kpi-card">
-              <h3>Pending Milestones</h3>
-              <strong>{overview.pending_milestones}</strong>
+              <strong>{overview.pending_payouts_count} (${overview.pending_payouts_sum.toLocaleString()})</strong>
             </article>
             <article className="admin-kpi-card">
               <h3>Unique Purchasers</h3>
@@ -220,7 +173,6 @@ const ReferralsPage = ({}: ReferralsPageProps) => {
             <h3>Admin Actions Required</h3>
             <ul className="admin-list">
               <li><strong>Pending Payouts:</strong> {overview.pending_payouts_count} payouts awaiting approval</li>
-              <li><strong>Pending Milestones:</strong> {overview.pending_milestones} milestone rewards to process</li>
               <li>Review payout requests for bank details and eligibility</li>
               <li>Monitor commission trends and affiliate performance</li>
             </ul>
@@ -251,7 +203,7 @@ const ReferralsPage = ({}: ReferralsPageProps) => {
                     <td>{commission.affiliate}</td>
                     <td>{commission.order_id}</td>
                     <td>{commission.customer}</td>
-                    <td>₦{commission.amount.toLocaleString()}</td>
+                    <td>${commission.amount.toLocaleString()}</td>
                     <td>
                       <span className={`status-chip ${commission.status.toLowerCase()}`}>
                         {commission.status}
@@ -286,7 +238,7 @@ const ReferralsPage = ({}: ReferralsPageProps) => {
                 {payouts.map((payout) => (
                   <tr key={payout.id}>
                     <td>{payout.affiliate}</td>
-                    <td>₦{payout.amount.toLocaleString()}</td>
+                    <td>${payout.amount.toLocaleString()}</td>
                     <td>
                       <span className={`status-chip ${payout.status.toLowerCase()}`}>
                         {payout.status}
@@ -321,58 +273,6 @@ const ReferralsPage = ({}: ReferralsPageProps) => {
         </div>
       )}
 
-      {activeTab === 'milestones' && (
-        <div className="admin-dashboard-card">
-          <h3>Milestone Requests</h3>
-          <div className="admin-table-card">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Affiliate</th>
-                  <th>Level</th>
-                  <th>Status</th>
-                  <th>Requested</th>
-                  <th>Processed</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {milestones.map((milestone) => (
-                  <tr key={milestone.id}>
-                    <td>{milestone.affiliate}</td>
-                    <td>{milestone.level}</td>
-                    <td>
-                      <span className={`status-chip ${milestone.status.toLowerCase()}`}>
-                        {milestone.status}
-                      </span>
-                    </td>
-                    <td>{milestone.requested_at}</td>
-                    <td>{milestone.processed_at || 'N/A'}</td>
-                    <td>
-                      {milestone.status === 'pending' && (
-                        <div className="action-buttons">
-                          <button
-                            className="approve-btn"
-                            onClick={() => handleApproveMilestone(milestone.id)}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            className="reject-btn"
-                            onClick={() => handleRejectMilestone(milestone.id)}
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
     </section>
   )
 }

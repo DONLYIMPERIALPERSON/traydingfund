@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
-import { fetchAdminUsers, type AdminUsersListItem } from '../lib/adminAuth'
+import { fetchAdminUsers, type AdminUsersListItem } from '../lib/adminMock'
 import './UsersPage.css'
 
 export interface AdminUser {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { AdminUser } from './UsersPage'
-import { fetchBreachedChallengeAccounts, type ChallengeBreachListItem } from '../lib/adminAuth'
+import { fetchBreachedChallengeAccounts, type ChallengeBreachListItem } from '../lib/adminMock'
 
 interface BreachesPageProps {
   onOpenProfile: (user: AdminUser) => void

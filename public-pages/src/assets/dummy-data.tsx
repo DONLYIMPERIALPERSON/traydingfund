@@ -1,102 +1,93 @@
 export const plansData = [
     {
-        id: '200k',
-        name: '₦200k Account',
-        price: '₦8,900',
+        id: '2k',
+        name: '$2,000 Account',
+        price: '$12',
         desc: 'MT5 Account',
         credits: 'challenge fee',
         features: [
-            'Max Drawdown: 20%',
-            'Profit Target: 10%',
-            'Phases: 2',
-            'Min. Trading Days: 1',
-            'Profit Split: 70%',
-            'Profit Cap: 100%',
-            '1 Minute Payout'
+            'Max Drawdown: 15%',
+            'Phase 1 Target: 10%',
+            'Phase 2 Target: 5%',
+            'Profit Split: 80%',
+            'Withdrawals: Weekly',
+            'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach'
         ]
     },
     {
-        id: '400k',
-        name: '₦400k Account',
-        price: '₦18,500',
+        id: '10k',
+        name: '$10,000 Account',
+        price: '$81',
         desc: 'MT5 Account',
         credits: 'challenge fee',
         features: [
-            'Max Drawdown: 20%',
-            'Profit Target: 10%',
-            'Phases: 2',
-            'Min. Trading Days: 1',
-            'Profit Split: 70%',
-            'Profit Cap: 100%',
-            '1 Minute Payout'
+            'Max Drawdown: 15%',
+            'Phase 1 Target: 10%',
+            'Phase 2 Target: 5%',
+            'Profit Split: 80%',
+            'Withdrawals: Weekly',
+            'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach'
         ],
         popular: true
     },
     {
-        id: '600k',
-        name: '₦600k Account',
-        price: '₦28,000',
+        id: '30k',
+        name: '$30,000 Account',
+        price: '$163',
         desc: 'MT5 Account',
         credits: 'challenge fee',
         features: [
-            'Max Drawdown: 20%',
-            'Profit Target: 10%',
-            'Phases: 2',
-            'Min. Trading Days: 1',
-            'Profit Split: 70%',
-            'Profit Cap: 100%',
-            '1 Minute Payout'
+            'Max Drawdown: 15%',
+            'Phase 1 Target: 10%',
+            'Phase 2 Target: 5%',
+            'Profit Split: 80%',
+            'Withdrawals: Weekly',
+            'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach'
         ]
     },
     {
-        id: '800k',
-        name: '₦800k Account',
-        price: '₦38,000',
+        id: '50k',
+        name: '$50,000 Account',
+        price: '$203',
         desc: 'MT5 Account',
         credits: 'challenge fee',
         features: [
-            'Max Drawdown: 20%',
-            'Profit Target: 10%',
-            'Phases: 2',
-            'Min. Trading Days: 1',
-            'Profit Split: 70%',
-            'Profit Cap: 100%',
-            '1 Minute Payout'
+            'Max Drawdown: 15%',
+            'Phase 1 Target: 10%',
+            'Phase 2 Target: 5%',
+            'Profit Split: 80%',
+            'Withdrawals: Weekly',
+            'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach'
         ]
     },
     {
-        id: '1.5m',
-        name: '₦1.5m Account',
-        price: '₦99,000',
+        id: '100k',
+        name: '$100,000 Account',
+        price: '$354',
         desc: 'MT5 Account',
         credits: 'challenge fee',
         features: [
-            'Max Drawdown: 20%',
-            'Profit Target: 10%',
-            'Phases: 2',
-            'Min. Trading Days: 1',
-            'Profit Split: 70%',
-            'Profit Cap: 50%',
-            'Max Payout: 50%',
-            '1 Minute Payout'
+            'Max Drawdown: 15%',
+            'Phase 1 Target: 10%',
+            'Phase 2 Target: 5%',
+            'Profit Split: 80%',
+            'Withdrawals: Weekly',
+            'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach'
         ]
     },
     {
-        id: '3m',
-        name: '₦3m Account',
-        price: '₦180,000',
-        desc: 'MT5 Account (Paused)',
+        id: '200k',
+        name: '$200,000 Account',
+        price: '$681',
+        desc: 'MT5 Account',
         credits: 'challenge fee',
         features: [
-            'Max Drawdown: 20%',
-            'Profit Target: 10%',
-            'Phases: 2',
-            'Min. Trading Days: 1',
-            'Profit Split: 70%',
-            'Profit Cap: 50%',
-            'Max Payout: 50%',
-            '1 Minute Payout',
-            'Status: Paused'
+            'Max Drawdown: 15%',
+            'Phase 1 Target: 10%',
+            'Phase 2 Target: 5%',
+            'Profit Split: 80%',
+            'Withdrawals: Weekly',
+            'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach'
         ]
     }
 ];

@@ -1,7 +1,7 @@
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useSidebar } from '../contexts/SidebarContext'
-import { clearPersistedAuthUser, logoutFromBackend } from '../lib/auth'
+import { clearPersistedAuthUser, logoutFromBackend } from '../mocks/auth'
 
 interface NavItemType {
   label: string

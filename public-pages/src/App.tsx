@@ -5,8 +5,6 @@ import RulesPage from './pages/RulesPage';
 import ContactPage from './pages/ContactPage';
 import Footer from './components/Footer';
 
-const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_URL;
-
 function App() {
 	useEffect(() => {
 		const path = window.location.pathname;
@@ -15,19 +13,8 @@ function App() {
 		const code = path.split('/ref/')[1]?.split('/')[0]?.trim();
 		if (!code) return;
 
-		if (!BACKEND_BASE_URL) {
-			window.location.replace('/');
-			return;
-		}
-
-		fetch(`${BACKEND_BASE_URL}/affiliate/click?affiliate_code=${encodeURIComponent(code)}`,
-			{ method: 'POST' })
-			.catch(() => {
-				// ignore tracking errors
-			})
-			.finally(() => {
-				window.location.replace('/');
-			});
+		// Backend tracking removed; keep referral routing client-side for now.
+		window.location.replace('/');
 	}, []);
 
 	const isRulesPage = window.location.pathname === '/rules';

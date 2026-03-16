@@ -1,1 +1,0 @@
-"""NairaTrader backend package."""

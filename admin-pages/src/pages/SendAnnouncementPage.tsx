@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { sendAnnouncement, sendTestAnnouncement, type SendAnnouncementResponse } from '../lib/adminAuth'
+import { sendAnnouncement, sendTestAnnouncement, type SendAnnouncementResponse } from '../lib/adminMock'
 import './SendAnnouncementPage.css'
 
 const SendAnnouncementPage = () => {
@@ -151,9 +151,9 @@ const SendAnnouncementPage = () => {
             borderRadius: 4,
             marginTop: 8
           }}>
-            <strong>From:</strong> NairaTrader Team<br/>
+            <strong>From:</strong> Machefunded Team<br/>
             <strong>Subject:</strong> 📢 [Your Subject]<br/>
-            <strong>Template:</strong> Professional NairaTrader branded email
+            <strong>Template:</strong> Professional Machefunded branded email
           </div>
         </div>
       </div>

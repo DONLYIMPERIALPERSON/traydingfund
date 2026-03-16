@@ -17,12 +17,9 @@ import FinanceAnalysisPage from './pages/FinanceAnalysisPage'
 import CouponsPage from './pages/CouponsPage'
 import SupportTicketsPage from './pages/SupportTicketsPage'
 import SettingsPage from './pages/SettingsPage'
-import WorkBoardPage from './pages/WorkBoardPage'
-import MT5Page from './pages/MT5Page'
+import CTraderPage from './pages/CTraderPage'
 import SendAnnouncementPage from './pages/SendAnnouncementPage'
-import EmailLogsPage from './pages/EmailLogsPage'
 import SalaryPage from './pages/SalaryPage'
-import MigrationRequestsPage from './pages/MigrationRequestsPage'
 import {
   adminLoginWithBackend,
   clearPersistedAdminUser,
@@ -31,11 +28,11 @@ import {
   logoutAdmin,
   persistAdminUser,
   type AdminAuthMeResponse,
-} from './lib/adminAuth'
+} from './lib/adminMock'
 import AdminAuthCard from './components/AdminAuthCard'
 import './App.css'
 
-type AdminPage = 'analysis' | 'users' | 'accounts' | 'fundedAccounts' | 'breaches' | 'orders' | 'payouts' | 'userProfile' | 'kycReview' | 'referrals' | 'financeAnalysis' | 'coupons' | 'supportTickets' | 'settings' | 'workBoard' | 'mt5' | 'sendAnnouncement' | 'migrationRequests' | 'emailLogs' | 'salary'
+type AdminPage = 'analysis' | 'users' | 'accounts' | 'fundedAccounts' | 'breaches' | 'orders' | 'payouts' | 'userProfile' | 'kycReview' | 'referrals' | 'financeAnalysis' | 'coupons' | 'supportTickets' | 'settings' | 'mt5' | 'sendAnnouncement' | 'salary'
 
 const DEFAULT_SESSION_REFRESH_INTERVAL_MS = 5 * 60 * 1000
 
@@ -135,7 +132,7 @@ function App() {
   useEffect(() => {
     if (!authUser || authUser.role === 'super_admin' || !authUser.allowed_pages) return;
 
-    const possiblePages = ['analysis', 'users', 'accounts', 'fundedAccounts', 'breaches', 'orders', 'payouts', 'kycReview', 'referrals', 'financeAnalysis', 'coupons', 'supportTickets', 'settings', 'workBoard', 'mt5', 'sendAnnouncement', 'migrationRequests', 'emailLogs', 'salary'];
+    const possiblePages = ['analysis', 'users', 'accounts', 'fundedAccounts', 'breaches', 'orders', 'payouts', 'kycReview', 'referrals', 'financeAnalysis', 'coupons', 'supportTickets', 'settings', 'mt5', 'sendAnnouncement', 'salary'];
     const firstAllowed = possiblePages.find(page => authUser.allowed_pages?.includes(page) ?? false);
     if (!firstAllowed) {
       setAuthError('No pages assigned to this admin account.');
@@ -260,7 +257,7 @@ function App() {
     return (
       <div className="admin-auth-page">
         <div className="admin-auth-card">
-          <img src="/white-logo.svg" alt="NairaTrader" className="admin-auth-logo" />
+          <img src="/logo.png" alt="Machefunded" className="admin-auth-logo" />
           <h1>Admin Sign In</h1>
 
           <AdminAuthCard
@@ -307,13 +304,12 @@ function App() {
             </div>
           )}
           {!authError && activePage === 'analysis' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('analysis'))) && <DashboardPage onNavigate={setActivePage} />}
-          {!authError && activePage === 'workBoard' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('workBoard'))) && <WorkBoardPage />}
           {!authError && activePage === 'users' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('users'))) && <UsersPage onOpenProfile={handleOpenUserProfile} />}
           {!authError && activePage === 'accounts' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('accounts'))) && <AccountsPage onOpenProfile={handleOpenUserProfile} />}
           {!authError && activePage === 'fundedAccounts' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('fundedAccounts'))) && <FundedAccountsPage onOpenProfile={handleOpenUserProfile} />}
           {!authError && activePage === 'breaches' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('breaches'))) && <BreachesPage onOpenProfile={handleOpenUserProfile} />}
           {!authError && activePage === 'mt5' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('mt5'))) && (
-            <MT5Page
+            <CTraderPage
               isSuperAdmin={authUser.role === 'super_admin'}
               canAssignMt5={Boolean(authUser.can_assign_mt5)}
             />
@@ -330,7 +326,6 @@ function App() {
           {!authError && activePage === 'financeAnalysis' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('financeAnalysis'))) && <FinanceAnalysisPage />}
           {!authError && activePage === 'coupons' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('coupons'))) && <CouponsPage />}
           {!authError && activePage === 'sendAnnouncement' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('sendAnnouncement'))) && <SendAnnouncementPage />}
-          {!authError && activePage === 'emailLogs' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('emailLogs'))) && <EmailLogsPage />}
           {!authError && activePage === 'salary' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('salary'))) && <SalaryPage />}
           {!authError && activePage === 'supportTickets' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('supportTickets'))) && (
             <SupportTicketsPage
@@ -342,7 +337,6 @@ function App() {
           {!authError && activePage === 'settings' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('settings'))) && <SettingsPage />}
           {!authError && activePage === 'kycReview' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('kycReview'))) && <KycReviewPage onOpenProfile={handleOpenUserProfile} />}
           {!authError && activePage === 'referrals' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('referrals'))) && <ReferralsPage />}
-          {!authError && activePage === 'migrationRequests' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('migrationRequests'))) && <MigrationRequestsPage />}
           {!authError && activePage === 'userProfile' && selectedUser && (
             <UserProfilePage
               user={selectedUser}
@@ -350,7 +344,7 @@ function App() {
               onOpenSupportChat={handleOpenSupportChat}
             />
           )}
-          {!authError && !['analysis', 'workBoard', 'users', 'accounts', 'fundedAccounts', 'breaches', 'mt5', 'orders', 'payouts', 'financeAnalysis', 'coupons', 'sendAnnouncement', 'supportTickets', 'settings', 'kycReview', 'referrals', 'migrationRequests', 'userProfile', 'emailLogs', 'salary'].includes(activePage) && (
+          {!authError && !['analysis', 'users', 'accounts', 'fundedAccounts', 'breaches', 'mt5', 'orders', 'payouts', 'financeAnalysis', 'coupons', 'sendAnnouncement', 'supportTickets', 'settings', 'kycReview', 'referrals', 'userProfile', 'salary'].includes(activePage) && (
             <div className="admin-no-access">
               <h2>Access Denied</h2>
               <p>You do not have permission to access this page. Please select an available page from the sidebar.</p>

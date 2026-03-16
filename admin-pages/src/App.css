@@ -1,12 +1,8 @@
 .admin-dashboard-page {
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background-image:
-    radial-gradient(900px 450px at 50% 8%, rgba(255, 255, 255, 0.14), transparent 65%),
-    radial-gradient(500px 260px at 88% 82%, rgba(255, 255, 255, 0.10), transparent 70%),
-    linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 
 .admin-auth-page {
@@ -15,21 +11,17 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background-image:
-    radial-gradient(900px 450px at 50% 8%, rgba(255, 255, 255, 0.14), transparent 65%),
-    radial-gradient(500px 260px at 88% 82%, rgba(255, 255, 255, 0.10), transparent 70%),
-    linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 
 .admin-auth-card {
   width: min(100%, 520px);
   border-radius: 20px;
-  border: 1px solid rgba(250, 204, 21, 0.22);
-  background: linear-gradient(180deg, rgba(14, 14, 14, 0.92) 0%, rgba(7, 7, 7, 0.96) 100%);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.2);
   padding: 26px;
   color: #fff;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(16px);
 }
 
 .admin-auth-card h1 {
@@ -102,14 +94,14 @@
 }
 
 .admin-auth-primary-btn {
-  border: 1px solid #facc15;
-  background: linear-gradient(180deg, #facc15 0%, #eab308 100%);
-  color: #141414;
+  border: 1px solid #ffd700;
+  background: linear-gradient(180deg, #ffd700 0%, #ffc107 100%);
+  color: #0b0b0b;
 }
 
 .admin-auth-secondary-btn {
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
   color: #fff;
 }
 
@@ -122,7 +114,7 @@
 .admin-auth-reset-btn {
   margin-top: 10px;
   border: 1px solid rgba(255, 255, 255, 0.28);
-  background: transparent;
+  background: rgba(255, 255, 255, 0.12);
   color: #fff;
   border-radius: 8px;
   padding: 8px 12px;
@@ -145,8 +137,8 @@
 }
 
 .admin-dashboard-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 16px;
   padding: 20px;
   color: #fff;
@@ -207,8 +199,8 @@
 }
 
 .admin-kpi-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 14px;
   padding: 14px;
   color: #fff;
@@ -235,8 +227,8 @@
 }
 
 .admin-table-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 14px;
   overflow: hidden;
 }
@@ -245,9 +237,9 @@
   margin: 12px 20px 0;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(250, 204, 21, 0.3);
-  background: rgba(250, 204, 21, 0.12);
-  color: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  background: rgba(255, 215, 0, 0.15);
+  color: rgba(255, 255, 255, 0.96);
   font-size: 13px;
 }
 
@@ -261,7 +253,7 @@
 .admin-table td {
   text-align: left;
   padding: 12px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .admin-table th {

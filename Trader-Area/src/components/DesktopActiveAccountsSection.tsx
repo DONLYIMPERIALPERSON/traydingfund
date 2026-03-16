@@ -1,6 +1,6 @@
 import React from 'react'
 import DesktopAccountCard from './DesktopAccountCard'
-import type { UserChallengeAccountListItem } from '../lib/auth'
+import type { UserChallengeAccountListItem } from '../mocks/auth'
 
 type DesktopActiveAccountsSectionProps = {
   accounts: UserChallengeAccountListItem[]

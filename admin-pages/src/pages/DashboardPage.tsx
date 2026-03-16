@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { fetchDashboardStats } from '../lib/adminAuth'
+import { fetchDashboardStats } from '../lib/adminMock'
 import './DashboardPage.css'
 
 interface DashboardPageProps {
@@ -132,70 +132,16 @@ const DashboardPage = ({ onNavigate }: DashboardPageProps) => {
     )
   }
 
-  const { kpis, operationsQueues, challengeOutcomes, accountCounts, supportOverview, systemHealth } = dashboardData
+  const { kpis } = dashboardData
 
   return (
     <section className="analysis-dashboard admin-page-stack">
-      <header className="analysis-topbar admin-dashboard-card">
-        <div className="analysis-topbar-filters">
-          <label>
-            Date Range
-            <select>
-              <option>Today</option>
-              <option>7d</option>
-              <option>30d</option>
-              <option>Custom</option>
-            </select>
-          </label>
-          <label>
-            Segment
-            <select>
-              <option>All</option>
-              <option>Challenge Phase 1</option>
-              <option>Challenge Phase 2</option>
-              <option>Funded</option>
-            </select>
-          </label>
-          <label>
-            Plan
-            <select>
-              <option>All Plans</option>
-              <option>$10k 1-Step</option>
-              <option>$50k 2-Step</option>
-              <option>$100k 2-Step</option>
-            </select>
-          </label>
-          <label>
-            Server
-            <select>
-              <option>All Servers</option>
-              <option>MT5-Live-01</option>
-              <option>MT5-Live-02</option>
-              <option>cTrader-Live</option>
-            </select>
-          </label>
-        </div>
-
-        <div className="analysis-topbar-actions">
-          <button type="button" onClick={() => onNavigate('coupons')}>Create Coupon</button>
-          <button type="button" onClick={() => onNavigate('sendAnnouncement')}>Send Announcement</button>
-        </div>
-      </header>
-
       <div className="admin-kpi-grid analysis-kpi-grid">
         <article className="admin-kpi-card analysis-kpi-card">
           <h3>Total Revenue</h3>
           <strong>{kpis.totalRevenue}</strong>
           <p className={`kpi-meta ${getChangeClass(kpis.totalRevenueChange)}`}>
             {getChangeText(kpis.totalRevenueChange)} vs prev
-          </p>
-          <span className="kpi-sparkline" />
-        </article>
-        <article className="admin-kpi-card analysis-kpi-card">
-          <h3>Today's Sales</h3>
-          <strong>{kpis.todaySales}</strong>
-          <p className={`kpi-meta ${getChangeClass(kpis.todaySalesChange)}`}>
-            {getChangeText(kpis.todaySalesChange)} vs yesterday
           </p>
           <span className="kpi-sparkline" />
         </article>
@@ -208,7 +154,15 @@ const DashboardPage = ({ onNavigate }: DashboardPageProps) => {
           <span className="kpi-sparkline" />
         </article>
         <article className="admin-kpi-card analysis-kpi-card">
-          <h3>New Signups</h3>
+          <h3>Today's Revenue</h3>
+          <strong>{kpis.todaySales}</strong>
+          <p className={`kpi-meta ${getChangeClass(kpis.todaySalesChange)}`}>
+            {getChangeText(kpis.todaySalesChange)} vs yesterday
+          </p>
+          <span className="kpi-sparkline" />
+        </article>
+        <article className="admin-kpi-card analysis-kpi-card">
+          <h3>Today's Payout</h3>
           <strong>{kpis.newSignups.toLocaleString()}</strong>
           <p className={`kpi-meta ${getChangeClass(kpis.newSignupsChange)}`}>
             {getChangeText(kpis.newSignupsChange)} vs prev
@@ -224,7 +178,7 @@ const DashboardPage = ({ onNavigate }: DashboardPageProps) => {
           <span className="kpi-sparkline" />
         </article>
         <article className="admin-kpi-card analysis-kpi-card">
-          <h3>Pass Rate</h3>
+          <h3>Active Funded Accounts</h3>
           <strong>{kpis.passRate}</strong>
           <p className={`kpi-meta ${getChangeClass(kpis.passRateChange)}`}>
             {getChangeText(kpis.passRateChange)} vs prev
@@ -240,35 +194,13 @@ const DashboardPage = ({ onNavigate }: DashboardPageProps) => {
           <span className="kpi-sparkline" />
         </article>
         <article className="admin-kpi-card analysis-kpi-card">
-          <h3>Today's Approved Payouts</h3>
+          <h3>Today's Breached Account</h3>
           <strong>{kpis.todayApprovedPayouts}</strong>
           <p className={`kpi-meta ${getChangeClass(kpis.todayApprovedPayoutsChange)}`}>
             {getChangeText(kpis.todayApprovedPayoutsChange)} vs prev
           </p>
           <span className="kpi-sparkline" />
         </article>
-      </div>
-
-      <div className="admin-dashboard-card">
-        <h3>Operations Queues</h3>
-        <div className="ops-queue-grid">
-<article className="ops-tile">
-  <h4>Payouts Pending Review</h4>
-  <strong>{operationsQueues.payoutsPendingReview}</strong>
-  <p>Oldest: {operationsQueues.payoutsOldestHours}h</p>
-  <span className={`sla ${getSLAStatus(operationsQueues.payoutsOldestHours).status}`}>
-    {getSLAStatus(operationsQueues.payoutsOldestHours).text}
-  </span>
-</article>
-<article className="ops-tile">
-  <h4>Support Tickets Open</h4>
-  <strong>{operationsQueues.supportTicketsOpen}</strong>
-  <p>Oldest: {operationsQueues.supportTicketsOldestHours}h</p>
-  <span className={`sla ${getSLAStatus(operationsQueues.supportTicketsOldestHours).status}`}>
-    {getSLAStatus(operationsQueues.supportTicketsOldestHours).text}
-  </span>
-</article>
-        </div>
       </div>
 
       <div className="analysis-two-col">
@@ -306,79 +238,6 @@ const DashboardPage = ({ onNavigate }: DashboardPageProps) => {
         </div>
       </div>
 
-      <div className="admin-dashboard-card">
-        <h3>Challenge Outcomes</h3>
-        <ul className="analysis-rule-list">
-          <li><span>Passed</span><strong>{challengeOutcomes.passed}</strong></li>
-          <li><span>Failed</span><strong>{challengeOutcomes.failed}</strong></li>
-          <li><span>Expired</span><strong>{challengeOutcomes.expired}</strong></li>
-        </ul>
-      </div>
-
-      <div className="admin-dashboard-card">
-        <h3>Account Counts by Stage</h3>
-        <ul className="analysis-rule-list">
-          <li><span>Ready</span><strong>{accountCounts.ready}</strong></li>
-          <li><span>Phase 1</span><strong>{accountCounts.phase1}</strong></li>
-          <li><span>Phase 2</span><strong>{accountCounts.phase2}</strong></li>
-          <li><span>Funded</span><strong>{accountCounts.funded}</strong></li>
-        </ul>
-      </div>
-
-      <div className="analysis-two-col">
-        <div className="admin-dashboard-card">
-          <h3>Support Overview</h3>
-          <ul className="analysis-rule-list">
-            <li><span>Open Tickets</span><strong>{supportOverview.openTickets}</strong></li>
-            <li><span>Avg First Response</span><strong>{supportOverview.avgFirstResponse}</strong></li>
-            <li><span>Avg Resolution</span><strong>{supportOverview.avgResolution}</strong></li>
-          </ul>
-        </div>
-
-        <div className="admin-dashboard-card">
-          <h3>System Health</h3>
-          <div className="status-grid">
-            <span className={`status-chip ${getSystemHealthStatus(systemHealth.brokerBridge)}`}>
-              Broker Bridge: {systemHealth.brokerBridge}
-            </span>
-            <span className={`status-chip ${getSystemHealthStatus(systemHealth.tradeIngestionLag)}`}>
-              Trade Ingestion Lag: {systemHealth.tradeIngestionLag}
-            </span>
-            <span className={`status-chip ${getSystemHealthStatus(systemHealth.webhooksSuccess)}`}>
-              Webhooks Success: {systemHealth.webhooksSuccess}
-            </span>
-            <span className={`status-chip ${getSystemHealthStatus(systemHealth.emailBounce)}`}>
-              Email Bounce: {systemHealth.emailBounce}
-            </span>
-            <span className={`status-chip ${getSystemHealthStatus(systemHealth.kycProvider)}`}>
-              KYC Provider: {systemHealth.kycProvider}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="admin-dashboard-card">
-        <h3>Recent System Events</h3>
-        <p className="analysis-note">System event logs will be available once logging is fully implemented</p>
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>Service</th>
-              <th>Severity</th>
-              <th>Message</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
-                No recent system events
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
     </section>
   )
 }

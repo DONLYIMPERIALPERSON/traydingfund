@@ -8,7 +8,7 @@ import {
   createUserAccount,
   loginWithBackend,
   persistAuthUser,
-} from '../lib/firebaseAuth'
+} from '../mocks/firebaseAuth'
 import './FirebaseAuthCard.css'
 
 type FirebaseAuthCardProps = {
@@ -105,7 +105,7 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
       // Sign in existing user
       const user = await signInUser(email.trim(), password.trim())
 
-      // Login with backend
+      // Login with mock auth
       const userProfile = await loginWithBackend()
       persistAuthUser(userProfile)
       navigate('/')
@@ -172,7 +172,7 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
       // Create new account
       const user = await createUserAccount(email.trim(), password.trim())
 
-      // Login with backend
+      // Login with mock auth
       const userProfile = await loginWithBackend()
       persistAuthUser(userProfile)
       navigate('/')

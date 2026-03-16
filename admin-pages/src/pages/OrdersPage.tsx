@@ -3,11 +3,10 @@ import type { AdminUser } from './UsersPage'
 import {
   fetchOrderStats,
   fetchOrders,
-  queryPendingOrders,
   queryOrderStatus,
   type OrderStats,
   type Order,
-} from '../lib/adminAuth'
+} from '../lib/adminMock'
 
 interface OrdersPageProps {
   onOpenProfile: (user: AdminUser) => void
@@ -21,11 +20,11 @@ const OrdersPage = ({ onOpenProfile, isSuperAdmin }: OrdersPageProps & { isSuper
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [statsLoading, setStatsLoading] = useState(true)
+  const [todayStats, setTodayStats] = useState<OrderStats | null>(null)
+  const [todayStatsLoading, setTodayStatsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [queryingOrderId, setQueryingOrderId] = useState<number | null>(null)
-  const [queryPendingLoading, setQueryPendingLoading] = useState(false)
-  const [queryPendingMessage, setQueryPendingMessage] = useState<string>('')
   const [searchEmail, setSearchEmail] = useState('')
 
   const loadStats = async (period: 'today' | 'week' | 'month') => {
@@ -37,6 +36,18 @@ const OrdersPage = ({ onOpenProfile, isSuperAdmin }: OrdersPageProps & { isSuper
       console.error('Failed to fetch stats:', error)
     } finally {
       setStatsLoading(false)
+    }
+  }
+
+  const loadTodayStats = async () => {
+    try {
+      setTodayStatsLoading(true)
+      const data = await fetchOrderStats('today')
+      setTodayStats(data)
+    } catch (error) {
+      console.error('Failed to fetch today stats:', error)
+    } finally {
+      setTodayStatsLoading(false)
     }
   }
 
@@ -62,6 +73,7 @@ const OrdersPage = ({ onOpenProfile, isSuperAdmin }: OrdersPageProps & { isSuper
   useEffect(() => {
     if (isSuperAdmin) {
       void loadStats(statsPeriod)
+      void loadTodayStats()
     }
     void loadOrders(1, statsPeriod)
   }, [statsPeriod, isSuperAdmin])
@@ -136,25 +148,6 @@ const OrdersPage = ({ onOpenProfile, isSuperAdmin }: OrdersPageProps & { isSuper
     }
   }
 
-  const handleQueryPending = async () => {
-    setQueryPendingLoading(true)
-    setQueryPendingMessage('')
-    try {
-      const result = await queryPendingOrders()
-      setQueryPendingMessage(
-        `Checked ${result.total_checked} pending orders. Updated ${result.updated}, failed ${result.failed}.`
-      )
-      if (isSuperAdmin) {
-        await loadStats(statsPeriod)
-      }
-      await loadOrders(currentPage)
-    } catch (error) {
-      console.error('Failed to query pending orders:', error)
-      setQueryPendingMessage('Failed to query pending orders. Please try again.')
-    } finally {
-      setQueryPendingLoading(false)
-    }
-  }
 
   return (
     <section className="admin-page-stack">
@@ -165,14 +158,6 @@ const OrdersPage = ({ onOpenProfile, isSuperAdmin }: OrdersPageProps & { isSuper
             <p>Track plan purchases and payment processing status.</p>
           </div>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <button
-              type="button"
-              className="period-selector-large"
-              onClick={() => void handleQueryPending()}
-              disabled={queryPendingLoading}
-            >
-              {queryPendingLoading ? 'Querying Pending...' : 'Query Pending Transactions'}
-            </button>
             <input
               type="search"
               value={searchEmail}
@@ -210,28 +195,14 @@ const OrdersPage = ({ onOpenProfile, isSuperAdmin }: OrdersPageProps & { isSuper
       {isSuperAdmin && (
         <div className="admin-kpi-grid">
           <article className="admin-kpi-card">
+            <h3>Today's Orders</h3>
+            <strong>{todayStatsLoading ? '...' : todayStats?.total_orders ?? 0}</strong>
+            <p className="kpi-meta">Amount: {todayStatsLoading ? '...' : todayStats?.total_volume_formatted ?? '$0'}</p>
+          </article>
+          <article className="admin-kpi-card">
             <h3>Total Orders</h3>
             <strong>{statsLoading ? '...' : stats?.total_orders ?? 0}</strong>
-          </article>
-          <article className="admin-kpi-card">
-            <h3>Paid Orders</h3>
-            <strong>{statsLoading ? '...' : stats?.paid_orders ?? 0}</strong>
-          </article>
-          <article className="admin-kpi-card">
-            <h3>Pending Orders</h3>
-            <strong>{statsLoading ? '...' : stats?.pending_orders ?? 0}</strong>
-          </article>
-          <article className="admin-kpi-card">
-            <h3>Failed Orders</h3>
-            <strong>{statsLoading ? '...' : stats?.failed_orders ?? 0}</strong>
-          </article>
-          <article className="admin-kpi-card">
-            <h3>Total Volume</h3>
-            <strong>{statsLoading ? '...' : stats?.total_volume_formatted ?? '₦0'}</strong>
-          </article>
-          <article className="admin-kpi-card">
-            <h3>Success Rate</h3>
-            <strong>{statsLoading ? '...' : stats?.success_rate_formatted ?? '0%'}</strong>
+            <p className="kpi-meta">Amount: {statsLoading ? '...' : stats?.total_volume_formatted ?? '$0'}</p>
           </article>
         </div>
       )}
@@ -240,11 +211,6 @@ const OrdersPage = ({ onOpenProfile, isSuperAdmin }: OrdersPageProps & { isSuper
         <div className="table-header">
           <h3>Recent Orders</h3>
         </div>
-        {queryPendingMessage && (
-          <div className="notice" style={{ marginBottom: '12px' }}>
-            {queryPendingMessage}
-          </div>
-        )}
         {loading ? (
           <div className="loading-state">Loading orders...</div>
         ) : (

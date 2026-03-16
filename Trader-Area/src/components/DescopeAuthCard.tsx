@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { loginWithBackend, persistAuthUser } from '../lib/auth'
+import { loginWithBackend, persistAuthUser } from '../mocks/auth'
 import './DescopeAuthCard.css'
 
 type DescopeAuthCardProps = {

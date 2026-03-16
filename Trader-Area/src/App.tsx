@@ -1,49 +1,49 @@
 import React from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { SidebarProvider } from './contexts/SidebarContext'
-import HomeDesktop from './pages/HomeDesktop'
-import DesktopAccountDetailsPage from './pages/DesktopAccountDetailsPage'
-import DesktopSupportPage from './pages/DesktopSupportPage'
-import DesktopTradingAccountsPage from './pages/DesktopTradingAccountsPage'
-import DesktopPayoutPage from './pages/DesktopPayoutPage'
-import DesktopAffiliatePage from './pages/DesktopAffiliatePage'
-import DesktopContactPage from './pages/DesktopContactPage'
-import DesktopProfilePage from './pages/DesktopProfilePage'
-import DesktopSettingsPage from './pages/DesktopSettingsPage'
-import DesktopCertificatePage from './pages/DesktopCertificatePage'
-import DesktopKYCPage from './pages/DesktopKYCPage'
-import DesktopLeaderboardPage from './pages/DesktopLeaderboardPage'
-import DesktopAccountOverviewPage from './pages/DesktopAccountOverviewPage'
-import DesktopStatisticsPage from './pages/DesktopStatisticsPage'
-import DesktopCredentialsPage from './pages/DesktopCredentialsPage'
-import DesktopStartChallengePage from './pages/DesktopStartChallengePage'
-import DesktopLoginPage from './pages/DesktopLoginPage'
+import HomePage from './pages/HomePage'
+import AccountDetailsPage from './pages/AccountDetailsPage'
+import SupportPage from './pages/SupportPage'
+import TradingAccountsPage from './pages/TradingAccountsPage'
+import StartChallengePage from './pages/StartChallengePage'
+import PayoutPage from './pages/PayoutPage'
+import AffiliatePage from './pages/AffiliatePage'
+import ContactPage from './pages/ContactPage'
+import ProfilePage from './pages/ProfilePage'
+import SettingsPage from './pages/SettingsPage'
+import CertificatePage from './pages/CertificatePage'
+import KYCPage from './pages/KYCPage'
+import LeaderboardPage from './pages/LeaderboardPage'
+import AccountOverviewPage from './pages/AccountOverviewPage'
+import StatisticsPage from './pages/StatisticsPage'
+import CredentialsPage from './pages/CredentialsPage'
+import LoginPage from './pages/LoginPage'
 function App() {
   return (
     <SidebarProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<HomeDesktop />} />
-          <Route path="/login" element={<DesktopLoginPage />} />
-          <Route path="/register" element={<DesktopLoginPage />} />
-          <Route path="/account-details" element={<DesktopAccountDetailsPage />} />
-          <Route path="/support" element={<DesktopSupportPage />} />
-          <Route path="/support/chat/:chatId" element={<DesktopSupportPage />} />
-          <Route path="/trading-accounts" element={<DesktopTradingAccountsPage />} />
-          <Route path="/start-challenge" element={<DesktopStartChallengePage />} />
-          <Route path="/payout" element={<DesktopPayoutPage />} />
-          <Route path="/affiliate" element={<DesktopAffiliatePage />} />
-          <Route path="/contact" element={<DesktopContactPage />} />
-          <Route path="/profile" element={<DesktopProfilePage />} />
-          <Route path="/profile/edit-name" element={<DesktopProfilePage />} />
-          <Route path="/profile/payout-details" element={<DesktopProfilePage />} />
-          <Route path="/settings" element={<DesktopSettingsPage />} />
-          <Route path="/certificates" element={<DesktopCertificatePage />} />
-          <Route path="/kyc" element={<DesktopKYCPage />} />
-          <Route path="/leaderboard" element={<DesktopLeaderboardPage />} />
-          <Route path="/account-overview" element={<DesktopAccountOverviewPage />} />
-          <Route path="/statistics" element={<DesktopStatisticsPage />} />
-          <Route path="/credentials" element={<DesktopCredentialsPage />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<LoginPage />} />
+          <Route path="/account-details" element={<AccountDetailsPage />} />
+          <Route path="/support" element={<SupportPage />} />
+          <Route path="/support/chat/:chatId" element={<SupportPage />} />
+          <Route path="/trading-accounts" element={<TradingAccountsPage />} />
+          <Route path="/start-challenge" element={<StartChallengePage />} />
+          <Route path="/payout" element={<PayoutPage />} />
+          <Route path="/affiliate" element={<AffiliatePage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/profile/edit-name" element={<ProfilePage />} />
+          <Route path="/profile/payout-details" element={<ProfilePage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/certificates" element={<CertificatePage />} />
+          <Route path="/kyc" element={<KYCPage />} />
+          <Route path="/leaderboard" element={<LeaderboardPage />} />
+          <Route path="/account-overview" element={<AccountOverviewPage />} />
+          <Route path="/statistics" element={<StatisticsPage />} />
+          <Route path="/credentials" element={<CredentialsPage />} />
         </Routes>
       </BrowserRouter>
     </SidebarProvider>

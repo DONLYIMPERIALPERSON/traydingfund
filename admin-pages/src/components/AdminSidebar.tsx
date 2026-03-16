@@ -1,6 +1,6 @@
 import './AdminSidebar.css'
 
-type AdminPage = 'analysis' | 'users' | 'accounts' | 'fundedAccounts' | 'breaches' | 'orders' | 'payouts' | 'kycReview' | 'referrals' | 'userProfile' | 'financeAnalysis' | 'coupons' | 'supportTickets' | 'settings' | 'workBoard' | 'mt5' | 'sendAnnouncement' | 'migrationRequests' | 'emailLogs' | 'salary'
+type AdminPage = 'analysis' | 'users' | 'accounts' | 'fundedAccounts' | 'breaches' | 'orders' | 'payouts' | 'kycReview' | 'referrals' | 'userProfile' | 'financeAnalysis' | 'coupons' | 'supportTickets' | 'settings' | 'mt5' | 'sendAnnouncement' | 'salary'
 
 interface AdminSidebarProps {
   activePage: AdminPage
@@ -31,16 +31,6 @@ const AdminSidebar = ({ activePage, onNavigate, onLogout, isLoggingOut, allowedP
             Analysis
           </button>
         )}
-        {hasAccess('workBoard') && (
-          <button
-            className={`admin-sidebar-item ${activePage === 'workBoard' ? 'active' : ''}`}
-            type="button"
-            onClick={() => onNavigate('workBoard')}
-          >
-            Work Board
-          </button>
-        )}
-
         <div className="admin-sidebar-group">
           <p className="admin-sidebar-group-title">Users</p>
           {hasAccess('users') && (
@@ -147,7 +137,7 @@ const AdminSidebar = ({ activePage, onNavigate, onLogout, isLoggingOut, allowedP
               type="button"
               onClick={() => onNavigate('mt5')}
             >
-              MT5
+              cTrader
             </button>
           )}
         </div>
@@ -172,15 +162,6 @@ const AdminSidebar = ({ activePage, onNavigate, onLogout, isLoggingOut, allowedP
               Support Tickets
             </button>
           )}
-          {hasAccess('migrationRequests') && (
-            <button
-              className={`admin-sidebar-subitem ${activePage === 'migrationRequests' ? 'active' : ''}`}
-              type="button"
-              onClick={() => onNavigate('migrationRequests')}
-            >
-              Migration Requests
-            </button>
-          )}
           {hasAccess('sendAnnouncement') && (
             <button
               className={`admin-sidebar-subitem ${activePage === 'sendAnnouncement' ? 'active' : ''}`}
@@ -188,15 +169,6 @@ const AdminSidebar = ({ activePage, onNavigate, onLogout, isLoggingOut, allowedP
               onClick={() => onNavigate('sendAnnouncement')}
             >
               Send Announcement
-            </button>
-          )}
-          {hasAccess('emailLogs') && (
-            <button
-              className={`admin-sidebar-subitem ${activePage === 'emailLogs' ? 'active' : ''}`}
-              type="button"
-              onClick={() => onNavigate('emailLogs')}
-            >
-              Email Logs
             </button>
           )}
           {hasAccess('settings') && (

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { AdminUser } from './UsersPage'
-import { fetchActiveChallengeAccounts, type ChallengeAccountListItem } from '../lib/adminAuth'
+import { fetchActiveChallengeAccounts, type ChallengeAccountListItem } from '../lib/adminMock'
 
 interface AccountsPageProps {
   onOpenProfile: (user: AdminUser) => void
@@ -55,7 +55,7 @@ const AccountsPage = ({ onOpenProfile }: AccountsPageProps) => {
     <section className="admin-page-stack">
       <div className="admin-dashboard-card">
         <h2>Active Challenges</h2>
-        <p>Track active Phase 1 and Phase 2 challenge performance, MT5 details, and trader progress for each ongoing challenge account.</p>
+        <p>Track active Phase 1 and Phase 2 challenge performance, account details, and trader progress for each ongoing challenge account.</p>
       </div>
 
       <div className="admin-kpi-grid">
@@ -77,7 +77,7 @@ const AccountsPage = ({ onOpenProfile }: AccountsPageProps) => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px 0', gap: 12, flexWrap: 'wrap' }}>
           <div>
             <h3 style={{ color: '#fff', margin: 0 }}>Active Challenge Accounts</h3>
-            <p style={{ color: '#9ca3af', margin: '4px 0 0' }}>Search by trader email or MT5 account number.</p>
+            <p style={{ color: '#9ca3af', margin: '4px 0 0' }}>Search by trader email or account number.</p>
           </div>
           <input
             type="search"
@@ -86,7 +86,7 @@ const AccountsPage = ({ onOpenProfile }: AccountsPageProps) => {
               setSearchQuery(event.target.value)
               setCurrentPage(1)
             }}
-            placeholder="Search by email or MT5 account"
+            placeholder="Search by email or account number"
             style={{
               border: '1px solid #2a2f3a',
               background: '#0f172a',
@@ -106,9 +106,8 @@ const AccountsPage = ({ onOpenProfile }: AccountsPageProps) => {
               <th>Challenge</th>
               <th>Trader</th>
               <th>Account Size</th>
-              <th>MT5 Account</th>
-              <th>MT5 Server</th>
-              <th>MT5 Password</th>
+              <th>Account Number</th>
+              <th>cTrader ID</th>
               <th>Phase</th>
               <th>Current PNL</th>
               <th>Action</th>
@@ -122,9 +121,8 @@ const AccountsPage = ({ onOpenProfile }: AccountsPageProps) => {
                 <td>{row.account_size}</td>
                 <td>{row.mt5_account ?? '-'}</td>
                 <td>{row.mt5_server ?? '-'}</td>
-                <td>{row.mt5_password ?? '-'}</td>
                 <td>{row.phase}</td>
-                <td>{row.current_pnl ?? '+₦0'}</td>
+                <td>{row.current_pnl ?? '+$0'}</td>
                 <td>
                   <button
                     type="button"
