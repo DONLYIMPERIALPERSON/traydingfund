@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                 Int       @id @default(autoincrement())
+  email              String    @unique
+  fullName           String?
+  nickName           String?
+  role               String    @default("trader")
+  status             String    @default("active")
+  kycStatus          String?   @default("pending")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  challengeAccounts  ChallengeAccount[]
+  orders             Order[]
+  payouts            Payout[]
+}
+
+model ChallengeAccount {
+  id              Int      @id @default(autoincrement())
+  challengeId     String   @unique
+  accountSize     String
+  phase           String
+  objectiveStatus String
+  isActive        Boolean  @default(true)
+  mt5Account      String?
+  startedAt       DateTime?
+  breachedAt      DateTime?
+  passedAt        DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  userId          Int
+  user            User     @relation(fields: [userId], references: [id])
+}
+
+model Order {
+  id              Int      @id @default(autoincrement())
+  providerOrderId String   @unique
+  status          String
+  assignmentStatus String
+  currency        String
+  grossAmountKobo Int
+  discountAmountKobo Int
+  netAmountKobo   Int
+  planId          String
+  accountSize     String
+  couponCode      String?
+  checkoutUrl     String?
+  createdAt       DateTime @default(now())
+  paidAt          DateTime?
+
+  userId          Int
+  user            User     @relation(fields: [userId], references: [id])
+}
+
+model Payout {
+  id               Int      @id @default(autoincrement())
+  amountKobo       Int
+  status           String
+  requestedAt      DateTime @default(now())
+  completedAt      DateTime?
+  reference        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  userId           Int
+  user             User     @relation(fields: [userId], references: [id])
+}
