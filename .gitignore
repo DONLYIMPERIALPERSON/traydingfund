@@ -4,6 +4,8 @@ Trader-Area/.env
 admin-pages/.env
 # OS / editor
 .DS_Store
+backend/privatekey.pem
+backend/publickey.cer
 Thumbs.db
 .vscode/
 .idea/
