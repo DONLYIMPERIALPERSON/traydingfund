@@ -6,6 +6,7 @@ import DesktopFooter from '../components/DesktopFooter'
 import PaymentDetailsModal from '../components/PaymentDetailsModal'
 import {
   initPalmPayBankTransfer,
+  initCryptoOrder,
   previewCheckoutCoupon,
   refreshPaymentOrderStatus,
   type CheckoutCouponPreviewResponse,
@@ -32,6 +33,8 @@ const DesktopStartChallengePage: React.FC = () => {
 
   const [agreements, setAgreements] = useState({ terms: false })
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('bank-transfer')
+  const [selectedCrypto, setSelectedCrypto] = useState('USDT')
+  const [selectedNetwork, setSelectedNetwork] = useState<'ERC20' | 'TRC20' | 'SOL'>('ERC20')
   const [promoCode, setPromoCode] = useState('')
   const [couponLoading, setCouponLoading] = useState(false)
   const [couponError, setCouponError] = useState('')
@@ -47,13 +50,11 @@ const DesktopStartChallengePage: React.FC = () => {
     if (!account) return ''
     if (account.id) return account.id
     const normalized = account.size.toLowerCase().replace(/\s+/g, '')
-    if (normalized.includes('200k')) return '200k'
-    if (normalized.includes('400k')) return '400k'
-    if (normalized.includes('600k')) return '600k'
-    if (normalized.includes('800k')) return '800k'
-    if (normalized.includes('1.5m')) return '1.5m'
-    if (normalized.includes('3m')) return '3m'
-    return ''
+    const match = normalized.match(/([0-9.]+)(k|m)/)
+    if (!match) return ''
+    const amount = match[1]
+    const unit = match[2]
+    return `${amount}${unit}`
   }
 
   const handleAgreementChange = (type: 'terms') => {
@@ -62,19 +63,45 @@ const DesktopStartChallengePage: React.FC = () => {
 
   const handleContinue = () => {
     if (!selectedPaymentMethod || !agreements.terms || !accountData) return
-    if (selectedPaymentMethod !== 'bank-transfer') return
-
     const planId = inferPlanId(accountData)
     if (!planId) {
       setPaymentStatus('Unable to determine account size for payment')
       return
     }
 
+    const amountNumeric = couponPreview?.final_amount ?? Number(accountData.fee.replace(/[^0-9.]/g, ''))
+    const amountKobo = Math.round(amountNumeric * 100)
+
+    if (selectedPaymentMethod === 'crypto') {
+      setPaymentLoading(true)
+      setPaymentStatus('Generating crypto payment details...')
+      initCryptoOrder({
+        plan_id: planId,
+        account_size: accountData.size,
+        amount_kobo: amountKobo + 100,
+        crypto_currency: 'USDT',
+      })
+        .then((order) => {
+          setCurrentOrder(order)
+          setShowPaymentModal(true)
+          setPaymentStatus('')
+        })
+        .catch((err: unknown) => {
+          setPaymentStatus(err instanceof Error ? err.message : 'Failed to initialize crypto order')
+        })
+        .finally(() => {
+          setPaymentLoading(false)
+        })
+      return
+    }
+    if (selectedPaymentMethod !== 'bank-transfer') return
     setPaymentLoading(true)
     setPaymentStatus('Initializing bank transfer...')
 
     initPalmPayBankTransfer({
       plan_id: planId,
+      account_size: accountData.size,
+      amount_kobo: amountKobo,
       coupon_code: couponPreview?.code ?? (promoCode.trim() || null),
     })
       .then((order) => {
@@ -240,6 +267,56 @@ const DesktopStartChallengePage: React.FC = () => {
                     </>
                   )}
                   <div className="desktop-summary-row desktop-summary-total" style={{color: 'black'}}><span>Total</span><strong style={{color: 'black'}}>{couponPreview?.formatted_final_amount ?? accountData.fee}</strong></div>
+                  {selectedPaymentMethod === 'crypto' && (
+                    <div className="desktop-summary-row">
+                      <span>Crypto Fee</span>
+                      <strong>$1</strong>
+                    </div>
+                  )}
+
+                  <div className="desktop-payment-method-block">
+                    <h4>Payment Method</h4>
+                    <div className="desktop-checkout-methods">
+                      <label className={`desktop-method-option ${selectedPaymentMethod === 'bank-transfer' ? 'active' : ''}`}>
+                        <input
+                          type="radio"
+                          name="payment-method"
+                          value="bank-transfer"
+                          checked={selectedPaymentMethod === 'bank-transfer'}
+                          onChange={() => setSelectedPaymentMethod('bank-transfer')}
+                        />
+                        <span>NGN Bank Transfer</span>
+                      </label>
+                      <label className={`desktop-method-option ${selectedPaymentMethod === 'crypto' ? 'active' : ''}`}>
+                        <input
+                          type="radio"
+                          name="payment-method"
+                          value="crypto"
+                          checked={selectedPaymentMethod === 'crypto'}
+                          onChange={() => setSelectedPaymentMethod('crypto')}
+                        />
+                        <span>Crypto</span>
+                      </label>
+                    </div>
+                    {selectedPaymentMethod === 'crypto' && (
+                      <div className="desktop-crypto-picker">
+                        <p>Crypto: <strong>USDT</strong></p>
+                        <div className="desktop-crypto-options">
+                          {(['ERC20', 'TRC20', 'SOL'] as const).map((network) => (
+                            <button
+                              key={network}
+                              type="button"
+                              className={selectedNetwork === network ? 'active' : ''}
+                              onClick={() => setSelectedNetwork(network)}
+                            >
+                              {network}
+                            </button>
+                          ))}
+                        </div>
+                        <p style={{ marginTop: '8px' }}>Select network to pay with</p>
+                      </div>
+                    )}
+                  </div>
 
                   <label className="desktop-check-row" style={{marginTop: '16px', marginBottom: '16px'}}>
                     <input type="checkbox" checked={agreements.terms} onChange={() => handleAgreementChange('terms')} />
@@ -267,13 +344,19 @@ const DesktopStartChallengePage: React.FC = () => {
         <PaymentDetailsModal
           isOpen={showPaymentModal}
           onClose={handleCloseModal}
+          status={modalStatus}
           paymentDetails={{
             bankName: currentOrder.payer_bank_name || '',
             accountName: currentOrder.payer_account_name || '',
             accountNumber: currentOrder.payer_virtual_acc_no || '',
-            amount: `$${(currentOrder.net_amount_kobo / 100).toLocaleString('en-US')}`,
+            amount: currentOrder.bank_transfer_amount_ngn
+              ? `₦${currentOrder.bank_transfer_amount_ngn.toLocaleString('en-NG')}`
+              : `$${(currentOrder.net_amount_kobo / 100).toLocaleString('en-US')}`,
+            cryptoCurrency: currentOrder.crypto_currency ?? selectedCrypto,
+            cryptoAddress: currentOrder.crypto_address ?? null,
+            cryptoNetworks: currentOrder.crypto_networks ?? null,
+            cryptoNetwork: selectedNetwork,
           }}
-          status={modalStatus}
         />
       )}
     </div>

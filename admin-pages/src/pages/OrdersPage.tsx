@@ -4,6 +4,8 @@ import {
   fetchOrderStats,
   fetchOrders,
   queryOrderStatus,
+  approveCryptoOrder,
+  declineCryptoOrder,
   type OrderStats,
   type Order,
 } from '../lib/adminMock'
@@ -26,6 +28,7 @@ const OrdersPage = ({ onOpenProfile, isSuperAdmin }: OrdersPageProps & { isSuper
   const [totalPages, setTotalPages] = useState(1)
   const [queryingOrderId, setQueryingOrderId] = useState<number | null>(null)
   const [searchEmail, setSearchEmail] = useState('')
+  const [actioningOrderId, setActioningOrderId] = useState<number | null>(null)
 
   const loadStats = async (period: 'today' | 'week' | 'month') => {
     try {
@@ -148,6 +151,20 @@ const OrdersPage = ({ onOpenProfile, isSuperAdmin }: OrdersPageProps & { isSuper
     }
   }
 
+  const handleCryptoAction = async (order: Order, action: 'approve' | 'decline') => {
+    setActioningOrderId(order.id)
+    try {
+      if (action === 'approve') {
+        await approveCryptoOrder(order.id)
+      } else {
+        await declineCryptoOrder(order.id)
+      }
+      await loadOrders(currentPage)
+    } finally {
+      setActioningOrderId(null)
+    }
+  }
+
 
   return (
     <section className="admin-page-stack">
@@ -224,6 +241,7 @@ const OrdersPage = ({ onOpenProfile, isSuperAdmin }: OrdersPageProps & { isSuper
                   <th>Status</th>
                   <th>Amount</th>
                   <th>Created</th>
+                  <th>Payment</th>
                   <th>Action</th>
                   <th>Query</th>
                 </tr>
@@ -260,20 +278,48 @@ const OrdersPage = ({ onOpenProfile, isSuperAdmin }: OrdersPageProps & { isSuper
                       )}
                     </td>
                     <td>
-                      <button
-                        type="button"
-                        onClick={() => onOpenProfile({
-                          user_id: Number(order.user.id),
-                          name: order.user.name,
-                          email: order.user.email,
-                          accounts: 'N/A', // This would need to be fetched separately
-                          revenue: 'N/A', // This would need to be fetched separately
-                          orders: 'N/A', // This would need to be fetched separately
-                          payouts: 'N/A', // This would need to be fetched separately
-                        })}
-                      >
-                        View User
-                      </button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span>{order.payment_method ?? '—'}</span>
+                        {order.crypto_currency && (
+                          <span style={{ fontSize: '12px', color: '#6b7280' }}>{order.crypto_currency}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          onClick={() => onOpenProfile({
+                            user_id: Number(order.user.id),
+                            name: order.user.name,
+                            email: order.user.email,
+                            accounts: 'N/A', // This would need to be fetched separately
+                            revenue: 'N/A', // This would need to be fetched separately
+                            orders: 'N/A', // This would need to be fetched separately
+                            payouts: 'N/A', // This would need to be fetched separately
+                          })}
+                        >
+                          View User
+                        </button>
+                        {order.payment_method === 'crypto' && order.status === 'pending' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => void handleCryptoAction(order, 'approve')}
+                              disabled={actioningOrderId === order.id}
+                            >
+                              {actioningOrderId === order.id ? 'Approving...' : 'Approve'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleCryptoAction(order, 'decline')}
+                              disabled={actioningOrderId === order.id}
+                            >
+                              {actioningOrderId === order.id ? 'Declining...' : 'Decline'}
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                     <td>
                       <button

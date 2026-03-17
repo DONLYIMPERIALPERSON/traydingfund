@@ -22,7 +22,21 @@ export type ChallengeAccountListItem = any
 export type ChallengeBreachListItem = any
 export type ChallengePlanConfig = any
 export type MT5Account = any
-export type Order = any
+export type Order = {
+  id: number
+  provider_order_id: string
+  status: string
+  assignment_status: string
+  account_size: string
+  net_amount_formatted: string
+  created_at: string
+  paid_at: string | null
+  payment_method?: string
+  payment_provider?: string
+  crypto_currency?: string | null
+  crypto_address?: string | null
+  user: { id: string; name: string; email: string }
+}
 export type OrderStats = any
 export type PayoutRequest = any
 export type PayoutStats = any
@@ -39,6 +53,8 @@ export type UserOrder = any
 export type UserPayout = any
 export type UserProfileData = any
 export type UserSupportTicket = any
+export type TradingObjectivesConfig = any
+export type TradingObjectivesResponse = any
 
 const mockAdminUser: AdminAuthMeResponse = {
   id: 1,
@@ -64,6 +80,7 @@ const mockAdminUser: AdminAuthMeResponse = {
     'mt5',
     'sendAnnouncement',
     'salary',
+    'tradingRules',
   ],
   can_assign_mt5: true,
 }
@@ -450,8 +467,10 @@ const mockAffiliateMilestones = {
   pagination: { page: 1, per_page: 50, total: 1, total_pages: 1 },
 }
 
-export const adminLoginWithBackend = async (_sessionToken?: string) => mockAdminUser
-export const fetchAdminMe = async (_sessionToken?: string) => mockAdminUser
+import { apiFetch } from './api'
+
+export const adminLoginWithBackend = async (_sessionToken?: string) => apiFetch<AdminAuthMeResponse>('/admin/me')
+export const fetchAdminMe = async (_sessionToken?: string) => apiFetch<AdminAuthMeResponse>('/admin/me')
 export const logoutAdmin = async (_sessionToken?: string) => undefined
 
 export const persistAdminUser = (user: AdminAuthMeResponse) => {
@@ -477,9 +496,17 @@ export const fetchAdminUsers = async () => mockAdminUsers
 export const fetchAdminKycProfiles = async () => mockKycProfiles
 
 export const fetchOrderStats = async (period: 'today' | 'week' | 'month' = 'today') => ({ ...mockOrderStats, period })
-export const fetchOrders = async () => mockOrders
+export const fetchOrders = async (
+  _page?: number,
+  _pageSize?: number,
+  _period?: 'today' | 'week' | 'month',
+  _status?: string,
+  _searchEmail?: string
+) => apiFetch<typeof mockOrders>('/admin/orders')
 export const fetchPendingAssignments = async () => mockOrders
-export const queryOrderStatus = async (orderId: number) => ({ order_id: orderId, provider_order_id: 'ORD-301', status: 'paid', previous_status: 'pending' })
+export const queryOrderStatus = async (orderId: number) => ({ order_id: orderId, provider_order_id: `ORD-${orderId}`, status: 'paid', previous_status: 'pending' })
+export const approveCryptoOrder = async (orderId: number) => apiFetch<{ id: number; status: string; message: string }>(`/admin/orders/${orderId}/approve`, { method: 'POST' })
+export const declineCryptoOrder = async (orderId: number) => apiFetch<{ id: number; status: string; message: string }>(`/admin/orders/${orderId}/decline`, { method: 'POST' })
 export const queryPendingOrders = async () => ({ total_checked: 1, updated: 1, failed: 0, orders: [] })
 
 export const fetchPayoutStats = async (period: 'today' | 'week' | 'month' = 'today') => ({ ...mockPayoutStats, period })
@@ -567,9 +594,17 @@ export const toggleAdminCouponPlan = async (couponId: number, payload: { plan_id
   return updated
 }
 
-export const fetchMT5Accounts = async () => ({ accounts: [] })
-export const fetchAssignedMT5Accounts = async () => ({ accounts: [] })
-export const fetchMT5Summary = async () => ({ total: 12, ready: 7, assigned: 4, disabled: 1 })
+export const fetchMT5Accounts = async (status?: string) =>
+  apiFetch<{ accounts: MT5Account[] }>(
+    status ? `/admin/ctrader/accounts?status=${encodeURIComponent(status)}` : '/admin/ctrader/accounts'
+  )
+export const fetchAssignedMT5Accounts = async () =>
+  apiFetch<{ accounts: MT5Account[] }>(
+    '/admin/ctrader/accounts'
+  )
+export const fetchMT5Summary = async () => apiFetch<{ total: number; ready: number; assigned: number; disabled: number }>(
+  '/admin/ctrader/summary'
+)
 export const fetchNextChallengeId = async () => ({ challenge_id: `CH-${Math.floor(Math.random() * 9999)}` })
 export const assignMT5Account = async (accountId: number, payload: { stage: 'Phase 1' | 'Phase 2' | 'Funded'; assigned_user_email: string; challenge_id?: string }) => ({
   id: accountId,
@@ -586,9 +621,53 @@ export const assignMT5Account = async (accountId: number, payload: { stage: 'Pha
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 })
-export const downloadMT5Template = async () => 'server,login,password\nMT5-Live-01,100110,secret'
-export const uploadMT5AccountsTxt = async (_content: string) => ({ accounts: [] })
-export const deleteMT5Account = async (_accountId: number) => undefined
+export const downloadMT5Template = async () => 'account_number,broker,account_size,status\n100110,ICMarkets,$10,000,Ready'
+type UploadedCTraderAccount = {
+  account_number: string
+  broker: string
+  account_size: string
+  status?: string
+}
+
+const parseUploadLines = (content: string): UploadedCTraderAccount[] => {
+  const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+  if (!lines.length) return []
+
+  const headerTokens = lines[0]?.toLowerCase().replace(/\s+/g, '') ?? ''
+  const hasHeader = headerTokens.includes('accountnumber') || headerTokens.includes('broker')
+
+  const dataLines = hasHeader ? lines.slice(1) : lines
+  return dataLines.map((line) => {
+    const delimiter = line.includes('\t') ? '\t' : ','
+    const parts = line.split(delimiter).map((value) => value.trim()).filter((value) => value.length > 0)
+    const accountNumber = parts[0] ?? ''
+    const broker = parts[1] ?? ''
+    const status = parts.length > 3 ? parts[parts.length - 1] : 'Ready'
+    const accountSizeParts = parts.length > 3 ? parts.slice(2, -1) : parts.slice(2)
+    const accountSize = accountSizeParts.join(delimiter).trim()
+    return {
+      account_number: accountNumber,
+      broker,
+      account_size: accountSize,
+      status: status || 'Ready',
+    }
+  })
+}
+
+export const uploadMT5AccountsTxt = async (content: string) => {
+  const accounts = parseUploadLines(content)
+  if (!accounts.length) {
+    throw new Error('No valid accounts found in uploaded file.')
+  }
+  return apiFetch<{ count: number; accounts: unknown[] }>('/admin/ctrader/accounts/upload', {
+    method: 'POST',
+    body: JSON.stringify({ accounts }),
+  })
+}
+export const deleteMT5Account = async (accountId: number) =>
+  apiFetch<{ message: string; id: number }>(`/admin/ctrader/accounts/${accountId}`, {
+    method: 'DELETE',
+  })
 export const generateCertificates = async () => ({ message: 'Mock certificates generated', generated: 3, failed: 0 })
 export const generatePayoutCertificates = async () => ({ message: 'Mock payout certificates generated', generated: 2, failed: 0 })
 
@@ -599,6 +678,12 @@ export const fetchAdminPayoutConfig = async () => ({ auto_approval_threshold_per
 export const updateAdminPayoutConfig = async (payload: { otp: string; auto_approval_threshold_percent: number }) => ({ auto_approval_threshold_percent: payload.auto_approval_threshold_percent })
 export const fetchAdminHeroStats = async () => ({ stats: { total_paid_out: '$120m', paid_this_month: '$14.8m', paid_today: '$620k', trusted_traders: '2,840' } })
 export const updateAdminHeroStats = async (payload: { otp: string; stats: any }) => ({ stats: payload.stats })
+export const fetchTradingObjectives = async () => apiFetch<TradingObjectivesResponse>('/trading-objectives')
+export const updateTradingObjectives = async (payload: { rules: TradingObjectivesConfig }) =>
+  apiFetch<TradingObjectivesResponse>('/trading-objectives', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
 
 export const fetchAffiliateOverview = async () => mockAffiliateOverview
 export const fetchAffiliateCommissions = async (page: number = 1, perPage: number = 50) => ({ ...mockAffiliateCommissions, pagination: { ...mockAffiliateCommissions.pagination, page, per_page: perPage } })

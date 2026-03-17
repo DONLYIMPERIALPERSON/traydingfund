@@ -114,6 +114,78 @@
   color: #333;
 }
 
+.desktop-checkout-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.desktop-method-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.desktop-method-option input {
+  accent-color: #0b9fb8;
+}
+
+.desktop-method-option.active {
+  border-color: #0b9fb8;
+  box-shadow: 0 0 0 2px rgba(11, 159, 184, 0.15);
+  background: #ecfeff;
+}
+
+.desktop-crypto-picker {
+  margin-top: 16px;
+}
+
+.desktop-crypto-picker p {
+  margin: 0 0 10px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.desktop-crypto-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.desktop-crypto-options button {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #0f172a;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.desktop-crypto-options button.active {
+  background: #0b9fb8;
+  color: #fff;
+  border-color: #0b9fb8;
+}
+
+.desktop-payment-method-block {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.desktop-payment-method-block h4 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  color: #0f172a;
+}
+
 .desktop-checkout-form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -156,9 +228,9 @@
 }
 
 .desktop-promo-row button {
-  border: 1px solid #ffd700;
-  background: #fff7d6;
-  color: #7a6200;
+  border: 1px solid #0b9fb8;
+  background: rgba(11, 159, 184, 0.12);
+  color: #0b5f6b;
   border-radius: 8px;
   padding: 0 14px;
   font-weight: 600;
@@ -214,13 +286,13 @@
 }
 
 .desktop-summary-total strong {
-  color: #ffd700;
+  color: #0b9fb8;
   font-size: 20px;
 }
 
 .desktop-payment-title {
   margin: 20px 0 10px;
-  color: #ffd700;
+  color: #0b9fb8;
   font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -266,9 +338,9 @@
 }
 
 .desktop-radio-row input:checked + .desktop-method-pill {
-  border-color: #ffd700;
-  background: #fff9db;
-  color: #6b5200;
+  border-color: #0b9fb8;
+  background: rgba(11, 159, 184, 0.12);
+  color: #0b5f6b;
 }
 
 .desktop-checkout-continue {
@@ -277,19 +349,19 @@
   border: none;
   border-radius: 8px;
   padding: 14px;
-  background: linear-gradient(135deg, #ffd700, #ffa500);
-  color: #000;
+  background: linear-gradient(135deg, #0b9fb8, #008ea4);
+  color: #fff;
   font-weight: 600;
   font-size: 15px;
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(255,215,0,0.3);
+  box-shadow: 0 2px 4px rgba(11, 159, 184, 0.3);
   transition: all 0.2s;
 }
 
 .desktop-checkout-continue:hover:not(:disabled) {
-  background: #ffc107;
+  background: #008ea4;
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(255,215,0,0.35);
+  box-shadow: 0 4px 8px rgba(11, 159, 184, 0.35);
 }
 
 .desktop-checkout-continue:disabled {

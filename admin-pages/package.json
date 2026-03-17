@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@descope/react-sdk": "^2.26.4",
+    "@supabase/supabase-js": "^2.99.2",
     "firebase": "^12.9.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

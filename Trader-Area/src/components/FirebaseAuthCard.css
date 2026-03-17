@@ -89,13 +89,14 @@
 
 /* Style inner custom auth area without affecting the rest of the app */
 .form-content .naira-auth-stack .form-input {
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(255, 215, 0, 0.45);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
 }
 
 .form-content .naira-auth-stack .form-input:focus {
-  border-color: #facc15;
-  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.2);
+  border-color: rgba(250, 204, 21, 0.7);
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.16);
 }
 
 @media (max-width: 768px) {

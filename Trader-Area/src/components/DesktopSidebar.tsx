@@ -2,6 +2,7 @@ import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useSidebar } from '../contexts/SidebarContext'
 import { clearPersistedAuthUser, logoutFromBackend } from '../mocks/auth'
+import { supabase } from '../lib/supabaseClient'
 
 interface NavItemType {
   label: string
@@ -38,6 +39,11 @@ const navItemsWithSections: SidebarSection[] = [
         label: "Payouts",
         href: "/payout",
         icon: () => <i className="fas fa-credit-card" style={{fontSize: '18px', color: '#666'}}></i>,
+      },
+      {
+        label: "Orders",
+        href: "/orders",
+        icon: () => <i className="fas fa-receipt" style={{fontSize: '18px', color: '#666'}}></i>,
       },
       {
         label: "Affiliate",
@@ -99,7 +105,15 @@ const DesktopSidebar: React.FC = () => {
     } catch (error) {
       console.warn('Backend logout call failed:', error)
     }
+
+    try {
+      await supabase.auth.signOut()
+    } catch (error) {
+      console.warn('Supabase logout failed:', error)
+    }
+
     clearPersistedAuthUser()
+    localStorage.removeItem('supabase_access_token')
     navigate('/login')
   }
 

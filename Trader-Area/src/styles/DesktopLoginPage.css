@@ -3,8 +3,8 @@
 .login-page {
   background:
     radial-gradient(900px 450px at 50% 8%, rgba(255, 255, 255, 0.14), transparent 65%),
-    radial-gradient(500px 260px at 88% 82%, rgba(255, 255, 255, 0.10), transparent 70%),
-    linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
+    radial-gradient(500px 260px at 88% 82%, rgba(255, 255, 255, 0.1), transparent 70%),
+    linear-gradient(180deg, #0b9fb8 0%, #006d80 100%);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   min-height: 100vh;
   display: flex;
@@ -34,23 +34,39 @@
   grid-template-columns: 1fr 1fr;
   gap: 60px;
   align-items: center;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-radius: 20px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.2);
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   position: relative;
   z-index: 1;
 }
 
 /* Hero Section */
 .login-page .hero-section {
-  background: transparent;
+  background: rgba(0, 0, 0, 0.08);
   padding: 60px 40px;
   text-align: center;
-  border-right: 1px solid rgba(255,255,255,0.12);
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.login-page .hero-watermark {
+  position: absolute;
+  top: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 28px;
+  letter-spacing: 6px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.18);
+  text-transform: uppercase;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 .login-page .hero-icon {
@@ -64,7 +80,7 @@
 
 .login-page .hero-icon i {
   font-size: 40px;
-  color: #000;
+  color: #ffd700;
 }
 
 .login-page .hero-logo {
@@ -79,7 +95,7 @@
   font-weight: 700;
   color: #fff;
   margin-bottom: 12px;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .login-page .hero-subtitle {
@@ -95,18 +111,18 @@
 
 .login-page .tab-navigation {
   display: flex;
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   padding: 4px;
   margin-bottom: 32px;
-  border: 1px solid rgba(0,0,0,0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .login-page .tab-button {
   flex: 1;
   padding: 14px 20px;
   background: transparent;
-  color: #666;
+  color: rgba(255, 255, 255, 0.78);
   border: none;
   text-decoration: none;
   border-radius: 8px;
@@ -117,14 +133,14 @@
 }
 
 .login-page .tab-button.active {
-  background: rgba(255,215,0,0.8);
-  color: #000;
-  box-shadow: 0 2px 4px rgba(255,215,0,0.3);
+  background: #ffd700;
+  color: #0b0b0b;
+  box-shadow: 0 4px 10px rgba(255, 215, 0, 0.35);
 }
 
 .login-page .tab-button:hover:not(.active) {
-  background: rgba(0,0,0,0.05);
-  color: #333;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
 }
 
 /* Form Content */
@@ -149,7 +165,7 @@
   display: block;
   font-size: 14px;
   font-weight: 600;
-  color: #fff;
+  color: rgba(255, 255, 255, 0.86);
   margin-bottom: 8px;
 }
 
@@ -162,7 +178,7 @@
   left: 16px;
   top: 50%;
   transform: translateY(-50%);
-  color: #FFD700;
+  color: #ffd700;
   font-size: 16px;
   z-index: 1;
 }
@@ -170,23 +186,23 @@
 .login-page .form-input {
   width: 100%;
   padding: 16px 16px 16px 48px;
-  border: 2px solid #e0e0e0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 12px;
   font-size: 16px;
-  color: #333;
-  background: white;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
   transition: all 0.2s;
   box-sizing: border-box;
 }
 
 .login-page .form-input:focus {
   outline: none;
-  border-color: #FFD700;
-  box-shadow: 0 0 0 3px rgba(255,215,0,0.1);
+  border-color: rgba(250, 204, 21, 0.7);
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.16);
 }
 
 .login-page .form-input::placeholder {
-  color: #999;
+  color: rgba(255, 255, 255, 0.5);
 }
 
 /* Name Fields */
@@ -248,7 +264,7 @@
 }
 
 .login-page .forgot-link {
-  color: #FFD700;
+  color: #ffd700;
   text-decoration: none;
   font-size: 14px;
   font-weight: 600;
@@ -256,19 +272,19 @@
 }
 
 .login-page .forgot-link:hover {
-  color: #FFA500;
+  color: #fde047;
   text-decoration: underline;
 }
 
 .login-page .terms-link {
-  color: #FFD700;
+  color: #ffd700;
   text-decoration: none;
   font-weight: 600;
   transition: color 0.2s;
 }
 
 .login-page .terms-link:hover {
-  color: #FFA500;
+  color: #fde047;
   text-decoration: underline;
 }
 
@@ -276,40 +292,35 @@
 .login-page .submit-button {
   width: 100%;
   padding: 16px 24px;
-  background: #facc15;
-  color: #000;
+  background: linear-gradient(180deg, #ffd700 0%, #ffc107 100%);
+  color: #0b0b0b;
   border: none;
   border-radius: 9999px;
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(250, 204, 21, 0.3);
+  box-shadow: 0 6px 16px rgba(255, 215, 0, 0.3);
   margin-bottom: 20px;
 }
 
 .login-page .submit-button:hover {
-  background: #fde047;
+  background: linear-gradient(180deg, #ffe066 0%, #ffd65a 100%);
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(250, 204, 21, 0.4);
+  box-shadow: 0 8px 20px rgba(255, 215, 0, 0.35);
 }
 
 .login-page .auth-switch-text {
   text-align: center;
   margin: -4px 0 10px;
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .login-page .auth-switch-link {
-  color: #FFD700;
+  color: #ffd700;
   text-decoration: none;
   font-weight: 600;
-}
-
-.login-page .auth-switch-link:hover {
-  color: #FFA500;
-  text-decoration: underline;
 }
 
 .login-page .google-button {
@@ -355,14 +366,14 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: #e0e0e0;
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .login-page .divider span {
-  background: white;
+  background: #0b9fb8;
   padding: 0 16px;
   font-size: 14px;
-  color: #666;
+  color: rgba(255, 255, 255, 0.7);
   position: relative;
   z-index: 1;
 }

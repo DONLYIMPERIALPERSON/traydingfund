@@ -9,6 +9,14 @@ interface PaymentDetailsModalProps {
     accountName: string
     accountNumber: string
     amount: string
+    cryptoCurrency?: string | null
+    cryptoAddress?: string | null
+    cryptoNetworks?: {
+      ERC20?: string | null
+      SOL?: string | null
+      TRC20?: string | null
+    } | null
+    cryptoNetwork?: 'ERC20' | 'SOL' | 'TRC20'
   }
   status?: 'waiting' | 'confirming' | 'success'
 }
@@ -59,7 +67,14 @@ const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
     }
   }
 
+  const isCrypto = Boolean(paymentDetails.cryptoCurrency && paymentDetails.cryptoAddress)
+  const networks = paymentDetails.cryptoNetworks
+
   if (!isOpen) return null
+
+  const networkAddress = paymentDetails.cryptoNetwork
+    ? networks?.[paymentDetails.cryptoNetwork] || paymentDetails.cryptoAddress
+    : paymentDetails.cryptoAddress
 
   const renderStatusContent = () => {
     switch (currentStatus) {
@@ -67,7 +82,7 @@ const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
         return (
           <>
             <div className="payment-modal-header">
-              <h2>Bank Transfer Details</h2>
+              <h2>{isCrypto ? 'Crypto Payment Details' : 'Bank Transfer Details'}</h2>
               <button className="payment-modal-close" onClick={onClose}>
                 <i className="fas fa-times"></i>
               </button>
@@ -80,10 +95,68 @@ const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
               </div>
 
               <p className="payment-instruction">
-                Please make a bank transfer using the details below. The system will automatically confirm your payment.
+                {isCrypto
+                  ? 'Send the exact crypto amount to the wallet below. An admin will confirm your payment.'
+                  : 'Please make a bank transfer using the details below. The system will automatically confirm your payment.'}
               </p>
 
               <div className="payment-details-grid">
+                {isCrypto ? (
+                  <>
+                    <div className="payment-detail-row">
+                      <label>Crypto:</label>
+                      <div className="payment-detail-value">
+                        <span>{paymentDetails.cryptoCurrency}</span>
+                        <button
+                          className="copy-button"
+                          onClick={() => void copyToClipboard(paymentDetails.cryptoCurrency || '', 'crypto')}
+                          title="Copy crypto"
+                        >
+                          <i className="fas fa-copy"></i>
+                          {copiedField === 'crypto' && <span className="copied-text">Copied!</span>}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="payment-detail-row">
+                      <label>Wallet Address:</label>
+                      <div className="payment-detail-value">
+                        <span className="account-number">{networkAddress}</span>
+                        <button
+                          className="copy-button"
+                          onClick={() => void copyToClipboard(networkAddress || '', 'wallet')}
+                          title="Copy wallet address"
+                        >
+                          <i className="fas fa-copy"></i>
+                          {copiedField === 'wallet' && <span className="copied-text">Copied!</span>}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="payment-detail-row payment-qr-row">
+                      <label>QR Code:</label>
+                      <div className="payment-detail-value">
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(networkAddress || '')}`}
+                          alt="Payment QR"
+                        />
+                      </div>
+                    </div>
+                    <div className="payment-detail-row payment-amount-row">
+                      <label>Amount (USD):</label>
+                      <div className="payment-detail-value">
+                        <span className="payment-amount">{paymentDetails.amount}</span>
+                        <button
+                          className="copy-button"
+                          onClick={() => void copyToClipboard(paymentDetails.amount.replace('$', '').replace(',', ''), 'amount')}
+                          title="Copy amount"
+                        >
+                          <i className="fas fa-copy"></i>
+                          {copiedField === 'amount' && <span className="copied-text">Copied!</span>}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
                 <div className="payment-detail-row">
                   <label>Bank Name:</label>
                   <div className="payment-detail-value">
@@ -143,14 +216,26 @@ const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
                     </button>
                   </div>
                 </div>
+                  </>
+                )}
               </div>
 
               <div className="payment-warning">
                 <i className="fas fa-exclamation-triangle"></i>
-                <span>Important: Please ensure you transfer the exact amount to avoid payment processing delays.</span>
+                <span>
+                  Important: Please ensure you transfer the exact amount to avoid payment processing delays.
+                </span>
               </div>
             </div>
 
+            {isCrypto && (
+              <div className="payment-modal-footer">
+                <button className="payment-proceed-button" onClick={onClose}>
+                  <i className="fas fa-paper-plane"></i>
+                  I have sent it
+                </button>
+              </div>
+            )}
           </>
         )
 
@@ -170,37 +255,54 @@ const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
                 <span>Confirming your payment... Please wait.</span>
               </div>
 
-              <div className="payment-details-grid confirming">
-                <div className="payment-detail-row">
-                  <label>Bank Name:</label>
-                  <span>{paymentDetails.bankName}</span>
-                </div>
-
-                <div className="payment-detail-row">
-                  <label>Account Name:</label>
-                  <span>{paymentDetails.accountName}</span>
-                </div>
-
-                <div className="payment-detail-row">
-                  <label>Account Number:</label>
-                  <div className="payment-detail-value">
-                    <span className="account-number">{paymentDetails.accountNumber}</span>
-                    <button
-                      className="copy-button"
-                      onClick={() => void copyToClipboard(paymentDetails.accountNumber, 'number')}
-                      title="Copy account number"
-                    >
-                      <i className="fas fa-copy"></i>
-                      {copiedField === 'number' && <span className="copied-text">Copied!</span>}
-                    </button>
+              {isCrypto ? (
+                <div className="payment-details-grid confirming">
+                  <div className="payment-detail-row">
+                    <label>Crypto:</label>
+                    <span>{paymentDetails.cryptoCurrency}</span>
+                  </div>
+                  <div className="payment-detail-row">
+                    <label>Wallet Address:</label>
+                    <span className="account-number">{networkAddress}</span>
+                  </div>
+                  <div className="payment-detail-row payment-amount-row">
+                    <label>Amount (USD):</label>
+                    <span className="payment-amount">{paymentDetails.amount}</span>
                   </div>
                 </div>
+              ) : (
+                <div className="payment-details-grid confirming">
+                  <div className="payment-detail-row">
+                    <label>Bank Name:</label>
+                    <span>{paymentDetails.bankName}</span>
+                  </div>
 
-                <div className="payment-detail-row payment-amount-row">
-                  <label>Amount:</label>
-                  <span className="payment-amount">{paymentDetails.amount}</span>
+                  <div className="payment-detail-row">
+                    <label>Account Name:</label>
+                    <span>{paymentDetails.accountName}</span>
+                  </div>
+
+                  <div className="payment-detail-row">
+                    <label>Account Number:</label>
+                    <div className="payment-detail-value">
+                      <span className="account-number">{paymentDetails.accountNumber}</span>
+                      <button
+                        className="copy-button"
+                        onClick={() => void copyToClipboard(paymentDetails.accountNumber, 'number')}
+                        title="Copy account number"
+                      >
+                        <i className="fas fa-copy"></i>
+                        {copiedField === 'number' && <span className="copied-text">Copied!</span>}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="payment-detail-row payment-amount-row">
+                    <label>Amount:</label>
+                    <span className="payment-amount">{paymentDetails.amount}</span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             <div className="payment-modal-footer">

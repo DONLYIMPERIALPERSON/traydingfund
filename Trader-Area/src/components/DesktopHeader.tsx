@@ -1,6 +1,7 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clearPersistedAuthUser, logoutFromBackend } from '../mocks/auth'
+import { supabase } from '../lib/supabaseClient'
 import { useSidebar } from '../contexts/SidebarContext'
 
 const DesktopHeader: React.FC = () => {
@@ -13,7 +14,14 @@ const DesktopHeader: React.FC = () => {
       console.warn('Backend logout call failed:', error)
     }
 
+    try {
+      await supabase.auth.signOut()
+    } catch (error) {
+      console.warn('Supabase logout failed:', error)
+    }
+
     clearPersistedAuthUser()
+    localStorage.removeItem('supabase_access_token')
     navigate('/login')
   }
 

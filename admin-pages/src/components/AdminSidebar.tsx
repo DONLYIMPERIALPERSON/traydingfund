@@ -1,6 +1,6 @@
 import './AdminSidebar.css'
 
-type AdminPage = 'analysis' | 'users' | 'accounts' | 'fundedAccounts' | 'breaches' | 'orders' | 'payouts' | 'kycReview' | 'referrals' | 'userProfile' | 'financeAnalysis' | 'coupons' | 'supportTickets' | 'settings' | 'mt5' | 'sendAnnouncement' | 'salary'
+type AdminPage = 'analysis' | 'users' | 'accounts' | 'fundedAccounts' | 'breaches' | 'orders' | 'payouts' | 'kycReview' | 'referrals' | 'userProfile' | 'financeAnalysis' | 'coupons' | 'supportTickets' | 'settings' | 'mt5' | 'sendAnnouncement' | 'salary' | 'tradingRules' | 'fxRates'
 
 interface AdminSidebarProps {
   activePage: AdminPage
@@ -100,6 +100,15 @@ const AdminSidebar = ({ activePage, onNavigate, onLogout, isLoggingOut, allowedP
               Financial Analysis & Settings
             </button>
           )}
+          {hasAccess('fxRates') && (
+            <button
+              className={`admin-sidebar-subitem ${activePage === 'fxRates' ? 'active' : ''}`}
+              type="button"
+              onClick={() => onNavigate('fxRates')}
+            >
+              FX Rates
+            </button>
+          )}
         </div>
 
         <div className="admin-sidebar-group">
@@ -138,6 +147,15 @@ const AdminSidebar = ({ activePage, onNavigate, onLogout, isLoggingOut, allowedP
               onClick={() => onNavigate('mt5')}
             >
               cTrader
+            </button>
+          )}
+          {hasAccess('tradingRules') && (
+            <button
+              className={`admin-sidebar-subitem ${activePage === 'tradingRules' ? 'active' : ''}`}
+              type="button"
+              onClick={() => onNavigate('tradingRules')}
+            >
+              Trading Rules
             </button>
           )}
         </div>

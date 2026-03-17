@@ -6,7 +6,12 @@ import { prisma } from '../config/prisma'
 import { ApiError } from './errors'
 
 const jwks = env.supabaseJwksUrl
-  ? createRemoteJWKSet(new URL(env.supabaseJwksUrl))
+  ? createRemoteJWKSet(new URL(env.supabaseJwksUrl), {
+      headers: {
+        apikey: env.supabaseServiceRoleKey,
+        Authorization: `Bearer ${env.supabaseServiceRoleKey}`,
+      },
+    })
   : null
 
 export type AuthUser = {
@@ -30,7 +35,7 @@ export const authenticate = async (req: AuthenticatedRequest, _res: Response, ne
 
     const token = authHeader.replace('Bearer ', '').trim()
     const { payload } = await jwtVerify(token, jwks, {
-      issuer: 'supabase',
+      issuer: `${env.supabaseUrl}/auth/v1`,
       audience: 'authenticated',
     })
 
@@ -50,7 +55,12 @@ export const authenticate = async (req: AuthenticatedRequest, _res: Response, ne
     req.supabaseSub = sub
     next()
   } catch (error) {
-    next(error as Error)
+    console.error('Auth middleware failed:', error)
+    const message = error instanceof Error ? error.message : 'Invalid auth token'
+    if (message.toLowerCase().includes('jwt') || message.toLowerCase().includes('token')) {
+      return next(new ApiError('Invalid auth token', 401))
+    }
+    return next(error as Error)
   }
 }
 

@@ -65,6 +65,12 @@
   gap: 20px;
 }
 
+@media (min-width: 1025px) {
+  .pricing-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 .pricing-tier {
   position: relative;
   border-radius: 16px;

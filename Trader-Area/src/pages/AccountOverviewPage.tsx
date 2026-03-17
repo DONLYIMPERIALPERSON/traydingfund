@@ -149,58 +149,86 @@ const AccountOverviewPage: React.FC = () => {
             <span className="trading-objective-title">Trading Objective</span>
           </div>
           <div className="objectives-list">
-            {Object.entries(accountData.objectives)
-              .filter(([key]) => !(accountData.phase === 'Funded' && key === 'profit_target'))
-              .map(([key, objective]) => (
-                <div key={key} className="objective-item">
-                <div className="objective-content">
-                  <i className={`fas fa-${key === 'max_drawdown' ? 'circle-exclamation' : key === 'profit_target' ? 'bullseye' : key === 'scalping_rule' ? 'hourglass-half' : 'calendar-days'} objective-icon ${key === 'max_drawdown' ? 'max-loss' : key === 'profit_target' ? 'profit-target' : key === 'scalping_rule' ? 'time-rule' : 'trading-days'}`}></i>
-                  <div className="objective-text-section">
-                    <span className="objective-text">
-                      {key === 'min_trading_days' ? 'Cool Down Period' : objective.label}
-                    </span>
-                    {key === 'min_trading_days' ? (
-                      <span className="objective-info">
-                        {(() => {
-                          if (objective.note) {
-                            // Parse format like "11.50h / 24.00h"
-                            const match = objective.note.match(/(\d+(?:\.\d+)?)h\s*\/\s*(\d+(?:\.\d+)?)h/)
-                            if (match) {
-                              const elapsedHours = parseFloat(match[1] || '0')
-                              const totalHours = parseFloat(match[2] || '0')
-                              const remainingHours = Math.max(0, totalHours - elapsedHours)
+            {(
+              ['profit_target', 'max_drawdown', 'max_daily_drawdown', 'min_trade_duration', 'min_trading_days'] as const
+            )
+              .filter((key) => !(accountData.phase === 'Funded' && key === 'profit_target'))
+              .map((key) => {
+                const objective = accountData.objectives[key] ?? {
+                  label: {
+                    profit_target: 'Profit Target',
+                    max_drawdown: 'Max Drawdown',
+                    max_daily_drawdown: 'Max Daily Drawdown',
+                    min_trade_duration: 'Minimum Trade Duration',
+                    min_trading_days: 'Minimum Trading Days',
+                  }[key],
+                  status: 'pending',
+                  note: 'Pending',
+                }
 
-                              if (remainingHours <= 0) {
-                                return 'Complete'
-                              }
+                const iconMap: Record<string, { icon: string; className: string }> = {
+                  max_drawdown: { icon: 'circle-exclamation', className: 'max-loss' },
+                  max_daily_drawdown: { icon: 'triangle-exclamation', className: 'max-loss' },
+                  profit_target: { icon: 'bullseye', className: 'profit-target' },
+                  min_trade_duration: { icon: 'hourglass-half', className: 'time-rule' },
+                  min_trading_days: { icon: 'calendar-days', className: 'trading-days' },
+                }
+                const iconConfig = iconMap[key] ?? { icon: 'clipboard-list', className: 'trading-days' }
 
-                              const hours = Math.floor(remainingHours)
-                              const minutes = Math.floor((remainingHours - hours) * 60)
+                return (
+                  <div key={key} className="objective-item">
+                    <div className="objective-content">
+                      <i className={`fas fa-${iconConfig.icon} objective-icon ${iconConfig.className}`}></i>
+                      <div className="objective-text-section">
+                        <span className="objective-text">
+                          {key === 'min_trading_days' ? 'Min Trading Days' : objective.label}
+                        </span>
+                        {key === 'min_trading_days' ? (
+                          <span className="objective-info">
+                            {(() => {
+                              if (objective.note) {
+                                // Parse format like "11.50h / 24.00h"
+                                const match = objective.note.match(/(\d+(?:\.\d+)?)h\s*\/\s*(\d+(?:\.\d+)?)h/)
+                                if (match) {
+                                  const elapsedHours = parseFloat(match[1] || '0')
+                                  const totalHours = parseFloat(match[2] || '0')
+                                  const remainingHours = Math.max(0, totalHours - elapsedHours)
 
-                              if (hours > 0) {
-                                if (minutes > 0) {
-                                  return `${hours} hour${hours > 1 ? 's' : ''} ${minutes} minute${minutes > 1 ? 's' : ''} left`
-                                } else {
-                                  return `${hours} hour${hours > 1 ? 's' : ''} left`
+                                  if (remainingHours <= 0) {
+                                    return 'Complete'
+                                  }
+
+                                  const hours = Math.floor(remainingHours)
+                                  const minutes = Math.floor((remainingHours - hours) * 60)
+
+                                  if (hours > 0) {
+                                    if (minutes > 0) {
+                                      return `${hours} hour${hours > 1 ? 's' : ''} ${minutes} minute${minutes > 1 ? 's' : ''} left`
+                                    } else {
+                                      return `${hours} hour${hours > 1 ? 's' : ''} left`
+                                    }
+                                  } else if (minutes > 0) {
+                                    return `${minutes} minute${minutes > 1 ? 's' : ''} left`
+                                  } else {
+                                    return 'Complete'
+                                  }
                                 }
-                              } else if (minutes > 0) {
-                                return `${minutes} minute${minutes > 1 ? 's' : ''} left`
-                              } else {
-                                return 'Complete'
                               }
-                            }
-                          }
-                        return objective.note || '00:00 Hours'
-                        })()}
-                      </span>
-                    ) : (
-                      objective.note && <span className="objective-info">{objective.note}</span>
-                    )}
+                              return objective.note || '00:00 Hours'
+                            })()}
+                          </span>
+                        ) : (
+                          objective.note && <span className="objective-info">{objective.note}</span>
+                        )}
+                      </div>
+                    </div>
+                    <i
+                      className={`fas fa-${objective.status === 'passed' ? 'check-circle' : objective.status === 'breached' ? 'times-circle' : 'far fa-circle'} objective-status ${objective.status === 'passed' ? 'completed' : objective.status === 'breached' ? 'breached' : 'pending'}`}
+                      style={objective.status === 'breached' ? { color: '#e74c3c' } : undefined}
+                    ></i>
                   </div>
-                </div>
-                <i className={`fas fa-${objective.status === 'passed' ? 'check-circle' : objective.status === 'breached' ? 'times-circle' : 'far fa-circle'} objective-status ${objective.status === 'passed' ? 'completed' : objective.status === 'breached' ? 'breached' : 'pending'}`} style={objective.status === 'breached' ? {color: '#e74c3c'} : undefined}></i>
-              </div>
-            ))}
+                )
+              })}
           </div>
           <div className="objective-progress-bar"></div>
         </div>

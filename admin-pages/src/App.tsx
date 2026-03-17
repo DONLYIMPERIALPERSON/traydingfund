@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useDescope, useSession } from '@descope/react-sdk'
 import AdminHeader from './components/AdminHeader'
 import AdminSidebar from './components/AdminSidebar'
 import AdminFooter from './components/AdminFooter'
@@ -17,6 +16,8 @@ import FinanceAnalysisPage from './pages/FinanceAnalysisPage'
 import CouponsPage from './pages/CouponsPage'
 import SupportTicketsPage from './pages/SupportTicketsPage'
 import SettingsPage from './pages/SettingsPage'
+import TradingRulesPage from './pages/TradingRulesPage'
+import FxRatesPage from './pages/FxRatesPage'
 import CTraderPage from './pages/CTraderPage'
 import SendAnnouncementPage from './pages/SendAnnouncementPage'
 import SalaryPage from './pages/SalaryPage'
@@ -29,10 +30,11 @@ import {
   persistAdminUser,
   type AdminAuthMeResponse,
 } from './lib/adminMock'
-import AdminAuthCard from './components/AdminAuthCard'
+import AdminSupabaseAuthCard from './components/AdminSupabaseAuthCard'
+import { supabase } from './lib/supabaseClient'
 import './App.css'
 
-type AdminPage = 'analysis' | 'users' | 'accounts' | 'fundedAccounts' | 'breaches' | 'orders' | 'payouts' | 'userProfile' | 'kycReview' | 'referrals' | 'financeAnalysis' | 'coupons' | 'supportTickets' | 'settings' | 'mt5' | 'sendAnnouncement' | 'salary'
+type AdminPage = 'analysis' | 'users' | 'accounts' | 'fundedAccounts' | 'breaches' | 'orders' | 'payouts' | 'userProfile' | 'kycReview' | 'referrals' | 'financeAnalysis' | 'coupons' | 'supportTickets' | 'settings' | 'mt5' | 'sendAnnouncement' | 'salary' | 'tradingRules' | 'fxRates'
 
 const DEFAULT_SESSION_REFRESH_INTERVAL_MS = 5 * 60 * 1000
 
@@ -73,9 +75,7 @@ function isAdminAccessDeniedError(message: string): boolean {
 }
 
 function App() {
-  const descopeSdk = useDescope()
-  // Keep session refreshed in background to reduce unexpected admin sign-outs during testing.
-  useSession()
+  // Supabase handles session refresh internally
   const [activePage, setActivePage] = useState<AdminPage>('analysis')
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
   const [authUser, setAuthUser] = useState<AdminAuthMeResponse | null>(getPersistedAdminUser())
@@ -88,24 +88,16 @@ function App() {
   const [supportChatId, setSupportChatId] = useState<string | null>(null)
 
   useEffect(() => {
-    void descopeSdk.refresh().catch(() => {
-      // best effort refresh on app load
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.access_token) {
+        localStorage.setItem('supabase_access_token', session.access_token)
+      }
     })
-  }, [descopeSdk])
-
-  useEffect(() => {
-    if (!authUser) return
-
-    const intervalId = window.setInterval(() => {
-      void descopeSdk.refresh().catch(() => {
-        // best effort background refresh
-      })
-    }, getRefreshIntervalMs())
 
     return () => {
-      window.clearInterval(intervalId)
+      subscription.subscription.unsubscribe()
     }
-  }, [authUser, descopeSdk])
+  }, [])
 
   useEffect(() => {
     const verifyAdminSession = async () => {
@@ -132,7 +124,7 @@ function App() {
   useEffect(() => {
     if (!authUser || authUser.role === 'super_admin' || !authUser.allowed_pages) return;
 
-    const possiblePages = ['analysis', 'users', 'accounts', 'fundedAccounts', 'breaches', 'orders', 'payouts', 'kycReview', 'referrals', 'financeAnalysis', 'coupons', 'supportTickets', 'settings', 'mt5', 'sendAnnouncement', 'salary'];
+    const possiblePages = ['analysis', 'users', 'accounts', 'fundedAccounts', 'breaches', 'orders', 'payouts', 'kycReview', 'referrals', 'financeAnalysis', 'coupons', 'supportTickets', 'settings', 'mt5', 'sendAnnouncement', 'salary', 'tradingRules', 'fxRates'];
     const firstAllowed = possiblePages.find(page => authUser.allowed_pages?.includes(page) ?? false);
     if (!firstAllowed) {
       setAuthError('No pages assigned to this admin account.');
@@ -153,12 +145,12 @@ function App() {
     return authUser.role === 'super_admin' ? 'Super Admin' : 'Admin'
   }, [authUser])
 
-  const handleDescopeSuccess = async (sessionJwt?: string) => {
+  const handleSupabaseSuccess = async () => {
     setAuthError('')
     setAuthSyncing(true)
 
     try {
-      const user = await adminLoginWithBackend(sessionJwt)
+      const user = await adminLoginWithBackend()
       persistAdminUser(user)
       setAuthUser(user)
       setAuthBlocked(false)
@@ -173,7 +165,7 @@ function App() {
     }
   }
 
-  const handleDescopeError = (message: string) => {
+  const handleSupabaseError = (message: string) => {
     setAuthError(readableAuthError(message))
   }
 
@@ -215,7 +207,7 @@ function App() {
     }
 
     try {
-      await descopeSdk.logout()
+      await supabase.auth.signOut()
     } catch {
       // best effort logout
     }
@@ -260,10 +252,10 @@ function App() {
           <img src="/logo.png" alt="Machefunded" className="admin-auth-logo" />
           <h1>Admin Sign In</h1>
 
-          <AdminAuthCard
+          <AdminSupabaseAuthCard
             key={authRetryKey}
-            onSuccess={handleDescopeSuccess}
-            onError={handleDescopeError}
+            onAuthenticated={handleSupabaseSuccess}
+            onError={handleSupabaseError}
           />
 
           {authSyncing && <p className="admin-auth-note">Finalizing admin access...</p>}
@@ -335,6 +327,8 @@ function App() {
             />
           )}
           {!authError && activePage === 'settings' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('settings'))) && <SettingsPage />}
+          {!authError && activePage === 'tradingRules' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('tradingRules'))) && <TradingRulesPage />}
+          {!authError && activePage === 'fxRates' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('fxRates'))) && <FxRatesPage />}
           {!authError && activePage === 'kycReview' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('kycReview'))) && <KycReviewPage onOpenProfile={handleOpenUserProfile} />}
           {!authError && activePage === 'referrals' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('referrals'))) && <ReferralsPage />}
           {!authError && activePage === 'userProfile' && selectedUser && (
@@ -344,7 +338,7 @@ function App() {
               onOpenSupportChat={handleOpenSupportChat}
             />
           )}
-          {!authError && !['analysis', 'users', 'accounts', 'fundedAccounts', 'breaches', 'mt5', 'orders', 'payouts', 'financeAnalysis', 'coupons', 'sendAnnouncement', 'supportTickets', 'settings', 'kycReview', 'referrals', 'userProfile', 'salary'].includes(activePage) && (
+          {!authError && !['analysis', 'users', 'accounts', 'fundedAccounts', 'breaches', 'mt5', 'orders', 'payouts', 'financeAnalysis', 'coupons', 'sendAnnouncement', 'supportTickets', 'settings', 'kycReview', 'referrals', 'userProfile', 'salary', 'tradingRules', 'fxRates'].includes(activePage) && (
             <div className="admin-no-access">
               <h2>Access Denied</h2>
               <p>You do not have permission to access this page. Please select an available page from the sidebar.</p>

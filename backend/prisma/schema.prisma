@@ -20,6 +20,7 @@ model User {
   updatedAt          DateTime  @updatedAt
 
   challengeAccounts  ChallengeAccount[]
+  cTraderAccounts    CTraderAccount[]
   orders             Order[]
   payouts            Payout[]
 }
@@ -42,6 +43,52 @@ model ChallengeAccount {
   user            User     @relation(fields: [userId], references: [id])
 }
 
+model CTraderAccount {
+  id            Int      @id @default(autoincrement())
+  challengeId   String   @unique
+  accountSize   String
+  phase         String
+  status        String
+  brokerName    String
+  accountNumber String
+  assignedAt    DateTime?
+  startedAt     DateTime?
+  breachedAt    DateTime?
+  passedAt      DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  userId        Int?
+  user          User?    @relation(fields: [userId], references: [id])
+  metrics       CTraderAccountMetric?
+}
+
+model CTraderAccountMetric {
+  id                     Int      @id @default(autoincrement())
+  balance                Float
+  equity                 Float
+  unrealizedPnl           Float
+  maxPermittedLossLeft    Float
+  highestBalance          Float
+  breachBalance           Float
+  profitTargetBalance     Float
+  winRate                 Float
+  closedTradesCount       Int
+  winningTradesCount      Int
+  lotsTradedTotal          Float
+  todayClosedPnl          Float
+  todayTradesCount        Int
+  todayLotsTotal          Float
+  minTradingDaysRequired  Int
+  minTradingDaysMet       Boolean
+  stageElapsedHours       Float
+  scalpingViolationsCount Int
+  capturedAt              DateTime @default(now())
+
+  accountId               Int      @unique
+  account                 CTraderAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
 model Order {
   id              Int      @id @default(autoincrement())
   providerOrderId String   @unique
@@ -55,7 +102,19 @@ model Order {
   accountSize     String
   couponCode      String?
   checkoutUrl     String?
+  paymentMethod   String
+  paymentProvider String
+  cryptoCurrency  String?
+  cryptoAddress   String?
+  safehavenAccountId String?
+  safehavenAccountNumber String?
+  safehavenAccountName String?
+  safehavenBankName String?
+  safehavenExpiresAt DateTime?
+  safehavenSessionId String?
+  metadata        Json?
   createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
   paidAt          DateTime?
 
   userId          Int
@@ -74,4 +133,26 @@ model Payout {
 
   userId           Int
   user             User     @relation(fields: [userId], references: [id])
+}
+
+model AdminAllowlist {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  fullName     String?
+  role         String   @default("admin")
+  status       String   @default("active")
+  allowedPages String[]
+  requireMfa   Boolean  @default(false)
+  canAssignMt5 Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model TradingObjectiveConfig {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  label     String
+  rules     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

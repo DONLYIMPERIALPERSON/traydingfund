@@ -1,3 +1,5 @@
+import { apiFetch } from '../lib/api'
+
 const MOCK_USER_KEY = 'nairatrader_auth_user'
 const mockDelay = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -45,6 +47,7 @@ export type KycEligibilityResponse = {
 export type UserChallengeAccountListItem = {
   challenge_id: string
   account_size: string
+  challenge_type?: string
   phase: string
   objective_status: string
   display_status: string
@@ -182,6 +185,8 @@ export type PaymentOrderResponse = {
   gross_amount_kobo: number
   discount_amount_kobo: number
   net_amount_kobo: number
+  bank_transfer_amount_ngn?: number | null
+  bank_transfer_rate?: number | null
   plan_id: string
   account_size: string
   coupon_code: string | null
@@ -191,6 +196,13 @@ export type PaymentOrderResponse = {
   payer_virtual_acc_no: string | null
   expires_at: string | null
   challenge_id: string | null
+  crypto_currency?: string | null
+  crypto_address?: string | null
+  crypto_networks?: {
+    ERC20?: string | null
+    SOL?: string | null
+    TRC20?: string | null
+  } | null
 }
 
 export type PaymentStatusRefreshResponse = {
@@ -199,6 +211,20 @@ export type PaymentStatusRefreshResponse = {
   assignment_status: string
   challenge_id: string | null
   message: string
+}
+
+export type TraderOrder = {
+  id: number
+  provider_order_id: string
+  status: string
+  assignment_status: string
+  account_size: string
+  net_amount_kobo: number
+  net_amount_formatted: string
+  payment_method: string
+  payment_provider: string
+  created_at: string
+  paid_at: string | null
 }
 
 function parseBackendError(prefix: string, status: number, rawText: string): Error {
@@ -361,78 +387,15 @@ export async function fetchWithdrawalPrecheck(): Promise<WithdrawalPrecheckRespo
 }
 
 export async function fetchUserChallengeAccounts(): Promise<UserChallengeAccountListResponse> {
-  await mockDelay()
-  return {
-    has_any_accounts: true,
-    has_active_accounts: true,
-    active_accounts: [
-      {
-        challenge_id: 'mock-challenge-001',
-        account_size: '$50K',
-        phase: 'Phase 1',
-        objective_status: 'on_track',
-        display_status: 'Active',
-        is_active: true,
-        mt5_account: '12345678',
-        started_at: new Date().toISOString(),
-        breached_at: null,
-        passed_at: null,
-        passed_stage: null,
-      },
-    ],
-    history_accounts: [],
-  }
+  return apiFetch<UserChallengeAccountListResponse>('/trader/challenges')
 }
 
 export async function fetchUserChallengeAccountDetail(challengeId: string): Promise<UserChallengeAccountDetailResponse> {
-  await mockDelay()
-  return {
-    challenge_id: challengeId,
-    account_size: '$50K',
-    phase: 'Phase 1',
-    objective_status: 'on_track',
-    breached_reason: null,
-    started_at: new Date().toISOString(),
-    breached_at: null,
-    passed_at: null,
-    mt5_account: '12345678',
-    last_feed_at: new Date().toISOString(),
-    last_refresh_requested_at: null,
-    metrics: {
-      balance: 52000,
-      equity: 51820,
-      unrealized_pnl: -180,
-      max_permitted_loss_left: 3500,
-      highest_balance: 54000,
-      breach_balance: 45000,
-      profit_target_balance: 56000,
-      win_rate: 58,
-      closed_trades_count: 37,
-      winning_trades_count: 21,
-      lots_traded_total: 46.2,
-      today_closed_pnl: 320,
-      today_trades_count: 3,
-      today_lots_total: 1.8,
-      min_trading_days_required: 5,
-      min_trading_days_met: true,
-      stage_elapsed_hours: 84,
-      scalping_violations_count: 0,
-    },
-    objectives: {
-      profit_target: { label: 'Profit Target', status: 'pending', note: '40% complete' },
-      drawdown: { label: 'Drawdown', status: 'passed', note: 'Within limits' },
-    },
-    credentials: {
-      server: 'MockServer-Live',
-      account_number: '12345678',
-      password: 'mock-pass',
-      investor_password: 'mock-investor',
-    },
-    funded_profit_raw: null,
-    funded_profit_capped: null,
-    funded_profit_cap_amount: null,
-    funded_user_payout_amount: null,
-  }
+  return apiFetch<UserChallengeAccountDetailResponse>(`/trader/challenges/${encodeURIComponent(challengeId)}`)
+}
+
+export async function fetchTradingObjectives(): Promise<TradingObjectivesResponse> {
+  return apiFetch<TradingObjectivesResponse>('/trading-objectives')
 }
 
 export async function refreshChallengeAccount(): Promise<{ status: string }> {
@@ -479,27 +442,26 @@ export async function previewCheckoutCoupon(payload: {
 
 export async function initPalmPayBankTransfer(payload: {
   plan_id: string
+  account_size: string
+  amount_kobo: number
   coupon_code?: string | null
 }): Promise<PaymentOrderResponse> {
-  await mockDelay()
-  return {
-    provider_order_id: 'mock-order-001',
-    status: 'pending',
-    assignment_status: 'unassigned',
-    currency: 'USD',
-    gross_amount_kobo: 2500000,
-    discount_amount_kobo: 0,
-    net_amount_kobo: 2500000,
-    plan_id: payload.plan_id,
-    account_size: '$50K',
-    coupon_code: payload.coupon_code || null,
-    checkout_url: 'https://checkout.machefunded.com/mock',
-    payer_bank_name: 'Mock Bank',
-    payer_account_name: 'Mock Trader',
-    payer_virtual_acc_no: '1234567890',
-    expires_at: new Date(Date.now() + 3600000).toISOString(),
-    challenge_id: 'mock-challenge-001',
-  }
+  return apiFetch<PaymentOrderResponse>('/trader/orders/bank-transfer', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function initCryptoOrder(payload: {
+  plan_id: string
+  account_size: string
+  amount_kobo: number
+  crypto_currency: string
+}): Promise<PaymentOrderResponse> {
+  return apiFetch<PaymentOrderResponse>('/trader/orders/crypto', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 }
 
 export async function refreshPaymentOrderStatus(providerOrderId: string): Promise<PaymentStatusRefreshResponse> {
@@ -511,6 +473,10 @@ export async function refreshPaymentOrderStatus(providerOrderId: string): Promis
     challenge_id: 'mock-challenge-001',
     message: 'Mock status refreshed',
   }
+}
+
+export async function fetchOrders(): Promise<{ orders: TraderOrder[] }> {
+  return apiFetch<{ orders: TraderOrder[] }>('/trader/orders')
 }
 
 export async function fetchCertificates(): Promise<CertificateListResponse> {

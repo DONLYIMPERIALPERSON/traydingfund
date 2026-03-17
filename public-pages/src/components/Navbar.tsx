@@ -7,7 +7,7 @@ export default function Navbar() {
     const navLinks = [
         { name: 'Home', href: '/#', isSection: true, sectionId: 'home' },
         { name: 'Challenges', href: '/#pricing', isSection: true, sectionId: 'pricing' },
-        { name: 'Rules', href: '/rules', isSection: false },
+        { name: 'Trading Objectives', href: '/rules', isSection: false },
         { name: 'Contact', href: '/contact', isSection: false },
     ];
 

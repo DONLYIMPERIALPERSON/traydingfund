@@ -1,14 +1,15 @@
 import React from 'react'
 import '../styles/DesktopLoginPage.css'
-import DescopeAuthCard from '../components/DescopeAuthCard'
+import FirebaseAuthCard from '../components/FirebaseAuthCard'
 
 const LoginPage: React.FC = () => {
   return (
     <div className="login-page">
       <div className="login-container">
         <div className="hero-section">
+          <span className="hero-watermark">MACHEFUNDED</span>
           <div className="hero-icon">
-            <img src="/mobile-logo.svg" alt="MacheFunded" className="hero-logo" />
+            <img src="/logo.png" alt="MacheFunded" className="hero-logo" />
           </div>
           <h1 className="hero-title">Welcome Back</h1>
           <p className="hero-subtitle">Sign in to continue your trading journey.</p>
@@ -16,7 +17,7 @@ const LoginPage: React.FC = () => {
 
         <div className="auth-form">
           <div className="form-content">
-            <DescopeAuthCard
+            <FirebaseAuthCard
               title=""
               subtitle=""
             />

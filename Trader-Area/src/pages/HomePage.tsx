@@ -130,13 +130,14 @@ const HomePage: React.FC = () => {
               onClick={() => navigate('/trading-accounts')}
               style={{
                 marginTop: '16px',
-                backgroundColor: '#FFD700',
+                backgroundColor: '#0b9fb8',
                 border: 'none',
                 borderRadius: '8px',
                 padding: '10px 16px',
                 cursor: 'pointer',
                 fontWeight: 600,
-                color: '#333'
+                color: '#FFFFFF',
+                boxShadow: '0 2px 4px rgba(11,159,184,0.3)'
               }}
             >
               Start New Challenge
@@ -160,13 +161,14 @@ const HomePage: React.FC = () => {
                   onClick={() => navigate('/trading-accounts')}
                   style={{
                     marginTop: '16px',
-                    backgroundColor: '#FFD700',
+                    backgroundColor: '#0b9fb8',
                     border: 'none',
                     borderRadius: '8px',
                     padding: '10px 16px',
                     cursor: 'pointer',
                     fontWeight: 600,
-                    color: '#333'
+                    color: '#FFFFFF',
+                    boxShadow: '0 2px 4px rgba(11,159,184,0.3)'
                   }}
                 >
                   Start New Challenge
@@ -203,7 +205,7 @@ const HomePage: React.FC = () => {
                   setShowPinPrompt(false)
                   navigate('/settings')
                 }}
-                style={{ padding: '10px 14px', borderRadius: '8px', border: 'none', background: '#FFD700', cursor: 'pointer', fontWeight: 600 }}
+                style={{ padding: '10px 14px', borderRadius: '8px', border: 'none', background: '#0b9fb8', color: '#fff', cursor: 'pointer', fontWeight: 600, boxShadow: '0 2px 4px rgba(11,159,184,0.3)' }}
               >
                 Set PIN Now
               </button>

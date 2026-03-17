@@ -1,33 +1,35 @@
-import { Request, Response } from 'express'
+import { Request, Response, NextFunction } from 'express'
+import { prisma } from '../../config/prisma'
+import { ApiError } from '../../common/errors'
 
-export const getAdminMe = (_req: Request, res: Response) => {
-  res.json({
-    id: 1,
-    descope_user_id: 'mock-admin-1',
-    email: 'admin@machefunded.com',
-    full_name: 'Admin Operator',
-    role: 'super_admin',
-    status: 'active',
-    allowed_pages: [
-      'analysis',
-      'users',
-      'accounts',
-      'fundedAccounts',
-      'breaches',
-      'orders',
-      'payouts',
-      'kycReview',
-      'referrals',
-      'financeAnalysis',
-      'coupons',
-      'supportTickets',
-      'settings',
-      'mt5',
-      'sendAnnouncement',
-      'salary',
-    ],
-    can_assign_mt5: true,
-  })
+export const getAdminMe = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const email = (req as any).user?.email as string | undefined
+    if (!email) {
+      throw new ApiError('Unauthorized', 401)
+    }
+
+    const allowlist = await prisma.adminAllowlist.findUnique({
+      where: { email: email.toLowerCase() },
+    })
+
+    if (!allowlist || allowlist.status !== 'active') {
+      throw new ApiError('Admin access denied', 403)
+    }
+
+    res.json({
+      id: allowlist.id,
+      descope_user_id: null,
+      email: allowlist.email,
+      full_name: allowlist.fullName,
+      role: allowlist.role,
+      status: allowlist.status,
+      allowed_pages: allowlist.allowedPages,
+      can_assign_mt5: allowlist.canAssignMt5,
+    })
+  } catch (err) {
+    next(err as Error)
+  }
 }
 
 export const getDashboardStats = (_req: Request, res: Response) => {

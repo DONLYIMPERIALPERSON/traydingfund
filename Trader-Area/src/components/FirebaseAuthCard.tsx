@@ -1,14 +1,8 @@
 import React, { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import {
-  checkEmailRegistration,
-  signInUser,
-  sendRegistrationOTP,
-  createUserAccount,
-  loginWithBackend,
-  persistAuthUser,
-} from '../mocks/firebaseAuth'
+import { supabase } from '../lib/supabaseClient'
+import { loginWithBackend } from '../mocks/firebaseAuth'
 import './FirebaseAuthCard.css'
 
 type FirebaseAuthCardProps = {
@@ -68,14 +62,23 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
     setLoading(true)
 
     try {
-      const isRegistered = await checkEmailRegistration(email.trim())
+      const baseUrl = import.meta.env.VITE_API_BASE_URL as string
+      const response = await fetch(`${baseUrl}/auth/email-exists?email=${encodeURIComponent(email.trim())}`)
+      if (!response.ok) {
+        throw new Error('Unable to verify email')
+      }
+      const data = await response.json()
+      const isRegistered = Boolean(data?.exists)
 
       if (isRegistered) {
         // Existing user - go to password step
         setStep('password')
       } else {
         // New user - send OTP
-        await sendRegistrationOTP(email.trim())
+        const { error: otpError } = await supabase.auth.signInWithOtp({ email: email.trim() })
+        if (otpError) {
+          throw otpError
+        }
         setStep('otp')
       }
     } catch (err) {
@@ -102,12 +105,18 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
     setLoading(true)
 
     try {
-      // Sign in existing user
-      const user = await signInUser(email.trim(), password.trim())
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password.trim(),
+      })
+      if (signInError) {
+        throw signInError
+      }
 
-      // Login with mock auth
-      const userProfile = await loginWithBackend()
-      persistAuthUser(userProfile)
+      if (data?.session?.access_token) {
+        localStorage.setItem('supabase_access_token', data.session.access_token)
+        await loginWithBackend()
+      }
       navigate('/')
     } catch (err) {
       console.error('Sign in failed', err)
@@ -133,7 +142,18 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
     setLoading(true)
 
     try {
-      // Mock OTP verification
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: otpCode.trim(),
+        type: 'email',
+      })
+      if (verifyError) {
+        throw verifyError
+      }
+      if (data?.session?.access_token) {
+        localStorage.setItem('supabase_access_token', data.session.access_token)
+        await loginWithBackend()
+      }
       setStep('createPassword')
     } catch (err) {
       console.error('OTP verification failed', err)
@@ -169,12 +189,20 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
     setLoading(true)
 
     try {
-      // Create new account
-      const user = await createUserAccount(email.trim(), password.trim())
-
-      // Login with mock auth
-      const userProfile = await loginWithBackend()
-      persistAuthUser(userProfile)
+      const { data, error: updateError } = await supabase.auth.updateUser({
+        password: password.trim(),
+      })
+      if (updateError) {
+        throw updateError
+      }
+      if (data?.user) {
+        // ensure session stored
+        const session = await supabase.auth.getSession()
+        if (session.data.session?.access_token) {
+          localStorage.setItem('supabase_access_token', session.data.session.access_token)
+          await loginWithBackend()
+        }
+      }
       navigate('/')
     } catch (err) {
       console.error('Account creation failed', err)

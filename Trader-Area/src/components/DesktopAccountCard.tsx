@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 
 interface AccountProps {
   challengeId: string;
+  challengeType?: string;
   phase: string;
   accountNumber: string;
   startDate: string;
@@ -11,7 +12,7 @@ interface AccountProps {
   passedStage?: string | null;
 }
 
-const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, phase, accountNumber, startDate, amount, status, passedStage }) => {
+const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType, phase, accountNumber, startDate, amount, status, passedStage }) => {
   const navigate = useNavigate()
 
   const getStatusColor = (status: string) => {
@@ -74,7 +75,7 @@ const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, phase, accoun
             fontWeight: '600',
             color: '#333'
           }}>
-            {phase} · {accountNumber}
+            {(challengeType ? `${challengeType} · ` : '')}{phase} · {accountNumber}
             {passedStage && (
               <div style={{
                 fontSize: '12px',

@@ -8,7 +8,6 @@ import {
   fetchNextChallengeId,
   fetchMT5Summary,
   fetchPendingAssignments,
-  generateCertificates,
   type ChallengeAccountListItem,
   deleteMT5Account,
   type MT5Account,
@@ -56,7 +55,6 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
   const [uploading, setUploading] = useState(false)
   const [loadingChallengeId, setLoadingChallengeId] = useState(false)
   const [useCustomChallengeId, setUseCustomChallengeId] = useState(false)
-  const [generatingCertificates, setGeneratingCertificates] = useState(false)
 
   const loadNextManualChallengeId = async () => {
     setLoadingChallengeId(true)
@@ -236,18 +234,6 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
     }
   }
 
-  const handleGenerateCertificates = async () => {
-    setGeneratingCertificates(true)
-    setError('')
-    try {
-      const result = await generateCertificates()
-      alert(`Certificate generation completed!\nGenerated: ${result.generated}\nFailed: ${result.failed}\n\n${result.message}`)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate certificates')
-    } finally {
-      setGeneratingCertificates(false)
-    }
-  }
 
   const handleDeleteAccount = async (account: MT5Account, isAssigned?: boolean) => {
     const confirmDelete = window.confirm(
@@ -275,7 +261,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <div>
             <h2>cTrader</h2>
-            <p style={{ margin: 0, color: '#9ca3af' }}>Ready inventory and stage-assigned account tracking</p>
+            <p style={{ margin: 0, color: '#fff' }}>Ready inventory and stage-assigned account tracking</p>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button
@@ -292,24 +278,6 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
               }}
             >
               Download Template
-            </button>
-
-            <button
-              type="button"
-              onClick={handleGenerateCertificates}
-              disabled={generatingCertificates}
-              style={{
-                border: '1px solid #f59e0b',
-                background: '#f59e0b',
-                color: '#111827',
-                borderRadius: 10,
-                padding: '10px 14px',
-                fontWeight: 700,
-                cursor: generatingCertificates ? 'not-allowed' : 'pointer',
-                opacity: generatingCertificates ? 0.7 : 1,
-              }}
-            >
-              {generatingCertificates ? 'Generating...' : 'Generate Certificates'}
             </button>
 
             {isSuperAdmin && (
@@ -571,7 +539,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
             <thead>
               <tr>
                 <th>Account Number</th>
-                <th>cTrader ID</th>
+                <th>Broker</th>
                 <th>Account Size</th>
                 <th>Status</th>
                 {(isSuperAdmin || canAssignMt5) && <th>Action</th>}

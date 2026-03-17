@@ -32,6 +32,7 @@ const DesktopActiveAccountsSection: React.FC<DesktopActiveAccountsSectionProps> 
           <DesktopAccountCard
             key={account.challenge_id}
             challengeId={account.challenge_id}
+            challengeType={account.challenge_type}
             phase={account.phase}
             accountNumber={account.mt5_account ?? 'Pending'}
             startDate={account.started_at ? new Date(account.started_at).toLocaleDateString() : '-'}

@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
 import '../styles/DesktopTradingAccountsPage.css'
+import { fetchTradingObjectives, type TradingObjectivesResponse } from '../mocks/auth'
 
 type PricingTier = {
   account: string
@@ -21,6 +22,7 @@ type PricingTab = {
 }
 
 type AccountView = {
+  id?: string
   size: string
   drawdown: string
   target: string
@@ -44,14 +46,7 @@ const pricingTabs: PricingTab[] = [
       { account: '$100K', price: '$354' },
       { account: '$200K', price: '$681' },
     ],
-    rules: [
-      'Max Drawdown: 15%',
-      'Phase 1 Target: 10%',
-      'Phase 2 Target: 5%',
-      'Profit Split: 80%',
-      'Withdrawals: Weekly',
-      'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach',
-    ],
+    rules: [],
   },
   {
     key: 'onePhase',
@@ -64,13 +59,7 @@ const pricingTabs: PricingTab[] = [
       { account: '$100K', price: '$450' },
       { account: '$200K', price: '$885' },
     ],
-    rules: [
-      'Max Drawdown: 15%',
-      'Profit Target: 10%',
-      'Profit Split: 80%',
-      'Withdrawals: Weekly',
-      'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach',
-    ],
+    rules: [],
   },
   {
     key: 'instant',
@@ -83,13 +72,7 @@ const pricingTabs: PricingTab[] = [
       { account: '$100K', price: '$1091' },
       { account: '$200K', price: '$1910' },
     ],
-    rules: [
-      'Daily Drawdown: 2%',
-      'Max Drawdown: 5%',
-      'Profit Split: 50%',
-      'Withdrawals: Every 14 days',
-      'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach',
-    ],
+    rules: [],
   },
 ]
 
@@ -107,27 +90,89 @@ const formatAccountSize = (label: string) => {
 const DesktopTradingAccountsPage: React.FC = () => {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<PricingTab>(pricingTabs[0])
+  const [objectiveRules, setObjectiveRules] = useState<Record<string, string[]>>({})
+  const effectiveRules = objectiveRules[activeTab.key] ?? activeTab.rules
+
+  useEffect(() => {
+    const loadObjectives = async () => {
+      try {
+        const response = (await fetchTradingObjectives()) as TradingObjectivesResponse
+        const rules = response.rules?.challenge_types ?? []
+
+        const next: Record<string, string[]> = {}
+
+        const buildMergedRules = (phases: typeof challenge.phases) => {
+          const labelMap = new Map<string, string>()
+          const aggregated = new Map<string, string[]>()
+
+          phases.forEach((phase) => {
+            phase.rules.forEach((rule) => {
+              labelMap.set(rule.key, rule.label)
+              const list = aggregated.get(rule.key) ?? []
+              if (!list.includes(rule.value)) {
+                list.push(rule.value)
+              }
+              aggregated.set(rule.key, list)
+            })
+          })
+
+          return Array.from(aggregated.entries()).map(([key, values]) => {
+            const label = labelMap.get(key) ?? key
+            if (values.length === 1) {
+              return `${label}: ${values[0]}`
+            }
+            return `${label}: ${values.join(' / ')}`
+          })
+        }
+        rules.forEach((challenge) => {
+          if (challenge.key === 'two_step') {
+            next.twoPhase = buildMergedRules(challenge.phases)
+            return
+          }
+
+          if (challenge.key === 'one_step') {
+            next.onePhase = buildMergedRules(challenge.phases)
+            return
+          }
+
+          if (challenge.key === 'instant_funded') {
+            const instant = challenge.phases[0]
+            next.instant = instant?.rules.map((rule) => `${rule.label}: ${rule.value}`) ?? []
+          }
+        })
+        setObjectiveRules(next)
+      } catch (err) {
+        console.error('Failed to load trading objectives', err)
+      }
+    }
+
+    loadObjectives()
+  }, [])
 
   const accounts = useMemo(() => {
     const getRuleValue = (prefixes: string[]) => {
-      const rule = activeTab.rules.find((item) =>
+      const rule = effectiveRules.find((item) =>
         prefixes.some((prefix) => item.toLowerCase().startsWith(prefix.toLowerCase()))
       )
       return rule ? rule.split(':').slice(1).join(':').trim() : 'N/A'
     }
 
-    return activeTab.tiers.map((tier) => ({
-      size: tier.account,
-      drawdown: getRuleValue(['Max Drawdown', 'Daily Drawdown']),
-      target: getRuleValue(['Phase 1 Target', 'Profit Target']),
-      phases: activeTab.label,
-      days: 'N/A',
-      payout: getRuleValue(['Withdrawals']),
-      fee: tier.discountPrice ?? tier.price,
-      status: 'available' as const,
-      profit_split: getRuleValue(['Profit Split']),
-    }))
-  }, [activeTab])
+    return activeTab.tiers.map((tier) => {
+      const planId = tier.account.replace(/[^0-9km.]/gi, '').toLowerCase()
+      return {
+        id: planId,
+        size: tier.account,
+        drawdown: getRuleValue(['Max Drawdown', 'Daily Drawdown']),
+        target: getRuleValue(['Phase 1 Target', 'Profit Target']),
+        phases: activeTab.label,
+        days: 'N/A',
+        payout: getRuleValue(['Withdrawals']),
+        fee: tier.discountPrice ?? tier.price,
+        status: 'available' as const,
+        profit_split: getRuleValue(['Profit Split']),
+      }
+    })
+  }, [activeTab, effectiveRules])
 
   return (
     <div className="desktop-trading-accounts-page">
@@ -165,7 +210,7 @@ const DesktopTradingAccountsPage: React.FC = () => {
                   <div className="pricing-tier-account">{formatAccountSize(tier.account)}</div>
                 </div>
                 <div className="pricing-tier-details">
-                  {activeTab.rules.map((rule) => (
+                  {effectiveRules.map((rule) => (
                     <div key={rule} className="pricing-detail">
                       <span className="pricing-bullet">•</span>
                       <span>{rule}</span>

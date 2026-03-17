@@ -1,4 +1,5 @@
 import type { User } from './firebase'
+import { apiFetch } from '../lib/api'
 
 export type AuthMeResponse = {
   id: number
@@ -58,12 +59,13 @@ export async function getIdToken(): Promise<string> {
 }
 
 export async function fetchCurrentUser(): Promise<AuthMeResponse> {
-  return mockUser
+  return apiFetch<AuthMeResponse>('/trader/me')
 }
 
 export async function loginWithBackend(): Promise<AuthMeResponse> {
-  persistAuthUser(mockUser)
-  return mockUser
+  const user = await apiFetch<AuthMeResponse>('/trader/me')
+  persistAuthUser(user)
+  return user
 }
 
 export async function logoutFromBackend(): Promise<void> {

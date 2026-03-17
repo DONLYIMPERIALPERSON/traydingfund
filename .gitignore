@@ -1,5 +1,7 @@
 .env
 backend/.env
+Trader-Area/.env
+admin-pages/.env
 # OS / editor
 .DS_Store
 Thumbs.db
