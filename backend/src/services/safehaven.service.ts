@@ -259,6 +259,10 @@ export const createVirtualAccount = async (payload: {
     body: JSON.stringify(requestBody),
   })
 
+  console.log('SafeHaven virtual account response (redacted):', {
+    raw: response,
+  })
+
   const normalized = normalizeVirtualAccount(response)
   if (!normalized.accountNumber || !normalized.accountName) {
     const fallbackId = normalized._id
@@ -291,6 +295,11 @@ export const fetchVirtualAccount = async (id: string) => {
   const response = await makeAuthenticatedRequest<
     SafeHavenVirtualAccountResponse | { data?: SafeHavenVirtualAccountResponse }
   >(`/virtual-accounts/${id}`)
+
+  console.log('SafeHaven fetch virtual account response (redacted):', {
+    id,
+    raw: response,
+  })
 
   return normalizeVirtualAccount(response)
 }
