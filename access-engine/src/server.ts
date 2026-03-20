@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express'
 import { config } from './config'
-import { createTelegramBot, formatAccessRequestMessage } from './telegram'
+import { createTelegramBot, formatAccessRequestMessage, processTelegramUpdate, registerWebhook } from './telegram'
 import type { AccessGrantRequest, AccessGrantResponse } from './types'
 
 const app = express()
@@ -36,12 +36,28 @@ app.post('/access-engine/grant', async (req: Request, res: Response) => {
   res.json(response)
 })
 
+app.post(config.telegramWebhookPath, async (req: Request, res: Response) => {
+  try {
+    await processTelegramUpdate(bot, req.body)
+    res.status(200).json({ status: 'ok' })
+  } catch (error) {
+    console.error('Failed to process Telegram update', error)
+    res.status(500).json({ status: 'error' })
+  }
+})
+
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' })
 })
 
 export const startServer = () => {
-  app.listen(config.port, () => {
+  app.listen(config.port, async () => {
     console.log(`Access engine listening on port ${config.port}`)
+    try {
+      const webhookUrl = await registerWebhook(bot)
+      console.log(`Telegram webhook registered: ${webhookUrl}`)
+    } catch (error) {
+      console.error('Failed to register Telegram webhook', error)
+    }
   })
 }

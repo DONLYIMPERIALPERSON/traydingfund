@@ -10,37 +10,51 @@ const isAllowedUser = (userId?: number) => {
   return config.telegramAllowedUsers.includes(String(userId))
 }
 
-export const createTelegramBot = () => {
-  const bot = new TelegramBot(config.telegramBotToken, { polling: true })
+const handleTelegramMessage = async (bot: TelegramBot, message: TelegramBot.Message) => {
+  if (!message.text) return
+  if (!isAllowedUser(message.from?.id)) {
+    return
+  }
 
-  bot.on('message', async (message) => {
-    if (!message.text) return
-    if (!isAllowedUser(message.from?.id)) {
-      return
-    }
+  const text = message.text.trim()
+  if (!text.startsWith(config.telegramCommandPrefix)) return
 
-    const text = message.text.trim()
-    if (!text.startsWith(config.telegramCommandPrefix)) return
+  const accountNumberRaw = text.replace(config.telegramCommandPrefix, '').trim()
+  const accountNumber = normalizeAccountNumber(accountNumberRaw)
 
-    const accountNumberRaw = text.replace(config.telegramCommandPrefix, '').trim()
-    const accountNumber = normalizeAccountNumber(accountNumberRaw)
+  if (!accountNumber) {
+    await bot.sendMessage(message.chat.id, 'Account number missing. Use /access_granted<accountnumber>.')
+    return
+  }
 
-    if (!accountNumber) {
-      await bot.sendMessage(message.chat.id, 'Account number missing. Use /access_granted<accountnumber>.')
-      return
-    }
+  await bot.sendMessage(message.chat.id, `Access granted for account ${accountNumber}. Updating backend...`)
 
-    await bot.sendMessage(message.chat.id, `Access granted for account ${accountNumber}. Updating backend...`)
-
-    const result = await notifyBackendAccessGranted({
-      accountNumber,
-      requestedBy: message.from?.username ?? message.from?.first_name ?? 'telegram',
-    })
-
-    await bot.sendMessage(message.chat.id, result.message)
+  const result = await notifyBackendAccessGranted({
+    accountNumber,
+    requestedBy: message.from?.username ?? message.from?.first_name ?? 'telegram',
   })
 
+  await bot.sendMessage(message.chat.id, result.message)
+}
+
+export const createTelegramBot = () => {
+  const bot = new TelegramBot(config.telegramBotToken)
   return bot
+}
+
+export const registerWebhook = async (bot: TelegramBot) => {
+  const webhookUrl = `${config.publicBaseUrl}${config.telegramWebhookPath}`
+  await bot.setWebHook(webhookUrl)
+  return webhookUrl
+}
+
+export const processTelegramUpdate = async (
+  bot: TelegramBot,
+  update: TelegramBot.Update,
+) => {
+  if (update.message) {
+    await handleTelegramMessage(bot, update.message)
+  }
 }
 
 export const notifyBackendAccessGranted = async ({

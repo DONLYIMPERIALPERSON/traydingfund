@@ -22,12 +22,14 @@ Standalone service that bridges the backend and Telegram for access provisioning
 
 ## Environment Variables
 - `PORT`: Service port (default 5005)
+- `PUBLIC_BASE_URL`: Publicly reachable base URL for webhook registration (e.g. https://access-engine.example.com)
 - `BACKEND_BASE_URL`: Base URL of backend (e.g. http://localhost:4000)
 - `BACKEND_ACCESS_CONFIRM_PATH`: Backend endpoint path for confirmations (default `/trader/access-confirmed`)
 - `ACCESS_ENGINE_API_KEY`: Shared secret used by backend to authenticate requests
 - `TELEGRAM_BOT_TOKEN`: Telegram bot token
 - `TELEGRAM_CHAT_ID`: Chat/channel ID to send requests
 - `TELEGRAM_ALLOWED_USERS`: Optional comma-separated Telegram user IDs allowed to issue commands
+- `TELEGRAM_WEBHOOK_PATH`: Webhook path (default `/telegram/webhook`)
 - `TELEGRAM_COMMAND_PREFIX`: Default `/access_granted`
 
 ## Backend Integration
@@ -53,3 +55,9 @@ Example:
 ```
 /access_granted12345678
 ```
+
+## Webhook setup
+1. Expose the access-engine publicly (ngrok, reverse proxy, etc.).
+2. Set `PUBLIC_BASE_URL` to the public URL.
+3. Optional: set `TELEGRAM_WEBHOOK_PATH` if you want a custom path.
+4. Start the service. It will register the webhook on boot and log the URL.

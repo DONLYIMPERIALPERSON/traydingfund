@@ -12,6 +12,7 @@ const required = (key: string) => {
 
 export const config = {
   port: Number(process.env.PORT ?? 5005),
+  publicBaseUrl: required('PUBLIC_BASE_URL'),
   backendBaseUrl: required('BACKEND_BASE_URL'),
   backendAccessConfirmPath: process.env.BACKEND_ACCESS_CONFIRM_PATH ?? '/trader/access-confirmed',
   accessEngineApiKey: required('ACCESS_ENGINE_API_KEY'),
@@ -22,4 +23,5 @@ export const config = {
     .map((value) => value.trim())
     .filter(Boolean),
   telegramCommandPrefix: process.env.TELEGRAM_COMMAND_PREFIX ?? '/access_granted',
+  telegramWebhookPath: process.env.TELEGRAM_WEBHOOK_PATH ?? '/telegram/webhook',
 }
