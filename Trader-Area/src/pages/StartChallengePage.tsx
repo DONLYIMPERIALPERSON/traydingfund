@@ -244,7 +244,7 @@ const DesktopStartChallengePage: React.FC = () => {
                   <div className="desktop-summary-row"><span>Account Balance</span><strong>{accountData.size}</strong></div>
                   <div className="desktop-summary-row"><span>Leverage</span><strong>1:100</strong></div>
                   <div className="desktop-summary-row"><span>Trading Account Currency</span><strong>USD</strong></div>
-                  <div className="desktop-summary-row"><span>Platform</span><strong>MetaTrader 5</strong></div>
+                  <div className="desktop-summary-row"><span>Platform</span><strong>cTrader</strong></div>
                 </div>
 
                 <div className="desktop-checkout-panel">
