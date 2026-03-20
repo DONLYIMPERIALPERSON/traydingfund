@@ -45,10 +45,8 @@ type PayoutMetadata = {
 
 const PayoutsPage = ({
   onOpenProfile,
-  isSuperAdmin,
 }: {
   onOpenProfile?: (user: AdminUser) => void
-  isSuperAdmin: boolean
 }) => {
   const [payoutRequests, setPayoutRequests] = useState<PayoutRequest[]>([])
   const [stats, setStats] = useState<PayoutStats | null>(null)

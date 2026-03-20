@@ -5,13 +5,8 @@ import {
   type AdminKycRequestItem,
 } from '../lib/adminMock'
 import './KycReviewPage.css'
-import type { AdminUser } from './UsersPage'
 
-interface KycReviewPageProps {
-  onOpenProfile: (user: AdminUser) => void
-}
-
-const KycReviewPage = ({ onOpenProfile }: KycReviewPageProps) => {
+const KycReviewPage = () => {
   const [requests, setRequests] = useState<AdminKycRequestItem[]>([])
   const [requestsLoading, setRequestsLoading] = useState(true)
   const [requestsError, setRequestsError] = useState('')

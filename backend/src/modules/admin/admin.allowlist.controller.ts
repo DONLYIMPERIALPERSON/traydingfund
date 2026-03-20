@@ -79,12 +79,12 @@ export const updateAllowlistEntry = async (req: Request, res: Response, next: Ne
     const admin = await prisma.adminAllowlist.update({
       where: { id },
       data: {
-        fullName: full_name,
-        role,
-        status,
-        allowedPages: allowed_pages,
-        requireMfa: require_mfa,
-        canAssignMt5: can_assign_mt5,
+        ...(full_name !== undefined ? { fullName: full_name } : {}),
+        ...(role !== undefined ? { role } : {}),
+        ...(status !== undefined ? { status } : {}),
+        ...(allowed_pages !== undefined ? { allowedPages: allowed_pages } : {}),
+        ...(require_mfa !== undefined ? { requireMfa: require_mfa } : {}),
+        ...(can_assign_mt5 !== undefined ? { canAssignMt5: can_assign_mt5 } : {}),
       },
     })
 

@@ -248,7 +248,7 @@ export const approveCryptoOrder = async (req: Request, res: Response, next: Next
             `Status: ${updated.status}`,
             `Objectives: ${objectivesLines.length ? objectivesLines.join(' | ') : 'Check your dashboard for objectives.'}`,
           ].join('<br>'),
-          attachments: certificateAttachments,
+          ...(certificateAttachments ? { attachments: certificateAttachments } : {}),
         })
       } catch (error) {
         console.error('Failed to send purchase email', error)
@@ -285,7 +285,7 @@ export const approveCryptoOrder = async (req: Request, res: Response, next: Next
               content: `Congratulations! Your ${updated.accountSize} ${updated.challengeType ?? 'challenge'} account is live. You can now log in and start trading.`,
               buttonText: 'Go to Dashboard',
               infoBox: `Account Size: ${updated.accountSize}<br>Challenge: ${updated.challengeType ?? 'Two-Step'}<br>Phase: ${updated.phase ?? 'Phase 1'}<br>Account Number: ${assigned.accountNumber}`,
-              attachments: certificateAttachments,
+              ...(certificateAttachments ? { attachments: certificateAttachments } : {}),
             })
           } catch (error) {
             console.error('Failed to send onboarding email', error)

@@ -501,7 +501,7 @@ export const approvePayoutRequest = async (req: AuthRequest, res: Response, next
           content: 'Your payout request has been approved and is being processed. Thank you for trading with MACHEFUNDED!',
           buttonText: 'View Dashboard',
           infoBox: `Amount: $${(updated.amountKobo / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}<br>Status: Approved<br>Reference: ${updated.providerRef ?? updated.id}`,
-          attachments,
+          ...(attachments ? { attachments } : {}),
         })
       }
     } catch (error) {

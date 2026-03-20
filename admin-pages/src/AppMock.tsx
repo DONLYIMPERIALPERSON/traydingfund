@@ -39,6 +39,8 @@ type AdminPage =
   | 'mt5'
   | 'sendAnnouncement'
   | 'salary'
+  | 'tradingRules'
+  | 'fxRates'
 
 const mockAdminUser = {
   email: 'admin@machefunded.com',
@@ -95,7 +97,7 @@ const AppMock = () => {
       <div className="admin-dashboard-body">
         <AdminSidebar
           activePage={activePage}
-          onNavigate={setActivePage}
+          onNavigate={(page) => setActivePage(page)}
           onLogout={() => {
             // noop for mock
           }}
@@ -105,7 +107,7 @@ const AppMock = () => {
         />
 
         <main className="admin-dashboard-content">
-          {activePage === 'analysis' && <DashboardPage onNavigate={setActivePage} />}
+          {activePage === 'analysis' && <DashboardPage />}
           {activePage === 'users' && <UsersPage onOpenProfile={handleOpenUserProfile} />}
           {activePage === 'accounts' && <AccountsPage onOpenProfile={handleOpenUserProfile} />}
           {activePage === 'fundedAccounts' && <FundedAccountsPage onOpenProfile={handleOpenUserProfile} />}
@@ -114,7 +116,7 @@ const AppMock = () => {
             <CTraderPage isSuperAdmin={mockAdminUser.role === 'super_admin'} canAssignMt5={Boolean(mockAdminUser.can_assign_mt5)} />
           )}
           {activePage === 'orders' && <OrdersPage onOpenProfile={handleOpenUserProfile} isSuperAdmin />}
-          {activePage === 'payouts' && <PayoutsPage onOpenProfile={handleOpenUserProfile} isSuperAdmin />}
+          {activePage === 'payouts' && <PayoutsPage onOpenProfile={handleOpenUserProfile} />}
           {activePage === 'financeAnalysis' && <FinanceAnalysisPage />}
           {activePage === 'coupons' && <CouponsPage />}
           {activePage === 'sendAnnouncement' && <SendAnnouncementPage />}
@@ -127,7 +129,7 @@ const AppMock = () => {
             />
           )}
           {activePage === 'settings' && <SettingsPage />}
-          {activePage === 'kycReview' && <KycReviewPage onOpenProfile={handleOpenUserProfile} />}
+          {activePage === 'kycReview' && <KycReviewPage />}
           {activePage === 'referrals' && <ReferralsPage />}
           {activePage === 'userProfile' && selectedUser && (
             <UserProfilePage

@@ -36,16 +36,6 @@ import './App.css'
 
 type AdminPage = 'analysis' | 'users' | 'accounts' | 'fundedAccounts' | 'breaches' | 'orders' | 'payouts' | 'userProfile' | 'kycReview' | 'referrals' | 'financeAnalysis' | 'coupons' | 'supportTickets' | 'settings' | 'mt5' | 'sendAnnouncement' | 'salary' | 'tradingRules' | 'fxRates'
 
-const DEFAULT_SESSION_REFRESH_INTERVAL_MS = 5 * 60 * 1000
-
-function getRefreshIntervalMs(): number {
-  const configured = Number(import.meta.env.VITE_ADMIN_SESSION_REFRESH_INTERVAL_MS)
-  if (!Number.isFinite(configured) || configured < 60_000) {
-    return DEFAULT_SESSION_REFRESH_INTERVAL_MS
-  }
-  return configured
-}
-
 function readableAuthError(message: string): string {
   if (message.toLowerCase().includes('failed to fetch')) {
     return 'Could not reach authentication service. Please retry.'
@@ -295,7 +285,7 @@ function App() {
               <button onClick={handleAdminLogout}>Logout</button>
             </div>
           )}
-          {!authError && activePage === 'analysis' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('analysis'))) && <DashboardPage onNavigate={setActivePage} />}
+          {!authError && activePage === 'analysis' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('analysis'))) && <DashboardPage />}
           {!authError && activePage === 'users' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('users'))) && <UsersPage onOpenProfile={handleOpenUserProfile} />}
           {!authError && activePage === 'accounts' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('accounts'))) && <AccountsPage onOpenProfile={handleOpenUserProfile} />}
           {!authError && activePage === 'fundedAccounts' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('fundedAccounts'))) && <FundedAccountsPage onOpenProfile={handleOpenUserProfile} />}
@@ -310,10 +300,7 @@ function App() {
             <OrdersPage onOpenProfile={handleOpenUserProfile} isSuperAdmin={authUser.role === 'super_admin'} />
           )}
           {!authError && activePage === 'payouts' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('payouts'))) && (
-            <PayoutsPage
-              onOpenProfile={handleOpenUserProfile}
-              isSuperAdmin={authUser.role === 'super_admin'}
-            />
+            <PayoutsPage onOpenProfile={handleOpenUserProfile} />
           )}
           {!authError && activePage === 'financeAnalysis' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('financeAnalysis'))) && <FinanceAnalysisPage />}
           {!authError && activePage === 'coupons' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('coupons'))) && <CouponsPage />}
@@ -329,7 +316,7 @@ function App() {
           {!authError && activePage === 'settings' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('settings'))) && <SettingsPage />}
           {!authError && activePage === 'tradingRules' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('tradingRules'))) && <TradingRulesPage />}
           {!authError && activePage === 'fxRates' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('fxRates'))) && <FxRatesPage />}
-          {!authError && activePage === 'kycReview' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('kycReview'))) && <KycReviewPage onOpenProfile={handleOpenUserProfile} />}
+          {!authError && activePage === 'kycReview' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('kycReview'))) && <KycReviewPage />}
           {!authError && activePage === 'referrals' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('referrals'))) && <ReferralsPage />}
           {!authError && activePage === 'userProfile' && selectedUser && (
             <UserProfilePage

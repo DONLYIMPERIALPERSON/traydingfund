@@ -271,7 +271,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
             content: 'Outstanding performance! You have successfully completed your challenge and moved to the funded stage. Keep up the great work.',
             buttonText: 'View Dashboard',
             infoBox: `Account Size: ${accountData.accountSize}<br>Challenge: ${accountData.challengeType}<br>Phase: ${accountData.phase}<br>Account Number: ${account.accountNumber}`,
-            attachments,
+            ...(attachments ? { attachments } : {}),
           })
         }
       } catch (error) {

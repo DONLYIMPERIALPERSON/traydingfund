@@ -11,14 +11,14 @@ export const checkEmailExists = async (req: Request, res: Response, next: NextFu
 
     const { data, error } = await supabaseAdmin.auth.admin.listUsers({
       page: 1,
-      perPage: 1,
-      email,
+      perPage: 1000,
     })
     if (error) {
       throw new ApiError(error.message, 500)
     }
 
-    const exists = (data?.users ?? []).length > 0
+    const lowerEmail = email.toLowerCase()
+    const exists = (data?.users ?? []).some((user) => user.email?.toLowerCase() === lowerEmail)
     res.json({ exists })
   } catch (err) {
     next(err as Error)

@@ -242,7 +242,7 @@ const mockChallengeAccounts: ChallengeAccountListItem[] = [
   },
 ]
 
-const mockBreaches = {
+export const mockBreaches = {
   accounts: [
     {
       challenge_id: 'CH-0944',
@@ -258,7 +258,7 @@ const mockBreaches = {
   ],
 }
 
-const mockFundedAccounts: ChallengeAccountListItem[] = [
+export const mockFundedAccounts: ChallengeAccountListItem[] = [
   {
     challenge_id: 'FD-2001',
     user_id: 1003,
@@ -349,7 +349,7 @@ const mockPayoutRequests = {
   pagination: { page: 1, limit: 50, total: 0, pages: 1 },
 }
 
-const mockSupportTickets: SupportTicket[] = [
+export const mockSupportTickets: SupportTicket[] = [
   {
     id: 'T-1001',
     subject: 'Login assistance',
@@ -366,7 +366,7 @@ const mockSupportTickets: SupportTicket[] = [
   },
 ]
 
-const mockSupportChat: SupportChat = {
+export const mockSupportChat: SupportChat = {
   id: 'T-1001',
   user_id: 1001,
   subject: 'Login assistance',
@@ -415,7 +415,7 @@ const mockMonthlyFinance = {
   ],
 }
 
-let mockCoupons: any = {
+export let mockCoupons: any = {
   coupons: [
     {
       id: 1,
@@ -433,7 +433,7 @@ let mockCoupons: any = {
   ],
 }
 
-const mockKycProfiles = {
+export const mockKycProfiles = {
   profiles: [
     {
       user_id: 1001,
@@ -473,7 +473,7 @@ const getSalarySummary = () => ({
   total_salary: mockSalaryStaff.reduce((sum, staff) => sum + (staff.salary_amount ?? 0), 0),
 })
 
-const mockAffiliateOverview = {
+export const mockAffiliateOverview = {
   total_affiliates: 12,
   total_commissions: 320000,
   total_paid_out: 180000,
@@ -483,7 +483,7 @@ const mockAffiliateOverview = {
   unique_purchasers: 420,
 }
 
-const mockAffiliateCommissions = {
+export const mockAffiliateCommissions = {
   commissions: [
     {
       id: 1,
@@ -499,7 +499,7 @@ const mockAffiliateCommissions = {
   pagination: { page: 1, per_page: 50, total: 1, total_pages: 1 },
 }
 
-const mockAffiliatePayouts = {
+export const mockAffiliatePayouts = {
   payouts: [
     {
       id: 1,

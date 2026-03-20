@@ -253,7 +253,7 @@ const SalaryPage = () => {
     try {
       setOtpSubmitting(true)
       setOtpError('')
-      const result = await disburseSalaries({ otp: otpCode })
+      const result = await disburseSalaries()
       setDisbursementResult(result)
       await loadStaff()
     } catch (error) {
@@ -543,7 +543,7 @@ const SalaryPage = () => {
               <div className="salary-disbursement-results">
                 <h4>Disbursement Results</h4>
                 <ul>
-                  {disbursementResult.transfers.map((transfer) => (
+                  {disbursementResult.transfers.map((transfer: SalaryDisbursementResponse['transfers'][number]) => (
                     <li key={transfer.staff_id} className={transfer.status === 'success' ? 'success' : 'failed'}>
                       <strong>{transfer.staff_name}</strong> — ${transfer.amount.toLocaleString()} ({transfer.status})
                       {transfer.reference && <span> • Ref: {transfer.reference}</span>}

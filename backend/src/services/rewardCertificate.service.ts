@@ -102,7 +102,7 @@ export const generateRewardCertificateBuffer = async (payload: {
   name: payload.name,
   dateLabel: formatCertificateDate(payload.date),
   rewardLabel: payload.rewardLabel,
-  qrValue: payload.qrValue,
+  ...(payload.qrValue ? { qrValue: payload.qrValue } : {}),
 })
 
 export const generateOnboardingCertificateBuffer = async (payload: {
@@ -113,7 +113,7 @@ export const generateOnboardingCertificateBuffer = async (payload: {
   templatePath: resolveOnboardingTemplatePath(),
   name: payload.name,
   dateLabel: formatCertificateDate(payload.date),
-  qrValue: payload.qrValue,
+  ...(payload.qrValue ? { qrValue: payload.qrValue } : {}),
 })
 
 export const generatePassedChallengeCertificateBuffer = async (payload: {
@@ -124,7 +124,7 @@ export const generatePassedChallengeCertificateBuffer = async (payload: {
   templatePath: resolvePassedChallengeTemplatePath(),
   name: payload.name,
   dateLabel: formatCertificateDate(payload.date),
-  qrValue: payload.qrValue,
+  ...(payload.qrValue ? { qrValue: payload.qrValue } : {}),
 })
 
 export const generateRewardCertificateTest = async () => {

@@ -2,10 +2,6 @@ import { useEffect, useState } from 'react'
 import { fetchDashboardStats } from '../lib/adminMock'
 import './DashboardPage.css'
 
-interface DashboardPageProps {
-  onNavigate: (page: 'coupons' | 'sendAnnouncement') => void
-}
-
 interface DashboardData {
   kpis: {
     totalRevenue: string
@@ -58,7 +54,7 @@ interface DashboardData {
   }
 }
 
-const DashboardPage = ({ onNavigate }: DashboardPageProps) => {
+const DashboardPage = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -91,22 +87,6 @@ const DashboardPage = ({ onNavigate }: DashboardPageProps) => {
     if (change === 0) return 'No change'
     const sign = change > 0 ? '+' : ''
     return `${sign}${change.toFixed(1)}%`
-  }
-
-  const getSLAStatus = (hours: number) => {
-    if (hours <= 12) return { status: 'on-track', text: 'On Track' }
-    if (hours <= 24) return { status: 'at-risk', text: 'At Risk' }
-    return { status: 'overdue', text: 'Overdue' }
-  }
-
-  const getSystemHealthStatus = (value: string) => {
-    if (value.includes('Connected') || value.includes('Up') || value.includes('98') || value.includes('99')) {
-      return 'ok'
-    }
-    if (value.includes('Warn') || value.includes('2.') || value.includes('3.') || value.includes('4m')) {
-      return 'warn'
-    }
-    return 'error'
   }
 
   if (loading) {

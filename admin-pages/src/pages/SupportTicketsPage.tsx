@@ -30,7 +30,7 @@ const SupportTicketsPage = ({ onOpenProfile, initialChatId, onChatOpened }: Supp
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active')
 
   const adminUser = getPersistedAdminUser()
-  const adminName = adminUser?.full_name || adminUser?.nick_name || 'Admin'
+  const adminName = adminUser?.full_name || 'Admin'
 
   useEffect(() => {
     loadTickets()

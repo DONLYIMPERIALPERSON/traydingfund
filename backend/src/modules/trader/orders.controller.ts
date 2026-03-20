@@ -187,13 +187,14 @@ export const getOrderStatus = async (req: AuthRequest, res: Response, next: Next
   try {
     const user = ensureUser(req)
     const providerOrderId = req.params.providerOrderId
+    const providerOrderIdValue = Array.isArray(providerOrderId) ? providerOrderId[0] : providerOrderId
 
-    if (!providerOrderId) {
+    if (!providerOrderIdValue) {
       throw new ApiError('providerOrderId is required', 400)
     }
 
     const order = await prisma.order.findFirst({
-      where: { providerOrderId, userId: user.id },
+      where: { providerOrderId: providerOrderIdValue, userId: user.id },
     })
 
     if (!order) {
@@ -461,7 +462,7 @@ export const handleSafeHavenWebhook = async (req: Request, res: Response, next: 
         const affiliateId = (nextOrder as { affiliateId?: number | null }).affiliateId
         await createAffiliateCommission(tx, {
           id: nextOrder.id,
-          affiliateId,
+          ...(affiliateId !== undefined ? { affiliateId } : {}),
           netAmountKobo: nextOrder.netAmountKobo,
         })
       }

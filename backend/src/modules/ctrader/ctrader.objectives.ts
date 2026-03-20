@@ -33,7 +33,7 @@ export const parseAccountSize = (accountSize: string) => {
   if (!accountSize) return null
   const normalized = accountSize.trim().toLowerCase()
   const match = normalized.match(/([0-9,.]+)\s*([km])?/i)
-  if (!match) return null
+  if (!match || !match[1]) return null
   const rawNumber = match[1].replace(/,/g, '')
   const base = Number(rawNumber)
   if (!Number.isFinite(base)) return null

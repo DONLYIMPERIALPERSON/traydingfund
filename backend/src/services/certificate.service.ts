@@ -1,5 +1,5 @@
 import { prisma } from '../config/prisma'
-import type { Certificate, User } from '@prisma/client'
+import { Prisma, type Certificate, type User } from '@prisma/client'
 import {
   generateRewardCertificateBuffer,
   generateOnboardingCertificateBuffer,
@@ -38,7 +38,7 @@ const ensureCertificateRecord = async (payload: {
       certificateUrl: payload.certificateUrl,
       generatedAt: payload.generatedAt,
       relatedEntityId: payload.relatedEntityId ?? null,
-      metadata: payload.metadata ?? undefined,
+      ...(payload.metadata ? { metadata: payload.metadata as Prisma.InputJsonValue } : {}),
     },
   })
 
@@ -92,18 +92,18 @@ const createCertificateFromBuffer = async (payload: GeneratedCertificatePayload)
   const url = await uploadCertificateBuffer({
     userId: payload.userId,
     type: payload.type,
-    relatedEntityId: payload.relatedEntityId,
+    ...(payload.relatedEntityId !== undefined ? { relatedEntityId: payload.relatedEntityId } : {}),
     buffer: payload.buffer,
   })
   return ensureCertificateRecord({
     userId: payload.userId,
     type: payload.type,
     title: payload.title,
-    description: payload.description,
+    description: payload.description ?? null,
     certificateUrl: url,
     generatedAt: new Date(),
-    relatedEntityId: payload.relatedEntityId,
-    metadata: payload.metadata ?? null,
+    relatedEntityId: payload.relatedEntityId ?? null,
+    ...(payload.metadata !== undefined ? { metadata: payload.metadata } : {}),
   })
 }
 

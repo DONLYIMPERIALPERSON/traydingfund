@@ -29,7 +29,7 @@ export const fetchRemoteAttachment = async (payload: {
   return {
     filename: payload.filename,
     content: buffer,
-    contentType: payload.contentType,
+    ...(payload.contentType ? { contentType: payload.contentType } : {}),
   }
 }
 
@@ -49,16 +49,19 @@ export const sendUnifiedEmail = async (payload: EmailPayload) => {
     infoBox: payload.infoBox,
   })
 
+  const attachments = payload.attachments?.map((attachment) => ({
+    filename: attachment.filename,
+    content: attachment.content,
+    ...(attachment.contentType ? { contentType: attachment.contentType } : { contentType: 'application/pdf' }),
+  }))
+
   return resend.emails.send({
     from: env.resendFromEmail,
     to: payload.to,
     subject: payload.subject,
     html,
-    replyTo: env.resendReplyToEmail || undefined,
-    attachments: payload.attachments?.map((attachment) => ({
-      filename: attachment.filename,
-      content: attachment.content,
-      contentType: attachment.contentType ?? 'application/pdf',
-    })),
+    text: payload.content,
+    ...(env.resendReplyToEmail ? { replyTo: env.resendReplyToEmail } : {}),
+    ...(attachments ? { attachments } : {}),
   })
 }

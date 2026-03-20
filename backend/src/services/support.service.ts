@@ -1,4 +1,5 @@
 import { prisma } from '../config/prisma'
+import { Prisma } from '@prisma/client'
 import { createSignedUploadUrl, uploadBufferToR2 } from './r2.service'
 
 const SUPPORT_UPLOAD_PREFIX = 'support/uploads'
@@ -91,8 +92,12 @@ const mapMessagePayload = (message: {
   is_read: message.isRead,
 })
 
+type SupportTicketWithUser = Prisma.SupportTicketGetPayload<{
+  include: { user: { select: { fullName: true; email: true } } }
+}>
+
 export const listUserTickets = async (userId: number) => {
-  const tickets = await prisma.supportTicket.findMany({
+  const tickets: SupportTicketWithUser[] = await prisma.supportTicket.findMany({
     where: { userId },
     orderBy: { updatedAt: 'desc' },
     include: {
@@ -104,8 +109,8 @@ export const listUserTickets = async (userId: number) => {
 }
 
 export const listAdminTickets = async (status?: SupportTicketStatus) => {
-  const tickets = await prisma.supportTicket.findMany({
-    where: status ? { status } : undefined,
+  const tickets: SupportTicketWithUser[] = await prisma.supportTicket.findMany({
+    where: status ? { status } : {},
     orderBy: { updatedAt: 'desc' },
     include: {
       user: { select: { fullName: true, email: true } },

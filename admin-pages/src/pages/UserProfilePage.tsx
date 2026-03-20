@@ -177,7 +177,7 @@ const UserProfilePage = ({ user, onBack, onOpenSupportChat }: UserProfilePagePro
 
   const handleSendEmail = async () => {
     try {
-      await sendUserEmail(userId, emailSubject, emailMessage, emailTemplate)
+      await sendUserEmail(userId, emailSubject, emailMessage)
       alert('Email sent successfully')
       setEmailSubject('')
       setEmailMessage('')
@@ -189,7 +189,7 @@ const UserProfilePage = ({ user, onBack, onOpenSupportChat }: UserProfilePagePro
 
   const handleAddNote = async () => {
     try {
-      await addUserNote(userId, noteText, noteTag)
+      await addUserNote(userId, noteText)
       alert('Note added successfully')
       setNoteText('')
       setNoteTag('')
@@ -217,9 +217,9 @@ const UserProfilePage = ({ user, onBack, onOpenSupportChat }: UserProfilePagePro
   }
 
   const handleSuspendUser = async () => {
-    const reason = prompt('Reason for suspension (optional):')
+    prompt('Reason for suspension (optional):')
     try {
-      await suspendUser(userId, reason || undefined)
+      await suspendUser(userId)
       alert('User suspended successfully')
     } catch (err) {
       alert('Failed to suspend user')
@@ -237,7 +237,7 @@ const UserProfilePage = ({ user, onBack, onOpenSupportChat }: UserProfilePagePro
 
   const handleBanUser = async () => {
     try {
-      await banUser(userId, banReason, banDuration)
+      await banUser(userId)
       alert('User banned successfully')
       setBanReason('')
       setBanDuration('')

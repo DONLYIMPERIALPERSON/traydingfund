@@ -133,12 +133,12 @@ const SettingsPage = () => {
 
   const getAllowedPagesDisplay = (allowedPages: string[] | null) => {
     if (!allowedPages || allowedPages.length === 0) return 'All Pages'
-    return allowedPages.map(pageId => pageIdToDisplayName[pageId] || pageId).join(', ')
+    return allowedPages.map((pageId) => pageIdToDisplayName[pageId] || pageId).join(', ')
   }
 
   const openEditModal = (admin: AdminAllowlistEntry) => {
     const currentPages = admin.allowed_pages && admin.allowed_pages.length > 0
-      ? admin.allowed_pages.map((pageId) => pageIdToDisplayName[pageId] || pageId)
+      ? admin.allowed_pages.map((pageId: string) => pageIdToDisplayName[pageId] || pageId)
       : [...availablePages]
     setEditingPages(currentPages)
     setEditingCanAssignMt5(Boolean(admin.can_assign_mt5))
