@@ -135,21 +135,32 @@ const normalizeVirtualAccount = (raw: unknown): SafeHavenVirtualAccountResponse 
     ?? (payload as { account_number?: string }).account_number
     ?? (payload as { virtualAccountNumber?: string }).virtualAccountNumber
     ?? (payload as { nuban?: string }).nuban
+    ?? (payload as { account?: { accountNumber?: string } }).account?.accountNumber
+    ?? (payload as { account?: { account_number?: string } }).account?.account_number
+    ?? (payload as { account?: { number?: string } }).account?.number
+    ?? (payload as { account?: { nuban?: string } }).account?.nuban
 
   const accountName =
     (payload as { accountName?: string }).accountName
     ?? (payload as { account_name?: string }).account_name
     ?? (payload as { virtualAccountName?: string }).virtualAccountName
+    ?? (payload as { account?: { accountName?: string } }).account?.accountName
+    ?? (payload as { account?: { account_name?: string } }).account?.account_name
+    ?? (payload as { account?: { name?: string } }).account?.name
 
   const bankName =
     (payload as { bankName?: string }).bankName
     ?? (payload as { bank_name?: string }).bank_name
     ?? (payload as { bank?: { name?: string } }).bank?.name
+    ?? (payload as { account?: { bankName?: string } }).account?.bankName
+    ?? (payload as { account?: { bank_name?: string } }).account?.bank_name
 
   const bankCode =
     (payload as { bankCode?: string }).bankCode
     ?? (payload as { bank_code?: string }).bank_code
     ?? (payload as { bank?: { code?: string } }).bank?.code
+    ?? (payload as { account?: { bankCode?: string } }).account?.bankCode
+    ?? (payload as { account?: { bank_code?: string } }).account?.bank_code
 
   const amount =
     (payload as { amount?: number }).amount
@@ -198,6 +209,9 @@ const normalizeVirtualAccount = (raw: unknown): SafeHavenVirtualAccountResponse 
       accountName: normalized.accountName,
       bankName: normalized.bankName,
       keys: Object.keys(payload),
+      accountKeys: (payload as { account?: Record<string, unknown> }).account
+        ? Object.keys((payload as { account?: Record<string, unknown> }).account as Record<string, unknown>)
+        : [],
     })
   }
 
