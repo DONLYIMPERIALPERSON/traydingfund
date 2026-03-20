@@ -44,7 +44,34 @@ export const createTelegramBot = () => {
 
 export const registerWebhook = async (bot: TelegramBot) => {
   const webhookUrl = `${config.publicBaseUrl}${config.telegramWebhookPath}`
-  await bot.setWebHook(webhookUrl)
+  const apiBaseUrl = `https://api.telegram.org/bot${config.telegramBotToken}`
+
+  console.log('Preparing to register Telegram webhook:', {
+    publicBaseUrl: config.publicBaseUrl,
+    webhookPath: config.telegramWebhookPath,
+    webhookUrl,
+  })
+
+  const infoResponse = await fetch(`${apiBaseUrl}/getWebhookInfo`)
+  const infoPayload = await infoResponse.json()
+  console.log('Telegram webhook info (before setWebhook):', infoPayload)
+
+  const setResponse = await fetch(`${apiBaseUrl}/setWebhook`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: webhookUrl }),
+  })
+  const setPayload = await setResponse.json()
+  console.log('Telegram setWebhook response:', setPayload)
+
+  if (!setResponse.ok) {
+    throw new Error(`Telegram setWebhook failed: ${JSON.stringify(setPayload)}`)
+  }
+
+  const updatedInfoResponse = await fetch(`${apiBaseUrl}/getWebhookInfo`)
+  const updatedInfoPayload = await updatedInfoResponse.json()
+  console.log('Telegram webhook info (after setWebhook):', updatedInfoPayload)
+
   return webhookUrl
 }
 
