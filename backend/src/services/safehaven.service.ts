@@ -243,7 +243,27 @@ export const createVirtualAccount = async (payload: {
     body: JSON.stringify(requestBody),
   })
 
-  return normalizeVirtualAccount(response)
+  const normalized = normalizeVirtualAccount(response)
+  if (!normalized.accountNumber || !normalized.accountName) {
+    const fallbackId = normalized._id
+      ?? (response as { data?: { _id?: string; id?: string } }).data?._id
+      ?? (response as { data?: { _id?: string; id?: string } }).data?.id
+      ?? (response as { _id?: string; id?: string })._id
+      ?? (response as { _id?: string; id?: string }).id
+    if (fallbackId) {
+      try {
+        const fetched = await fetchVirtualAccount(fallbackId)
+        return {
+          ...normalized,
+          ...fetched,
+        }
+      } catch (error) {
+        console.warn('Failed to fetch SafeHaven virtual account details', error)
+      }
+    }
+  }
+
+  return normalized
 }
 
 export const fetchVirtualAccount = async (id: string) => {
