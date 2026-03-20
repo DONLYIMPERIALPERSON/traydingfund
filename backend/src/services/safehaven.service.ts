@@ -8,14 +8,20 @@ type SafeHavenTokenResponse = {
 }
 
 type SafeHavenVirtualAccountResponse = {
-  _id: string
-  accountNumber: string
-  accountName: string
-  bankName: string
+  _id?: string
+  accountNumber?: string
+  accountName?: string
+  bankName?: string
   bankCode?: string
   amount?: number
   sessionId?: string
   expiryDate?: string
+  account_number?: string
+  account_name?: string
+  bank_name?: string
+  bank_code?: string
+  session_id?: string
+  expiry_date?: string
 }
 
 export type SafeHavenNameEnquiryResponse = {
@@ -117,6 +123,87 @@ const makeAuthenticatedRequest = async <T>(path: string, init: RequestInit = {})
   return (await response.json()) as T
 }
 
+const normalizeVirtualAccount = (raw: unknown): SafeHavenVirtualAccountResponse => {
+  if (!raw || typeof raw !== 'object') {
+    return {}
+  }
+
+  const payload = (raw as { data?: Record<string, unknown> }).data ?? (raw as Record<string, unknown>)
+
+  const accountNumber =
+    (payload as { accountNumber?: string }).accountNumber
+    ?? (payload as { account_number?: string }).account_number
+    ?? (payload as { virtualAccountNumber?: string }).virtualAccountNumber
+    ?? (payload as { nuban?: string }).nuban
+
+  const accountName =
+    (payload as { accountName?: string }).accountName
+    ?? (payload as { account_name?: string }).account_name
+    ?? (payload as { virtualAccountName?: string }).virtualAccountName
+
+  const bankName =
+    (payload as { bankName?: string }).bankName
+    ?? (payload as { bank_name?: string }).bank_name
+    ?? (payload as { bank?: { name?: string } }).bank?.name
+
+  const bankCode =
+    (payload as { bankCode?: string }).bankCode
+    ?? (payload as { bank_code?: string }).bank_code
+    ?? (payload as { bank?: { code?: string } }).bank?.code
+
+  const amount =
+    (payload as { amount?: number }).amount
+    ?? (payload as { amountValue?: number }).amountValue
+    ?? (payload as { amount_in_kobo?: number }).amount_in_kobo
+
+  const sessionId =
+    (payload as { sessionId?: string }).sessionId
+    ?? (payload as { session_id?: string }).session_id
+
+  const expiryDate =
+    (payload as { expiryDate?: string }).expiryDate
+    ?? (payload as { expiry_date?: string }).expiry_date
+    ?? (payload as { expires_at?: string }).expires_at
+
+  const normalized: SafeHavenVirtualAccountResponse = {}
+  const resolvedId = (payload as { _id?: string })._id ?? (payload as { id?: string }).id
+  if (resolvedId) {
+    normalized._id = resolvedId
+  }
+  if (accountNumber) {
+    normalized.accountNumber = accountNumber
+  }
+  if (accountName) {
+    normalized.accountName = accountName
+  }
+  if (bankName) {
+    normalized.bankName = bankName
+  }
+  if (bankCode) {
+    normalized.bankCode = bankCode
+  }
+  if (typeof amount === 'number') {
+    normalized.amount = amount
+  }
+  if (sessionId) {
+    normalized.sessionId = sessionId
+  }
+  if (expiryDate) {
+    normalized.expiryDate = expiryDate
+  }
+
+  if (!normalized.accountNumber || !normalized.accountName) {
+    console.warn('SafeHaven virtual account missing identifiers:', {
+      accountNumber: normalized.accountNumber,
+      accountName: normalized.accountName,
+      bankName: normalized.bankName,
+      keys: Object.keys(payload),
+    })
+  }
+
+  return normalized
+}
+
 export const createVirtualAccount = async (payload: {
   amount: number
   externalReference: string
@@ -156,11 +243,7 @@ export const createVirtualAccount = async (payload: {
     body: JSON.stringify(requestBody),
   })
 
-  if (response && typeof response === 'object' && 'data' in response && response.data) {
-    return response.data
-  }
-
-  return response as SafeHavenVirtualAccountResponse
+  return normalizeVirtualAccount(response)
 }
 
 export const fetchVirtualAccount = async (id: string) => {
@@ -168,11 +251,7 @@ export const fetchVirtualAccount = async (id: string) => {
     SafeHavenVirtualAccountResponse | { data?: SafeHavenVirtualAccountResponse }
   >(`/virtual-accounts/${id}`)
 
-  if (response && typeof response === 'object' && 'data' in response && response.data) {
-    return response.data
-  }
-
-  return response as SafeHavenVirtualAccountResponse
+  return normalizeVirtualAccount(response)
 }
 
 export const queryVirtualAccountStatus = async (sessionId: string) =>
