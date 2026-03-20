@@ -1,4 +1,4 @@
-const mockDelay = (ms = 200) => new Promise((resolve) => setTimeout(resolve, ms))
+import { apiFetch } from '../lib/api'
 
 export interface FundedAccountPayout {
   account_id: number;
@@ -11,6 +11,9 @@ export interface FundedAccountPayout {
   minimum_withdrawal_amount: number;
   withdrawal_count: number;
   last_withdrawal_at: string | null;
+  next_withdrawal_at?: string | null;
+  withdrawal_schedule?: string | null;
+  has_pending_request?: boolean;
 }
 
 export interface WithdrawalHistory {
@@ -38,6 +41,17 @@ export interface PayoutSummaryResponse {
   funded_accounts: FundedAccountPayout[]
   withdrawal_history: WithdrawalHistory[]
   eligibility: PayoutEligibility
+  payout_method?: {
+    payout_method_type: string | null
+    payout_bank_name: string | null
+    payout_bank_code: string | null
+    payout_account_number: string | null
+    payout_account_name: string | null
+    payout_crypto_currency: string | null
+    payout_crypto_address: string | null
+    payout_crypto_first_name?: string | null
+    payout_crypto_last_name?: string | null
+  }
 }
 
 export interface PayoutEligibilityResponse {
@@ -50,66 +64,28 @@ export interface PayoutEligibilityResponse {
 
 class PayoutAPI {
   async getPayoutSummary(): Promise<PayoutSummaryResponse> {
-    await mockDelay()
-    return {
-      total_available_payout: 125000,
-      total_earned_all_time: 540000,
-      funded_accounts: [
-        {
-          account_id: 1,
-          challenge_id: 'mock-challenge-001',
-          account_size: '$50K',
-          current_balance: 53500,
-          available_payout: 120000,
-          profit_cap_amount: 500000,
-          profit_split_percent: 80,
-          minimum_withdrawal_amount: 10000,
-          withdrawal_count: 2,
-          last_withdrawal_at: new Date(Date.now() - 86400000).toISOString(),
-        },
-      ],
-      withdrawal_history: [
-        {
-          id: 1,
-          amount: 50000,
-          status: 'completed',
-          requested_at: new Date(Date.now() - 86400000).toISOString(),
-          completed_at: new Date(Date.now() - 86000000).toISOString(),
-          reference: 'MOCK-REF-001',
-          mt5_account_number: '12345678',
-        },
-      ],
-      eligibility: {
-        is_eligible: true,
-        has_verified_bank_account: true,
-        has_available_payout: true,
-        minimum_payout_amount: 10000,
-        bank_account_masked: '7890',
-        ineligibility_reasons: [],
-      },
-    }
+    return apiFetch<PayoutSummaryResponse>('/payouts/summary')
   }
 
   async checkEligibility(): Promise<PayoutEligibilityResponse> {
-    await mockDelay()
+    const summary = await apiFetch<PayoutSummaryResponse>('/payouts/summary')
     return {
-      eligible: true,
-      has_bank_account: true,
-      has_funded_accounts: true,
-      available_payout: 120000,
-      reasons: [],
+      eligible: summary.eligibility.is_eligible,
+      has_bank_account: summary.eligibility.has_verified_bank_account,
+      has_funded_accounts: summary.funded_accounts.length > 0,
+      available_payout: summary.total_available_payout,
+      reasons: summary.eligibility.ineligibility_reasons,
     }
   }
 
-  async requestPayout(accountId: number, pin: string): Promise<{ request_id: string; amount: number; status: string; estimated_completion: string; message: string }> {
-    await mockDelay()
-    return {
-      request_id: `mock-request-${accountId}`,
-      amount: 50000,
-      status: 'processing',
-      estimated_completion: new Date(Date.now() + 3600000).toISOString(),
-      message: `Mock payout requested for account ${accountId} with pin ${pin}`,
-    }
+  async requestPayout(accountId: number): Promise<{ request_id: string; amount: number; status: string; estimated_completion: string; message: string }> {
+    return apiFetch<{ request_id: string; amount: number; status: string; estimated_completion: string; message: string }>(
+      '/payouts/request',
+      {
+        method: 'POST',
+        body: JSON.stringify({ account_id: accountId }),
+      }
+    )
   }
 }
 

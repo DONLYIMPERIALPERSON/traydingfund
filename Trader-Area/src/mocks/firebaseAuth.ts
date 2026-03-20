@@ -6,6 +6,8 @@ export type AuthMeResponse = {
   firebase_uid: string
   email: string
   full_name: string | null
+  first_name?: string | null
+  last_name?: string | null
   nick_name?: string | null
   use_nickname_for_certificates?: boolean
   role: string
@@ -66,6 +68,15 @@ export async function loginWithBackend(): Promise<AuthMeResponse> {
   const user = await apiFetch<AuthMeResponse>('/trader/me')
   persistAuthUser(user)
   return user
+}
+
+export async function updateProfile(payload: { first_name?: string; last_name?: string; nick_name?: string | null }): Promise<AuthMeResponse> {
+  const response = await apiFetch<AuthMeResponse>('/trader/me', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+  persistAuthUser(response)
+  return response
 }
 
 export async function logoutFromBackend(): Promise<void> {

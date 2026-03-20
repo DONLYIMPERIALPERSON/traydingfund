@@ -17,7 +17,6 @@ interface Certificate {
 }
 
 const CertificatePage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'payout' | 'funded'>('funded')
   const [certificates, setCertificates] = useState<Certificate[]>([])
   const [loading, setLoading] = useState(true)
   const [kycStatus, setKycStatus] = useState<string>('not_started')
@@ -67,10 +66,6 @@ const CertificatePage: React.FC = () => {
     link.click()
     document.body.removeChild(link)
   }
-
-  const filteredCertificates = certificates.filter(cert =>
-    activeTab === 'payout' ? cert.certificate_type === 'payout' : cert.certificate_type === 'funding'
-  )
 
   // Check if user is eligible (has completed KYC)
   const KYC_COMPLETED_STATUSES = new Set(['verified', 'approved', 'completed'])
@@ -130,28 +125,10 @@ const CertificatePage: React.FC = () => {
           <p>View and download your trading achievements and certificates</p>
         </div>
 
-        {/* Tabs */}
-        <div className="tabs-container">
-          <div className="tabs">
-            <button
-              className={`tab-button ${activeTab === 'funded' ? 'active' : ''}`}
-              onClick={() => setActiveTab('funded')}
-            >
-              Funded Certificates
-            </button>
-            <button
-              className={`tab-button ${activeTab === 'payout' ? 'active' : ''}`}
-              onClick={() => setActiveTab('payout')}
-            >
-              Payout Certificates
-            </button>
-          </div>
-        </div>
-
         {/* Certificates Grid */}
-        {filteredCertificates.length > 0 ? (
+        {certificates.length > 0 ? (
           <div className="certificates-grid">
-            {filteredCertificates.map((cert: Certificate) => (
+            {certificates.map((cert: Certificate) => (
               <div key={cert.id} className="certificate-card">
                 {/* Certificate Image */}
                 <div className="certificate-preview">
@@ -178,7 +155,11 @@ const CertificatePage: React.FC = () => {
                           <i class="fas fa-certificate"></i>
                           <div class="certificate-fallback-title">${cert.title}</div>
                           <div class="certificate-fallback-date">${new Date(cert.generated_at).toLocaleDateString()}</div>
-                          <div class="certificate-fallback-type">${cert.certificate_type === 'funding' ? 'Funded Account' : 'Payout'}</div>
+                          <div class="certificate-fallback-type">${cert.certificate_type === 'passed_challenge'
+                            ? 'Passed Challenge'
+                            : cert.certificate_type === 'onboarding'
+                              ? 'Challenge Onboarding'
+                              : 'Payout'}</div>
                         `
                         parent.innerHTML = ''
                         parent.appendChild(fallback)
@@ -213,10 +194,7 @@ const CertificatePage: React.FC = () => {
             <i className="fas fa-certificate empty-icon"></i>
             <div className="empty-title">No Certificates Yet</div>
             <div className="empty-description">
-              {activeTab === 'payout'
-                ? 'Complete payouts to earn certificates'
-                : 'Complete challenges to get funded certificates'
-              }
+              Complete challenges and payouts to earn certificates.
             </div>
           </div>
         )}

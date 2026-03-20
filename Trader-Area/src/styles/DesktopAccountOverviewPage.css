@@ -226,6 +226,41 @@
   gap: 24px;
 }
 
+.pending-withdrawal-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  background: rgba(251, 191, 36, 0.12);
+  color: #92400e;
+}
+
+.pending-withdrawal-warning h3 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  color: #92400e;
+}
+
+.pending-withdrawal-warning p {
+  margin: 0;
+  font-size: 14px;
+  color: #7c4a03;
+}
+
+.pending-withdrawal-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(251, 191, 36, 0.25);
+  color: #b45309;
+  font-size: 18px;
+}
+
 .balance-card {
   text-align: center;
   padding: 20px;

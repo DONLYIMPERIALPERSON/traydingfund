@@ -111,10 +111,7 @@ const SupportTicketsPage = ({ onOpenProfile, initialChatId, onChatOpened }: Supp
       }
 
       // Send message
-      await sendSupportMessage(selectedChat.id, newMessage.trim(), adminName)
-
-      // Refresh chat and tickets
-      const updatedChat = await fetchSupportChat(selectedChat.id)
+      const updatedChat = await sendSupportMessage(selectedChat.id, newMessage.trim(), adminName)
       setSelectedChat(updatedChat)
       loadTickets()
       setNewMessage('')

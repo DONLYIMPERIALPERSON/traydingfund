@@ -13,7 +13,48 @@ export type AdminAuthMeResponse = {
 
 export type AdminAllowlistEntry = any
 export type AdminCoupon = any
-export type AdminKycProfileItem = any
+export type AdminKycProfileItem = {
+  user_id: number
+  name: string
+  email: string
+  status: string
+  eligible_since: string | null
+  funded_accounts: number
+  total_challenge_accounts: number
+}
+export type AdminKycRequestUser = {
+  id: number
+  name: string
+  email: string
+  payout_method_type: string | null
+  payout_bank_name: string | null
+  payout_bank_code: string | null
+  payout_account_number: string | null
+  payout_account_name: string | null
+  payout_crypto_currency: string | null
+  payout_crypto_address: string | null
+  payout_crypto_first_name?: string | null
+  payout_crypto_last_name?: string | null
+  payout_verified_at: string | null
+}
+export type AdminKycRequestItem = {
+  id: number
+  status: string
+  document_type: string
+  document_number: string
+  id_front_url: string
+  id_back_url: string | null
+  selfie_url?: string | null
+  submitted_at: string
+  reviewed_at: string | null
+  reviewed_by: string | null
+  decline_reason: string | null
+  user: AdminKycRequestUser
+}
+export type AdminKycRequestResponse = {
+  requests: AdminKycRequestItem[]
+  pagination: { page: number; limit: number; total: number; pages: number }
+}
 export type AdminUsersListItem = any
 export type AffiliateCommission = any
 export type AffiliateOverviewStats = any
@@ -21,7 +62,22 @@ export type AffiliatePayout = any
 export type ChallengeAccountListItem = any
 export type ChallengeBreachListItem = any
 export type ChallengePlanConfig = any
-export type MT5Account = any
+export type MT5Account = {
+  id: number
+  account_number: string
+  server: string
+  account_size: string
+  challenge_type?: string | null
+  status: string
+  phase?: string
+  challenge_id?: string
+  assigned_user_id?: number | null
+  assigned_user_email?: string | null
+  assigned_at?: string | null
+  assignment_mode?: string | null
+  assigned_by_admin_name?: string | null
+  access_status?: string | null
+}
 export type Order = {
   id: number
   provider_order_id: string
@@ -38,8 +94,26 @@ export type Order = {
   user: { id: string; name: string; email: string }
 }
 export type OrderStats = any
-export type PayoutRequest = any
-export type PayoutStats = any
+export type PayoutRequest = {
+  id: number
+  provider_order_id: string
+  status: string
+  amount_kobo: number
+  amount_formatted: string
+  created_at: string
+  completed_at: string | null
+  user: { id: number; name: string; email: string }
+  account: { challenge_id: string | null; account_size: string | null }
+  metadata?: Record<string, unknown>
+}
+export type PayoutStats = {
+  period: string
+  pending_review: number
+  approved_today: number
+  paid_today_kobo: number
+  paid_today_formatted: string
+  rejected: number
+}
 export type SalaryBank = any
 export type SalaryDisbursementPreview = any
 export type SalaryDisbursementResponse = any
@@ -271,21 +345,8 @@ const mockPayoutStats = {
 }
 
 const mockPayoutRequests = {
-  payouts: [
-    {
-      id: 901,
-      provider_order_id: 'PO-901',
-      status: 'pending',
-      amount_kobo: 12000000,
-      amount_formatted: '$120k',
-      created_at: new Date().toISOString(),
-      completed_at: null,
-      user: { id: 1003, name: 'Ada Okafor', email: 'ada.okafor@market.com' },
-      account: { challenge_id: 'FD-2001', account_size: '$100k' },
-      metadata: {},
-    },
-  ],
-  pagination: { page: 1, limit: 50, total: 1, pages: 1 },
+  payouts: [],
+  pagination: { page: 1, limit: 50, total: 0, pages: 1 },
 }
 
 const mockSupportTickets: SupportTicket[] = [
@@ -354,7 +415,7 @@ const mockMonthlyFinance = {
   ],
 }
 
-let mockCoupons = {
+let mockCoupons: any = {
   coupons: [
     {
       id: 1,
@@ -483,51 +544,109 @@ export const clearPersistedAdminUser = () => {
   persistedAdminUser = null
 }
 
-export const fetchDashboardStats = async () => mockDashboardStats
+export const fetchDashboardStats = async () => apiFetch<typeof mockDashboardStats>('/admin/dashboard')
 
-export const fetchActiveChallengeAccounts = async () => ({ accounts: mockChallengeAccounts })
+export const fetchActiveChallengeAccounts = async () =>
+  apiFetch<{ accounts: ChallengeAccountListItem[] }>('/admin/challenges/active')
 export const fetchChallengeAccounts = async () => ({ accounts: mockChallengeAccounts })
-export const fetchFundedChallengeAccounts = async () => ({ accounts: mockFundedAccounts })
-export const fetchProfitableFundedAccounts = async () => ({ accounts: mockFundedAccounts })
-export const fetchBreachedChallengeAccounts = async () => mockBreaches
-export const fetchAwaitingNextStageAccounts = async () => ({ accounts: [] })
+export const fetchFundedChallengeAccounts = async () =>
+  apiFetch<{ accounts: ChallengeAccountListItem[] }>('/admin/challenges/funded')
+export const fetchProfitableFundedAccounts = async () =>
+  apiFetch<{ accounts: ChallengeAccountListItem[] }>('/admin/challenges/funded/top')
+export const fetchBreachedChallengeAccounts = async () =>
+  apiFetch<{ accounts: ChallengeBreachListItem[] }>('/admin/challenges/breaches')
+export const fetchAwaitingNextStageAccounts = async () =>
+  apiFetch<{ accounts: MT5Account[] }>(
+    '/admin/ctrader/accounts?status=awaiting-next-stage'
+  )
 
-export const fetchAdminUsers = async () => mockAdminUsers
-export const fetchAdminKycProfiles = async () => mockKycProfiles
+export const fetchAdminUsers = async () => apiFetch<typeof mockAdminUsers>('/admin/users')
+export const fetchAdminKycProfiles = async () =>
+  apiFetch<{ profiles: AdminKycProfileItem[]; stats: { eligible_profiles: number; today_eligible: number } }>(
+    '/admin/kyc/profiles'
+  )
 
-export const fetchOrderStats = async (period: 'today' | 'week' | 'month' = 'today') => ({ ...mockOrderStats, period })
+export const fetchAdminBankList = async () => apiFetch<{ banks: { bank_code: string; bank_name: string }[] }>('/kyc/banks')
+
+export const fetchAdminKycRequests = async (page: number = 1, limit: number = 20) => {
+  const params = new URLSearchParams()
+  params.set('page', String(page))
+  params.set('limit', String(limit))
+  return apiFetch<AdminKycRequestResponse>(`/admin/kyc/requests?${params.toString()}`)
+}
+
+export const reviewKycRequest = async (requestId: number, payload: { action: 'approve' | 'decline'; decline_reason?: string; admin_name?: string }) =>
+  apiFetch<{ id: number; status: string; message: string }>(`/admin/kyc/requests/${requestId}/review`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+
+export const fetchOrderStats = async (period: 'today' | 'week' | 'month' = 'today') => {
+  const params = new URLSearchParams()
+  params.set('period', period)
+  return apiFetch<typeof mockOrderStats>(`/admin/orders/stats?${params.toString()}`)
+}
 export const fetchOrders = async (
-  _page?: number,
-  _pageSize?: number,
-  _period?: 'today' | 'week' | 'month',
-  _status?: string,
-  _searchEmail?: string
-) => apiFetch<typeof mockOrders>('/admin/orders')
-export const fetchPendingAssignments = async () => mockOrders
+  page: number = 1,
+  pageSize: number = 10,
+  period?: 'today' | 'week' | 'month',
+  status?: string,
+  searchEmail?: string
+) => {
+  const params = new URLSearchParams()
+  params.set('page', String(page))
+  params.set('limit', String(pageSize))
+  if (period) params.set('period', period)
+  if (status) params.set('status', status)
+  if (searchEmail) params.set('searchEmail', searchEmail)
+  return apiFetch<typeof mockOrders>(`/admin/orders?${params.toString()}`)
+}
+export const fetchPendingAssignments = async () =>
+  apiFetch<{ orders: Order[] }>('/admin/orders/pending-assign')
 export const queryOrderStatus = async (orderId: number) => ({ order_id: orderId, provider_order_id: `ORD-${orderId}`, status: 'paid', previous_status: 'pending' })
 export const approveCryptoOrder = async (orderId: number) => apiFetch<{ id: number; status: string; message: string }>(`/admin/orders/${orderId}/approve`, { method: 'POST' })
 export const declineCryptoOrder = async (orderId: number) => apiFetch<{ id: number; status: string; message: string }>(`/admin/orders/${orderId}/decline`, { method: 'POST' })
 export const queryPendingOrders = async () => ({ total_checked: 1, updated: 1, failed: 0, orders: [] })
 
 export const fetchPayoutStats = async (period: 'today' | 'week' | 'month' = 'today') => ({ ...mockPayoutStats, period })
-export const fetchPayoutRequests = async () => mockPayoutRequests
-export const approvePayout = async (_payoutId: number) => ({ success: true, message: 'Payout approved (mock).' })
-export const rejectPayout = async (_payoutId: number, _reason: string) => ({ success: true, message: 'Payout rejected (mock).' })
+export const fetchPayoutRequests = async (page: number = 1, limit: number = 50, _period?: 'today' | 'week' | 'month') => {
+  const params = new URLSearchParams()
+  params.set('page', String(page))
+  params.set('limit', String(limit))
+  return apiFetch<{ payouts: PayoutRequest[]; pagination: { page: number; limit: number; total: number; pages: number }; stats?: PayoutStats }>(
+    `/payouts/admin/requests?${params.toString()}`
+  )
+}
+export const approvePayout = async (payoutId: number) =>
+  apiFetch<{ id: number; status: string; message: string }>(`/payouts/admin/requests/${payoutId}/approve`, { method: 'POST' })
+export const rejectPayout = async (payoutId: number, reason: string) =>
+  apiFetch<{ id: number; status: string; message: string }>(`/payouts/admin/requests/${payoutId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
 
-export const fetchSupportTickets = async () => mockSupportTickets
-export const fetchSupportChat = async (chatId: string) => ({ ...mockSupportChat, id: chatId })
-export const assignSupportChat = async (_chatId: string, _adminName: string) => ({ message: 'Chat assigned (mock).' })
-export const sendSupportMessage = async (chatId: string, message: string, _adminName: string) => ({
-  id: `MSG-${Date.now()}`,
-  chat_id: chatId,
-  sender: 'support',
-  message,
-  image_url: null,
-  is_read: true,
-  created_at: new Date().toISOString(),
-})
-export const closeSupportChat = async (_chatId: string) => ({ message: 'Chat closed (mock).' })
-export const markSupportChatAsRead = async (_chatId: string) => ({ message: 'Chat marked read (mock).' })
+export const fetchSupportTickets = async (status?: 'open' | 'closed') => {
+  const params = new URLSearchParams()
+  if (status) params.set('status', status)
+  const query = params.toString()
+  return apiFetch<SupportTicket[]>(`/support/admin/tickets${query ? `?${query}` : ''}`)
+}
+export const fetchSupportChat = async (chatId: string) =>
+  apiFetch<SupportChat>(`/support/admin/tickets/${encodeURIComponent(chatId)}`)
+export const assignSupportChat = async (chatId: string, adminName: string) =>
+  apiFetch<{ message: string }>(`/support/admin/tickets/${encodeURIComponent(chatId)}/assign`, {
+    method: 'POST',
+    body: JSON.stringify({ assigned_to: adminName }),
+  })
+export const sendSupportMessage = async (chatId: string, message: string, adminName: string) =>
+  apiFetch<SupportChat>(`/support/admin/tickets/${encodeURIComponent(chatId)}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ message, admin_name: adminName }),
+  })
+export const closeSupportChat = async (chatId: string) =>
+  apiFetch<{ message: string }>(`/support/admin/tickets/${encodeURIComponent(chatId)}/close`, { method: 'POST' })
+export const markSupportChatAsRead = async (chatId: string) =>
+  apiFetch<{ message: string }>(`/support/admin/tickets/${encodeURIComponent(chatId)}/read`, { method: 'POST' })
 
 export const fetchAdminAllowlist = async () => ({ admins: mockAllowlist })
 export const createAdminAllowlistEntry = async (payload: { email: string; full_name?: string; role: 'admin' | 'super_admin'; require_mfa?: boolean; allowed_pages?: string[]; can_assign_mt5?: boolean }) => {
@@ -563,36 +682,22 @@ export const sendTestAnnouncement = async (_payload: { subject: string; message:
 
 export const fetchMonthlyFinanceStats = async () => mockMonthlyFinance
 
-export const fetchAdminCoupons = async () => mockCoupons
-export const createAdminCoupon = async (payload: { code: string; discount_type: 'percent' | 'fixed'; discount_value: number; max_uses?: number | null; expires_at?: string | null; apply_all_plans: boolean; applicable_plan_ids: string[] }) => {
-  const newCoupon = {
-    id: Math.floor(Math.random() * 10000),
-    code: payload.code,
-    discount_type: payload.discount_type,
-    discount_value: payload.discount_value,
-    is_active: true,
-    expires_at: payload.expires_at ?? null,
-    max_uses: payload.max_uses ?? null,
-    used_count: 0,
-    applicable_plan_ids: payload.applicable_plan_ids,
-    applies_to_all_plans: payload.apply_all_plans,
-    status: 'Active',
-  }
-  mockCoupons = { coupons: [...mockCoupons.coupons, newCoupon] }
-  return newCoupon
-}
-export const updateAdminCouponStatus = async (couponId: number, isActive: boolean) => {
-  const existing = mockCoupons.coupons.find((coupon) => coupon.id === couponId) ?? mockCoupons.coupons[0]
-  const updated = { ...existing, is_active: isActive, status: isActive ? 'Active' : 'Inactive' }
-  mockCoupons = { coupons: mockCoupons.coupons.map((coupon) => (coupon.id === couponId ? updated : coupon)) }
-  return updated
-}
-export const toggleAdminCouponPlan = async (couponId: number, payload: { plan_id: string; enabled: boolean }) => {
-  const existing = mockCoupons.coupons.find((coupon) => coupon.id === couponId) ?? mockCoupons.coupons[0]
-  const updated = { ...existing, applicable_plan_ids: payload.enabled ? [payload.plan_id] : [] }
-  mockCoupons = { coupons: mockCoupons.coupons.map((coupon) => (coupon.id === couponId ? updated : coupon)) }
-  return updated
-}
+export const fetchAdminCoupons = async () => apiFetch<{ coupons: AdminCoupon[] }>('/admin/coupons')
+export const createAdminCoupon = async (payload: { code: string; discount_type: 'percent' | 'fixed'; discount_value: number; max_uses?: number | null; expires_at?: string | null; apply_all_plans: boolean; applicable_plan_ids: string[] }) =>
+  apiFetch<AdminCoupon>('/admin/coupons', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+export const updateAdminCouponStatus = async (couponId: number, isActive: boolean) =>
+  apiFetch<AdminCoupon>(`/admin/coupons/${couponId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ is_active: isActive }),
+  })
+export const toggleAdminCouponPlan = async (couponId: number, payload: { plan_id: string; enabled: boolean }) =>
+  apiFetch<AdminCoupon>(`/admin/coupons/${couponId}/plans`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
 
 export const fetchMT5Accounts = async (status?: string) =>
   apiFetch<{ accounts: MT5Account[] }>(
@@ -685,12 +790,31 @@ export const updateTradingObjectives = async (payload: { rules: TradingObjective
     body: JSON.stringify(payload),
   })
 
-export const fetchAffiliateOverview = async () => mockAffiliateOverview
-export const fetchAffiliateCommissions = async (page: number = 1, perPage: number = 50) => ({ ...mockAffiliateCommissions, pagination: { ...mockAffiliateCommissions.pagination, page, per_page: perPage } })
-export const fetchAffiliatePayouts = async (page: number = 1, perPage: number = 50) => ({ ...mockAffiliatePayouts, pagination: { ...mockAffiliatePayouts.pagination, page, per_page: perPage } })
+export const fetchAffiliateOverview = async () => apiFetch<AffiliateOverviewStats>('/admin/affiliate/overview')
+export const fetchAffiliateCommissions = async (page: number = 1, perPage: number = 50) => {
+  const params = new URLSearchParams()
+  params.set('page', String(page))
+  params.set('limit', String(perPage))
+  return apiFetch<{ commissions: AffiliateCommission[]; pagination: { page: number; limit: number; total: number; pages: number } }>(
+    `/admin/affiliate/commissions?${params.toString()}`
+  )
+}
+export const fetchAffiliatePayouts = async (page: number = 1, perPage: number = 50) => {
+  const params = new URLSearchParams()
+  params.set('page', String(page))
+  params.set('limit', String(perPage))
+  return apiFetch<{ payouts: AffiliatePayout[]; pagination: { page: number; limit: number; total: number; pages: number } }>(
+    `/admin/affiliate/payouts?${params.toString()}`
+  )
+}
 export const fetchAffiliateMilestones = async (page: number = 1, perPage: number = 50) => ({ ...mockAffiliateMilestones, pagination: { ...mockAffiliateMilestones.pagination, page, per_page: perPage } })
-export const approveAffiliatePayout = async (_payoutId: number) => ({ message: 'Affiliate payout approved (mock).' })
-export const rejectAffiliatePayout = async (_payoutId: number, _reason?: string) => ({ message: 'Affiliate payout rejected (mock).' })
+export const approveAffiliatePayout = async (payoutId: number) =>
+  apiFetch<{ message: string; status: string }>(`/admin/affiliate/payouts/${payoutId}/approve`, { method: 'POST' })
+export const rejectAffiliatePayout = async (payoutId: number, reason?: string) =>
+  apiFetch<{ message: string; status: string }>(`/admin/affiliate/payouts/${payoutId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
 export const approveAffiliateMilestone = async (_milestoneId: number) => ({ message: 'Affiliate milestone approved (mock).' })
 export const rejectAffiliateMilestone = async (_milestoneId: number, _reason?: string) => ({ message: 'Affiliate milestone rejected (mock).' })
 
@@ -709,7 +833,8 @@ export const fetchUserProfile = async (userId: number) => ({
 export const fetchUserChallengeAccounts = async (_userId: number) => mockChallengeAccounts
 export const fetchUserOrders = async (_userId: number) => ({ orders: mockOrders.orders, pagination: mockOrders.pagination })
 export const fetchUserPayouts = async (_userId: number) => ({ payouts: mockPayoutRequests.payouts, pagination: mockPayoutRequests.pagination })
-export const fetchUserSupportTickets = async (_userId: number) => mockSupportTickets
+export const fetchUserSupportTickets = async (_userId: number) =>
+  apiFetch<UserSupportTicket[]>('/support/admin/tickets')
 export const sendUserEmail = async (userId: number, _subject: string, _message: string) => ({ message: `Email sent to ${userId} (mock).` })
 export const addUserNote = async (userId: number, _note: string) => ({ message: `Note added for ${userId} (mock).` })
 export const updateUserStatus = async (userId: number, status: 'active' | 'disabled') => ({ message: `User ${userId} status updated to ${status} (mock).` })

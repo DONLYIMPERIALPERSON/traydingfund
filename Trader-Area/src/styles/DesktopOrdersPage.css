@@ -92,6 +92,31 @@
   text-transform: capitalize;
 }
 
+.orders-pagination {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 4px 4px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.orders-pagination button {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #1f2937;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.orders-pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .status-pending {
   background: rgba(251, 191, 36, 0.2);
   color: #b45309;

@@ -50,9 +50,12 @@ const CouponsPage = () => {
     void loadData()
   }, [])
 
-  const getCouponStatus = (coupon: AdminCoupon): CouponStatus => (
-    coupon.status === 'Active' ? 'Active' : 'Expired'
-  )
+  const getCouponStatus = (coupon: AdminCoupon): CouponStatus => {
+    if (!coupon.is_active) return 'Expired'
+    if (coupon.expires_at && new Date(coupon.expires_at).getTime() < Date.now()) return 'Expired'
+    if (coupon.max_uses !== null && coupon.used_count >= coupon.max_uses) return 'Expired'
+    return 'Active'
+  }
 
   const formatDiscount = (coupon: AdminCoupon): string => {
     if (coupon.discount_type === 'percent') {

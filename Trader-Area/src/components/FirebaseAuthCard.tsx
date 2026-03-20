@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { supabase } from '../lib/supabaseClient'
-import { loginWithBackend } from '../mocks/firebaseAuth'
+import { loginWithBackend, updateProfile } from '../mocks/firebaseAuth'
 import './FirebaseAuthCard.css'
 
 type FirebaseAuthCardProps = {
@@ -45,12 +45,51 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
   const [error, setError] = useState<string>('')
   const [loading, setLoading] = useState<boolean>(false)
   const [step, setStep] = useState<AuthStep>('email')
+  const [profilePromptVisible, setProfilePromptVisible] = useState(false)
 
   // Form state
   const [email, setEmail] = useState<string>('')
   const [password, setPassword] = useState<string>('')
   const [confirmPassword, setConfirmPassword] = useState<string>('')
   const [otpCode, setOtpCode] = useState<string>('')
+  const [firstName, setFirstName] = useState<string>('')
+  const [lastName, setLastName] = useState<string>('')
+
+  const shouldPromptForName = (user?: { full_name: string | null; first_name?: string | null; last_name?: string | null }) => {
+    if (!user) return false
+    const first = user.first_name?.trim() ?? ''
+    const last = user.last_name?.trim() ?? ''
+    const full = user.full_name?.trim() ?? ''
+    return !first || !last || !full
+  }
+
+  const handleProfileCompletion = async () => {
+    if (!firstName.trim()) {
+      setError('Please enter your first name')
+      return
+    }
+    if (!lastName.trim()) {
+      setError('Please enter your last name')
+      return
+    }
+
+    setError('')
+    setLoading(true)
+
+    try {
+      await updateProfile({
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+      })
+      setProfilePromptVisible(false)
+      navigate('/')
+    } catch (err) {
+      console.error('Profile update failed', err)
+      setError(toSafeAuthErrorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleEmailSubmit = useCallback(async () => {
     if (!email.trim()) {
@@ -115,7 +154,11 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
 
       if (data?.session?.access_token) {
         localStorage.setItem('supabase_access_token', data.session.access_token)
-        await loginWithBackend()
+        const user = await loginWithBackend()
+        if (shouldPromptForName(user)) {
+          setProfilePromptVisible(true)
+          return
+        }
       }
       navigate('/')
     } catch (err) {
@@ -152,7 +195,11 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
       }
       if (data?.session?.access_token) {
         localStorage.setItem('supabase_access_token', data.session.access_token)
-        await loginWithBackend()
+        const user = await loginWithBackend()
+        if (shouldPromptForName(user)) {
+          setProfilePromptVisible(true)
+          return
+        }
       }
       setStep('createPassword')
     } catch (err) {
@@ -200,7 +247,11 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
         const session = await supabase.auth.getSession()
         if (session.data.session?.access_token) {
           localStorage.setItem('supabase_access_token', session.data.session.access_token)
-          await loginWithBackend()
+          const user = await loginWithBackend()
+          if (shouldPromptForName(user)) {
+            setProfilePromptVisible(true)
+            return
+          }
         }
       }
       navigate('/')
@@ -400,6 +451,50 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
   )
 
   const renderCurrentStep = () => {
+    if (profilePromptVisible) {
+      return (
+        <div className="naira-auth-stack">
+          <p className="naira-auth-helper">
+            Please tell us your first and last name to complete your profile.
+          </p>
+          <label className="form-label naira-auth-label">First Name</label>
+          <div className="input-group">
+            <i className="fas fa-user input-icon" />
+            <input
+              className="form-input"
+              type="text"
+              placeholder="Enter your first name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+
+          <label className="form-label naira-auth-label">Last Name</label>
+          <div className="input-group">
+            <i className="fas fa-user input-icon" />
+            <input
+              className="form-input"
+              type="text"
+              placeholder="Enter your last name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+
+          <button
+            className="submit-button"
+            type="button"
+            disabled={loading || !firstName.trim() || !lastName.trim()}
+            onClick={handleProfileCompletion}
+          >
+            {loading ? 'Saving...' : 'Save Profile'}
+          </button>
+        </div>
+      )
+    }
+
     switch (step) {
       case 'email':
         return renderEmailStep()

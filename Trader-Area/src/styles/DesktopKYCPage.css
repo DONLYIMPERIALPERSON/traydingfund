@@ -237,6 +237,7 @@
   margin-bottom: 24px;
 }
 
+
 .kyc-page .section-header {
   display: flex;
   align-items: center;
@@ -355,6 +356,12 @@
   cursor: pointer;
   transition: all 0.2s;
   box-shadow: 0 2px 4px rgba(11,159,184,0.3);
+}
+
+.kyc-page .submit-button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .kyc-page .submit-button:hover {

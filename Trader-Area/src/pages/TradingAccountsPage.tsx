@@ -32,6 +32,8 @@ type AccountView = {
   fee: string
   status: 'available' | 'paused'
   profit_split: string
+  challenge_type: 'two_step' | 'one_step' | 'instant_funded'
+  phase: 'phase_1' | 'phase_2' | 'funded'
 }
 
 const pricingTabs: PricingTab[] = [
@@ -89,7 +91,7 @@ const formatAccountSize = (label: string) => {
 
 const DesktopTradingAccountsPage: React.FC = () => {
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState<PricingTab>(pricingTabs[0])
+  const [activeTab, setActiveTab] = useState<PricingTab>(() => pricingTabs[0] as PricingTab)
   const [objectiveRules, setObjectiveRules] = useState<Record<string, string[]>>({})
   const effectiveRules = objectiveRules[activeTab.key] ?? activeTab.rules
 
@@ -97,16 +99,16 @@ const DesktopTradingAccountsPage: React.FC = () => {
     const loadObjectives = async () => {
       try {
         const response = (await fetchTradingObjectives()) as TradingObjectivesResponse
-        const rules = response.rules?.challenge_types ?? []
+        const rules = ((response.rules as { challenge_types?: any[] } | undefined)?.challenge_types ?? []) as any[]
 
         const next: Record<string, string[]> = {}
 
-        const buildMergedRules = (phases: typeof challenge.phases) => {
+        const buildMergedRules = (phases: any[]) => {
           const labelMap = new Map<string, string>()
           const aggregated = new Map<string, string[]>()
 
-          phases.forEach((phase) => {
-            phase.rules.forEach((rule) => {
+          phases.forEach((phase: any) => {
+            phase.rules.forEach((rule: any) => {
               labelMap.set(rule.key, rule.label)
               const list = aggregated.get(rule.key) ?? []
               if (!list.includes(rule.value)) {
@@ -124,7 +126,7 @@ const DesktopTradingAccountsPage: React.FC = () => {
             return `${label}: ${values.join(' / ')}`
           })
         }
-        rules.forEach((challenge) => {
+        rules.forEach((challenge: any) => {
           if (challenge.key === 'two_step') {
             next.twoPhase = buildMergedRules(challenge.phases)
             return
@@ -137,7 +139,7 @@ const DesktopTradingAccountsPage: React.FC = () => {
 
           if (challenge.key === 'instant_funded') {
             const instant = challenge.phases[0]
-            next.instant = instant?.rules.map((rule) => `${rule.label}: ${rule.value}`) ?? []
+            next.instant = instant?.rules.map((rule: any) => `${rule.label}: ${rule.value}`) ?? []
           }
         })
         setObjectiveRules(next)
@@ -159,6 +161,14 @@ const DesktopTradingAccountsPage: React.FC = () => {
 
     return activeTab.tiers.map((tier) => {
       const planId = tier.account.replace(/[^0-9km.]/gi, '').toLowerCase()
+      const challengeType = activeTab.key === 'onePhase'
+        ? 'one_step'
+        : activeTab.key === 'instant'
+          ? 'instant_funded'
+          : 'two_step'
+      const phase = activeTab.key === 'instant'
+        ? 'funded'
+        : 'phase_1'
       return {
         id: planId,
         size: tier.account,
@@ -170,6 +180,8 @@ const DesktopTradingAccountsPage: React.FC = () => {
         fee: tier.discountPrice ?? tier.price,
         status: 'available' as const,
         profit_split: getRuleValue(['Profit Split']),
+        challenge_type: challengeType,
+        phase,
       }
     })
   }, [activeTab, effectiveRules])

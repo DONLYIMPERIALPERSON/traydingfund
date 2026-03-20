@@ -5,9 +5,12 @@ import DesktopFooter from '../components/DesktopFooter'
 import '../styles/DesktopKYCPage.css'
 import {
   fetchKycEligibility,
+  fetchKycHistory,
   fetchProfile,
   persistAuthUser,
+  uploadKycDocument,
   submitKyc,
+  type KycRequestItem,
 } from '../mocks/auth'
 
 type UploadStatus = 'idle' | 'ready' | 'uploading'
@@ -24,23 +27,33 @@ const KYCPage: React.FC = () => {
   const [documentNumber, setDocumentNumber] = useState('')
   const [idFront, setIdFront] = useState<File | null>(null)
   const [idBack, setIdBack] = useState<File | null>(null)
-  const [selfie, setSelfie] = useState<File | null>(null)
   const [idFrontPreview, setIdFrontPreview] = useState<string | null>(null)
   const [idBackPreview, setIdBackPreview] = useState<string | null>(null)
-  const [selfiePreview, setSelfiePreview] = useState<string | null>(null)
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle')
+  const [kycHistory, setKycHistory] = useState<KycRequestItem[]>([])
+
+  const isKycApproved = kycStatus === 'approved' || kycStatus === 'verified'
+  const isKycPending = ['pending', 'in_review', 'processing', 'submitted'].includes(kycStatus)
+  const canResubmit = kycStatus === 'declined' || kycStatus === 'rejected'
 
   useEffect(() => {
     const load = async () => {
       setLoading(true)
       setFormError('')
       try {
-        const eligibility = await fetchKycEligibility()
+        const [eligibility, profileRes, historyRes] = await Promise.all([
+          fetchKycEligibility(),
+          fetchProfile(),
+          fetchKycHistory(),
+        ])
         setEligibleForKyc(eligibility.eligible)
         setEligibilityMessage(eligibility.message)
-
-        const profileRes = await fetchProfile()
-        setKycStatus((profileRes.kyc_status || 'not_started').toLowerCase())
+        const historyItems = historyRes.requests ?? []
+        const latestRequestStatus = historyItems[0]?.status?.toLowerCase()
+        const profileStatus = (profileRes.kyc_status || 'not_started').toLowerCase()
+        const resolvedStatus = latestRequestStatus || profileStatus
+        setKycStatus(resolvedStatus)
+        setKycHistory(historyItems)
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to load KYC data'
         setFormError(message)
@@ -86,13 +99,39 @@ const KYCPage: React.FC = () => {
     setPreview(null)
   }
 
+  const uploadToR2 = async (file: File, documentSide: 'front' | 'back') => {
+    const fileBase64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = reader.result?.toString() ?? ''
+        const base64 = result.includes('base64,') ? result.split('base64,')[1] : result
+        resolve(base64)
+      }
+      reader.onerror = () => reject(new Error('Failed to read file.'))
+      reader.readAsDataURL(file)
+    })
+
+    const uploadMeta = await uploadKycDocument({
+      filename: file.name,
+      content_type: file.type,
+      document_side: documentSide,
+      file_base64: fileBase64,
+    })
+
+    if (!uploadMeta.public_url) {
+      throw new Error('Upload completed, but public URL is missing.')
+    }
+
+    return uploadMeta.public_url
+  }
+
   const handleSubmitKYC = async () => {
     if (!eligibleForKyc) {
       setFormError(eligibilityMessage || 'You are not eligible for KYC yet.')
       return
     }
 
-    if (!documentType || !documentNumber || !idFront || !selfie) {
+    if (!documentType || !documentNumber || !idFront) {
       setFormError('Please complete all required fields and upload your ID images.')
       return
     }
@@ -103,12 +142,17 @@ const KYCPage: React.FC = () => {
     setFormSuccess('')
 
     try {
+      const [idFrontUrl, idBackUrl] = await Promise.all([
+        uploadToR2(idFront, 'front'),
+        idBack ? uploadToR2(idBack, 'back') : Promise.resolve(null),
+      ])
+
       const response = await submitKyc({
         document_type: documentType,
         document_number: documentNumber,
-        id_front: idFront,
-        id_back: idBack,
-        selfie,
+        id_front_url: idFrontUrl,
+        id_back_url: idBackUrl,
+        selfie_url: null,
       })
       setKycStatus((response.kyc_status || 'pending').toLowerCase())
       setFormSuccess(response.message)
@@ -160,7 +204,7 @@ const KYCPage: React.FC = () => {
                 </div>
               </div>
             </div>
-          ) : kycStatus === 'approved' ? (
+          ) : isKycApproved ? (
             <div className="kyc-records-section">
               <div className="section-header">
                 <i className="fas fa-id-card section-icon"></i>
@@ -169,16 +213,65 @@ const KYCPage: React.FC = () => {
               <p className="kyc-verified-text">Your identity has been verified successfully. No further action is required.</p>
               <div className="kyc-status-pill approved">Status: Approved</div>
             </div>
+          ) : isKycPending ? (
+            <div className="kyc-records-section">
+              <div className="section-header">
+                <i className="fas fa-hourglass-half section-icon"></i>
+                <h3 className="section-title">KYC Under Review</h3>
+              </div>
+              <p className="kyc-verified-text">Your documents are being reviewed. We’ll notify you once the review is complete.</p>
+              <div className="kyc-status-pill pending">Status: Pending Review</div>
+            </div>
           ) : (
             <>
-              <div className="kyc-form-section">
+              {kycHistory.length > 0 && (
+                <div className="kyc-records-section">
+                  <div className="section-header">
+                    <i className="fas fa-history section-icon"></i>
+                    <h3 className="section-title">KYC Request History</h3>
+                  </div>
+                  <div className="kyc-records-table-wrap">
+                    <table className="kyc-records-table">
+                      <thead>
+                        <tr>
+                          <th>Status</th>
+                          <th>Document</th>
+                          <th>Submitted</th>
+                          <th>Reviewed</th>
+                          <th>Reviewer</th>
+                          <th>Decline Reason</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {kycHistory.map((item) => (
+                          <tr key={item.id}>
+                            <td>
+                              <span className={`kyc-status-badge ${item.status}`}>
+                                {item.status}
+                              </span>
+                            </td>
+                            <td>{item.document_type.replace('_', ' ')} • {item.document_number}</td>
+                            <td>{new Date(item.submitted_at).toLocaleDateString()}</td>
+                            <td>{item.reviewed_at ? new Date(item.reviewed_at).toLocaleDateString() : '-'}</td>
+                            <td>{item.reviewed_by ?? '-'}</td>
+                            <td>{item.decline_reason ?? '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {canResubmit && (
+                <div className="kyc-form-section">
                 <div className="section-header">
                   <div className="status-icon">
                     <i className="fas fa-upload"></i>
                   </div>
                   <div>
                     <h2 className="status-title">Upload Identification</h2>
-                    <p className="status-subtitle">Upload your ID and a selfie to verify your identity.</p>
+                    <p className="status-subtitle">Upload your ID documents to verify your identity.</p>
                   </div>
                 </div>
 
@@ -289,43 +382,6 @@ const KYCPage: React.FC = () => {
                       )}
                     </div>
                   </div>
-
-                  <div className="upload-card">
-                    <div className="upload-header">
-                      <h4>Selfie</h4>
-                      <span className="upload-hint">Required</span>
-                    </div>
-                    <div className="upload-preview">
-                      {selfiePreview ? (
-                        <img src={selfiePreview} alt="Selfie preview" />
-                      ) : (
-                        <div className="upload-placeholder">
-                          <i className="fas fa-user"></i>
-                          <p>Upload a selfie</p>
-                        </div>
-                      )}
-                    </div>
-                    <div className="upload-actions">
-                      <label className="upload-button">
-                        Choose File
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleFileSelect(e, setSelfie, setSelfiePreview)}
-                          hidden
-                        />
-                      </label>
-                      {selfie && (
-                        <button
-                          type="button"
-                          className="upload-remove"
-                          onClick={() => clearFile(setSelfie, setSelfiePreview)}
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                  </div>
                 </div>
 
                 {formError && <div className="kyc-form-error">{formError}</div>}
@@ -338,7 +394,8 @@ const KYCPage: React.FC = () => {
                 >
                   {submitting ? 'Submitting...' : 'Submit KYC'}
                 </button>
-              </div>
+                </div>
+              )}
 
               <div className="info-card warning">
                 <div className="info-header">
@@ -347,7 +404,7 @@ const KYCPage: React.FC = () => {
                 </div>
                 <div className="info-content">
                   <div>• Ensure the ID photo is clear and all corners are visible.</div>
-                  <div>• Your selfie must be well-lit with no filters or obstructions.</div>
+                  <div>• Use a government-issued ID that matches your profile details.</div>
                 </div>
               </div>
             </>

@@ -18,6 +18,20 @@ type SafeHavenVirtualAccountResponse = {
   expiryDate?: string
 }
 
+export type SafeHavenNameEnquiryResponse = {
+  statusCode: number
+  responseCode: string
+  message: string
+  data?: {
+    accountName?: string
+    accountNumber?: string
+    bankCode?: string
+    reference?: string
+    sessionId?: string
+    [key: string]: unknown
+  }
+}
+
 const getAudience = () => env.safehavenAudience || env.safehavenBaseUrl
 
 const base64UrlEncode = (value: string) =>
@@ -117,23 +131,29 @@ export const createVirtualAccount = async (payload: {
     throw new Error('SafeHaven amount must be provided')
   }
 
+  const requestBody = {
+    validFor: payload.validFor ?? 900,
+    callbackUrl: `${env.appPublicBaseUrl}/api/v1/trader/safehaven/webhook`,
+    amount: payload.amount,
+    amountControl: payload.amountControl ?? 'Fixed',
+    settlementAccount: {
+      amountControl: payload.amountControl ?? 'Fixed',
+      amount: payload.amount,
+      bankCode: env.safehavenSettlementBankCode || undefined,
+      accountNumber: env.safehavenSettlementAccountNumber || undefined,
+    },
+    externalReference: payload.externalReference,
+  }
+
+  if (env.nodeEnv !== 'production') {
+    console.log('SafeHaven virtual account request payload:', requestBody)
+  }
+
   const response = await makeAuthenticatedRequest<
     SafeHavenVirtualAccountResponse | { data?: SafeHavenVirtualAccountResponse }
   >('/virtual-accounts', {
     method: 'POST',
-    body: JSON.stringify({
-      validFor: payload.validFor ?? 900,
-      callbackUrl: `${env.appPublicBaseUrl}/v1/trader/safehaven/webhook`,
-      amount: payload.amount,
-      amountControl: payload.amountControl ?? 'Fixed',
-      settlementAccount: {
-        amountControl: payload.amountControl ?? 'Fixed',
-        amount: payload.amount,
-        bankCode: env.safehavenSettlementBankCode || undefined,
-        accountNumber: env.safehavenSettlementAccountNumber || undefined,
-      },
-      externalReference: payload.externalReference,
-    }),
+    body: JSON.stringify(requestBody),
   })
 
   if (response && typeof response === 'object' && 'data' in response && response.data) {
@@ -161,5 +181,14 @@ export const queryVirtualAccountStatus = async (sessionId: string) =>
     {
       method: 'POST',
       body: JSON.stringify({ sessionId }),
+    }
+  )
+
+export const resolveAccountName = async (payload: { bankCode: string; accountNumber: string }) =>
+  makeAuthenticatedRequest<SafeHavenNameEnquiryResponse>(
+    '/transfers/name-enquiry',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
     }
   )

@@ -10,6 +10,8 @@ const persistedUser = getPersistedAuthUser()
 const ProfilePage: React.FC = () => {
   const [showEditNameModal, setShowEditNameModal] = useState(false)
   const [fullName, setFullName] = useState(persistedUser?.full_name || '')
+  const [firstName, setFirstName] = useState(persistedUser?.first_name || '')
+  const [lastName, setLastName] = useState(persistedUser?.last_name || '')
   const [nickName, setNickName] = useState(persistedUser?.nick_name || '')
   const [newNickName, setNewNickName] = useState(persistedUser?.nick_name || '')
   const [editPin, setEditPin] = useState('')
@@ -21,6 +23,8 @@ const ProfilePage: React.FC = () => {
       try {
         const profile = await fetchProfile()
         setFullName(profile.full_name || '')
+        setFirstName(profile.first_name || '')
+        setLastName(profile.last_name || '')
         setNickName(profile.nick_name || '')
         setEmail(profile.email || '')
       } catch (error) {
@@ -59,6 +63,8 @@ const ProfilePage: React.FC = () => {
     try {
       const updated = await updateProfile({ nick_name: cleaned })
       setFullName(updated.full_name || '')
+      setFirstName(updated.first_name || '')
+      setLastName(updated.last_name || '')
       setNickName(updated.nick_name || '')
       setEmail(updated.email || '')
       persistAuthUser(updated)
@@ -125,7 +131,7 @@ const ProfilePage: React.FC = () => {
               <div className="section-header">
                 <h3 className="section-title">Full Name</h3>
               </div>
-              <div className="section-content">{fullName}</div>
+              <div className="section-content">{fullName || `${firstName} ${lastName}`.trim()}</div>
               <div className="section-subtitle">Your display name</div>
             </div>
 

@@ -14,6 +14,16 @@ const AccountOverviewPage: React.FC = () => {
 
   const formatUsd = (value: number) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   const formatSignedUsd = (value: number) => `${value >= 0 ? '+' : ''}$${Math.abs(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const parseAccountSize = (value: string) => {
+    const normalized = value
+      .toLowerCase()
+      .replace(/\$/g, '')
+      .replace(/,/g, '')
+      .replace(/\s+/g, '')
+      .replace(/k$/, '000')
+    const parsed = Number(normalized)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
 
   const challengeId = searchParams.get('challenge_id')
 
@@ -64,6 +74,9 @@ const AccountOverviewPage: React.FC = () => {
       </div>
     )
   }
+
+  const hasPendingWithdrawal = Boolean(accountData.has_pending_withdrawal)
+  const pendingWithdrawalAmount = accountData.pending_withdrawal_amount ?? 0
   return (
     <div className="account-overview-page">
       <DesktopHeader />
@@ -94,144 +107,169 @@ const AccountOverviewPage: React.FC = () => {
             <span className="balance-overview-title">Balance Overview</span>
             <span className="connection-status">Live</span>
           </div>
-          <div className="balance-grid">
-            <div className="balance-card">
-              <div className="balance-card-header">
-                <i className="fas fa-wallet"></i>
-                Balance
+          {hasPendingWithdrawal ? (
+            <div className="pending-withdrawal-warning">
+              <div className="pending-withdrawal-icon">
+                <i className="fas fa-hourglass-half"></i>
               </div>
-              <div className="balance-value">{formatUsd(accountData.metrics.balance)}</div>
-            </div>
-            <div className="balance-card">
-              <div className="balance-card-header">
-                <i className="fas fa-chart-line"></i>
-                Equity
-              </div>
-              <div className="balance-value">{formatUsd(accountData.metrics.equity)}</div>
-            </div>
-            <div className="balance-card">
-              <div className="balance-card-header">
-                <i className="fas fa-chart-simple"></i>
-                Unrealized PnL
-              </div>
-              <div className={`balance-value ${accountData.metrics.unrealized_pnl >= 0 ? 'positive' : 'negative'}`}>
-                {formatSignedUsd(accountData.metrics.unrealized_pnl)}
+              <div>
+                <h3>Withdrawal Under Review</h3>
+                <p>
+                  Your withdrawal request for <strong>{formatUsd(pendingWithdrawalAmount)}</strong> is being reviewed.
+                  Trading is paused for this account until the review completes.
+                </p>
               </div>
             </div>
-            {accountData.phase === 'Funded' && (
+          ) : (
+            <div className="balance-grid">
               <div className="balance-card">
                 <div className="balance-card-header">
-                  <i className="fas fa-trophy"></i>
-                  Total Profit
+                  <i className="fas fa-wallet"></i>
+                  Balance
                 </div>
-                <div className={`balance-value ${(accountData.funded_profit_raw || 0) >= 0 ? 'positive' : 'negative'}`}>
-                  {formatSignedUsd(accountData.funded_profit_raw || 0)}
+                <div className="balance-value">{formatUsd(accountData.metrics.balance)}</div>
+              </div>
+              <div className="balance-card">
+                <div className="balance-card-header">
+                  <i className="fas fa-chart-line"></i>
+                  Equity
+                </div>
+                <div className="balance-value">{formatUsd(accountData.metrics.equity)}</div>
+              </div>
+              <div className="balance-card">
+                <div className="balance-card-header">
+                  <i className="fas fa-chart-simple"></i>
+                  Unrealized PnL
+                </div>
+                <div className={`balance-value ${accountData.metrics.unrealized_pnl >= 0 ? 'positive' : 'negative'}`}>
+                  {formatSignedUsd(accountData.metrics.unrealized_pnl)}
                 </div>
               </div>
-            )}
-            <div className="balance-card today-profit">
-              <div className="balance-card-header">
-                Remaining loss limit
-                <i
-                  className="fas fa-info-circle"
-                  style={{ marginLeft: '6px', fontSize: '12px', opacity: 0.8 }}
-                  title="Amount left before account breaches maximum drawdown."
-                ></i>
+              {accountData.phase === 'Funded' && (
+                <div className="balance-card">
+                  <div className="balance-card-header">
+                    <i className="fas fa-trophy"></i>
+                    Total Profit
+                  </div>
+                  <div className={`balance-value ${(accountData.funded_profit_raw || 0) >= 0 ? 'positive' : 'negative'}`}>
+                    {formatSignedUsd(accountData.funded_profit_raw || 0)}
+                  </div>
+                </div>
+              )}
+              <div className="balance-card today-profit">
+                <div className="balance-card-header">
+                  Profit
+                  <i
+                    className="fas fa-info-circle"
+                    style={{ marginLeft: '6px', fontSize: '12px', opacity: 0.8 }}
+                    title="Current profit compared to the account starting balance."
+                  ></i>
+                </div>
+                {(() => {
+                  const initialBalance = accountData.initial_balance ?? parseAccountSize(accountData.account_size)
+                  const profitValue = accountData.metrics.balance - initialBalance
+                  return (
+                    <div className={`balance-value ${profitValue >= 0 ? 'positive' : 'negative'}`}>
+                      {formatSignedUsd(profitValue)}
+                    </div>
+                  )
+                })()}
               </div>
-              <div className="balance-value">{formatUsd(accountData.metrics.max_permitted_loss_left)}</div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Trading Objective Section */}
-        <div className="trading-objective-section">
-          <div className="trading-objective-header">
-            <span className="trading-objective-title">Trading Objective</span>
-          </div>
-          <div className="objectives-list">
-            {(
-              ['profit_target', 'max_drawdown', 'max_daily_drawdown', 'min_trade_duration', 'min_trading_days'] as const
-            )
-              .filter((key) => !(accountData.phase === 'Funded' && key === 'profit_target'))
-              .map((key) => {
-                const objective = accountData.objectives[key] ?? {
-                  label: {
-                    profit_target: 'Profit Target',
-                    max_drawdown: 'Max Drawdown',
-                    max_daily_drawdown: 'Max Daily Drawdown',
-                    min_trade_duration: 'Minimum Trade Duration',
-                    min_trading_days: 'Minimum Trading Days',
-                  }[key],
-                  status: 'pending',
-                  note: 'Pending',
-                }
+        {!hasPendingWithdrawal && (
+          <div className="trading-objective-section">
+            <div className="trading-objective-header">
+              <span className="trading-objective-title">Trading Objective</span>
+            </div>
+            <div className="objectives-list">
+              {(
+                ['profit_target', 'max_drawdown', 'max_daily_drawdown', 'min_trade_duration', 'min_trading_days'] as const
+              )
+                .filter((key) => !(accountData.phase?.toLowerCase() === 'funded' && key === 'profit_target'))
+                .map((key) => {
+                  const objective = accountData.objectives[key] ?? {
+                    label: {
+                      profit_target: 'Profit Target',
+                      max_drawdown: 'Max Drawdown',
+                      max_daily_drawdown: 'Max Daily Drawdown',
+                      min_trade_duration: 'Minimum Trade Duration',
+                      min_trading_days: 'Minimum Trading Days',
+                    }[key],
+                    status: 'pending',
+                    note: 'Pending',
+                  }
 
-                const iconMap: Record<string, { icon: string; className: string }> = {
-                  max_drawdown: { icon: 'circle-exclamation', className: 'max-loss' },
-                  max_daily_drawdown: { icon: 'triangle-exclamation', className: 'max-loss' },
-                  profit_target: { icon: 'bullseye', className: 'profit-target' },
-                  min_trade_duration: { icon: 'hourglass-half', className: 'time-rule' },
-                  min_trading_days: { icon: 'calendar-days', className: 'trading-days' },
-                }
-                const iconConfig = iconMap[key] ?? { icon: 'clipboard-list', className: 'trading-days' }
+                  const iconMap: Record<string, { icon: string; className: string }> = {
+                    max_drawdown: { icon: 'circle-exclamation', className: 'max-loss' },
+                    max_daily_drawdown: { icon: 'triangle-exclamation', className: 'max-loss' },
+                    profit_target: { icon: 'bullseye', className: 'profit-target' },
+                    min_trade_duration: { icon: 'hourglass-half', className: 'time-rule' },
+                    min_trading_days: { icon: 'calendar-days', className: 'trading-days' },
+                  }
+                  const iconConfig = iconMap[key] ?? { icon: 'clipboard-list', className: 'trading-days' }
 
-                return (
-                  <div key={key} className="objective-item">
-                    <div className="objective-content">
-                      <i className={`fas fa-${iconConfig.icon} objective-icon ${iconConfig.className}`}></i>
-                      <div className="objective-text-section">
-                        <span className="objective-text">
-                          {key === 'min_trading_days' ? 'Min Trading Days' : objective.label}
-                        </span>
-                        {key === 'min_trading_days' ? (
-                          <span className="objective-info">
-                            {(() => {
-                              if (objective.note) {
-                                // Parse format like "11.50h / 24.00h"
-                                const match = objective.note.match(/(\d+(?:\.\d+)?)h\s*\/\s*(\d+(?:\.\d+)?)h/)
-                                if (match) {
-                                  const elapsedHours = parseFloat(match[1] || '0')
-                                  const totalHours = parseFloat(match[2] || '0')
-                                  const remainingHours = Math.max(0, totalHours - elapsedHours)
+                  return (
+                    <div key={key} className="objective-item">
+                      <div className="objective-content">
+                        <i className={`fas fa-${iconConfig.icon} objective-icon ${iconConfig.className}`}></i>
+                        <div className="objective-text-section">
+                          <span className="objective-text">
+                            {key === 'min_trading_days' ? 'Min Trading Days' : objective.label}
+                          </span>
+                          {key === 'min_trading_days' ? (
+                            <span className="objective-info">
+                              {(() => {
+                                if (objective.note) {
+                                  // Parse format like "11.50h / 24.00h"
+                                  const match = objective.note.match(/(\d+(?:\.\d+)?)h\s*\/\s*(\d+(?:\.\d+)?)h/)
+                                  if (match) {
+                                    const elapsedHours = parseFloat(match[1] || '0')
+                                    const totalHours = parseFloat(match[2] || '0')
+                                    const remainingHours = Math.max(0, totalHours - elapsedHours)
 
-                                  if (remainingHours <= 0) {
-                                    return 'Complete'
-                                  }
-
-                                  const hours = Math.floor(remainingHours)
-                                  const minutes = Math.floor((remainingHours - hours) * 60)
-
-                                  if (hours > 0) {
-                                    if (minutes > 0) {
-                                      return `${hours} hour${hours > 1 ? 's' : ''} ${minutes} minute${minutes > 1 ? 's' : ''} left`
-                                    } else {
-                                      return `${hours} hour${hours > 1 ? 's' : ''} left`
+                                    if (remainingHours <= 0) {
+                                      return 'Complete'
                                     }
-                                  } else if (minutes > 0) {
-                                    return `${minutes} minute${minutes > 1 ? 's' : ''} left`
-                                  } else {
-                                    return 'Complete'
+
+                                    const hours = Math.floor(remainingHours)
+                                    const minutes = Math.floor((remainingHours - hours) * 60)
+
+                                    if (hours > 0) {
+                                      if (minutes > 0) {
+                                        return `${hours} hour${hours > 1 ? 's' : ''} ${minutes} minute${minutes > 1 ? 's' : ''} left`
+                                      } else {
+                                        return `${hours} hour${hours > 1 ? 's' : ''} left`
+                                      }
+                                    } else if (minutes > 0) {
+                                      return `${minutes} minute${minutes > 1 ? 's' : ''} left`
+                                    } else {
+                                      return 'Complete'
+                                    }
                                   }
                                 }
-                              }
-                              return objective.note || '00:00 Hours'
-                            })()}
-                          </span>
-                        ) : (
-                          objective.note && <span className="objective-info">{objective.note}</span>
-                        )}
+                                return objective.note || '00:00 Hours'
+                              })()}
+                            </span>
+                          ) : (
+                            objective.note && <span className="objective-info">{objective.note}</span>
+                          )}
+                        </div>
                       </div>
+                      <i
+                        className={`fas fa-${objective.status === 'passed' ? 'check-circle' : objective.status === 'breached' ? 'times-circle' : 'far fa-circle'} objective-status ${objective.status === 'passed' ? 'completed' : objective.status === 'breached' ? 'breached' : 'pending'}`}
+                        style={objective.status === 'breached' ? { color: '#e74c3c' } : undefined}
+                      ></i>
                     </div>
-                    <i
-                      className={`fas fa-${objective.status === 'passed' ? 'check-circle' : objective.status === 'breached' ? 'times-circle' : 'far fa-circle'} objective-status ${objective.status === 'passed' ? 'completed' : objective.status === 'breached' ? 'breached' : 'pending'}`}
-                      style={objective.status === 'breached' ? { color: '#e74c3c' } : undefined}
-                    ></i>
-                  </div>
-                )
-              })}
+                  )
+                })}
+            </div>
+            <div className="objective-progress-bar"></div>
           </div>
-          <div className="objective-progress-bar"></div>
-        </div>
+        )}
       </div>
 
       {/* Footer */}

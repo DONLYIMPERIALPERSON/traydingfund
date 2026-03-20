@@ -16,6 +16,19 @@ model User {
   role               String    @default("trader")
   status             String    @default("active")
   kycStatus          String?   @default("pending")
+  payoutMethodType   String?
+  payoutBankName     String?
+  payoutBankCode     String?
+  payoutAccountNumber String?
+  payoutAccountName  String?
+  payoutCryptoCurrency String?
+  payoutCryptoAddress String?
+  payoutCryptoFirstName String?
+  payoutCryptoLastName  String?
+  payoutSafeHavenReference String?
+  payoutSafeHavenPayload Json?
+  payoutVerifiedAt   DateTime?
+  payoutUpdatedAt    DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -23,6 +36,82 @@ model User {
   cTraderAccounts    CTraderAccount[]
   orders             Order[]
   payouts            Payout[]
+  kycRequests        KycRequest[]
+  affiliateOrders    Order[]   @relation("AffiliateOrders")
+  affiliateCommissions AffiliateCommission[] @relation("AffiliateCommissions")
+  affiliatePayouts   AffiliatePayout[] @relation("AffiliatePayouts")
+  certificates       Certificate[]
+  supportTickets     SupportTicket[]
+  couponRedemptions  CouponRedemption[]
+}
+
+model Coupon {
+  id              Int      @id @default(autoincrement())
+  code            String   @unique
+  discountType    String
+  discountValue   Float
+  isActive        Boolean  @default(true)
+  expiresAt       DateTime?
+  maxUses         Int?
+  usedCount       Int      @default(0)
+  appliesToAllPlans Boolean @default(true)
+  applicablePlanIds String[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  redemptions     CouponRedemption[]
+
+  @@index([isActive])
+  @@index([expiresAt])
+}
+
+model CouponRedemption {
+  id         Int      @id @default(autoincrement())
+  createdAt  DateTime @default(now())
+
+  couponId   Int
+  coupon     Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([couponId])
+  @@index([userId])
+}
+
+model SupportTicket {
+  id             Int       @id @default(autoincrement())
+  subject        String
+  status         String    @default("open")
+  priority       String    @default("low")
+  assignedTo     String?
+  lastMessage    String?
+  userUnreadCount Int      @default(0)
+  adminUnreadCount Int     @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  userId         Int
+  user           User      @relation(fields: [userId], references: [id])
+  messages       SupportMessage[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+}
+
+model SupportMessage {
+  id         Int      @id @default(autoincrement())
+  sender     String
+  message    String?
+  imageUrl   String?
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  ticketId   Int
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
 }
 
 model ChallengeAccount {
@@ -48,10 +137,24 @@ model CTraderAccount {
   challengeId   String   @unique
   accountSize   String
   phase         String
+  challengeType String?
+  initialBalance Float?
+  maxDdPercent  Float?
+  maxDdAmount   Float?
+  dailyDdPercent Float?
+  dailyDdAmount Float?
+  profitTargetPercent Float?
+  profitTargetAmount Float?
+  minTradingDaysRequired Int?
+  minTradeDurationMinutes Int?
+  profitSplitPercent Float?
+  withdrawalSchedule String?
   status        String
+  accessStatus  String?  @default("pending")
   brokerName    String
   accountNumber String
   assignedAt    DateTime?
+  accessGrantedAt DateTime?
   startedAt     DateTime?
   breachedAt    DateTime?
   passedAt      DateTime?
@@ -61,6 +164,8 @@ model CTraderAccount {
   userId        Int?
   user          User?    @relation(fields: [userId], references: [id])
   metrics       CTraderAccountMetric?
+  payouts       Payout[]
+  adjustments   AccountAdjustment[]
 }
 
 model CTraderAccountMetric {
@@ -83,10 +188,30 @@ model CTraderAccountMetric {
   minTradingDaysMet       Boolean
   stageElapsedHours       Float
   scalpingViolationsCount Int
+  dailyStartAt            DateTime?
+  dailyHighBalance        Float     @default(0)
+  dailyBreachBalance       Float     @default(0)
+  firstTradeAt            DateTime?
+  totalTrades             Int       @default(0)
+  shortDurationViolation  Boolean   @default(false)
+  breachReason            String?
+  lastBalance             Float     @default(0)
+  lastEquity              Float     @default(0)
   capturedAt              DateTime @default(now())
 
   accountId               Int      @unique
   account                 CTraderAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model AccountAdjustment {
+  id         Int      @id @default(autoincrement())
+  type       String
+  amount     Float
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  accountId  Int
+  account    CTraderAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
 }
 
 model Order {
@@ -100,6 +225,8 @@ model Order {
   netAmountKobo   Int
   planId          String
   accountSize     String
+  challengeType   String?
+  phase           String?
   couponCode      String?
   checkoutUrl     String?
   paymentMethod   String
@@ -119,13 +246,74 @@ model Order {
 
   userId          Int
   user            User     @relation(fields: [userId], references: [id])
+  affiliateId     Int?
+  affiliate       User?    @relation("AffiliateOrders", fields: [affiliateId], references: [id])
+  affiliateCommission AffiliateCommission?
+}
+
+model AffiliateCommission {
+  id         Int      @id @default(autoincrement())
+  amountKobo Int
+  status     String   @default("earned")
+  createdAt  DateTime @default(now())
+  paidAt     DateTime?
+
+  orderId    Int   @unique
+  order      Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  affiliateId Int
+  affiliate  User @relation("AffiliateCommissions", fields: [affiliateId], references: [id])
+}
+
+model AffiliatePayout {
+  id                  Int      @id @default(autoincrement())
+  amountKobo          Int
+  status              String   @default("pending")
+  payoutMethodType    String?
+  payoutBankName      String?
+  payoutBankCode      String?
+  payoutAccountNumber String?
+  payoutAccountName   String?
+  payoutCryptoCurrency String?
+  payoutCryptoAddress  String?
+  payoutCryptoFirstName String?
+  payoutCryptoLastName  String?
+  requestedAt         DateTime @default(now())
+  approvedAt          DateTime?
+  approvedBy          String?
+  rejectedAt          DateTime?
+  rejectedBy          String?
+  rejectionReason     String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  affiliateId         Int
+  affiliate           User     @relation("AffiliatePayouts", fields: [affiliateId], references: [id])
 }
 
 model Payout {
   id               Int      @id @default(autoincrement())
+  providerRef      String?  @unique
   amountKobo       Int
+  profitSplitPercent Float?
+  profitBaseAmount Float?
+  profitAmount     Float?
+  payoutMethodType String?
+  payoutBankName   String?
+  payoutBankCode   String?
+  payoutAccountNumber String?
+  payoutAccountName String?
+  payoutCryptoCurrency String?
+  payoutCryptoAddress String?
+  payoutCryptoFirstName String?
+  payoutCryptoLastName String?
   status           String
   requestedAt      DateTime @default(now())
+  approvedAt       DateTime?
+  approvedBy       String?
+  rejectedAt       DateTime?
+  rejectedBy       String?
+  rejectionReason  String?
+  metadata         Json?
   completedAt      DateTime?
   reference        String?
   createdAt        DateTime @default(now())
@@ -133,6 +321,8 @@ model Payout {
 
   userId           Int
   user             User     @relation(fields: [userId], references: [id])
+  accountId        Int?
+  account          CTraderAccount? @relation(fields: [accountId], references: [id])
 }
 
 model AdminAllowlist {
@@ -155,4 +345,38 @@ model TradingObjectiveConfig {
   rules     Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model KycRequest {
+  id              Int      @id @default(autoincrement())
+  status          String   @default("pending")
+  documentType    String
+  documentNumber  String
+  idFrontUrl      String
+  idBackUrl       String?
+  selfieUrl       String?
+  submittedAt     DateTime @default(now())
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  declineReason   String?
+
+  userId          Int
+  user            User     @relation(fields: [userId], references: [id])
+}
+
+model Certificate {
+  id                Int      @id @default(autoincrement())
+  type              String
+  title             String
+  description       String?
+  certificateUrl    String
+  generatedAt       DateTime @default(now())
+  relatedEntityId   String?
+  metadata          Json?
+
+  userId            Int
+  user              User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([type])
 }

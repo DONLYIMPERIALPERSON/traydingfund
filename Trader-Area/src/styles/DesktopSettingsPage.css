@@ -238,6 +238,201 @@
   font-size: 14px;
 }
 
+/* Payout Method Section */
+.settings-page .settings-payout-list {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.settings-page .settings-payout-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid #e1e1e1;
+  background: #fafafa;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.settings-page .settings-payout-item:hover {
+  border-color: #0b9fb8;
+  box-shadow: 0 6px 16px rgba(11, 159, 184, 0.12);
+}
+
+.settings-page .settings-payout-item.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.settings-page .settings-payout-item.is-set {
+  border-color: rgba(11, 159, 184, 0.4);
+  background: rgba(11, 159, 184, 0.08);
+}
+
+.settings-page .settings-payout-item-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+}
+
+.settings-page .settings-payout-item-left h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.settings-page .settings-payout-item-left p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.settings-page .settings-payout-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 159, 184, 0.1);
+  color: #0b9fb8;
+  font-size: 18px;
+}
+
+.settings-page .settings-payout-status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  color: #475569;
+}
+
+.settings-page .settings-payout-status.set {
+  background: rgba(22, 163, 74, 0.15);
+  color: #15803d;
+}
+
+.settings-page .settings-payout-status.not-set {
+  background: rgba(148, 163, 184, 0.2);
+  color: #475569;
+}
+
+.settings-page .settings-payout-note {
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: #7c7c7c;
+}
+
+.settings-page .settings-payout-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px dashed rgba(11, 159, 184, 0.35);
+  background: rgba(11, 159, 184, 0.05);
+  margin-bottom: 16px;
+}
+
+.settings-page .settings-payout-summary h4 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.settings-page .settings-payout-summary p {
+  margin: 0;
+  font-size: 13px;
+  color: #475569;
+}
+
+.settings-page .settings-secondary-button {
+  border: 1px solid rgba(11, 159, 184, 0.35);
+  background: transparent;
+  color: #0b9fb8;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-page .settings-payout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.settings-page .settings-form-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-page .settings-form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+}
+
+.settings-page .settings-form-input {
+  border: 1px solid #dcdcdc;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  outline: none;
+  background: #fff;
+}
+
+.settings-page .settings-form-input:focus {
+  border-color: #0b9fb8;
+  box-shadow: 0 0 0 2px rgba(11, 159, 184, 0.1);
+}
+
+.settings-page .settings-primary-button {
+  border: none;
+  background: #0b9fb8;
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-page .settings-primary-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.settings-page .settings-form-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: rgba(220, 53, 69, 0.1);
+  border: 1px solid rgba(220, 53, 69, 0.25);
+  color: #c82333;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.settings-page .settings-form-success {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: rgba(22, 163, 74, 0.12);
+  border: 1px solid rgba(22, 163, 74, 0.35);
+  color: #15803d;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
 /* PIN Modals */
 .settings-page .settings-pin-modal-overlay {
   position: fixed;

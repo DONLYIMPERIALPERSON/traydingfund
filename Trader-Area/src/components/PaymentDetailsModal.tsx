@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import '../styles/PaymentDetailsModal.css'
 
 interface PaymentDetailsModalProps {
@@ -27,6 +28,7 @@ const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
   paymentDetails,
   status = 'waiting',
 }) => {
+  const navigate = useNavigate()
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [timeLeft, setTimeLeft] = useState(30 * 60) // 30 minutes in seconds
   const [currentStatus, setCurrentStatus] = useState(status)
@@ -69,6 +71,11 @@ const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
 
   const isCrypto = Boolean(paymentDetails.cryptoCurrency && paymentDetails.cryptoAddress)
   const networks = paymentDetails.cryptoNetworks
+
+  const handleCryptoPaid = () => {
+    onClose()
+    navigate('/orders')
+  }
 
   if (!isOpen) return null
 
@@ -230,7 +237,7 @@ const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
 
             {isCrypto && (
               <div className="payment-modal-footer">
-                <button className="payment-proceed-button" onClick={onClose}>
+                <button className="payment-proceed-button" onClick={handleCryptoPaid}>
                   <i className="fas fa-paper-plane"></i>
                   I have sent it
                 </button>

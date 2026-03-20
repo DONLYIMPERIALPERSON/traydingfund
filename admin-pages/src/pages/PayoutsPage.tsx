@@ -3,6 +3,7 @@ import {
   generatePayoutCertificates,
   fetchPayoutStats,
   fetchPayoutRequests,
+  fetchAdminBankList,
   approvePayout,
   rejectPayout,
   type PayoutStats,
@@ -20,6 +21,28 @@ interface AdminUser {
   payouts: string
 }
 
+type PayoutMetadata = {
+  payout_method_type?: string | null
+  payout_bank_name?: string | null
+  payout_bank_code?: string | null
+  payout_account_number?: string | null
+  payout_account_name?: string | null
+  payout_crypto_currency?: string | null
+  payout_crypto_address?: string | null
+  payout_crypto_first_name?: string | null
+  payout_crypto_last_name?: string | null
+  mt5_account_number?: string | null
+  requires_admin_approval?: boolean
+  approved_by?: string | null
+  approvedBy?: string | null
+  approved_by_name?: string | null
+  approved_by_admin?: string | null
+  approved_at?: string | null
+  rejected_by?: string | null
+  rejected_at?: string | null
+  rejection_reason?: string | null
+}
+
 const PayoutsPage = ({
   onOpenProfile,
   isSuperAdmin,
@@ -34,6 +57,7 @@ const PayoutsPage = ({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [generatingCertificates, setGeneratingCertificates] = useState(false)
+  const [bankMap, setBankMap] = useState<Record<string, string>>({})
 
   const fetchPayoutData = async () => {
     try {
@@ -41,13 +65,20 @@ const PayoutsPage = ({
       setError(null)
 
       // Fetch stats and payout requests in parallel
-      const [statsData, requestsData] = await Promise.all([
+      const [statsData, requestsData, bankListData] = await Promise.all([
         fetchPayoutStats(selectedPeriod),
-        fetchPayoutRequests(1, 50, selectedPeriod)
+        fetchPayoutRequests(1, 50, selectedPeriod),
+        fetchAdminBankList(),
       ])
 
-      setStats(statsData)
+      setStats(requestsData.stats ?? statsData)
       setPayoutRequests(requestsData.payouts)
+      setBankMap(
+        (bankListData.banks || []).reduce<Record<string, string>>((acc, bank) => {
+          acc[bank.bank_code] = bank.bank_name
+          return acc
+        }, {})
+      )
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load payout data')
@@ -65,7 +96,7 @@ const PayoutsPage = ({
   const historyRows = payoutRequests.filter((request) => request.status !== 'pending_approval')
 
   const resolveApprovalInfo = (request: PayoutRequest) => {
-    const metadata = request.metadata || {}
+    const metadata = (request.metadata || {}) as PayoutMetadata
     const requiresAdmin = metadata.requires_admin_approval === true
     const approvalType = requiresAdmin ? 'Manual' : 'Auto'
     const approvedBy =
@@ -97,6 +128,35 @@ const PayoutsPage = ({
       rejectedAt,
       decision,
     }
+  }
+
+  const resolvePayoutDestination = (request: PayoutRequest) => {
+    const metadata = (request.metadata || {}) as PayoutMetadata
+    const method = String(metadata.payout_method_type || '')
+    if (method === 'crypto') {
+      const firstName = metadata.payout_crypto_first_name ?? ''
+      const lastName = metadata.payout_crypto_last_name ?? ''
+      const holder = `${firstName} ${lastName}`.trim() || 'Crypto Wallet'
+      return (
+        <div style={{ color: '#fff' }}>
+          <div>{holder}</div>
+          <div style={{ fontSize: '12px', color: '#fff' }}>{metadata.payout_crypto_currency ?? 'Crypto'}</div>
+          <div style={{ fontSize: '12px', color: '#fff' }}>{metadata.payout_crypto_address ?? '-'}</div>
+        </div>
+      )
+    }
+
+    const bankCode = metadata.payout_bank_code ?? ''
+    const bankName = metadata.payout_bank_name ?? bankMap[bankCode] ?? 'Bank'
+    const accountName = metadata.payout_account_name ?? 'Account'
+    const accountNumber = metadata.payout_account_number ?? ''
+
+    return (
+      <div style={{ color: '#fff' }}>
+        <div>{accountName}</div>
+        <div style={{ fontSize: '12px', color: '#fff' }}>{bankName} {accountNumber}</div>
+      </div>
+    )
   }
 
   const handleApprovePayout = async (payoutId: number) => {
@@ -269,6 +329,7 @@ const PayoutsPage = ({
                 <th>Account</th>
                 <th>Amount</th>
                 <th>Status</th>
+                <th>Payout Details</th>
                 <th>Created</th>
                 <th>Actions</th>
               </tr>
@@ -276,7 +337,7 @@ const PayoutsPage = ({
             <tbody>
               {requestRows.length === 0 && (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '16px' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '16px' }}>
                     No pending payout requests for this period.
                   </td>
                 </tr>
@@ -293,10 +354,10 @@ const PayoutsPage = ({
                   <td>
                     <div>
                       <div>{request.account.account_size}</div>
-                      {request.metadata?.mt5_account_number ? (
-                        <div style={{ fontSize: '12px', color: '#888' }}>MT5: {request.metadata.mt5_account_number}</div>
+                      {((request.metadata || {}) as PayoutMetadata).mt5_account_number ? (
+                        <div style={{ fontSize: '12px', color: '#fff' }}>Ctrader: {((request.metadata || {}) as PayoutMetadata).mt5_account_number}</div>
                       ) : (
-                        <div style={{ fontSize: '12px', color: '#888' }}>MT5: -</div>
+                        <div style={{ fontSize: '12px', color: '#fff' }}>Ctrader: -</div>
                       )}
                     </div>
                   </td>
@@ -312,9 +373,10 @@ const PayoutsPage = ({
                       PENDING APPROVAL
                     </span>
                   </td>
+                  <td>{resolvePayoutDestination(request)}</td>
                   <td>
                     <div>{new Date(request.created_at).toLocaleDateString()}</div>
-                    <div style={{ fontSize: '12px', color: '#888' }}>{new Date(request.created_at).toLocaleTimeString()}</div>
+                    <div style={{ fontSize: '12px', color: '#fff' }}>{new Date(request.created_at).toLocaleTimeString()}</div>
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: '4px', flexDirection: 'column' }}>
@@ -362,6 +424,7 @@ const PayoutsPage = ({
                 <th>Approval</th>
                 <th>Decision</th>
                 <th>Status</th>
+                <th>Payout Details</th>
                 <th>Created</th>
                 <th>Completed</th>
               </tr>
@@ -369,7 +432,7 @@ const PayoutsPage = ({
             <tbody>
               {historyRows.length === 0 && (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: '16px' }}>
+                  <td colSpan={9} style={{ textAlign: 'center', padding: '16px' }}>
                     No payout history for this period.
                   </td>
                 </tr>
@@ -387,20 +450,20 @@ const PayoutsPage = ({
                     </td>
                     <td>
                       <div>{request.amount_formatted}</div>
-                      {request.metadata?.mt5_account_number && (
-                        <div style={{ fontSize: '12px', color: '#888' }}>MT5: {request.metadata.mt5_account_number}</div>
+                      {((request.metadata || {}) as PayoutMetadata).mt5_account_number && (
+                        <div style={{ fontSize: '12px', color: '#fff' }}>Ctrader: {((request.metadata || {}) as PayoutMetadata).mt5_account_number}</div>
                       )}
                     </td>
                     <td>{approvalInfo.approvalType}</td>
                     <td>
                       <div>{approvalInfo.decision}</div>
                       {approvalInfo.approvedAt && (
-                        <div style={{ fontSize: '12px', color: '#888' }}>
+                        <div style={{ fontSize: '12px', color: '#fff' }}>
                           Approved: {new Date(approvalInfo.approvedAt).toLocaleString()}
                         </div>
                       )}
                       {approvalInfo.rejectedAt && (
-                        <div style={{ fontSize: '12px', color: '#888' }}>
+                        <div style={{ fontSize: '12px', color: '#fff' }}>
                           Rejected: {new Date(approvalInfo.rejectedAt).toLocaleString()}
                         </div>
                       )}
@@ -419,11 +482,12 @@ const PayoutsPage = ({
                         {request.status.replace('_', ' ').toUpperCase()}
                       </span>
                     </td>
+                    <td>{resolvePayoutDestination(request)}</td>
                     <td>
                       {request.created_at ? (
                         <div>
                           <div>{new Date(request.created_at).toLocaleDateString()}</div>
-                          <div style={{ fontSize: '12px', color: '#888' }}>{new Date(request.created_at).toLocaleTimeString()}</div>
+                          <div style={{ fontSize: '12px', color: '#fff' }}>{new Date(request.created_at).toLocaleTimeString()}</div>
                         </div>
                       ) : '-'}
                     </td>
@@ -431,7 +495,7 @@ const PayoutsPage = ({
                       {request.completed_at ? (
                         <div>
                           <div>{new Date(request.completed_at).toLocaleDateString()}</div>
-                          <div style={{ fontSize: '12px', color: '#888' }}>{new Date(request.completed_at).toLocaleTimeString()}</div>
+                          <div style={{ fontSize: '12px', color: '#fff' }}>{new Date(request.completed_at).toLocaleTimeString()}</div>
                         </div>
                       ) : '-'}
                     </td>

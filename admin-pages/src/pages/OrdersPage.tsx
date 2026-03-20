@@ -3,7 +3,6 @@ import type { AdminUser } from './UsersPage'
 import {
   fetchOrderStats,
   fetchOrders,
-  queryOrderStatus,
   approveCryptoOrder,
   declineCryptoOrder,
   type OrderStats,
@@ -26,7 +25,6 @@ const OrdersPage = ({ onOpenProfile, isSuperAdmin }: OrdersPageProps & { isSuper
   const [todayStatsLoading, setTodayStatsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const [queryingOrderId, setQueryingOrderId] = useState<number | null>(null)
   const [searchEmail, setSearchEmail] = useState('')
   const [actioningOrderId, setActioningOrderId] = useState<number | null>(null)
 
@@ -130,25 +128,7 @@ const OrdersPage = ({ onOpenProfile, isSuperAdmin }: OrdersPageProps & { isSuper
   }
 
   const handlePageChange = (page: number) => {
-    void loadOrders(page)
-  }
-
-  const handleQueryStatus = async (order: Order) => {
-    setQueryingOrderId(order.id)
-    try {
-      const result = await queryOrderStatus(order.id)
-      if (result.error) {
-        alert(`PalmPay query failed: ${result.error}`)
-      } else {
-        alert(`Order updated from ${result.previous_status ?? 'unknown'} to ${result.status}.`)
-      }
-      if (isSuperAdmin) {
-        await loadStats(statsPeriod)
-      }
-      await loadOrders(currentPage)
-    } finally {
-      setQueryingOrderId(null)
-    }
+    void loadOrders(page, statsPeriod, statusFilter, searchEmail)
   }
 
   const handleCryptoAction = async (order: Order, action: 'approve' | 'decline') => {
@@ -243,7 +223,6 @@ const OrdersPage = ({ onOpenProfile, isSuperAdmin }: OrdersPageProps & { isSuper
                   <th>Created</th>
                   <th>Payment</th>
                   <th>Action</th>
-                  <th>Query</th>
                 </tr>
               </thead>
               <tbody>
@@ -320,15 +299,6 @@ const OrdersPage = ({ onOpenProfile, isSuperAdmin }: OrdersPageProps & { isSuper
                           </>
                         )}
                       </div>
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        onClick={() => void handleQueryStatus(order)}
-                        disabled={queryingOrderId === order.id}
-                      >
-                        {queryingOrderId === order.id ? 'Querying...' : 'Query Status'}
-                      </button>
                     </td>
                   </tr>
                 ))}

@@ -1,9 +1,14 @@
 import { Request, Response, NextFunction } from 'express'
 import { prisma } from '../../config/prisma'
+import { Prisma } from '@prisma/client'
 import { env } from '../../config/env'
 import { ApiError } from '../../common/errors'
 import { createVirtualAccount } from '../../services/safehaven.service'
 import { getFxRatesConfig } from '../fxRates/fxRates.service'
+import { requestAccountAccess } from '../../services/accessEngine.service'
+import { assignReadyAccountFromPool } from '../ctrader/ctrader.assignment'
+import { createOnboardingCertificate } from '../../services/certificate.service'
+import { applyCouponToOrder } from '../../services/coupon.service'
 
 const CRYPTO_ADDRESSES = {
   BTC: env.cryptoBtcAddress,
@@ -20,6 +25,114 @@ const resolveCryptoAddress = (currency: keyof typeof CRYPTO_ADDRESSES) => {
   return CRYPTO_ADDRESSES[currency]
 }
 
+const assignReadyAccount = async (
+  userId: number,
+  payload: { challengeType: string; phase: string; accountSize: string },
+) => assignReadyAccountFromPool({
+  userId,
+  challengeType: payload.challengeType,
+  phase: payload.phase,
+  accountSize: payload.accountSize,
+})
+
+const maybeBurnAccount = async (accountId: number) => {
+  await prisma.cTraderAccount.update({
+    where: { id: accountId },
+    data: { status: 'burned' },
+  })
+}
+
+const burnStatuses = new Set(['failed', 'violated', 'breached', 'completed', 'passed'])
+const AFFILIATE_COMMISSION_PERCENT = 10
+
+const createAffiliateCommission = async (tx: Prisma.TransactionClient, order: { id: number; affiliateId?: number | null; netAmountKobo: number }) => {
+  const resolvedAffiliateId = order.affiliateId ?? null
+  if (!resolvedAffiliateId) return
+
+  const affiliateCommissionClient = (tx as typeof prisma).affiliateCommission
+  const existing = await affiliateCommissionClient.findFirst({
+    where: { orderId: order.id },
+  })
+
+  if (existing) return
+
+  const commissionAmount = Math.round(order.netAmountKobo * (AFFILIATE_COMMISSION_PERCENT / 100))
+
+  await affiliateCommissionClient.create({
+    data: {
+      orderId: order.id,
+      affiliateId: resolvedAffiliateId,
+      amountKobo: commissionAmount,
+      status: 'earned',
+    },
+  })
+}
+
+export const markAccountStatus = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { account_number, status } = req.body as { account_number?: string; status?: string }
+    if (!account_number || !status) {
+      throw new ApiError('account_number and status are required', 400)
+    }
+
+    const account = await prisma.cTraderAccount.findFirst({
+      where: { accountNumber: account_number },
+    })
+
+    if (!account) {
+      throw new ApiError('Account not found', 404)
+    }
+
+    if (burnStatuses.has(status.toLowerCase())) {
+      await maybeBurnAccount(account.id)
+    }
+
+    res.json({ message: 'Account status updated', account_id: account.id })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const confirmAccessGrant = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const apiKey = req.header('x-access-engine-key')
+    if (env.accessEngineApiKey && apiKey !== env.accessEngineApiKey) {
+      throw new ApiError('Unauthorized access engine request', 401)
+    }
+
+    const { account_number, user_email, status } = req.body as {
+      account_number?: string
+      user_email?: string
+      status?: string
+    }
+
+    if (!account_number || !user_email) {
+      throw new ApiError('account_number and user_email are required', 400)
+    }
+
+    const account = await prisma.cTraderAccount.findFirst({
+      where: { accountNumber: account_number },
+    })
+
+    if (!account) {
+      throw new ApiError('Account not found', 404)
+    }
+
+    await prisma.cTraderAccount.update({
+      where: { id: account.id },
+      data: {
+        status: status?.toLowerCase() === 'granted' ? 'active' : account.status,
+        accessStatus: status?.toLowerCase() === 'granted' ? 'granted' : 'revoked',
+        accessGrantedAt: status?.toLowerCase() === 'granted' ? new Date() : null,
+      },
+    })
+
+    res.json({ message: 'Access status updated' })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
 type AuthRequest = Request & { user?: { id: number; email: string } }
 
 const ensureUser = (req: AuthRequest) => {
@@ -33,10 +146,21 @@ const ensureUser = (req: AuthRequest) => {
 export const listOrders = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureUser(req)
-    const orders = await prisma.order.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
-    })
+    const page = Number(req.query.page ?? 1)
+    const limit = Number(req.query.limit ?? 5)
+    const skip = (page - 1) * limit
+
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.order.count({ where: { userId: user.id } }),
+    ])
+
+    const pages = Math.max(1, Math.ceil(total / limit))
 
     res.json({
       orders: orders.map((order) => ({
@@ -52,6 +176,38 @@ export const listOrders = async (req: AuthRequest, res: Response, next: NextFunc
         created_at: order.createdAt,
         paid_at: order.paidAt,
       })),
+      pagination: { page, limit, total, pages },
+    })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const getOrderStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const user = ensureUser(req)
+    const providerOrderId = req.params.providerOrderId
+
+    if (!providerOrderId) {
+      throw new ApiError('providerOrderId is required', 400)
+    }
+
+    const order = await prisma.order.findFirst({
+      where: { providerOrderId, userId: user.id },
+    })
+
+    if (!order) {
+      throw new ApiError('Order not found', 404)
+    }
+
+    res.json({
+      provider_order_id: order.providerOrderId,
+      status: order.status,
+      assignment_status: order.assignmentStatus,
+      challenge_id: order.assignmentStatus === 'assigned'
+        ? (await prisma.cTraderAccount.findFirst({ where: { userId: user.id }, orderBy: { assignedAt: 'desc' } }))?.challengeId ?? null
+        : null,
+      message: 'Order status fetched',
     })
   } catch (err) {
     next(err as Error)
@@ -61,21 +217,34 @@ export const listOrders = async (req: AuthRequest, res: Response, next: NextFunc
 export const createBankTransferOrder = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureUser(req)
-    const { plan_id, account_size, amount_kobo, coupon_code } = req.body as {
+    const { plan_id, account_size, amount_kobo, coupon_code, challenge_type, phase } = req.body as {
       plan_id?: string
       account_size?: string
       amount_kobo?: number
       coupon_code?: string | null
+      challenge_type?: string
+      phase?: string
     }
+    const rawAffiliateId = req.header('x-affiliate-id')
+    const affiliateId = rawAffiliateId
+      ? Number(Array.isArray(rawAffiliateId) ? rawAffiliateId[0] : rawAffiliateId)
+      : (req.body as { affiliate_id?: number }).affiliate_id
 
-    if (!plan_id || !account_size || !amount_kobo) {
-      throw new ApiError('plan_id, account_size and amount_kobo are required', 400)
+    if (!plan_id || !account_size || !amount_kobo || !challenge_type || !phase) {
+      throw new ApiError('plan_id, account_size, amount_kobo, challenge_type, and phase are required', 400)
     }
 
     const providerOrderId = `MF-${Date.now()}-${Math.floor(Math.random() * 9999)}`
 
+    const couponResult = await applyCouponToOrder({
+      code: coupon_code ?? null,
+      planId: plan_id,
+      amountKobo: amount_kobo,
+      userId: user.id,
+    })
+
     const fxConfig = await getFxRatesConfig()
-    const usdAmount = amount_kobo / 100
+    const usdAmount = couponResult.finalAmountKobo / 100
     const usdToNgnRate = fxConfig.rules?.usd_ngn_rate ?? 1300
     const ngnAmount = Math.round(usdAmount * usdToNgnRate)
 
@@ -105,11 +274,13 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
         assignmentStatus: 'unassigned',
         currency: 'USD',
         grossAmountKobo: amount_kobo,
-        discountAmountKobo: 0,
-        netAmountKobo: amount_kobo,
+        discountAmountKobo: couponResult.discountAmountKobo,
+        netAmountKobo: couponResult.finalAmountKobo,
         planId: plan_id,
         accountSize: account_size,
-        couponCode: coupon_code ?? null,
+        challengeType: challenge_type,
+        phase,
+        couponCode: couponResult.couponCode,
         checkoutUrl: null,
         paymentMethod: 'bank_transfer',
         paymentProvider: 'safehaven',
@@ -123,7 +294,8 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
           safehaven: virtualAccount,
         },
         userId: user.id,
-      },
+        affiliateId: affiliateId && !Number.isNaN(affiliateId) && affiliateId !== user.id ? affiliateId : null,
+      } as Prisma.OrderUncheckedCreateInput,
     })
 
     res.json({
@@ -139,6 +311,8 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
       bank_transfer_bank_code: resolvedBankCode,
       plan_id: order.planId,
       account_size: order.accountSize,
+      challenge_type: order.challengeType,
+      phase: order.phase,
       coupon_code: order.couponCode,
       checkout_url: order.checkoutUrl,
       payer_bank_name: resolvedBankName || order.safehavenBankName,
@@ -155,15 +329,22 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
 export const createCryptoOrder = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureUser(req)
-    const { plan_id, account_size, amount_kobo, crypto_currency } = req.body as {
+    const { plan_id, account_size, amount_kobo, crypto_currency, challenge_type, phase, coupon_code } = req.body as {
       plan_id?: string
       account_size?: string
       amount_kobo?: number
       crypto_currency?: keyof typeof CRYPTO_ADDRESSES
+      challenge_type?: string
+      phase?: string
+      coupon_code?: string | null
     }
+    const rawAffiliateId = req.header('x-affiliate-id')
+    const affiliateId = rawAffiliateId
+      ? Number(Array.isArray(rawAffiliateId) ? rawAffiliateId[0] : rawAffiliateId)
+      : (req.body as { affiliate_id?: number }).affiliate_id
 
-    if (!plan_id || !account_size || !amount_kobo || !crypto_currency) {
-      throw new ApiError('plan_id, account_size, amount_kobo, crypto_currency are required', 400)
+    if (!plan_id || !account_size || !amount_kobo || !crypto_currency || !challenge_type || !phase) {
+      throw new ApiError('plan_id, account_size, amount_kobo, crypto_currency, challenge_type, and phase are required', 400)
     }
 
     const normalizedCurrency = crypto_currency.toUpperCase() as keyof typeof CRYPTO_ADDRESSES
@@ -177,6 +358,13 @@ export const createCryptoOrder = async (req: AuthRequest, res: Response, next: N
     }
 
     const providerOrderId = `CRYPTO-${Date.now()}-${Math.floor(Math.random() * 9999)}`
+
+    const couponResult = await applyCouponToOrder({
+      code: coupon_code ?? null,
+      planId: plan_id,
+      amountKobo: amount_kobo,
+      userId: user.id,
+    })
     const order = await prisma.order.create({
       data: {
         providerOrderId,
@@ -184,16 +372,20 @@ export const createCryptoOrder = async (req: AuthRequest, res: Response, next: N
         assignmentStatus: 'unassigned',
         currency: 'USD',
         grossAmountKobo: amount_kobo,
-        discountAmountKobo: 0,
-        netAmountKobo: amount_kobo,
+        discountAmountKobo: couponResult.discountAmountKobo,
+        netAmountKobo: couponResult.finalAmountKobo,
         planId: plan_id,
         accountSize: account_size,
+        challengeType: challenge_type,
+        phase,
+        couponCode: couponResult.couponCode,
         paymentMethod: 'crypto',
         paymentProvider: 'manual',
         cryptoCurrency: normalizedCurrency,
         cryptoAddress: address,
         userId: user.id,
-      },
+        affiliateId: affiliateId && !Number.isNaN(affiliateId) && affiliateId !== user.id ? affiliateId : null,
+      } as Prisma.OrderUncheckedCreateInput,
     })
 
     res.json({
@@ -206,6 +398,9 @@ export const createCryptoOrder = async (req: AuthRequest, res: Response, next: N
       net_amount_kobo: order.netAmountKobo,
       plan_id: order.planId,
       account_size: order.accountSize,
+      challenge_type: order.challengeType,
+      phase: order.phase,
+      coupon_code: order.couponCode,
       crypto_currency: order.cryptoCurrency,
       crypto_address: order.cryptoAddress,
       crypto_networks: order.cryptoCurrency === 'USDT'
@@ -224,14 +419,20 @@ export const createCryptoOrder = async (req: AuthRequest, res: Response, next: N
 
 export const handleSafeHavenWebhook = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const payload = req.body as { sessionId?: string; status?: string; externalReference?: string }
-    if (!payload?.externalReference) {
+    const payload = req.body as {
+      sessionId?: string
+      status?: string
+      externalReference?: string
+      data?: { status?: string; externalReference?: string; sessionId?: string }
+    }
+    const externalReference = payload.externalReference ?? payload.data?.externalReference
+    if (!externalReference) {
       res.status(200).json({ received: true })
       return
     }
 
     const order = await prisma.order.findUnique({
-      where: { providerOrderId: payload.externalReference },
+      where: { providerOrderId: externalReference },
     })
 
     if (!order) {
@@ -239,17 +440,80 @@ export const handleSafeHavenWebhook = async (req: Request, res: Response, next: 
       return
     }
 
-    const status = payload.status?.toLowerCase() ?? 'pending'
+    const status = payload.status?.toLowerCase()
+      ?? payload.data?.status?.toLowerCase()
+      ?? 'pending'
     const mapped = status.includes('success') || status === 'completed' ? 'completed' : status
 
-    await prisma.order.update({
-      where: { id: order.id },
-      data: {
-        status: mapped === 'completed' ? 'completed' : 'pending',
-        paidAt: mapped === 'completed' ? new Date() : order.paidAt,
-        safehavenSessionId: payload.sessionId ?? order.safehavenSessionId,
-      },
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      const nextOrder = await tx.order.update({
+        where: { id: order.id },
+        data: {
+          status: mapped === 'completed' ? 'completed' : 'pending',
+          paidAt: mapped === 'completed' ? new Date() : order.paidAt,
+          safehavenSessionId: payload.sessionId
+            ?? payload.data?.sessionId
+            ?? order.safehavenSessionId,
+        },
+      })
+
+      if (mapped === 'completed') {
+        const affiliateId = (nextOrder as { affiliateId?: number | null }).affiliateId
+        await createAffiliateCommission(tx, {
+          id: nextOrder.id,
+          affiliateId,
+          netAmountKobo: nextOrder.netAmountKobo,
+        })
+      }
+
+      return nextOrder
     })
+
+    if (mapped === 'completed') {
+      try {
+        await createOnboardingCertificate({
+          userId: updatedOrder.userId,
+          orderId: updatedOrder.id,
+          challengeType: updatedOrder.challengeType,
+          phase: updatedOrder.phase,
+          accountSize: updatedOrder.accountSize,
+        })
+      } catch (error) {
+        console.error('Failed to create onboarding certificate', error)
+      }
+    }
+
+    if (mapped === 'completed' && updatedOrder.assignmentStatus !== 'assigned') {
+      const normalizedAccountSize = order.accountSize
+        .replace(/\$|,/g, '')
+        .replace(/k$/i, '000')
+        .replace(/\s+/g, '')
+
+      const assigned = await assignReadyAccount(order.userId, {
+        challengeType: order.challengeType ?? 'challenge',
+        phase: order.phase ?? 'phase_1',
+        accountSize: normalizedAccountSize ? `$${normalizedAccountSize}` : order.accountSize,
+      })
+
+      if (assigned) {
+        await prisma.order.update({
+          where: { id: order.id },
+          data: { assignmentStatus: 'assigned' },
+        })
+
+        await requestAccountAccess({
+          user_email: (await prisma.user.findUnique({ where: { id: order.userId } }))?.email ?? '',
+          account_number: assigned.accountNumber,
+          broker: assigned.brokerName,
+          platform: 'ctrader',
+        })
+      } else {
+        await prisma.order.update({
+          where: { id: order.id },
+          data: { assignmentStatus: 'pending_assign' },
+        })
+      }
+    }
 
     res.json({ received: true })
   } catch (err) {

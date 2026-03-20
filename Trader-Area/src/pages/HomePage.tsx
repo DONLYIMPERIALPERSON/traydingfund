@@ -5,27 +5,15 @@ import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopActiveAccountsSection from '../components/DesktopActiveAccountsSection'
 import DesktopHistorySection from '../components/DesktopHistorySection'
 import DesktopFooter from '../components/DesktopFooter'
-import { fetchUserChallengeAccounts, getPinStatus, type UserChallengeAccountListItem } from '../mocks/auth'
+import { fetchUserChallengeAccounts, type UserChallengeAccountListItem } from '../mocks/auth'
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate()
-  const [showPinPrompt, setShowPinPrompt] = useState(false)
   const [loadingAccounts, setLoadingAccounts] = useState(true)
   const [accountLoadError, setAccountLoadError] = useState('')
   const [activeAccounts, setActiveAccounts] = useState<UserChallengeAccountListItem[]>([])
   const [historyAccounts, setHistoryAccounts] = useState<UserChallengeAccountListItem[]>([])
   const [hasAnyAccounts, setHasAnyAccounts] = useState(false)
-
-  useEffect(() => {
-    getPinStatus()
-      .then((status) => {
-        if (!status.has_pin) setShowPinPrompt(true)
-      })
-      .catch(() => {
-        // fallback: still show prompt so user can quickly set PIN from home
-        setShowPinPrompt(true)
-      })
-  }, [])
 
   useEffect(() => {
     setLoadingAccounts(true)
@@ -182,37 +170,6 @@ const HomePage: React.FC = () => {
       {/* Footer */}
       <DesktopFooter />
 
-      {showPinPrompt && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.45)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 3000,
-          padding: '16px',
-        }}>
-          <div style={{ background: '#fff', width: '100%', maxWidth: '460px', borderRadius: '12px', padding: '20px' }}>
-            <h3 style={{ margin: 0, color: '#222' }}>Set PIN Required</h3>
-            <p style={{ color: '#555', marginTop: '10px' }}>
-              For faster and secure actions, please set your transaction PIN now.
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
-              <button onClick={() => setShowPinPrompt(false)} style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}>Later</button>
-              <button
-                onClick={() => {
-                  setShowPinPrompt(false)
-                  navigate('/settings')
-                }}
-                style={{ padding: '10px 14px', borderRadius: '8px', border: 'none', background: '#0b9fb8', color: '#fff', cursor: 'pointer', fontWeight: 600, boxShadow: '0 2px 4px rgba(11,159,184,0.3)' }}
-              >
-                Set PIN Now
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

@@ -12,7 +12,7 @@ export const createApp = () => {
 
   app.use(helmet())
   app.use(cors({ origin: '*', credentials: true }))
-  app.use(express.json({ limit: '2mb' }))
+  app.use(express.json({ limit: '10mb' }))
   app.use(morgan(env.nodeEnv === 'development' ? 'dev' : 'combined'))
 
   app.get('/health', (_req, res) => {

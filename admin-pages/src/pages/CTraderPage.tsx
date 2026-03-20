@@ -8,7 +8,6 @@ import {
   fetchNextChallengeId,
   fetchMT5Summary,
   fetchPendingAssignments,
-  type ChallengeAccountListItem,
   deleteMT5Account,
   type MT5Account,
   type Order,
@@ -32,7 +31,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
   const [activeTab, setActiveTab] = useState<TabMode>('ready')
   const [readyAccounts, setReadyAccounts] = useState<MT5Account[]>([])
   const [assignedAccounts, setAssignedAccounts] = useState<MT5Account[]>([])
-  const [awaitingNextStageAccounts, setAwaitingNextStageAccounts] = useState<ChallengeAccountListItem[]>([])
+  const [awaitingNextStageAccounts, setAwaitingNextStageAccounts] = useState<MT5Account[]>([])
   const [pendingAssignments, setPendingAssignments] = useState<Order[]>([])
   const [summary, setSummary] = useState({ total: 0, ready: 0, assigned: 0, disabled: 0 })
   const [loading, setLoading] = useState(true)
@@ -59,7 +58,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
   const loadNextManualChallengeId = async () => {
     setLoadingChallengeId(true)
     try {
-      const response = await fetchNextChallengeId('manual')
+      const response = await fetchNextChallengeId()
       setChallengeIdInput(response.challenge_id)
     } catch {
       setChallengeIdInput('')
@@ -116,6 +115,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
   const filteredAssignedAccounts = useMemo(() => {
     const query = assignedSearch.trim().toLowerCase()
     return assignedAccounts.filter((account) => {
+      if (account.status?.toLowerCase() === 'ready') return false
       const matchesQuery = !query || account.account_number.toLowerCase().includes(query)
       const matchesSize = !assignedSizeFilter || account.account_size === assignedSizeFilter
       return matchesQuery && matchesSize
@@ -127,6 +127,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
       return !awaitingSizeFilter || account.account_size === awaitingSizeFilter
     })
   }, [awaitingNextStageAccounts, awaitingSizeFilter])
+
 
   const filteredPendingAssignments = useMemo(() => {
     return pendingAssignments.filter((order) => {
@@ -623,40 +624,32 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Assigned State</th>
+                <th>Account Type</th>
+                <th>Account Phase</th>
                 <th>Assigned By</th>
                 <th>Assigned At</th>
-                <th>User ID</th>
+                <th>Challenge ID</th>
                 <th>Account Number</th>
+                <th>Broker</th>
                 <th>cTrader ID</th>
-                <th>Account Size</th>
+                <th>User Email</th>
+                <th>Access Status</th>
                 {(isSuperAdmin || canAssignMt5) && <th>Action</th>}
               </tr>
             </thead>
             <tbody>
               {filteredAssignedAccounts.map((account) => (
                 <tr key={account.id}>
-                  <td>
-                    <span
-                      style={{
-                        border: '1px solid rgba(245,158,11,0.5)',
-                        background: 'rgba(245,158,11,0.16)',
-                        color: '#fcd34d',
-                        borderRadius: 999,
-                        padding: '4px 10px',
-                        fontSize: 12,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {account.status}
-                    </span>
-                  </td>
+                  <td>{account.challenge_type ?? '-'}</td>
+                  <td>{account.phase ?? account.status}</td>
                   <td>{renderAssignedBy(account)}</td>
                   <td>{account.assigned_at ? new Date(account.assigned_at).toLocaleString() : '-'}</td>
-                  <td>{account.assigned_user_id ?? '-'}</td>
+                  <td>{account.challenge_id ?? '-'}</td>
                   <td>{account.account_number}</td>
                   <td>{account.server}</td>
-                  <td>{account.account_size}</td>
+                  <td>{account.account_number}</td>
+                  <td>{account.assigned_user_email ?? '-'}</td>
+                  <td>{account.access_status ?? '-'}</td>
                   {(isSuperAdmin || canAssignMt5) && (
                     <td>
                       <button
@@ -699,12 +692,12 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
             </thead>
             <tbody>
               {filteredAwaitingNextStageAccounts.map((account) => (
-                <tr key={account.challenge_id}>
-                  <td>{account.challenge_id}</td>
-                  <td>{account.trader_name || `User ${account.user_id}`}</td>
+                <tr key={account.challenge_id ?? account.id}>
+                  <td>{account.challenge_id ?? '-'}</td>
+                  <td>{account.assigned_user_id ?? '-'}</td>
                   <td>{account.account_size}</td>
-                  <td>{account.phase}</td>
-                  <td>{account.mt5_account || '-'}</td>
+                  <td>{account.phase ?? '-'}</td>
+                  <td>{account.account_number}</td>
                   <td>
                     <span
                       style={{

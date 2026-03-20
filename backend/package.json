@@ -15,12 +15,17 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1011.0",
+    "@aws-sdk/s3-request-presigner": "^3.1011.0",
     "@supabase/supabase-js": "^2.99.2",
+    "canvas": "^3.2.1",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
     "jose": "^6.2.1",
     "morgan": "^1.10.1",
+    "qrcode": "^1.5.4",
+    "resend": "^4.0.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

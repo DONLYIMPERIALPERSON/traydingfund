@@ -8,17 +8,30 @@ export type AuthMeResponse = {
   descope_user_id: string
   email: string
   full_name: string | null
+  first_name?: string | null
+  last_name?: string | null
   nick_name?: string | null
   use_nickname_for_certificates?: boolean
   role: string
   status: string
   kyc_status?: string | null
+  payout_method_type?: string | null
+  payout_bank_name?: string | null
+  payout_bank_code?: string | null
+  payout_account_number?: string | null
+  payout_account_name?: string | null
+  payout_crypto_currency?: string | null
+  payout_crypto_address?: string | null
+  payout_crypto_first_name?: string | null
+  payout_crypto_last_name?: string | null
+  payout_verified_at?: string | null
 }
 
 export type BankListItem = {
   bank_code: string
   bank_name: string
-  bank_url?: string | null
+  routing_key?: string | null
+  logo_image?: string | null
 }
 
 export type BankAccountProfile = {
@@ -28,6 +41,43 @@ export type BankAccountProfile = {
   account_name: string
   is_verified: boolean
   verified_at: string | null
+}
+
+export type CryptoPayoutProfile = {
+  user_id: number
+  first_name: string
+  last_name: string
+  crypto_currency: string
+  crypto_address: string
+}
+
+export type KycRequestItem = {
+  id: number
+  status: string
+  document_type: string
+  document_number: string
+  id_front_url: string
+  id_back_url: string | null
+  selfie_url?: string | null
+  submitted_at: string
+  reviewed_at: string | null
+  reviewed_by: string | null
+  decline_reason: string | null
+}
+
+export type KycUploadUrlResponse = {
+  upload_url: string
+  public_url: string | null
+  key: string
+}
+
+export type KycUploadProxyResponse = {
+  public_url: string | null
+  key: string
+}
+
+export type KycHistoryResponse = {
+  requests: KycRequestItem[]
 }
 
 export type WithdrawalPrecheckResponse = {
@@ -53,6 +103,7 @@ export type UserChallengeAccountListItem = {
   display_status: string
   is_active: boolean
   mt5_account: string | null
+  has_pending_withdrawal?: boolean
   started_at: string | null
   breached_at: string | null
   passed_at: string | null
@@ -100,11 +151,18 @@ export type UserChallengeCredentials = {
   investor_password: string
 }
 
+export type TradingObjectivesResponse = {
+  rules?: Record<string, unknown>
+}
+
 export type UserChallengeAccountDetailResponse = {
   challenge_id: string
   account_size: string
+  initial_balance?: number
   phase: string
   objective_status: string
+  has_pending_withdrawal?: boolean
+  pending_withdrawal_amount?: number | null
   breached_reason: string | null
   started_at: string | null
   breached_at: string | null
@@ -189,6 +247,8 @@ export type PaymentOrderResponse = {
   bank_transfer_rate?: number | null
   plan_id: string
   account_size: string
+  challenge_type?: string
+  phase?: string
   coupon_code: string | null
   checkout_url: string | null
   payer_bank_name: string | null
@@ -249,6 +309,8 @@ export async function fetchCurrentUser(): Promise<AuthMeResponse> {
     descope_user_id: 'mock-user-101',
     email: 'trader@machefunded.com',
     full_name: 'Alex Trader',
+    first_name: 'Alex',
+    last_name: 'Trader',
     nick_name: 'ProTrader',
     role: 'trader',
     status: 'active',
@@ -268,18 +330,26 @@ export async function logoutFromBackend(): Promise<void> {
 }
 
 export async function fetchProfile(): Promise<AuthMeResponse> {
-  return fetchCurrentUser()
+  try {
+    const profile = await apiFetch<AuthMeResponse>('/trader/me')
+    persistAuthUser(profile)
+    return profile
+  } catch (error) {
+    const cached = getPersistedAuthUser()
+    if (cached) {
+      return cached
+    }
+    throw error
+  }
 }
 
-export async function updateProfile(payload: { full_name?: string; nick_name?: string }): Promise<AuthMeResponse> {
-  const current = await fetchCurrentUser()
-  const updated: AuthMeResponse = {
-    ...current,
-    full_name: payload.full_name ?? current.full_name,
-    nick_name: payload.nick_name ?? current.nick_name ?? null,
-  }
-  persistAuthUser(updated)
-  return updated
+export async function updateProfile(payload: { first_name?: string; last_name?: string; nick_name?: string | null }): Promise<AuthMeResponse> {
+  const response = await apiFetch<AuthMeResponse>('/trader/me', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+  persistAuthUser(response)
+  return response
 }
 
 export async function updateCertificateNameSetting(use_nickname: boolean): Promise<{ use_nickname_for_certificates: boolean }> {
@@ -295,83 +365,119 @@ async function authFetch(_path: string, _init: AuthorizedRequestInit = {}): Prom
   return new Response(JSON.stringify({ ok: true }), { status: 200 })
 }
 
-export async function getPinStatus(): Promise<{ has_pin: boolean }> {
-  await mockDelay()
-  return { has_pin: true }
-}
-
-export async function sendPinOtp(purpose: 'set' | 'reset'): Promise<{ message: string }> {
-  await mockDelay()
-  return { message: `Mock OTP sent for ${purpose} PIN` }
-}
-
-export async function setPin(payload: { new_pin: string; confirm_pin: string; otp: string }): Promise<{ message: string }> {
-  await mockDelay()
-  return { message: `Mock PIN set with ${payload.new_pin}` }
-}
-
-export async function changePin(payload: { old_pin: string; new_pin: string }): Promise<{ message: string }> {
-  await mockDelay()
-  return { message: `Mock PIN changed from ${payload.old_pin}` }
-}
-
-export async function resetPin(payload: { otp: string; new_pin: string; confirm_pin: string }): Promise<{ message: string }> {
-  await mockDelay()
-  return { message: `Mock PIN reset with ${payload.new_pin}` }
-}
-
 export async function fetchBankList(): Promise<{ banks: BankListItem[] }> {
-  await mockDelay()
-  return {
-    banks: [
-      { bank_code: '001', bank_name: 'Mock Bank' },
-      { bank_code: '002', bank_name: 'Demo Savings' },
-    ],
-  }
+  return apiFetch<{ banks: BankListItem[] }>('/kyc/banks')
 }
 
 export async function resolveKycAccountName(payload: {
   bank_code: string
   bank_account_number: string
-}): Promise<{ bank_code: string; bank_account_number: string; account_name: string }> {
-  await mockDelay()
-  return {
-    bank_code: payload.bank_code,
-    bank_account_number: payload.bank_account_number,
-    account_name: 'Mock Trader',
-  }
+}): Promise<{ bank_code: string; bank_account_number: string; account_name: string; safehaven?: unknown }> {
+  return apiFetch<{ bank_code: string; bank_account_number: string; account_name: string; safehaven?: unknown }>(
+    '/kyc/resolve-bank',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }
+  )
+}
+
+export async function saveCryptoPayout(payload: {
+  crypto_currency: string
+  crypto_address: string
+  first_name: string
+  last_name: string
+}): Promise<{ crypto_currency: string; crypto_address: string; first_name?: string; last_name?: string }> {
+  return apiFetch<{ crypto_currency: string; crypto_address: string; first_name?: string; last_name?: string }>(
+    '/kyc/save-crypto',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }
+  )
+}
+
+export async function createKycUploadUrl(payload: {
+  filename: string
+  content_type: string
+  document_side: 'front' | 'back'
+}): Promise<KycUploadUrlResponse> {
+  return apiFetch<KycUploadUrlResponse>('/kyc/upload-url', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function uploadKycDocument(payload: {
+  filename: string
+  content_type: string
+  document_side: 'front' | 'back'
+  file_base64: string
+}): Promise<KycUploadProxyResponse> {
+  return apiFetch<KycUploadProxyResponse>('/kyc/upload', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 }
 
 export async function submitKyc(payload: {
   document_type: string
   document_number: string
-  id_front: File
-  id_back?: File | null
-  selfie: File
+  id_front_url: string
+  id_back_url?: string | null
+  selfie_url?: string | null
 }): Promise<{ status: string; message: string; kyc_status: string }> {
-  await mockDelay()
-  return {
-    status: 'success',
-    message: `Mock KYC submitted for ${payload.document_type.replace('_', ' ')}`,
-    kyc_status: 'pending',
-  }
+  const response = await apiFetch<{ status: string; message: string; kyc_status: string }>(
+    '/kyc/submit',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        document_type: payload.document_type,
+        document_number: payload.document_number,
+        id_front_url: payload.id_front_url,
+        id_back_url: payload.id_back_url ?? null,
+        selfie_url: payload.selfie_url ?? null,
+      }),
+    }
+  )
+  return response
 }
 
 export async function fetchBankAccountProfile(): Promise<BankAccountProfile | null> {
-  await mockDelay()
+  const profile = await fetchProfile()
+  if (!profile.payout_bank_code || !profile.payout_account_number || !profile.payout_account_name) {
+    return null
+  }
   return {
-    user_id: 101,
-    bank_code: '001',
-    bank_account_number: '1234567890',
-    account_name: 'Mock Trader',
-    is_verified: true,
-    verified_at: new Date().toISOString(),
+    user_id: profile.id,
+    bank_code: profile.payout_bank_code,
+    bank_account_number: profile.payout_account_number,
+    account_name: profile.payout_account_name,
+    is_verified: Boolean(profile.payout_verified_at),
+    verified_at: profile.payout_verified_at ?? null,
+  }
+}
+
+export async function fetchCryptoPayoutProfile(): Promise<CryptoPayoutProfile | null> {
+  const profile = await fetchProfile()
+  if (!profile.payout_crypto_currency || !profile.payout_crypto_address) {
+    return null
+  }
+  return {
+    user_id: profile.id,
+    first_name: profile.payout_crypto_first_name ?? '',
+    last_name: profile.payout_crypto_last_name ?? '',
+    crypto_currency: profile.payout_crypto_currency,
+    crypto_address: profile.payout_crypto_address,
   }
 }
 
 export async function fetchKycEligibility(): Promise<KycEligibilityResponse> {
-  await mockDelay()
-  return { eligible: true, message: 'Mock KYC eligible' }
+  return apiFetch<KycEligibilityResponse>('/kyc/eligibility')
+}
+
+export async function fetchKycHistory(): Promise<KycHistoryResponse> {
+  return apiFetch<KycHistoryResponse>('/kyc/history')
 }
 
 export async function fetchWithdrawalPrecheck(): Promise<WithdrawalPrecheckResponse> {
@@ -426,18 +532,16 @@ export async function fetchPublicChallengePlans(): Promise<PublicChallengePlan[]
 export async function previewCheckoutCoupon(payload: {
   code: string
   plan_id: string
+  amount_kobo: number
 }): Promise<CheckoutCouponPreviewResponse> {
-  await mockDelay()
-  return {
-    code: payload.code,
-    plan_id: payload.plan_id,
-    original_amount: 25000,
-    discount_amount: 2500,
-    final_amount: 22500,
-    formatted_original_amount: '$25,000',
-    formatted_discount_amount: '$2,500',
-    formatted_final_amount: '$22,500',
-  }
+  return apiFetch<CheckoutCouponPreviewResponse>('/coupons/preview', {
+    method: 'POST',
+    body: JSON.stringify({
+      code: payload.code,
+      plan_id: payload.plan_id,
+      amount_kobo: payload.amount_kobo,
+    }),
+  })
 }
 
 export async function initPalmPayBankTransfer(payload: {
@@ -445,6 +549,8 @@ export async function initPalmPayBankTransfer(payload: {
   account_size: string
   amount_kobo: number
   coupon_code?: string | null
+  challenge_type: string
+  phase: string
 }): Promise<PaymentOrderResponse> {
   return apiFetch<PaymentOrderResponse>('/trader/orders/bank-transfer', {
     method: 'POST',
@@ -457,6 +563,9 @@ export async function initCryptoOrder(payload: {
   account_size: string
   amount_kobo: number
   crypto_currency: string
+  coupon_code?: string | null
+  challenge_type: string
+  phase: string
 }): Promise<PaymentOrderResponse> {
   return apiFetch<PaymentOrderResponse>('/trader/orders/crypto', {
     method: 'POST',
@@ -465,57 +574,29 @@ export async function initCryptoOrder(payload: {
 }
 
 export async function refreshPaymentOrderStatus(providerOrderId: string): Promise<PaymentStatusRefreshResponse> {
-  await mockDelay()
-  return {
-    provider_order_id: providerOrderId,
-    status: 'processing',
-    assignment_status: 'assigned',
-    challenge_id: 'mock-challenge-001',
-    message: 'Mock status refreshed',
-  }
+  return apiFetch<PaymentStatusRefreshResponse>(
+    `/trader/orders/${encodeURIComponent(providerOrderId)}`
+  )
 }
 
-export async function fetchOrders(): Promise<{ orders: TraderOrder[] }> {
-  return apiFetch<{ orders: TraderOrder[] }>('/trader/orders')
+export async function fetchOrders(
+  page: number = 1,
+  pageSize: number = 5,
+): Promise<{ orders: TraderOrder[]; pagination: { page: number; limit: number; total: number; pages: number } }> {
+  const params = new URLSearchParams()
+  params.set('page', String(page))
+  params.set('limit', String(pageSize))
+  return apiFetch<{ orders: TraderOrder[]; pagination: { page: number; limit: number; total: number; pages: number } }>(
+    `/trader/orders?${params.toString()}`
+  )
 }
 
 export async function fetchCertificates(): Promise<CertificateListResponse> {
-  await mockDelay()
-  return {
-    certificates: [
-      {
-        id: 1,
-        certificate_type: 'Challenge',
-        title: 'MacheFunded Challenge Completion',
-        description: 'Awarded for successful completion of the challenge',
-        certificate_url: '/mock-certificate.pdf',
-        generated_at: new Date().toISOString(),
-        related_entity_id: 'mock-challenge-001',
-        certificate_metadata: null,
-      },
-    ],
-  }
+  return apiFetch<CertificateListResponse>('/trader/certificates')
 }
 
 export async function fetchPublicCoupons(): Promise<{ coupons: PublicCouponResponse[] }> {
-  await mockDelay()
-  return {
-    coupons: [
-      {
-        id: 1,
-        code: 'MOCK10',
-        discount_type: 'percent',
-        discount_value: 10,
-        is_active: true,
-        expires_at: null,
-        max_uses: null,
-        used_count: 0,
-        applicable_plan_ids: ['starter'],
-        applies_to_all_plans: false,
-        status: 'active',
-      },
-    ],
-  }
+  return apiFetch<{ coupons: PublicCouponResponse[] }>('/coupons/public')
 }
 
 export function persistAuthUser(user: AuthMeResponse): void {

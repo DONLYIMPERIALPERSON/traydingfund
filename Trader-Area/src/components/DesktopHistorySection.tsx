@@ -55,6 +55,7 @@ const DesktopHistorySection: React.FC<DesktopHistorySectionProps> = ({ accounts 
                 amount={account.account_size}
                 status={(account.display_status as 'Active' | 'Ready' | 'Passed' | 'Failed')}
                 passedStage={account.passed_stage}
+                hasPendingWithdrawal={account.has_pending_withdrawal}
               />
             ))}
 

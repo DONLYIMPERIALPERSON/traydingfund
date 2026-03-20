@@ -3,17 +3,55 @@ import { useNavigate } from 'react-router-dom'
 
 interface AccountProps {
   challengeId: string;
-  challengeType?: string;
+  challengeType?: string | undefined;
   phase: string;
   accountNumber: string;
   startDate: string;
   amount: string;
   status: 'Active' | 'Ready' | 'Passed' | 'Failed';
   passedStage?: string | null;
+  hasPendingWithdrawal?: boolean | undefined;
 }
 
-const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType, phase, accountNumber, startDate, amount, status, passedStage }) => {
+const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType, phase, accountNumber, startDate, amount, status, passedStage, hasPendingWithdrawal }) => {
   const navigate = useNavigate()
+
+  const formatChallengeType = (value?: string) => {
+    if (!value) return null
+    const normalized = value.replace(/-/g, '_').toLowerCase()
+    switch (normalized) {
+      case 'two_step':
+      case 'challenge':
+        return '2 Step Challenge'
+      case 'one_step':
+        return '1 Step Challenge'
+      case 'instant_funded':
+        return 'Instant Funded'
+      case 'funded':
+        return 'Funded'
+      case 'assigned_pending_access':
+        return '2 Step Challenge'
+      default:
+        return value
+          .replace(/_/g, ' ')
+          .replace(/\b\w/g, (char) => char.toUpperCase())
+    }
+  }
+
+  const formatPhase = (value?: string) => {
+    if (!value) return ''
+    const normalized = value.replace(/-/g, '_').toLowerCase()
+    if (normalized === 'phase_1' || normalized === 'phase1') return 'Phase 1'
+    if (normalized === 'phase_2' || normalized === 'phase2') return 'Phase 2'
+    if (normalized === 'funded') return 'Funded'
+    return value
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase())
+  }
+
+  const challengeLabel = formatChallengeType(challengeType)
+  const phaseLabel = formatPhase(phase)
+  const passedLabel = formatPhase(passedStage ?? undefined)
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -70,12 +108,27 @@ const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType
           }}>
             {status}
           </div>
+          {hasPendingWithdrawal && (
+            <div style={{
+              fontSize: '12px',
+              fontWeight: '600',
+              color: '#b45309',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              backgroundColor: 'rgba(251, 191, 36, 0.2)',
+              padding: '4px 8px',
+              borderRadius: '12px',
+              border: '1px solid rgba(251, 191, 36, 0.5)'
+            }}>
+              Pending Withdrawal
+            </div>
+          )}
           <div style={{
             fontSize: '16px',
             fontWeight: '600',
             color: '#333'
           }}>
-            {(challengeType ? `${challengeType} · ` : '')}{phase} · {accountNumber}
+            {(challengeLabel ? `${challengeLabel} · ` : '')}{phaseLabel} · {accountNumber}
             {passedStage && (
               <div style={{
                 fontSize: '12px',
@@ -83,7 +136,7 @@ const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType
                 color: '#27ae60',
                 marginTop: '2px'
               }}>
-                ✓ {passedStage} Passed
+                ✓ {passedLabel || passedStage} Passed
               </div>
             )}
           </div>

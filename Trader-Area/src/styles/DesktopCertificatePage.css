@@ -70,39 +70,6 @@
   color: #333;
 }
 
-.certificate-page .tabs-container {
-  background-color: white;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  border: 1px solid #e0e0e0;
-  margin-bottom: 24px;
-}
-
-.certificate-page .tabs {
-  display: flex;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  padding: 4px;
-}
-
-.certificate-page .tab-button {
-  flex: 1;
-  padding: 12px 24px;
-  background-color: transparent;
-  color: #666;
-  border: none;
-  border-radius: 6px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.certificate-page .tab-button.active {
-  background-color: #0b9fb8;
-  color: #fff;
-}
 
 .certificate-page .certificates-grid {
   display: grid;
@@ -324,13 +291,6 @@
     width: 100%;
   }
 
-  .certificate-page .tabs {
-    flex-direction: column;
-  }
-
-  .certificate-page .tab-button {
-    width: 100%;
-  }
 }
 
 @media (max-width: 480px) {

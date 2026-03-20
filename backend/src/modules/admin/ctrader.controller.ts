@@ -1,6 +1,9 @@
 import { Request, Response, NextFunction } from 'express'
 import { prisma } from '../../config/prisma'
 import { ApiError } from '../../common/errors'
+import { Prisma } from '@prisma/client'
+import { requestAccountAccess } from '../../services/accessEngine.service'
+import { assignReadyAccountFromPool, buildBaseChallengeId } from '../ctrader/ctrader.assignment'
 
 type UploadAccountPayload = {
   account_number: string
@@ -78,6 +81,36 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
       await prisma.cTraderAccount.createMany({ data: toCreate, skipDuplicates: true })
     }
 
+    const pendingOrders = await prisma.order.findMany({
+      where: { assignmentStatus: 'pending_assign', status: 'pending' },
+      orderBy: { createdAt: 'asc' },
+      include: { user: true },
+    })
+
+    for (const order of pendingOrders) {
+      const assigned = await assignReadyAccountFromPool({
+        userId: order.userId,
+        challengeType: order.challengeType ?? 'two_step',
+        phase: order.phase ?? 'phase_1',
+        accountSize: order.accountSize,
+        baseChallengeId: buildBaseChallengeId(order.id),
+      })
+
+      if (!assigned) break
+
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { assignmentStatus: 'assigned' },
+      })
+
+      await requestAccountAccess({
+        user_email: order.user.email,
+        account_number: assigned.accountNumber,
+        broker: assigned.brokerName,
+        platform: 'ctrader',
+      })
+    }
+
     res.status(201).json({
       created: toCreate.length,
       skipped: Array.from(existingIds),
@@ -112,12 +145,16 @@ export const deleteReadyCTraderAccount = async (req: Request, res: Response, nex
 export const listCTraderAccounts = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { status } = req.query as ListCTraderQuery
-    const where = status
-      ? { status: { equals: status, mode: 'insensitive' } }
-      : {}
+    const normalizedStatus = status?.toLowerCase()
+    const where: Prisma.CTraderAccountWhereInput = normalizedStatus === 'awaiting-next-stage'
+      ? { status: { equals: 'passed', mode: Prisma.QueryMode.insensitive } }
+      : status
+        ? { status: { equals: status, mode: Prisma.QueryMode.insensitive } }
+        : {}
     const accounts = await prisma.cTraderAccount.findMany({
       where,
       orderBy: { createdAt: 'desc' },
+      include: { user: true },
     })
 
     res.json({ accounts: accounts.map((account) => ({
@@ -125,9 +162,16 @@ export const listCTraderAccounts = async (req: Request, res: Response, next: Nex
       account_number: account.accountNumber,
       server: account.brokerName,
       account_size: account.accountSize,
+      challenge_type: account.challengeType,
       status: account.status,
+      phase: account.phase,
+      challenge_id: account.challengeId,
       assigned_user_id: account.userId,
+      assigned_user_email: account.user?.email ?? null,
       assigned_at: account.assignedAt?.toISOString() ?? null,
+      assignment_mode: account.userId ? 'automatic' : null,
+      assigned_by_admin_name: null,
+      access_status: (account as { accessStatus?: string | null }).accessStatus ?? null,
       created_at: account.createdAt.toISOString(),
       updated_at: account.updatedAt.toISOString(),
     })) })
@@ -138,10 +182,10 @@ export const listCTraderAccounts = async (req: Request, res: Response, next: Nex
 
 export const getCTraderSummary = async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const total = await prisma.cTraderAccount.count()
     const ready = await prisma.cTraderAccount.count({
       where: { status: { equals: 'ready', mode: 'insensitive' } },
     })
+    const total = ready
     const assigned = await prisma.cTraderAccount.count({ where: { userId: { not: null } } })
     const disabled = await prisma.cTraderAccount.count({
       where: { status: { equals: 'disabled', mode: 'insensitive' } },

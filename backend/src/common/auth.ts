@@ -57,7 +57,8 @@ export const authenticate = async (req: AuthenticatedRequest, _res: Response, ne
   } catch (error) {
     console.error('Auth middleware failed:', error)
     const message = error instanceof Error ? error.message : 'Invalid auth token'
-    if (message.toLowerCase().includes('jwt') || message.toLowerCase().includes('token')) {
+    const reason = (error as { code?: string; claim?: string })?.code
+    if (reason === 'ERR_JWT_EXPIRED' || message.toLowerCase().includes('jwt') || message.toLowerCase().includes('token')) {
       return next(new ApiError('Invalid auth token', 401))
     }
     return next(error as Error)

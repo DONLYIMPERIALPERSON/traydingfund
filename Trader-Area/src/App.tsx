@@ -1,5 +1,6 @@
 import React from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import AffiliateRefRedirect from './components/AffiliateRefRedirect'
 import { SidebarProvider } from './contexts/SidebarContext'
 import HomePage from './pages/HomePage'
 import AccountDetailsPage from './pages/AccountDetailsPage'
@@ -33,6 +34,7 @@ function App() {
     <SidebarProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/ref/:affiliateId" element={<AffiliateRefRedirect />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<LoginPage />} />
           <Route

@@ -79,7 +79,10 @@ const DesktopStartChallengePage: React.FC = () => {
         plan_id: planId,
         account_size: accountData.size,
         amount_kobo: amountKobo + 100,
+        coupon_code: couponPreview?.code ?? (promoCode.trim() || null),
         crypto_currency: 'USDT',
+        challenge_type: (accountData as any).challenge_type,
+        phase: (accountData as any).phase,
       })
         .then((order) => {
           setCurrentOrder(order)
@@ -103,6 +106,8 @@ const DesktopStartChallengePage: React.FC = () => {
       account_size: accountData.size,
       amount_kobo: amountKobo,
       coupon_code: couponPreview?.code ?? (promoCode.trim() || null),
+      challenge_type: (accountData as any).challenge_type,
+      phase: (accountData as any).phase,
     })
       .then((order) => {
         setCurrentOrder(order)
@@ -130,9 +135,11 @@ const DesktopStartChallengePage: React.FC = () => {
     setCouponLoading(true)
     setCouponError('')
     try {
+      const amountKobo = Math.round(Number(accountData.fee.replace(/[^0-9.]/g, '')) * 100)
       const preview = await previewCheckoutCoupon({
         code: promoCode.trim().toUpperCase(),
         plan_id: planId,
+        amount_kobo: amountKobo,
       })
       setCouponPreview(preview)
     } catch (err: unknown) {
@@ -156,7 +163,17 @@ const DesktopStartChallengePage: React.FC = () => {
           return
         }
         const refreshed = await refreshPaymentOrderStatus(orderId)
-        if (refreshed.status === 'paid' && refreshed.assignment_status === 'assigned' && refreshed.challenge_id) {
+        if (refreshed.status === 'completed' && refreshed.assignment_status === 'assigned') {
+          if (!pollingActiveRef.current) {
+            return
+          }
+          setModalStatus('success')
+          setTimeout(() => {
+            navigate('/')
+          }, 3000)
+          return
+        }
+        if (refreshed.status === 'completed') {
           if (!pollingActiveRef.current) {
             return
           }

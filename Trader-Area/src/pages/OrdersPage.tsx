@@ -7,23 +7,27 @@ import '../styles/DesktopOrdersPage.css'
 
 const OrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<TraderOrder[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    const loadOrders = async () => {
-      try {
-        setLoading(true)
-        const response = await fetchOrders()
-        setOrders(response.orders)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load orders')
-      } finally {
-        setLoading(false)
-      }
+  const loadOrders = async (page: number = 1) => {
+    try {
+      setLoading(true)
+      const response = await fetchOrders(page, 5)
+      setOrders(response.orders)
+      setCurrentPage(response.pagination.page)
+      setTotalPages(response.pagination.pages)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load orders')
+    } finally {
+      setLoading(false)
     }
+  }
 
-    void loadOrders()
+  useEffect(() => {
+    void loadOrders(1)
   }, [])
 
   return (
@@ -65,9 +69,7 @@ const OrdersPage: React.FC = () => {
                     <td>
                       <div className="order-payment">
                         <span>{order.payment_method}</span>
-                        {order.payment_provider && (
-                          <small>{order.payment_provider}</small>
-                        )}
+                        <small>PASTEAZA CHECKOUT</small>
                       </div>
                     </td>
                     <td>
@@ -76,11 +78,37 @@ const OrdersPage: React.FC = () => {
                       </span>
                     </td>
                     <td>{order.net_amount_formatted}</td>
-                    <td>{new Date(order.created_at).toLocaleDateString()}</td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <span>{new Date(order.created_at).toLocaleDateString()}</span>
+                        <span style={{ fontSize: '12px', color: '#64748b' }}>
+                          {new Date(order.created_at).toLocaleTimeString()}
+                        </span>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            {totalPages > 1 && (
+              <div className="orders-pagination">
+                <button
+                  type="button"
+                  onClick={() => void loadOrders(currentPage - 1)}
+                  disabled={currentPage <= 1}
+                >
+                  Previous
+                </button>
+                <span>Page {currentPage} of {totalPages}</span>
+                <button
+                  type="button"
+                  onClick={() => void loadOrders(currentPage + 1)}
+                  disabled={currentPage >= totalPages}
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -1,54 +1,6 @@
+import { apiFetch } from '../lib/api'
+
 const mockDelay = (ms = 200) => new Promise((resolve) => setTimeout(resolve, ms))
-const mockChats: SupportChat[] = [
-  {
-    id: 'chat-001',
-    subject: 'Account Access',
-    status: 'open',
-    priority: 'high',
-    created_at: new Date(Date.now() - 86400000).toISOString(),
-    updated_at: new Date(Date.now() - 3600000).toISOString(),
-    last_message: 'We are reviewing your login issue now.',
-    unread_count: 1,
-    messages: [
-      {
-        id: 'msg-001',
-        chat_id: 'chat-001',
-        sender: 'user',
-        message: 'I cannot access my account.',
-        created_at: new Date(Date.now() - 86400000).toISOString(),
-        is_read: true,
-      },
-      {
-        id: 'msg-002',
-        chat_id: 'chat-001',
-        sender: 'support',
-        message: 'We are reviewing your login issue now.',
-        created_at: new Date(Date.now() - 3600000).toISOString(),
-        is_read: false,
-      },
-    ],
-  },
-  {
-    id: 'chat-002',
-    subject: 'Payout Status',
-    status: 'closed',
-    priority: 'medium',
-    created_at: new Date(Date.now() - 172800000).toISOString(),
-    updated_at: new Date(Date.now() - 86400000).toISOString(),
-    last_message: 'Your payout was completed successfully.',
-    unread_count: 0,
-    messages: [
-      {
-        id: 'msg-003',
-        chat_id: 'chat-002',
-        sender: 'support',
-        message: 'Your payout was completed successfully.',
-        created_at: new Date(Date.now() - 86400000).toISOString(),
-        is_read: true,
-      },
-    ],
-  },
-]
 
 export interface SupportChat {
   id: string;
@@ -59,6 +11,9 @@ export interface SupportChat {
   updated_at: string;
   last_message: string;
   unread_count: number;
+  user_unread_count?: number;
+  assigned_to?: string | null;
+  user_id?: number;
   messages: SupportMessage[];
 }
 
@@ -67,85 +22,87 @@ export interface SupportMessage {
   chat_id: string;
   sender: 'user' | 'support';
   message: string;
-  image_url?: string;
+  image_url?: string | undefined;
   created_at: string;
   is_read: boolean;
 }
 
 class SupportService {
   async getChats(): Promise<SupportChat[]> {
-    await mockDelay()
-    return mockChats
+    return apiFetch<SupportChat[]>('/support/tickets')
   }
 
   async getChat(chatId: string): Promise<SupportChat> {
-    await mockDelay()
-    const chat = mockChats.find((item) => item.id === chatId)
-    if (!chat) throw new Error('Chat not found')
-    return chat
+    return apiFetch<SupportChat>(`/support/tickets/${encodeURIComponent(chatId)}`)
   }
 
   async createChat(subject: string, message: string): Promise<SupportChat> {
-    await mockDelay()
-    const newChat: SupportChat = {
-      id: `chat-${Date.now()}`,
-      subject,
-      status: 'open',
-      priority: 'low',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      last_message: message,
-      unread_count: 0,
-      messages: [
-        {
-          id: `msg-${Date.now()}`,
-          chat_id: `chat-${Date.now()}`,
-          sender: 'user',
-          message,
-          created_at: new Date().toISOString(),
-          is_read: true,
-        },
-      ],
-    }
-    mockChats.unshift(newChat)
-    return newChat
+    return apiFetch<SupportChat>('/support/tickets', {
+      method: 'POST',
+      body: JSON.stringify({ subject, message }),
+    })
   }
 
   async sendMessage(chatId: string, message: string): Promise<SupportMessage> {
-    await mockDelay()
-    const chat = mockChats.find((item) => item.id === chatId)
-    if (!chat) throw new Error('Chat not found')
-    const newMessage: SupportMessage = {
-      id: `msg-${Date.now()}`,
+    const response = await apiFetch<SupportChat>(`/support/tickets/${encodeURIComponent(chatId)}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    })
+    const last = response.messages[response.messages.length - 1]
+    return {
+      id: last?.id ?? `${Date.now()}`,
       chat_id: chatId,
-      sender: 'user',
-      message,
-      created_at: new Date().toISOString(),
-      is_read: true,
+      sender: last?.sender ?? 'user',
+      message: last?.message ?? message,
+      image_url: last?.image_url,
+      created_at: last?.created_at ?? new Date().toISOString(),
+      is_read: last?.is_read ?? true,
     }
-    chat.messages.push(newMessage)
-    chat.last_message = message
-    chat.updated_at = new Date().toISOString()
-    return newMessage
   }
 
   async sendMessageWithImage(chatId: string, message: string, imageFile?: File): Promise<SupportMessage> {
-    await mockDelay()
-    const image_url = imageFile ? URL.createObjectURL(imageFile) : undefined
-    const baseMessage = await this.sendMessage(chatId, message || 'Image uploaded')
-    if (!image_url) {
-      return baseMessage
+    if (!imageFile) {
+      return this.sendMessage(chatId, message || 'Image uploaded')
     }
-    return { ...baseMessage, image_url }
+
+    const uploadResponse = await apiFetch<{ upload_url: string; public_url: string | null; key: string }>(
+      '/support/uploads',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          filename: imageFile.name,
+          content_type: imageFile.type || 'application/octet-stream',
+        }),
+      }
+    )
+
+    await fetch(uploadResponse.upload_url, {
+      method: 'PUT',
+      headers: { 'Content-Type': imageFile.type || 'application/octet-stream' },
+      body: imageFile,
+    })
+
+    const response = await apiFetch<SupportChat>(`/support/tickets/${encodeURIComponent(chatId)}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ message: message || 'Image uploaded', image_url: uploadResponse.public_url }),
+    })
+
+    const last = response.messages[response.messages.length - 1]
+    return {
+      id: last?.id ?? `${Date.now()}`,
+      chat_id: chatId,
+      sender: last?.sender ?? 'user',
+      message: last?.message ?? message,
+      image_url: last?.image_url ?? uploadResponse.public_url ?? undefined,
+      created_at: last?.created_at ?? new Date().toISOString(),
+      is_read: last?.is_read ?? true,
+    }
   }
 
   async markChatAsRead(chatId: string): Promise<void> {
-    await mockDelay()
-    const chat = mockChats.find((item) => item.id === chatId)
-    if (chat) {
-      chat.unread_count = 0
-      chat.messages = chat.messages.map((msg) => ({ ...msg, is_read: true }))
-    }
+    await apiFetch<{ message: string }>(`/support/tickets/${encodeURIComponent(chatId)}/read`, {
+      method: 'POST',
+    })
   }
 }
 
