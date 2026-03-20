@@ -46,6 +46,28 @@ const DesktopStartChallengePage: React.FC = () => {
   const [modalStatus, setModalStatus] = useState<'waiting' | 'confirming' | 'success'>('waiting')
   const pollingActiveRef = useRef(false)
 
+  const resolveDisplayAmount = (order: PaymentOrderResponse | null) => {
+    if (!order) return ''
+    if (order.bank_transfer_amount_ngn) {
+      return `₦${order.bank_transfer_amount_ngn.toLocaleString('en-NG')}`
+    }
+    if (order.net_amount_kobo) {
+      return `$${(order.net_amount_kobo / 100).toLocaleString('en-US')}`
+    }
+    if (couponPreview?.formatted_final_amount) {
+      return couponPreview.formatted_final_amount
+    }
+    if (accountData?.fee) {
+      return accountData.fee
+    }
+    return ''
+  }
+
+  const resolveAccountName = (order: PaymentOrderResponse | null) => {
+    if (!order) return ''
+    return order.payer_account_name || 'MacheFunded'
+  }
+
   const inferPlanId = (account: AccountData | undefined): string => {
     if (!account) return ''
     if (account.id) return account.id
@@ -363,12 +385,10 @@ const DesktopStartChallengePage: React.FC = () => {
           onClose={handleCloseModal}
           status={modalStatus}
           paymentDetails={{
-            bankName: currentOrder.payer_bank_name || '',
-            accountName: currentOrder.payer_account_name || '',
+            bankName: currentOrder.payer_bank_name || 'SafeHaven MFB',
+            accountName: resolveAccountName(currentOrder),
             accountNumber: currentOrder.payer_virtual_acc_no || '',
-            amount: currentOrder.bank_transfer_amount_ngn
-              ? `₦${currentOrder.bank_transfer_amount_ngn.toLocaleString('en-NG')}`
-              : `$${(currentOrder.net_amount_kobo / 100).toLocaleString('en-US')}`,
+            amount: resolveDisplayAmount(currentOrder),
             cryptoCurrency: currentOrder.crypto_currency ?? selectedCrypto,
             cryptoAddress: currentOrder.crypto_address ?? null,
             cryptoNetworks: currentOrder.crypto_networks ?? null,
