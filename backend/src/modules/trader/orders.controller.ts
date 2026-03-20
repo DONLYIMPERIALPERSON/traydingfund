@@ -254,18 +254,36 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
       externalReference: providerOrderId,
     })
 
-    const resolvedAccountNumber = virtualAccount.accountNumber
-      ?? (virtualAccount as { account_number?: string }).account_number
-      ?? ''
-    const resolvedAccountName = virtualAccount.accountName
-      ?? (virtualAccount as { account_name?: string }).account_name
-      ?? ''
-    const resolvedBankName = virtualAccount.bankName
-      ?? (virtualAccount as { bank_name?: string }).bank_name
-      ?? 'SafeHaven MFB'
-    const resolvedBankCode = virtualAccount.bankCode
-      ?? (virtualAccount as { bank_code?: string }).bank_code
-      ?? ''
+    const resolvedAccountNumber = String(
+      virtualAccount.accountNumber
+        ?? (virtualAccount as { account_number?: string }).account_number
+        ?? (virtualAccount as { account?: { accountNumber?: string; account_number?: string; number?: string } }).account?.accountNumber
+        ?? (virtualAccount as { account?: { accountNumber?: string; account_number?: string; number?: string } }).account?.account_number
+        ?? (virtualAccount as { account?: { accountNumber?: string; account_number?: string; number?: string } }).account?.number
+        ?? ''
+    )
+    const resolvedAccountName = String(
+      virtualAccount.accountName
+        ?? (virtualAccount as { account_name?: string }).account_name
+        ?? (virtualAccount as { account?: { accountName?: string; account_name?: string; name?: string } }).account?.accountName
+        ?? (virtualAccount as { account?: { accountName?: string; account_name?: string; name?: string } }).account?.account_name
+        ?? (virtualAccount as { account?: { accountName?: string; account_name?: string; name?: string } }).account?.name
+        ?? ''
+    )
+    const resolvedBankName = String(
+      virtualAccount.bankName
+        ?? (virtualAccount as { bank_name?: string }).bank_name
+        ?? (virtualAccount as { account?: { bankName?: string; bank_name?: string } }).account?.bankName
+        ?? (virtualAccount as { account?: { bankName?: string; bank_name?: string } }).account?.bank_name
+        ?? 'SafeHaven MFB'
+    )
+    const resolvedBankCode = String(
+      virtualAccount.bankCode
+        ?? (virtualAccount as { bank_code?: string }).bank_code
+        ?? (virtualAccount as { account?: { bankCode?: string; bank_code?: string } }).account?.bankCode
+        ?? (virtualAccount as { account?: { bankCode?: string; bank_code?: string } }).account?.bank_code
+        ?? ''
+    )
     const resolvedAmount = virtualAccount.amount ?? ngnAmount
 
     const order = await prisma.order.create({

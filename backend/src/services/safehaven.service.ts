@@ -123,6 +123,8 @@ const makeAuthenticatedRequest = async <T>(path: string, init: RequestInit = {})
   return (await response.json()) as T
 }
 
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
 const normalizeVirtualAccount = (raw: unknown): SafeHavenVirtualAccountResponse => {
   if (!raw || typeof raw !== 'object') {
     return {}
@@ -265,14 +267,19 @@ export const createVirtualAccount = async (payload: {
       ?? (response as { _id?: string; id?: string })._id
       ?? (response as { _id?: string; id?: string }).id
     if (fallbackId) {
-      try {
-        const fetched = await fetchVirtualAccount(fallbackId)
-        return {
-          ...normalized,
-          ...fetched,
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          if (attempt > 0) {
+            await delay(1000)
+          }
+          const fetched = await fetchVirtualAccount(fallbackId)
+          const merged = { ...normalized, ...fetched }
+          if (merged.accountNumber && merged.accountName) {
+            return merged
+          }
+        } catch (error) {
+          console.warn('Failed to fetch SafeHaven virtual account details', error)
         }
-      } catch (error) {
-        console.warn('Failed to fetch SafeHaven virtual account details', error)
       }
     }
   }
