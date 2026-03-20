@@ -2,6 +2,7 @@ import Hero from "../components/Hero";
 import Pricing from "../components/Pricing";
 import TrustHighlights from "../components/TrustHighlights";
 import CTA from "../components/CTA";
+import FAQ from "../components/FAQ";
 import { useEffect } from "react";
 
 export default function Home() {
@@ -25,6 +26,7 @@ export default function Home() {
             <Hero />
             <Pricing />
             <TrustHighlights />
+            <FAQ />
             <CTA />
         </>
     )

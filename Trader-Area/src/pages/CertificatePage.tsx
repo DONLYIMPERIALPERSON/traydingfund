@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
-import { fetchCertificates, fetchProfile } from '../mocks/auth'
+import { fetchCertificates } from '../mocks/auth'
 import '../styles/DesktopCertificatePage.css'
 
 interface Certificate {
@@ -19,11 +19,8 @@ interface Certificate {
 const CertificatePage: React.FC = () => {
   const [certificates, setCertificates] = useState<Certificate[]>([])
   const [loading, setLoading] = useState(true)
-  const [kycStatus, setKycStatus] = useState<string>('not_started')
-
   useEffect(() => {
     fetchCertificatesData()
-    fetchKycStatus()
   }, [])
 
   const fetchCertificatesData = async () => {
@@ -34,15 +31,6 @@ const CertificatePage: React.FC = () => {
       console.error('Error fetching certificates:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const fetchKycStatus = async () => {
-    try {
-      const profile = await fetchProfile()
-      setKycStatus(profile.kyc_status || 'not_started')
-    } catch (error) {
-      console.error('Error fetching KYC status:', error)
     }
   }
 
@@ -67,10 +55,6 @@ const CertificatePage: React.FC = () => {
     document.body.removeChild(link)
   }
 
-  // Check if user is eligible (has completed KYC)
-  const KYC_COMPLETED_STATUSES = new Set(['verified', 'approved', 'completed'])
-  const isEligible = KYC_COMPLETED_STATUSES.has((kycStatus || '').toLowerCase())
-
   if (loading) {
     return (
       <div className="certificate-page">
@@ -78,28 +62,6 @@ const CertificatePage: React.FC = () => {
         <DesktopSidebar />
         <div className="certificate-content certificate-content--center">
           <div>Loading certificates...</div>
-        </div>
-      </div>
-    )
-  }
-
-  // If user is not eligible (KYC not completed), show only the KYC warning
-  if (!isEligible) {
-    return (
-      <div className="certificate-page">
-        <DesktopHeader />
-        <DesktopSidebar />
-        <div className="certificate-content certificate-content--center">
-          {/* KYC Warning - Full Page */}
-          <div className="kyc-warning">
-            <i className="fas fa-exclamation-triangle"></i>
-            <div>
-              <div className="kyc-warning-title">KYC Required</div>
-              <div className="kyc-warning-text">
-                Complete your KYC verification to access and generate certificates for your trading achievements.
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     )

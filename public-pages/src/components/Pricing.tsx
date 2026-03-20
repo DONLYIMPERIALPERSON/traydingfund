@@ -83,6 +83,7 @@ const pricingTabs: PricingTab[] = [
 
 export default function Pricing() {
     const [activeTab, setActiveTab] = useState<PricingTab>(pricingTabs[0]);
+    const buyUrl = 'https://trader.machefunded.com/start-challenge';
 
     return (
         <section id="pricing" className="py-14 md:py-20 bg-white/3 border-t border-white/6">
@@ -148,9 +149,12 @@ export default function Pricing() {
                                         </div>
                                     ))}
                                 </div>
-                            <button className="mt-5 w-full rounded-xl bg-[#0b9fb8] py-2 text-sm font-semibold text-white transition hover:bg-[#008ea4]">
+                            <a
+                                href={buyUrl}
+                                className="mt-5 w-full rounded-xl bg-[#0b9fb8] py-2 text-center text-sm font-semibold text-white transition hover:bg-[#008ea4]"
+                            >
                                 Start Now
-                            </button>
+                            </a>
                             </div>
                         ))}
                     </div>
