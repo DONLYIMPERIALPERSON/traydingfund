@@ -53,6 +53,11 @@ app.get('/health', (_req, res) => {
 export const startServer = () => {
   app.listen(config.port, async () => {
     console.log(`Access engine listening on port ${config.port}`)
+    if (!config.publicBaseUrl.startsWith('https://')) {
+      console.warn('Skipping Telegram webhook registration; PUBLIC_BASE_URL must be HTTPS for Telegram webhooks.')
+      return
+    }
+
     try {
       const webhookUrl = await registerWebhook(bot)
       console.log(`Telegram webhook registered: ${webhookUrl}`)
