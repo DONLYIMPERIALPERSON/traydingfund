@@ -45,10 +45,18 @@ export const authenticate = async (req: AuthenticatedRequest, _res: Response, ne
       throw new ApiError('Invalid auth token', 401)
     }
 
+    const allowlist = await prisma.adminAllowlist.findUnique({
+      where: { email: email.toLowerCase() },
+    })
+
+    const resolvedRole = allowlist?.status === 'active'
+      ? allowlist.role
+      : 'trader'
+
     const user = await prisma.user.upsert({
       where: { email },
-      update: { email },
-      create: { email, role: 'trader', status: 'active' },
+      update: { email, role: resolvedRole },
+      create: { email, role: resolvedRole, status: 'active' },
     })
 
     req.user = { id: user.id, email: user.email, role: user.role }
