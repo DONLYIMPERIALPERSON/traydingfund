@@ -41,7 +41,7 @@ export default function Hero() {
                 }
             `}</style>
             <section id="home" className="relative z-10">
-                <div className="max-w-5xl mx-auto px-4 min-h-screen md:min-h-[74vh] max-md:w-screen max-md:overflow-hidden pt-24 md:pt-32 flex items-center justify-center">
+                <div className="max-w-5xl mx-auto px-4 min-h-[80vh] md:min-h-[74vh] max-md:w-screen max-md:overflow-hidden pt-20 md:pt-32 flex items-center justify-center">
                     <div className="flex flex-col items-center text-center gap-10">
                         <div className="flex flex-col items-center text-center">
                             <a href="/#" className="inline-flex items-center px-5 py-2 rounded-full bg-white/10 mb-8 justify-center">
@@ -53,7 +53,7 @@ export default function Hero() {
                             <h1 className="text-5xl md:text-7xl font-extrabold leading-tight mb-8 max-w-4xl">
                                 Grow &amp; Monetize <br />
                                 <span className="bg-clip-text text-transparent bg-linear-to-r from-[#ffd700] to-[#caa200]">
-                                    Your Funded Journey
+                                    Your Trading Journey
                                 </span>
                             </h1>
 

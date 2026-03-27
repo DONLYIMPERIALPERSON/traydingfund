@@ -9,7 +9,7 @@ const LoginPage: React.FC = () => {
         <div className="hero-section">
           <span className="hero-watermark">MACHEFUNDED</span>
           <div className="hero-icon">
-            <img src="/logo.png" alt="MacheFunded" className="hero-logo" />
+            <img src="/login-page-logo.png" alt="MacheFunded" className="hero-logo" />
           </div>
           <h1 className="hero-title">Welcome Back</h1>
           <p className="hero-subtitle">Sign in to continue your trading journey.</p>

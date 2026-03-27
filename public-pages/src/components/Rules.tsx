@@ -62,6 +62,32 @@ const rulesData = [
             'Withdrawals: Bi-weekly',
         ],
     },
+    {
+        title: 'NGN Flexi Account',
+        items: [
+            'No Daily Drawdown',
+            'Phase 1 Profit Target: 10%',
+            'Phase 2 Profit Target: 10%',
+            'Max Drawdown: 20%',
+            'No Minimum Trading Days',
+            'Minimum Trade Duration Rule: 5 mins',
+            'Profit Split: 70%',
+            'Withdrawals: Daily',
+        ],
+    },
+    {
+        title: 'NGN Standard Account',
+        items: [
+            'Max Drawdown: 11%',
+            'Max Daily Drawdown: 5%',
+            'Phase 1 Profit Target: 10%',
+            'Phase 2 Profit Target: 5%',
+            'Minimum Trading Days: 1',
+            'Minimum Trade Duration Rule: 5 mins',
+            'Profit Split: 80%',
+            'Withdrawals: Weekly',
+        ],
+    },
 ];
 
 export default function Rules() {

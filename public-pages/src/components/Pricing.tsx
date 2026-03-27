@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 type PricingTier = {
     account: string;
@@ -9,13 +9,24 @@ type PricingTier = {
 };
 
 type PricingTab = {
-    key: 'twoPhase' | 'onePhase' | 'instant';
+    key: string;
     label: string;
     tiers: PricingTier[];
     rules: string[];
 };
 
-const pricingTabs: PricingTab[] = [
+const usdTwoPhaseRules = [
+    'Max Drawdown: 11%',
+    'Max Daily Drawdown: 5%',
+    'Phase 1 Profit Target: 10%',
+    'Phase 2 Profit Target: 5%',
+    'Minimum Trading Days: 1',
+    'Minimum Trade Duration Rule: 5 mins',
+    'Profit Split: 80%',
+    'Withdrawals: Weekly',
+];
+
+const usdTabs: PricingTab[] = [
     {
         key: 'twoPhase',
         label: '2 Step',
@@ -27,16 +38,7 @@ const pricingTabs: PricingTab[] = [
             { account: '$100,000', price: '$354' },
             { account: '$200,000', price: '$681' },
         ],
-        rules: [
-            'Max Drawdown: 11%',
-            'Max Daily Drawdown: 5%',
-            'Phase 1 Profit Target: 10%',
-            'Phase 2 Profit Target: 5%',
-            'Minimum Trading Days: 1',
-            'Minimum Trade Duration Rule: 5 mins',
-            'Profit Split: 80%',
-            'Withdrawals: Weekly',
-        ],
+        rules: usdTwoPhaseRules,
     },
     {
         key: 'onePhase',
@@ -81,9 +83,68 @@ const pricingTabs: PricingTab[] = [
     },
 ];
 
+const ngnTabs: PricingTab[] = [
+    {
+        key: 'flexi',
+        label: 'Flexi Account',
+        tiers: [
+            { account: '₦200,000', price: '₦9,000' },
+            { account: '₦500,000', price: '₦21,000' },
+            { account: '₦800,000', price: '₦31,500' },
+        ],
+        rules: [
+            'No Daily Drawdown',
+            'Phase 1 Profit Target: 10%',
+            'Phase 2 Profit Target: 10%',
+            'Max Drawdown: 20%',
+            'No Minimum Trading Days',
+            'Minimum Trade Duration Rule: 5 mins',
+            'Profit Split: 70%',
+            'Withdrawals: Daily',
+        ],
+    },
+    {
+        key: 'standard',
+        label: 'Standard Account',
+        tiers: [
+            { account: '₦200,000', price: '₦5,000' },
+            { account: '₦500,000', price: '₦11,500' },
+            { account: '₦800,000', price: '₦17,000' },
+        ],
+        rules: usdTwoPhaseRules,
+    },
+];
+
+type CurrencyTab = {
+    key: 'usd' | 'ngn';
+    label: string;
+    tabs: PricingTab[];
+};
+
+const currencyTabs: CurrencyTab[] = [
+    { key: 'usd', label: 'USD', tabs: usdTabs },
+    { key: 'ngn', label: 'NGN', tabs: ngnTabs },
+];
+
 export default function Pricing() {
-    const [activeTab, setActiveTab] = useState<PricingTab>(pricingTabs[0]);
+    const [activeCurrency, setActiveCurrency] = useState<CurrencyTab>(currencyTabs[0]);
+    const [activeTab, setActiveTab] = useState<PricingTab>(currencyTabs[0].tabs[0]);
     const buyUrl = 'https://trader.machefunded.com/start-challenge';
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const currencyParam = params.get('currency');
+        if (currencyParam !== 'ngn') return;
+        const ngnCurrency = currencyTabs.find((currency) => currency.key === 'ngn');
+        if (!ngnCurrency) return;
+        setActiveCurrency(ngnCurrency);
+        setActiveTab(ngnCurrency.tabs[0]);
+    }, []);
+
+    const handleCurrencyChange = (currency: CurrencyTab) => {
+        setActiveCurrency(currency);
+        setActiveTab(currency.tabs[0]);
+    };
 
     return (
         <section id="pricing" className="py-14 md:py-20 bg-white/3 border-t border-white/6">
@@ -97,8 +158,24 @@ export default function Pricing() {
                     </p>
                 </div>
 
+                <div className="flex flex-nowrap items-center justify-center gap-3 mb-6 overflow-x-auto">
+                    {currencyTabs.map((currency) => (
+                        <button
+                            key={currency.key}
+                            onClick={() => handleCurrencyChange(currency)}
+                            className={`rounded-full border px-8 py-2 text-sm md:text-base font-semibold min-w-[110px] md:min-w-[140px] transition ${
+                                activeCurrency.key === currency.key
+                                    ? 'border-[#ffd700] bg-[#ffd700] text-black shadow-[0_0_16px_rgba(250,204,21,0.45)]'
+                                    : 'border-white/20 bg-white/10 text-white hover:bg-white/20'
+                            }`}
+                        >
+                            {currency.label}
+                        </button>
+                    ))}
+                </div>
+
                 <div className="flex flex-wrap items-center justify-center gap-3 mb-10">
-                    {pricingTabs.map((tab) => (
+                    {activeCurrency.tabs.map((tab) => (
                         <button
                             key={tab.key}
                             onClick={() => setActiveTab(tab)}
@@ -151,7 +228,7 @@ export default function Pricing() {
                                 </div>
                             <a
                                 href={buyUrl}
-                                className="mt-5 w-full rounded-xl bg-[#0b9fb8] py-2 text-center text-sm font-semibold text-white transition hover:bg-[#008ea4]"
+                                className="mt-5 block w-full rounded-xl bg-white py-3 text-center text-sm font-semibold text-black transition hover:bg-gray-100"
                             >
                                 Start Now
                             </a>

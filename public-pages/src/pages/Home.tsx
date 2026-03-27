@@ -26,7 +26,7 @@ export default function Home() {
             <Hero />
             <Pricing />
             <TrustHighlights />
-            <FAQ />
+            <FAQ limit={3} showReadMore />
             <CTA />
         </>
     )

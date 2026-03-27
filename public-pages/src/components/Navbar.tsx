@@ -8,6 +8,7 @@ export default function Navbar() {
         { name: 'Home', href: '/#', isSection: true, sectionId: 'home' },
         { name: 'Challenges', href: '/#pricing', isSection: true, sectionId: 'pricing' },
         { name: 'Trading Objectives', href: '/rules', isSection: false },
+        { name: 'FAQ', href: '/faq', isSection: false },
         { name: 'Contact', href: '/contact', isSection: false },
     ];
 
@@ -29,7 +30,7 @@ export default function Navbar() {
     };
 
     return (
-        <nav className='fixed top-3 md:top-5 left-0 right-0 z-50 px-4'>
+        <nav className='fixed top-12 md:top-14 left-0 right-0 z-50 px-4'>
             <div className='max-w-6xl mx-auto flex items-center justify-between bg-white rounded-2xl p-3 shadow-[0_0_24px_rgba(0,0,0,0.1)]'>
                 <a href='/#' className="flex items-center gap-2">
                     <img src='/logo.png' alt="MacheFunded logo" className="h-8 rounded-md" />

@@ -410,6 +410,8 @@
   .login-page .hero-icon {
     width: auto;
     height: auto;
+    margin-top: 22px;
+    margin-bottom: 24px;
   }
 
   .login-page .hero-icon i {
@@ -455,6 +457,11 @@
 
   .login-page .hero-section {
     padding: 24px 16px;
+  }
+
+  .login-page .hero-icon {
+    margin-top: 26px;
+    margin-bottom: 20px;
   }
 
   .login-page .auth-form {

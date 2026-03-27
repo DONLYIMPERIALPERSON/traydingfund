@@ -61,7 +61,14 @@ const faqs = [
   },
 ];
 
-export default function FAQ() {
+type FAQProps = {
+  limit?: number
+  showReadMore?: boolean
+}
+
+export default function FAQ({ limit, showReadMore = false }: FAQProps) {
+  const visibleFaqs = typeof limit === 'number' ? faqs.slice(0, limit) : faqs
+
   return (
     <section id="faq" className="py-14 md:py-20 bg-white/2 border-t border-white/10">
       <div className="max-w-5xl mx-auto px-4">
@@ -73,13 +80,24 @@ export default function FAQ() {
         </div>
 
         <div className="grid gap-4">
-          {faqs.map((faq) => (
+          {visibleFaqs.map((faq) => (
             <div key={faq.question} className="rounded-2xl border border-white/10 bg-white/5 p-5">
               <h3 className="text-white font-semibold text-lg">{faq.question}</h3>
               <p className="text-gray-300 mt-2 text-sm leading-relaxed">{faq.answer}</p>
             </div>
           ))}
         </div>
+
+        {showReadMore && (
+          <div className="mt-8 flex justify-center">
+            <a
+              href="/faq"
+              className="inline-flex items-center justify-center rounded-full border border-white/20 px-6 py-2 text-sm font-semibold text-white hover:bg-white/10 transition"
+            >
+              Read more FAQs
+            </a>
+          </div>
+        )}
       </div>
     </section>
   );
