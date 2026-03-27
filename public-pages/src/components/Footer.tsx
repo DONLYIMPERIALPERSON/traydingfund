@@ -15,9 +15,18 @@ export default function Footer() {
                     </div>
                 </div>
 
-                <p className="py-4 text-center text-sm text-gray-400">
-                    Copyright © 2026 by machefunded.com
-                </p>
+                <div className="py-6 text-center text-xs md:text-sm text-gray-400 space-y-3">
+                    <p>Copyright © 2026 by machefunded.com</p>
+                    <p className="max-w-4xl mx-auto leading-relaxed">
+                        Mache Solutions Ltd (Company No. 13945628) is registered in England &amp; Wales.
+                        Registered office: 71-75 Shelton Street, Covent Garden, London, United Kingdom, WC2H 9JQ.
+                    </p>
+                    <p className="max-w-4xl mx-auto leading-relaxed">
+                        Disclaimer: MacheFunded provides evaluation and educational services for traders and does not
+                        offer investment advice or managed accounts. Trading involves risk and past performance is not
+                        indicative of future results. Please trade responsibly.
+                    </p>
+                </div>
             </div>
         </footer>
     );

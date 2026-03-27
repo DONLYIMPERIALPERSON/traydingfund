@@ -70,6 +70,23 @@ export default function ContactPage() {
                             ))}
                         </div>
                     </div>
+
+                    <div className="md:col-span-2 rounded-2xl border border-white/10 bg-white/5 p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <Users className="w-5 h-5 text-[#ffd700]" />
+                            <h3 className="text-white text-xl font-semibold">Registered office</h3>
+                        </div>
+                        <div className="grid gap-3 text-gray-300 text-sm md:text-base">
+                            <p><span className="text-white font-medium">Company:</span> Mache Solutions Ltd</p>
+                            <p><span className="text-white font-medium">Company No:</span> 13945628</p>
+                            <p><span className="text-white font-medium">Incorporated:</span> March 2, 2022</p>
+                            <p><span className="text-white font-medium">Status:</span> Active (Private Limited Company)</p>
+                            <p className="leading-relaxed">
+                                <span className="text-white font-medium">Registered Address:</span> 71-75 Shelton Street,
+                                Covent Garden, London, United Kingdom, WC2H 9JQ
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </section>
         </main>
