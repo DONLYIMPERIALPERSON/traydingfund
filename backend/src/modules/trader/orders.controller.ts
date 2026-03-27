@@ -8,6 +8,8 @@ import { getFxRatesConfig } from '../fxRates/fxRates.service'
 import { requestAccountAccess } from '../../services/accessEngine.service'
 import { assignReadyAccountFromPool } from '../ctrader/ctrader.assignment'
 import { createOnboardingCertificate } from '../../services/certificate.service'
+import { buildObjectiveFields } from '../ctrader/ctrader.objectives'
+import { fetchRemoteAttachment, sendUnifiedEmail } from '../../services/email.service'
 import { applyCouponToOrder } from '../../services/coupon.service'
 
 const CRYPTO_ADDRESSES = {
@@ -67,6 +69,9 @@ const createAffiliateCommission = async (tx: Prisma.TransactionClient, order: { 
     },
   })
 }
+
+const formatCurrency = (amountKobo: number) =>
+  `$${(amountKobo / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 
 export const markAccountStatus = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -488,17 +493,69 @@ export const handleSafeHavenWebhook = async (req: Request, res: Response, next: 
       return nextOrder
     })
 
+    let onboardingCertificateUrl: string | null = null
+    let certificateAttachments: Array<{ filename: string; content: Buffer; contentType?: string }> | undefined
     if (mapped === 'completed') {
       try {
-        await createOnboardingCertificate({
+        const certificate = await createOnboardingCertificate({
           userId: updatedOrder.userId,
           orderId: updatedOrder.id,
           challengeType: updatedOrder.challengeType,
           phase: updatedOrder.phase,
           accountSize: updatedOrder.accountSize,
         })
+        onboardingCertificateUrl = certificate.certificateUrl
+        if (onboardingCertificateUrl) {
+          certificateAttachments = [
+            await fetchRemoteAttachment({
+              url: onboardingCertificateUrl,
+              filename: 'onboarding-certificate.png',
+              contentType: 'image/png',
+            }),
+          ]
+        }
       } catch (error) {
         console.error('Failed to create onboarding certificate', error)
+      }
+    }
+
+    if (mapped === 'completed') {
+      const user = await prisma.user.findUnique({ where: { id: updatedOrder.userId } })
+      if (user?.email) {
+        try {
+          const objectives = await buildObjectiveFields({
+            accountSize: updatedOrder.accountSize,
+            challengeType: updatedOrder.challengeType ?? 'two_step',
+            phase: updatedOrder.phase ?? 'phase_1',
+          })
+          const objectivesLines = [
+            objectives.maxDdPercent != null ? `Max Drawdown: ${objectives.maxDdPercent}%` : null,
+            objectives.dailyDdPercent != null ? `Daily Drawdown: ${objectives.dailyDdPercent}%` : null,
+            objectives.profitTargetPercent != null ? `Profit Target: ${objectives.profitTargetPercent}%` : null,
+            objectives.minTradingDaysRequired != null ? `Minimum Trading Days: ${objectives.minTradingDaysRequired}` : null,
+            objectives.minTradeDurationMinutes != null ? `Min Trade Duration: ${objectives.minTradeDurationMinutes} mins` : null,
+            objectives.profitSplitPercent != null ? `Profit Split: ${objectives.profitSplitPercent}%` : null,
+            objectives.withdrawalSchedule ? `Withdrawal Schedule: ${objectives.withdrawalSchedule}` : null,
+          ].filter(Boolean)
+
+          await sendUnifiedEmail({
+            to: user.email,
+            subject: 'Your purchase receipt & trading objectives',
+            title: 'Challenge Purchase Confirmed',
+            subtitle: 'Your trading objectives are ready',
+            content: `Thank you for your purchase! Your ${updatedOrder.accountSize} ${updatedOrder.challengeType ?? 'two_step'} challenge has been confirmed. Please review your receipt and objectives below.`,
+            buttonText: 'View Dashboard',
+            infoBox: [
+              `Receipt: ${formatCurrency(updatedOrder.netAmountKobo)} (${updatedOrder.paymentMethod ?? 'payment'})`,
+              `Order ID: ${updatedOrder.providerOrderId ?? updatedOrder.id}`,
+              `Status: ${updatedOrder.status}`,
+              `Objectives: ${objectivesLines.length ? objectivesLines.join(' | ') : 'Check your dashboard for objectives.'}`,
+            ].join('<br>'),
+            ...(certificateAttachments ? { attachments: certificateAttachments } : {}),
+          })
+        } catch (error) {
+          console.error('Failed to send purchase email', error)
+        }
       }
     }
 
