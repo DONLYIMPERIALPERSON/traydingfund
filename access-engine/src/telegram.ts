@@ -121,8 +121,16 @@ export const notifyBackendAccessGranted = async ({
 }
 
 export const formatAccessRequestMessage = (payload: AccessGrantRequest) => {
+  const details = [
+    payload.user_name ? `Name: ${payload.user_name}` : null,
+    payload.account_type ? `Account Type: ${payload.account_type}` : null,
+    payload.account_phase ? `Phase: ${payload.account_phase}` : null,
+    payload.account_size ? `Size: ${payload.account_size}` : null,
+  ].filter(Boolean)
+
   return [
     'New access request',
+    ...(details.length ? [...details, ''] : []),
     `Account: ${payload.account_number}`,
     `User: ${payload.user_email}`,
     `Broker: ${payload.broker}`,

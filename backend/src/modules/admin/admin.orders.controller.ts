@@ -293,6 +293,10 @@ export const approveCryptoOrder = async (req: Request, res: Response, next: Next
         if (user?.email) {
           await requestAccountAccess({
             user_email: user.email,
+            user_name: user.fullName ?? undefined,
+            account_type: updated.challengeType ?? undefined,
+            account_phase: updated.phase ?? undefined,
+            account_size: assigned.accountSize ?? updated.accountSize ?? undefined,
             account_number: assigned.accountNumber,
             broker: assigned.brokerName,
             platform: 'ctrader',

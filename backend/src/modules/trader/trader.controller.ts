@@ -448,6 +448,10 @@ export const requestChallengeRefresh = async (req: AuthRequest, res: Response, n
     try {
       await requestAccountAccess({
         user_email: user.email,
+        user_name: account.user?.fullName ?? undefined,
+        account_type: account.challengeType ?? undefined,
+        account_phase: account.phase ?? undefined,
+        account_size: account.accountSize ?? undefined,
         account_number: account.accountNumber,
         broker: account.brokerName,
         platform: 'ctrader',

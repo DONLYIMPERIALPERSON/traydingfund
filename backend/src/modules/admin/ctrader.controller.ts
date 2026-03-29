@@ -118,6 +118,10 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
 
       await requestAccountAccess({
         user_email: order.user.email,
+        user_name: order.user.fullName ?? undefined,
+        account_type: order.challengeType ?? undefined,
+        account_phase: order.phase ?? undefined,
+        account_size: assigned.accountSize ?? order.accountSize ?? undefined,
         account_number: assigned.accountNumber,
         broker: assigned.brokerName,
         platform: 'ctrader',
@@ -171,6 +175,10 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
       if (account.user?.email) {
         await requestAccountAccess({
           user_email: account.user.email,
+          user_name: account.user.fullName ?? undefined,
+          account_type: account.challengeType ?? undefined,
+          account_phase: nextPhase ?? undefined,
+          account_size: assigned.accountSize ?? account.accountSize ?? undefined,
           account_number: assigned.accountNumber,
           broker: assigned.brokerName,
           platform: 'ctrader',

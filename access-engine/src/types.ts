@@ -3,6 +3,10 @@ export type AccessGrantRequest = {
   account_number: string
   broker: string
   platform: string
+  user_name?: string
+  account_type?: string
+  account_phase?: string
+  account_size?: string
 }
 
 export type AccessGrantResponse = {

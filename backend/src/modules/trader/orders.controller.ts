@@ -188,6 +188,10 @@ const handleCompletedOrder = async (order: Order) => {
         try {
           await requestAccountAccess({
             user_email: user?.email ?? '',
+            user_name: user?.fullName ?? undefined,
+            account_type: order.challengeType ?? undefined,
+            account_phase: order.phase ?? undefined,
+            account_size: assigned.accountSize ?? order.accountSize ?? undefined,
             account_number: assigned.accountNumber,
             broker: assigned.brokerName,
             platform: 'ctrader',

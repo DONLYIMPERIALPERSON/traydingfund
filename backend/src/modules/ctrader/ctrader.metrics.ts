@@ -309,6 +309,10 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         if (userEmail) {
           await requestAccountAccess({
             user_email: userEmail,
+            user_name: accountData.user?.fullName ?? undefined,
+            account_type: accountData.challengeType ?? undefined,
+            account_phase: nextPhase ?? undefined,
+            account_size: assignment.accountSize ?? accountData.accountSize ?? undefined,
             account_number: assignment.accountNumber,
             broker: assignment.brokerName,
             platform: 'ctrader',
