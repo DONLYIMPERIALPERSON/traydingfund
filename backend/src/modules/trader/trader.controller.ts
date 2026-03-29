@@ -330,6 +330,9 @@ export const getChallengeAccountDetail = async (
     const maxDrawdownRemaining = Math.max(0, metrics.equity - maxDrawdownBalance)
     const dailyDrawdownRemaining = Math.max(0, metrics.equity - dailyDrawdownBalance)
 
+    const breachReason = (account.metrics as { breachReason?: string | null } | null)?.breachReason ?? null
+    const minTradeDurationBreached = breachReason?.toUpperCase() === 'MIN_TRADE_DURATION'
+
     const objectives = {
       profit_target: {
         label: 'Profit Target',
@@ -356,9 +359,9 @@ export const getChallengeAccountDetail = async (
       }),
       min_trade_duration: {
         label: 'Minimum Trade Duration',
-        status: metrics.scalpingViolationsCount > 0 ? 'breached' : 'passed',
+        status: metrics.scalpingViolationsCount > 0 || minTradeDurationBreached ? 'breached' : 'passed',
         note: minTradeDurationMinutes
-          ? `${metrics.scalpingViolationsCount > 0 ? 'Violated' : 'Pass'} • ${minTradeDurationMinutes} min rule`
+          ? `${metrics.scalpingViolationsCount > 0 || minTradeDurationBreached ? 'Violated' : 'Pass'} • ${minTradeDurationMinutes} min rule`
           : 'Pending',
       },
       min_trading_days: {
@@ -380,7 +383,7 @@ export const getChallengeAccountDetail = async (
       objective_status: account.status.toLowerCase(),
       has_pending_withdrawal: Boolean(pendingPayout),
       pending_withdrawal_amount: pendingPayout ? pendingPayout.amountKobo / 100 : null,
-      breached_reason: null,
+      breached_reason: breachReason,
       started_at: account.startedAt?.toISOString() ?? null,
       breached_at: account.breachedAt?.toISOString() ?? null,
       passed_at: account.passedAt?.toISOString() ?? null,

@@ -88,6 +88,7 @@ const createAccountSnapshot = (accountId: string, trader: any): CTraderAccountSn
 const mapDeal = (deal: any): CTraderDeal => {
   const moneyDigits = deal.moneyDigits ?? 2
   const profit = deal.closePositionDetail?.grossProfit ?? deal.closePositionDetail?.netProfit ?? 0
+  const hasCloseDetail = Boolean(deal.closePositionDetail)
 
   return {
     dealId: String(deal.dealId ?? ''),
@@ -95,7 +96,9 @@ const mapDeal = (deal: any): CTraderDeal => {
     volume: deal.volume != null ? Number(deal.volume) / 100 : undefined,
     profit: profit != null ? Number(profit) / Math.pow(10, moneyDigits) : undefined,
     openTime: deal.createTimestamp ? new Date(Number(deal.createTimestamp)).toISOString() : undefined,
-    closeTime: deal.executionTimestamp ? new Date(Number(deal.executionTimestamp)).toISOString() : undefined,
+    closeTime: hasCloseDetail && deal.executionTimestamp
+      ? new Date(Number(deal.executionTimestamp)).toISOString()
+      : undefined,
   }
 }
 
