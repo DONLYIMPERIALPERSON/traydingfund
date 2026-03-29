@@ -11,7 +11,7 @@ import {
   type SupportChat,
   type SupportMessage,
   getPersistedAdminUser
-} from '../lib/adminMock'
+} from '../lib/adminApi'
 
 interface SupportTicketsPageProps {
   onOpenProfile: (user: AdminUser) => void

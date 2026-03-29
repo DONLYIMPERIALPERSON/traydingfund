@@ -1,7 +1,6 @@
 import { apiFetch } from '../lib/api'
 
 const MOCK_USER_KEY = 'nairatrader_auth_user'
-const mockDelay = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export type AuthMeResponse = {
   id: number
@@ -97,6 +96,7 @@ export type KycEligibilityResponse = {
 export type UserChallengeAccountListItem = {
   challenge_id: string
   account_size: string
+  currency?: string
   challenge_type?: string
   phase: string
   objective_status: string
@@ -158,6 +158,8 @@ export type TradingObjectivesResponse = {
 export type UserChallengeAccountDetailResponse = {
   challenge_id: string
   account_size: string
+  currency?: string
+  challenge_type?: string
   initial_balance?: number
   phase: string
   objective_status: string
@@ -199,6 +201,10 @@ export type PublicChallengePlan = {
   id: string
   name: string
   price: string
+  account_size: string
+  currency: string
+  challenge_type?: string
+  phase?: string
   max_drawdown: string
   profit_target: string
   phases: string
@@ -301,32 +307,22 @@ function parseBackendError(prefix: string, status: number, rawText: string): Err
 }
 
 export async function fetchCurrentUser(): Promise<AuthMeResponse> {
-  await mockDelay()
   const cached = getPersistedAuthUser()
   if (cached) return cached
-  return {
-    id: 101,
-    descope_user_id: 'mock-user-101',
-    email: 'trader@machefunded.com',
-    full_name: 'Alex Trader',
-    first_name: 'Alex',
-    last_name: 'Trader',
-    nick_name: 'ProTrader',
-    role: 'trader',
-    status: 'active',
-    kyc_status: 'verified',
-    use_nickname_for_certificates: true,
-  }
+  const profile = await apiFetch<AuthMeResponse>('/trader/me')
+  persistAuthUser(profile)
+  return profile
 }
 
 export async function loginWithBackend(): Promise<AuthMeResponse> {
-  const user = await fetchCurrentUser()
+  const user = await apiFetch<AuthMeResponse>('/trader/me')
   persistAuthUser(user)
   return user
 }
 
 export async function logoutFromBackend(): Promise<void> {
-  await mockDelay(100)
+  localStorage.removeItem(MOCK_USER_KEY)
+  localStorage.removeItem('supabase_access_token')
 }
 
 export async function fetchProfile(): Promise<AuthMeResponse> {
@@ -343,7 +339,7 @@ export async function fetchProfile(): Promise<AuthMeResponse> {
   }
 }
 
-export async function updateProfile(payload: { first_name?: string; last_name?: string; nick_name?: string | null }): Promise<AuthMeResponse> {
+export async function updateProfile(payload: { first_name?: string; last_name?: string; nick_name?: string | null; use_nickname_for_certificates?: boolean }): Promise<AuthMeResponse> {
   const response = await apiFetch<AuthMeResponse>('/trader/me', {
     method: 'PATCH',
     body: JSON.stringify(payload),
@@ -353,16 +349,12 @@ export async function updateProfile(payload: { first_name?: string; last_name?: 
 }
 
 export async function updateCertificateNameSetting(use_nickname: boolean): Promise<{ use_nickname_for_certificates: boolean }> {
-  const current = await fetchCurrentUser()
-  const updated = { ...current, use_nickname_for_certificates: use_nickname }
-  persistAuthUser(updated)
-  return { use_nickname_for_certificates: use_nickname }
-}
-
-type AuthorizedRequestInit = RequestInit & { headers?: Record<string, string> }
-async function authFetch(_path: string, _init: AuthorizedRequestInit = {}): Promise<Response> {
-  await mockDelay(200)
-  return new Response(JSON.stringify({ ok: true }), { status: 200 })
+  const response = await apiFetch<AuthMeResponse>('/trader/me', {
+    method: 'PATCH',
+    body: JSON.stringify({ use_nickname_for_certificates: use_nickname }),
+  })
+  persistAuthUser(response)
+  return { use_nickname_for_certificates: response.use_nickname_for_certificates ?? false }
 }
 
 export async function fetchBankList(): Promise<{ banks: BankListItem[] }> {
@@ -481,15 +473,7 @@ export async function fetchKycHistory(): Promise<KycHistoryResponse> {
 }
 
 export async function fetchWithdrawalPrecheck(): Promise<WithdrawalPrecheckResponse> {
-  await mockDelay()
-  return {
-    kyc_completed: true,
-    bank_account_verified: true,
-    has_funded_account: true,
-    eligible_for_withdrawal: true,
-    message: 'Eligible for withdrawal (mock)',
-    payout_destination: await fetchBankAccountProfile(),
-  }
+  return apiFetch<WithdrawalPrecheckResponse>('/payouts/precheck')
 }
 
 export async function fetchUserChallengeAccounts(): Promise<UserChallengeAccountListResponse> {
@@ -505,28 +489,14 @@ export async function fetchTradingObjectives(): Promise<TradingObjectivesRespons
 }
 
 export async function refreshChallengeAccount(): Promise<{ status: string }> {
-  await mockDelay()
-  return { status: 'refreshed' }
+  return apiFetch<{ status: string; requested_at?: string }>('/trader/challenges/refresh', {
+    method: 'POST',
+  })
 }
 
 export async function fetchPublicChallengePlans(): Promise<PublicChallengePlan[]> {
-  await mockDelay()
-  return [
-    {
-      id: 'starter',
-      name: 'Starter Challenge',
-      price: '$25,000',
-      max_drawdown: '10%',
-      profit_target: '8%',
-      phases: '2',
-      min_trading_days: '5',
-      profit_split: '80%',
-      profit_cap: 'None',
-      payout_frequency: 'Bi-weekly',
-      status: 'Available',
-      enabled: true,
-    },
-  ]
+  const response = await apiFetch<{ plans: PublicChallengePlan[] }>('/public/plans')
+  return response.plans
 }
 
 export async function previewCheckoutCoupon(payload: {
@@ -568,6 +538,20 @@ export async function initCryptoOrder(payload: {
   phase: string
 }): Promise<PaymentOrderResponse> {
   return apiFetch<PaymentOrderResponse>('/trader/orders/crypto', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function initFreeOrder(payload: {
+  plan_id: string
+  account_size: string
+  amount_kobo: number
+  coupon_code?: string | null
+  challenge_type: string
+  phase: string
+}): Promise<PaymentOrderResponse> {
+  return apiFetch<PaymentOrderResponse>('/trader/orders/free', {
     method: 'POST',
     body: JSON.stringify(payload),
   })

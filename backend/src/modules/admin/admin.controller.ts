@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import { prisma } from '../../config/prisma'
 import { ApiError } from '../../common/errors'
+import { getFxRatesConfig } from '../fxRates/fxRates.service'
 
 export const getAdminMe = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -35,14 +36,28 @@ export const getAdminMe = async (req: Request, res: Response, next: NextFunction
 const formatUsdCompact = (amountKobo: number) =>
   `$${(amountKobo / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 
+const normalizeCurrency = (currency?: string | null) => (currency?.toUpperCase() === 'NGN' ? 'NGN' : 'USD')
+
+const toUsdKobo = (amountKobo: number, currency?: string | null, rate?: number) => {
+  const normalized = normalizeCurrency(currency)
+  if (normalized === 'NGN') {
+    const divider = rate && rate > 0 ? rate : 1300
+    const amount = amountKobo / 100
+    return Math.round((amount / divider) * 100)
+  }
+  return amountKobo
+}
+
 export const listAdminUsers = async (_req: Request, res: Response, next: NextFunction) => {
   try {
+    const fxConfig = await getFxRatesConfig()
+    const usdNgnRate = fxConfig.rules?.usd_ngn_rate ?? 1300
     const users = await prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
         cTraderAccounts: true,
         orders: true,
-        payouts: true,
+        payouts: { include: { account: true } },
       },
     })
 
@@ -58,9 +73,15 @@ export const listAdminUsers = async (_req: Request, res: Response, next: NextFun
       })
       const breachedAccounts = challengeAccounts.filter((account) => account.status.toLowerCase() === 'breached')
 
-      const totalNetKobo = user.orders.reduce((sum, order) => sum + order.netAmountKobo, 0)
+      const totalNetKobo = user.orders.reduce(
+        (sum, order) => sum + toUsdKobo(order.netAmountKobo, order.currency, usdNgnRate),
+        0,
+      )
       const orderCount = user.orders.length
-      const payoutTotalKobo = user.payouts.reduce((sum, payout) => sum + payout.amountKobo, 0)
+      const payoutTotalKobo = user.payouts.reduce(
+        (sum, payout) => sum + toUsdKobo(payout.amountKobo, payout.account?.currency, usdNgnRate),
+        0,
+      )
 
       const tradingStatus = breachedAccounts.length > 0
         ? 'Breached'
@@ -263,6 +284,8 @@ const startOfDay = (date = new Date()) => {
 
 export const getDashboardStats = async (_req: Request, res: Response, next: NextFunction) => {
   try {
+    const fxConfig = await getFxRatesConfig()
+    const usdNgnRate = fxConfig.rules?.usd_ngn_rate ?? 1300
     const now = new Date()
     const todayStart = startOfDay(now)
     const yesterdayStart = startOfDay(new Date(todayStart.getTime() - 24 * 60 * 60 * 1000))
@@ -270,38 +293,52 @@ export const getDashboardStats = async (_req: Request, res: Response, next: Next
     const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
     const prevMonthEnd = new Date(monthStart.getTime() - 1)
 
+    const sumOrdersUsd = async (where: Record<string, unknown>) => {
+      const [usdOrders, ngnOrders] = await Promise.all([
+        prisma.order.aggregate({ _sum: { netAmountKobo: true }, where: { ...where, currency: 'USD' } }),
+        prisma.order.aggregate({ _sum: { netAmountKobo: true }, where: { ...where, currency: 'NGN' } }),
+      ])
+      const usdKobo = usdOrders._sum.netAmountKobo ?? 0
+      const ngnKobo = ngnOrders._sum.netAmountKobo ?? 0
+      return usdKobo + toUsdKobo(ngnKobo, 'NGN', usdNgnRate)
+    }
+
+    const sumPayoutsUsd = async (where: Record<string, unknown>) => {
+      const payouts = await prisma.payout.findMany({
+        where,
+        select: { amountKobo: true, account: { select: { currency: true } } },
+      })
+      return payouts.reduce(
+        (sum, payout) => sum + toUsdKobo(payout.amountKobo, payout.account?.currency, usdNgnRate),
+        0,
+      )
+    }
+
     const [
-      totalRevenue,
-      totalRevenuePrev,
-      todayRevenue,
-      yesterdayRevenue,
-      totalPayouts,
-      totalPayoutsPrev,
-      todayPayouts,
-      yesterdayPayouts,
+      totalRevenueKobo,
+      totalRevenuePrevKobo,
+      todayRevenueKobo,
+      yesterdayRevenueKobo,
+      totalPayoutsKobo,
+      totalPayoutsPrevKobo,
+      todayPayoutsKobo,
+      yesterdayPayoutsKobo,
       totalUsers,
       totalUsersPrev,
       activeAccounts,
       fundedAccounts,
-      pendingPayoutsKobo,
       pendingPayoutCount,
       breachedToday,
       breachedYesterday,
     ] = await Promise.all([
-      prisma.order.aggregate({ _sum: { netAmountKobo: true }, where: { status: 'completed' } }),
-      prisma.order.aggregate({
-        _sum: { netAmountKobo: true },
-        where: { status: 'completed', createdAt: { gte: prevMonthStart, lte: prevMonthEnd } },
-      }),
-      prisma.order.aggregate({ _sum: { netAmountKobo: true }, where: { status: 'completed', createdAt: { gte: todayStart } } }),
-      prisma.order.aggregate({ _sum: { netAmountKobo: true }, where: { status: 'completed', createdAt: { gte: yesterdayStart, lt: todayStart } } }),
-      prisma.payout.aggregate({ _sum: { amountKobo: true }, where: { status: 'completed' } }),
-      prisma.payout.aggregate({
-        _sum: { amountKobo: true },
-        where: { status: 'completed', createdAt: { gte: prevMonthStart, lte: prevMonthEnd } },
-      }),
-      prisma.payout.aggregate({ _sum: { amountKobo: true }, where: { status: 'completed', createdAt: { gte: todayStart } } }),
-      prisma.payout.aggregate({ _sum: { amountKobo: true }, where: { status: 'completed', createdAt: { gte: yesterdayStart, lt: todayStart } } }),
+      sumOrdersUsd({ status: 'completed' }),
+      sumOrdersUsd({ status: 'completed', createdAt: { gte: prevMonthStart, lte: prevMonthEnd } }),
+      sumOrdersUsd({ status: 'completed', createdAt: { gte: todayStart } }),
+      sumOrdersUsd({ status: 'completed', createdAt: { gte: yesterdayStart, lt: todayStart } }),
+      sumPayoutsUsd({ status: 'completed' }),
+      sumPayoutsUsd({ status: 'completed', createdAt: { gte: prevMonthStart, lte: prevMonthEnd } }),
+      sumPayoutsUsd({ status: 'completed', createdAt: { gte: todayStart } }),
+      sumPayoutsUsd({ status: 'completed', createdAt: { gte: yesterdayStart, lt: todayStart } }),
       prisma.user.count(),
       prisma.user.count({ where: { createdAt: { lt: monthStart } } }),
       prisma.cTraderAccount.count({ where: { status: { in: ['active', 'funded', 'assigned', 'assigned_pending_access'] } } }),
@@ -314,10 +351,6 @@ export const getDashboardStats = async (_req: Request, res: Response, next: Next
           ],
         },
       }),
-      prisma.payout.aggregate({
-        _sum: { amountKobo: true },
-        where: { status: 'pending_approval' },
-      }),
       prisma.payout.count({ where: { status: 'pending_approval' } }),
       prisma.cTraderAccount.count({
         where: { status: 'breached', breachedAt: { gte: todayStart } },
@@ -326,18 +359,6 @@ export const getDashboardStats = async (_req: Request, res: Response, next: Next
         where: { status: 'breached', breachedAt: { gte: yesterdayStart, lt: todayStart } },
       }),
     ])
-
-    const totalRevenueKobo = totalRevenue._sum.netAmountKobo ?? 0
-    const totalRevenuePrevKobo = totalRevenuePrev._sum.netAmountKobo ?? 0
-    const todayRevenueKobo = todayRevenue._sum.netAmountKobo ?? 0
-    const yesterdayRevenueKobo = yesterdayRevenue._sum.netAmountKobo ?? 0
-
-    const totalPayoutsKobo = totalPayouts._sum.amountKobo ?? 0
-    const totalPayoutsPrevKobo = totalPayoutsPrev._sum.amountKobo ?? 0
-    const todayPayoutsKobo = todayPayouts._sum.amountKobo ?? 0
-    const yesterdayPayoutsKobo = yesterdayPayouts._sum.amountKobo ?? 0
-
-    const pendingPayoutKobo = pendingPayoutsKobo._sum.amountKobo ?? 0
 
     res.json({
       kpis: {

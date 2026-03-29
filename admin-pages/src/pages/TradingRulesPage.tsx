@@ -4,7 +4,7 @@ import {
   updateTradingObjectives,
   type TradingObjectivesConfig,
   type TradingObjectivesResponse,
-} from '../lib/adminMock'
+} from '../lib/adminApi'
 import './TradingRulesPage.css'
 
 type RuleItem = {

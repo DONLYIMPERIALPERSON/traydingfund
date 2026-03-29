@@ -44,6 +44,38 @@
   word-break: break-word;
 }
 
+.naira-auth-info {
+  text-align: center;
+  color: #7dd3fc;
+  background: rgba(125, 211, 252, 0.12);
+  border: 1px solid rgba(125, 211, 252, 0.35);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 10px;
+  font-size: 13px;
+  word-break: break-word;
+}
+
+.naira-auth-forgot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.naira-auth-link {
+  background: none;
+  border: none;
+  color: #facc15;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.naira-auth-link:hover {
+  color: #fde047;
+}
+
 .naira-auth-secondary-btn {
   background: rgba(255, 255, 255, 0.12) !important;
   color: #fff !important;
@@ -92,11 +124,29 @@
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.18);
   color: #fff;
+  padding-right: 44px;
 }
 
 .form-content .naira-auth-stack .form-input:focus {
   border-color: rgba(250, 204, 21, 0.7);
   box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.16);
+}
+
+.naira-auth-visibility {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  padding: 0;
+  font-size: 14px;
+}
+
+.naira-auth-visibility:hover {
+  color: #fff;
 }
 
 @media (max-width: 768px) {
@@ -106,7 +156,8 @@
   }
 
   .naira-auth-helper,
-  .naira-auth-error {
+  .naira-auth-error,
+  .naira-auth-info {
     font-size: 12px;
   }
 }

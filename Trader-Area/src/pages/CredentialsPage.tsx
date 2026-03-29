@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
-import { fetchUserChallengeAccountDetail, type UserChallengeAccountDetailResponse } from '../mocks/auth'
+import { fetchUserChallengeAccountDetail, type UserChallengeAccountDetailResponse } from '../lib/traderAuth'
 import '../styles/DesktopCredentialsPage.css'
 
 const CredentialsPage: React.FC = () => {
@@ -134,6 +134,21 @@ const CredentialsPage: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+
+        <div
+          style={{
+            marginTop: 16,
+            padding: '10px 14px',
+            borderRadius: 12,
+            border: '1px solid rgba(234,179,8,0.45)',
+            background: 'rgba(234,179,8,0.16)',
+            color: '#111827',
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          This account has been linked to your email. Kindly login to cTrader to view or trade.
         </div>
       </div>
 

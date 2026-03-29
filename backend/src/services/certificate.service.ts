@@ -10,7 +10,10 @@ import { uploadBufferToR2 } from './r2.service'
 const CERTIFICATE_BUCKET_PREFIX = 'certificates'
 
 const resolveCertificateName = (user: User) => {
-  const preferred = user.nickName?.trim() || user.fullName?.trim()
+  const prefersNickname = (user as { useNicknameForCertificates?: boolean }).useNicknameForCertificates ?? false
+  const fullName = user.fullName?.trim()
+  const nickname = user.nickName?.trim()
+  const preferred = prefersNickname ? (nickname || fullName) : (fullName || nickname)
   return preferred || user.email
 }
 
@@ -195,7 +198,8 @@ export const createPayoutCertificate = async (payload: {
   userId: number
   payoutId: number
   accountId?: number | null
-  amountUsd?: number | null
+  amount?: number | null
+  currency?: string | null
 }) => {
   const existing = await findExistingCertificate({
     userId: payload.userId,
@@ -210,9 +214,11 @@ export const createPayoutCertificate = async (payload: {
   }
 
   const name = resolveCertificateName(user)
-  const rewardLabel = payload.amountUsd != null
-    ? `$${payload.amountUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-    : '$0.00'
+  const normalizedCurrency = payload.currency?.toUpperCase() ?? 'USD'
+  const rewardAmount = payload.amount ?? 0
+  const rewardLabel = normalizedCurrency === 'NGN'
+    ? `₦${rewardAmount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : `$${rewardAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
   const buffer = await generateRewardCertificateBuffer({
     name,
@@ -229,7 +235,8 @@ export const createPayoutCertificate = async (payload: {
     metadata: {
       payout_id: payload.payoutId,
       account_id: payload.accountId,
-      amount_usd: payload.amountUsd,
+      amount: payload.amount,
+      currency: normalizedCurrency,
     },
     buffer,
   })

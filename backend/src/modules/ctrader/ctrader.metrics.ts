@@ -108,7 +108,12 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     })
     const firstTradeAt = (metrics as any)?.firstTradeAt
       ?? trades.map((trade) => parseDate(trade.open_time)).find(Boolean)
+      ?? accountData.startedAt
+      ?? accountData.assignedAt
       ?? null
+    const stageElapsedHours = firstTradeAt
+      ? Math.max(0, (now.getTime() - new Date(firstTradeAt).getTime()) / (60 * 60 * 1000))
+      : (metrics?.stageElapsedHours ?? 0)
     const minTradingDaysMet = !!firstTradeAt
       && accountData.minTradingDaysRequired != null
       && now.getTime() >= firstTradeAt.getTime() + DAY_MS * accountData.minTradingDaysRequired
@@ -164,7 +169,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         todayLotsTotal: metrics?.todayLotsTotal ?? 0,
         minTradingDaysRequired: accountData.minTradingDaysRequired ?? 0,
         minTradingDaysMet,
-        stageElapsedHours: metrics?.stageElapsedHours ?? 0,
+        stageElapsedHours,
         scalpingViolationsCount: metrics?.scalpingViolationsCount ?? 0,
         dailyStartAt: isNewDay ? now : dailyStartAt,
         dailyHighBalance,
@@ -188,6 +193,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         profitTargetBalance,
         minTradingDaysRequired: accountData.minTradingDaysRequired ?? 0,
         minTradingDaysMet,
+        stageElapsedHours,
         dailyStartAt: isNewDay ? now : dailyStartAt,
         dailyHighBalance,
         dailyBreachBalance,
@@ -288,6 +294,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         challengeType: accountData.challengeType,
         phase: nextPhase,
         accountSize: accountData.accountSize,
+        currency: accountData.currency ?? 'USD',
         baseChallengeId,
       })
 

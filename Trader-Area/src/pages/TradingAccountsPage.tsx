@@ -4,7 +4,7 @@ import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
 import '../styles/DesktopTradingAccountsPage.css'
-import { fetchTradingObjectives, type TradingObjectivesResponse } from '../mocks/auth'
+import { fetchTradingObjectives, fetchPublicChallengePlans, type TradingObjectivesResponse, type PublicChallengePlan } from '../lib/traderAuth'
 
 type PricingTier = {
   account: string
@@ -15,7 +15,7 @@ type PricingTier = {
 }
 
 type PricingTab = {
-  key: 'twoPhase' | 'onePhase' | 'instant'
+  key: 'twoPhase' | 'onePhase' | 'instant' | 'ngnStandard' | 'ngnFlexi'
   label: string
   tiers: PricingTier[]
   rules: string[]
@@ -32,7 +32,7 @@ type AccountView = {
   fee: string
   status: 'available' | 'paused'
   profit_split: string
-  challenge_type: 'two_step' | 'one_step' | 'instant_funded'
+  challenge_type: 'two_step' | 'one_step' | 'instant_funded' | 'ngn_standard' | 'ngn_flexi'
   phase: 'phase_1' | 'phase_2' | 'funded'
 }
 
@@ -76,10 +76,33 @@ const pricingTabs: PricingTab[] = [
     ],
     rules: [],
   },
+  {
+    key: 'ngnStandard',
+    label: 'NGN Standard',
+    tiers: [
+      { account: '₦200,000', price: '₦5,000' },
+      { account: '₦500,000', price: '₦11,500' },
+      { account: '₦800,000', price: '₦17,000' },
+    ],
+    rules: [],
+  },
+  {
+    key: 'ngnFlexi',
+    label: 'NGN Flexi',
+    tiers: [
+      { account: '₦200,000', price: '₦9,000' },
+      { account: '₦500,000', price: '₦21,000' },
+      { account: '₦800,000', price: '₦31,500' },
+    ],
+    rules: [],
+  },
 ]
 
 const formatAccountSize = (label: string) => {
-  const normalized = label.replace(/[^0-9km]/gi, '').toLowerCase()
+  const trimmed = label.trim()
+  if (trimmed.startsWith('₦')) return trimmed
+
+  const normalized = trimmed.replace(/[^0-9km]/gi, '').toLowerCase()
   if (!normalized) return label
 
   const multiplier = normalized.includes('m') ? 1_000_000 : normalized.includes('k') ? 1_000 : 1
@@ -92,6 +115,7 @@ const formatAccountSize = (label: string) => {
 const DesktopTradingAccountsPage: React.FC = () => {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<PricingTab>(() => pricingTabs[0] as PricingTab)
+  const [planPrices, setPlanPrices] = useState<Record<string, PublicChallengePlan[]>>({})
   const [objectiveRules, setObjectiveRules] = useState<Record<string, string[]>>({})
   const effectiveRules = objectiveRules[activeTab.key] ?? activeTab.rules
 
@@ -104,27 +128,40 @@ const DesktopTradingAccountsPage: React.FC = () => {
         const next: Record<string, string[]> = {}
 
         const buildMergedRules = (phases: any[]) => {
-          const labelMap = new Map<string, string>()
           const aggregated = new Map<string, string[]>()
+          const results: string[] = []
 
           phases.forEach((phase: any) => {
+            const fallbackPhaseLabel = phase.key === 'phase_1'
+              ? 'Phase 1'
+              : phase.key === 'phase_2'
+                ? 'Phase 2'
+                : phase.label
+            const phaseLabel = fallbackPhaseLabel?.toLowerCase().includes('phase') ? fallbackPhaseLabel : null
             phase.rules.forEach((rule: any) => {
-              labelMap.set(rule.key, rule.label)
-              const list = aggregated.get(rule.key) ?? []
+              if (rule.key === 'profit_target' && phaseLabel) {
+                results.push(`${phaseLabel} Profit Target: ${rule.value}`)
+                return
+              }
+
+              const label = rule.label
+              const list = aggregated.get(label) ?? []
               if (!list.includes(rule.value)) {
                 list.push(rule.value)
               }
-              aggregated.set(rule.key, list)
+              aggregated.set(label, list)
             })
           })
 
-          return Array.from(aggregated.entries()).map(([key, values]) => {
-            const label = labelMap.get(key) ?? key
+          aggregated.forEach((values, label) => {
             if (values.length === 1) {
-              return `${label}: ${values[0]}`
+              results.push(`${label}: ${values[0]}`)
+            } else {
+              results.push(`${label}: ${values.join(' / ')}`)
             }
-            return `${label}: ${values.join(' / ')}`
           })
+
+          return results
         }
         rules.forEach((challenge: any) => {
           if (challenge.key === 'two_step') {
@@ -140,6 +177,16 @@ const DesktopTradingAccountsPage: React.FC = () => {
           if (challenge.key === 'instant_funded') {
             const instant = challenge.phases[0]
             next.instant = instant?.rules.map((rule: any) => `${rule.label}: ${rule.value}`) ?? []
+            return
+          }
+
+          if (challenge.key === 'ngn_standard') {
+            next.ngnStandard = buildMergedRules(challenge.phases)
+            return
+          }
+
+          if (challenge.key === 'ngn_flexi') {
+            next.ngnFlexi = buildMergedRules(challenge.phases)
           }
         })
         setObjectiveRules(next)
@@ -151,6 +198,27 @@ const DesktopTradingAccountsPage: React.FC = () => {
     loadObjectives()
   }, [])
 
+  useEffect(() => {
+    const loadPlans = async () => {
+      try {
+        const plans = await fetchPublicChallengePlans()
+        const grouped: Record<string, PublicChallengePlan[]> = {}
+        plans.forEach((plan) => {
+          const key = plan.challenge_type ?? 'two_step'
+          if (!grouped[key]) {
+            grouped[key] = []
+          }
+          grouped[key].push(plan)
+        })
+        setPlanPrices(grouped)
+      } catch (error) {
+        console.error('Failed to load challenge plans', error)
+      }
+    }
+
+    loadPlans()
+  }, [])
+
   const accounts = useMemo(() => {
     const getRuleValue = (prefixes: string[]) => {
       const rule = effectiveRules.find((item) =>
@@ -159,32 +227,50 @@ const DesktopTradingAccountsPage: React.FC = () => {
       return rule ? rule.split(':').slice(1).join(':').trim() : 'N/A'
     }
 
+    const challengeKey = activeTab.key === 'onePhase'
+      ? 'one_step'
+      : activeTab.key === 'instant'
+        ? 'instant_funded'
+        : activeTab.key === 'ngnStandard'
+          ? 'ngn_standard'
+          : activeTab.key === 'ngnFlexi'
+            ? 'ngn_flexi'
+            : 'two_step'
+    const availablePlans = planPrices[challengeKey] ?? []
+
+    const resolvePlanForTier = (tier: PricingTier) => {
+      const normalizedTier = tier.account.replace(/[^0-9]/g, '')
+      return availablePlans.find((plan) => plan.account_size?.replace(/[^0-9]/g, '') === normalizedTier)
+    }
+
     return activeTab.tiers.map((tier) => {
-      const planId = tier.account.replace(/[^0-9km.]/gi, '').toLowerCase()
-      const challengeType = activeTab.key === 'onePhase'
-        ? 'one_step'
-        : activeTab.key === 'instant'
-          ? 'instant_funded'
-          : 'two_step'
+      const matchedPlan = resolvePlanForTier(tier)
+      const isNgnAccount = tier.account.trim().startsWith('₦')
+      const planId = isNgnAccount
+        ? tier.account.replace(/[^0-9]/g, '')
+        : tier.account.replace(/[^0-9km.]/gi, '').toLowerCase()
+      const challengeType = challengeKey
       const phase = activeTab.key === 'instant'
         ? 'funded'
         : 'phase_1'
+      const fee = matchedPlan?.price ? `${matchedPlan.price}` : (tier.discountPrice ?? tier.price)
+      const status = matchedPlan?.status?.toLowerCase() === 'paused' ? 'paused' : 'available'
       return {
-        id: planId,
+        id: matchedPlan?.id ?? planId,
         size: tier.account,
-        drawdown: getRuleValue(['Max Drawdown', 'Daily Drawdown']),
-        target: getRuleValue(['Phase 1 Target', 'Profit Target']),
+        drawdown: getRuleValue(['Max Drawdown', 'Daily Drawdown', 'Max Daily Drawdown']),
+        target: getRuleValue(['Phase 1 Profit Target', 'Profit Target']),
         phases: activeTab.label,
         days: 'N/A',
         payout: getRuleValue(['Withdrawals']),
-        fee: tier.discountPrice ?? tier.price,
-        status: 'available' as const,
+        fee,
+        status,
         profit_split: getRuleValue(['Profit Split']),
         challenge_type: challengeType,
         phase,
       }
     })
-  }, [activeTab, effectiveRules])
+  }, [activeTab, effectiveRules, planPrices])
 
   return (
     <div className="desktop-trading-accounts-page">
@@ -236,7 +322,7 @@ const DesktopTradingAccountsPage: React.FC = () => {
                       <span className="pricing-price-current">{tier.discountPrice}</span>
                     </div>
                   ) : (
-                    <span className="pricing-price-current">{tier.price}</span>
+                    <span className="pricing-price-current">{accounts[index]?.fee ?? tier.price}</span>
                   )}
                 </div>
                 <button

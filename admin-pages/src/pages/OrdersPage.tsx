@@ -7,7 +7,7 @@ import {
   declineCryptoOrder,
   type OrderStats,
   type Order,
-} from '../lib/adminMock'
+} from '../lib/adminApi'
 
 interface OrdersPageProps {
   onOpenProfile: (user: AdminUser) => void

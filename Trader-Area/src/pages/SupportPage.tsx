@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react'
 import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
-import { supportService } from '../mocks/support'
-import type { SupportChat, SupportMessage } from '../mocks/support'
+import { supportService } from '../lib/supportApi'
+import type { SupportChat, SupportMessage } from '../lib/supportApi'
 import '../styles/DesktopSupportPage.css'
 
 const SupportPage: React.FC = () => {

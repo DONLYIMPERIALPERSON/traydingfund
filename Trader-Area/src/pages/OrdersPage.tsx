@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
-import { fetchOrders, type TraderOrder } from '../mocks/auth'
+import { fetchOrders, type TraderOrder } from '../lib/traderAuth'
 import '../styles/DesktopOrdersPage.css'
 
 const OrdersPage: React.FC = () => {

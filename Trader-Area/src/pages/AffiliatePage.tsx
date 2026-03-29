@@ -6,17 +6,14 @@ import '../styles/DesktopAffiliatePage.css'
 import {
   fetchAffiliateDashboard,
   requestAffiliatePayout,
-  claimMilestoneReward
-} from '../mocks/affiliate'
-import type { AffiliateDashboard, AffiliateReward } from '../mocks/affiliate'
+} from '../lib/affiliateApi'
+import type { AffiliateDashboard } from '../lib/affiliateApi'
 
 const AffiliatePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'payouts' | 'transactions' | 'request'>('payouts')
-  const [withdrawalAmount, setWithdrawalAmount] = useState<string>('')
   const [dashboardData, setDashboardData] = useState<AffiliateDashboard | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [claimingReward, setClaimingReward] = useState<number | null>(null)
   const [requestingPayout, setRequestingPayout] = useState(false)
 
   useEffect(() => {
@@ -43,19 +40,6 @@ const AffiliatePage: React.FC = () => {
     }
   }
 
-  const handleClaimReward = async (levelIndex: number) => {
-    try {
-      setClaimingReward(levelIndex)
-      await claimMilestoneReward(levelIndex)
-      // Reload dashboard data to reflect changes
-      await loadDashboardData()
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to claim reward')
-    } finally {
-      setClaimingReward(null)
-    }
-  }
-
   const handleRequestPayout = async () => {
     if (!dashboardData?.stats.available_balance || dashboardData.stats.available_balance <= 0) {
       alert('No available balance to withdraw')
@@ -64,7 +48,7 @@ const AffiliatePage: React.FC = () => {
 
     try {
       setRequestingPayout(true)
-      await requestAffiliatePayout(dashboardData.stats.available_balance)
+      await requestAffiliatePayout()
       alert('Payout requested successfully!')
       // Reload dashboard data to reflect changes
       await loadDashboardData()
@@ -79,32 +63,6 @@ const AffiliatePage: React.FC = () => {
     return `$${amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
   }
 
-
-  const getRewardStatusText = (reward: AffiliateReward) => {
-    switch (reward.status) {
-      case 'live':
-        return `Progress: ${reward.progress || 0} / ${reward.target || 0} • ${reward.remaining || 0} left`
-      case 'locked':
-        return 'Status: Locked'
-      case 'claimed':
-        return 'Status: Claimed'
-      default:
-        return ''
-    }
-  }
-
-  const getRewardStatusClass = (status: string) => {
-    switch (status) {
-      case 'live':
-        return 'live'
-      case 'locked':
-        return 'locked'
-      case 'claimed':
-        return 'claimed'
-      default:
-        return ''
-    }
-  }
 
   if (loading) {
     return (
@@ -318,11 +276,15 @@ const AffiliatePage: React.FC = () => {
                   <div className="account-info">
                     {dashboardData?.bank_details ? (
                       <div>
-                        <strong>Saved Account:</strong> {dashboardData.bank_details.account_name} — {dashboardData.bank_details.bank_name} ({dashboardData.bank_details.account_number})
+                        <strong>Saved Payout Method:</strong> {dashboardData.bank_details.account_name} — {dashboardData.bank_details.bank_name} ({dashboardData.bank_details.account_number})
+                      </div>
+                    ) : dashboardData?.payout_method_type === 'crypto' ? (
+                      <div>
+                        <strong>Saved Payout Method:</strong> Crypto wallet configured. See Settings for details.
                       </div>
                     ) : (
                       <div style={{ color: 'red' }}>
-                        <strong>No bank account saved.</strong> Please save your bank details to request payouts.
+                        <strong>No payout method saved.</strong> Please configure your payout details in Settings before requesting payouts.
                       </div>
                     )}
                   </div>

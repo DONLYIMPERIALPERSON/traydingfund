@@ -13,6 +13,7 @@ model User {
   email              String    @unique
   fullName           String?
   nickName           String?
+  useNicknameForCertificates Boolean @default(false)
   role               String    @default("trader")
   status             String    @default("active")
   kycStatus          String?   @default("pending")
@@ -43,6 +44,35 @@ model User {
   certificates       Certificate[]
   supportTickets     SupportTicket[]
   couponRedemptions  CouponRedemption[]
+  challengePlans     ChallengePlan[]
+}
+
+model ChallengePlan {
+  id                 Int      @id @default(autoincrement())
+  planId             String   @unique
+  name               String
+  accountSize        String
+  price              Float
+  currency           String   @default("USD")
+  maxDrawdown        String?
+  profitTarget       String?
+  phases             String?
+  minTradingDays     String?
+  profitSplit        String?
+  profitCap          String?
+  payoutFrequency    String?
+  status             String   @default("Available")
+  enabled            Boolean  @default(true)
+  challengeType      String?
+  phase              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  createdByUserId    Int?
+  createdBy          User?    @relation(fields: [createdByUserId], references: [id])
+
+  @@index([enabled])
+  @@index([status])
 }
 
 model Coupon {
@@ -136,6 +166,7 @@ model CTraderAccount {
   id            Int      @id @default(autoincrement())
   challengeId   String   @unique
   accountSize   String
+  currency      String   @default("USD")
   phase         String
   challengeType String?
   initialBalance Float?
@@ -158,6 +189,7 @@ model CTraderAccount {
   startedAt     DateTime?
   breachedAt    DateTime?
   passedAt      DateTime?
+  lastRefreshRequestedAt DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

@@ -24,7 +24,7 @@ const TEMPLATE = `<!DOCTYPE html>
 <td align="center">
 
 <!-- CONTAINER -->
-<table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; background-color:#ffffff; border-radius:12px; overflow:hidden; font-family: Arial, Helvetica, sans-serif;">
+<table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; background-color:#ffffff; border-radius:0; overflow:hidden; font-family: Arial, Helvetica, sans-serif;">
 
 <!-- HEADER -->
 <tr>
@@ -34,7 +34,7 @@ const TEMPLATE = `<!DOCTYPE html>
 <tr>
 
 <td align="left">
-<img src="https://pub-e47c37a6a0b447288c2210b9e8f6faf5.r2.dev/logo.png" width="50" alt="MACHEFUNDED" />
+<img src="https://pub-e47c37a6a0b447288c2210b9e8f6faf5.r2.dev/login-page-logo.png" width="50" alt="MACHEFUNDED" />
 </td>
 
 <td align="right" style="color:#ffffff; font-weight:600; font-size:18px; letter-spacing:1px;">

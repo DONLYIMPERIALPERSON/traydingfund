@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
-import { fetchUserChallengeAccountDetail, type UserChallengeAccountDetailResponse } from '../mocks/auth'
+import { fetchUserChallengeAccountDetail, type UserChallengeAccountDetailResponse } from '../lib/traderAuth'
 import '../styles/DesktopStatisticsPage.css'
 
 const StatisticsPage: React.FC = () => {

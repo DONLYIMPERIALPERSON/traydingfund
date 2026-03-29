@@ -6,12 +6,22 @@ import { assignReadyAccountFromPool } from '../ctrader/ctrader.assignment'
 import { buildObjectiveFields } from '../ctrader/ctrader.objectives'
 import { requestAccountAccess } from '../../services/accessEngine.service'
 import { createOnboardingCertificate } from '../../services/certificate.service'
+import { getFxRatesConfig } from '../fxRates/fxRates.service'
 import { fetchRemoteAttachment, sendUnifiedEmail } from '../../services/email.service'
 
 const AFFILIATE_COMMISSION_PERCENT = 10
 
 const formatCurrency = (amountKobo: number) =>
   `$${(amountKobo / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+
+const toUsdKobo = (amountKobo: number, currency?: string | null, rate?: number) => {
+  if (currency?.toUpperCase() === 'NGN') {
+    const divider = rate && rate > 0 ? rate : 1300
+    const amount = amountKobo / 100
+    return Math.round((amount / divider) * 100)
+  }
+  return amountKobo
+}
 
 const createAffiliateCommission = async (order: { id: number; affiliateId?: number | null; netAmountKobo: number }) => {
   const affiliateId = order.affiliateId ?? null
@@ -35,6 +45,8 @@ const createAffiliateCommission = async (order: { id: number; affiliateId?: numb
 
 export const listOrders = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const fxConfig = await getFxRatesConfig()
+    const usdNgnRate = fxConfig.rules?.usd_ngn_rate ?? 1300
     type OrderWithUser = Prisma.OrderGetPayload<{ include: { user: true } }>
     const page = Number(req.query.page ?? 1)
     const limit = Number(req.query.limit ?? 10)
@@ -79,7 +91,8 @@ export const listOrders = async (req: Request, res: Response, next: NextFunction
         status: order.status,
         assignment_status: order.assignmentStatus,
         account_size: order.accountSize,
-        net_amount_formatted: `$${(order.netAmountKobo / 100).toLocaleString('en-US')}`,
+        currency: order.currency,
+        net_amount_formatted: formatCurrency(toUsdKobo(order.netAmountKobo, order.currency, usdNgnRate)),
         created_at: order.createdAt,
         paid_at: order.paidAt,
         payment_method: order.paymentMethod,
@@ -97,6 +110,8 @@ export const listOrders = async (req: Request, res: Response, next: NextFunction
 
 export const getOrderStats = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const fxConfig = await getFxRatesConfig()
+    const usdNgnRate = fxConfig.rules?.usd_ngn_rate ?? 1300
     const period = typeof req.query.period === 'string' ? req.query.period : 'today'
     const now = new Date()
     let startDate: Date | undefined
@@ -112,15 +127,17 @@ export const getOrderStats = async (req: Request, res: Response, next: NextFunct
 
     const where: Prisma.OrderWhereInput = startDate ? { createdAt: { gte: startDate } } : {}
 
-    const [totalOrders, paidOrders, pendingOrders, failedOrders, volume] = await Promise.all([
+    const [totalOrders, paidOrders, pendingOrders, failedOrders, usdVolume, ngnVolume] = await Promise.all([
       prisma.order.count({ where }),
       prisma.order.count({ where: { ...where, status: 'completed' } }),
       prisma.order.count({ where: { ...where, status: 'pending' } }),
       prisma.order.count({ where: { ...where, status: { in: ['failed', 'expired'] } } }),
-      prisma.order.aggregate({ _sum: { netAmountKobo: true }, where }),
+      prisma.order.aggregate({ _sum: { netAmountKobo: true }, where: { ...where, currency: 'USD' } }),
+      prisma.order.aggregate({ _sum: { netAmountKobo: true }, where: { ...where, currency: 'NGN' } }),
     ])
 
-    const totalVolumeKobo = volume._sum.netAmountKobo ?? 0
+    const totalVolumeKobo = (usdVolume._sum.netAmountKobo ?? 0)
+      + toUsdKobo(ngnVolume._sum.netAmountKobo ?? 0, 'NGN', usdNgnRate)
     const successRate = totalOrders === 0 ? 0 : (paidOrders / totalOrders) * 100
 
     res.json({
@@ -139,6 +156,8 @@ export const getOrderStats = async (req: Request, res: Response, next: NextFunct
 
 export const listPendingAssignments = async (_req: Request, res: Response, next: NextFunction) => {
   try {
+    const fxConfig = await getFxRatesConfig()
+    const usdNgnRate = fxConfig.rules?.usd_ngn_rate ?? 1300
     type OrderWithUser = Prisma.OrderGetPayload<{ include: { user: true } }>
     const orders = await prisma.order.findMany({
       where: { assignmentStatus: 'pending_assign', status: 'pending' },
@@ -153,7 +172,8 @@ export const listPendingAssignments = async (_req: Request, res: Response, next:
         status: order.status,
         assignment_status: order.assignmentStatus,
         account_size: order.accountSize,
-        net_amount_formatted: `$${(order.netAmountKobo / 100).toLocaleString('en-US')}`,
+        currency: order.currency,
+        net_amount_formatted: formatCurrency(toUsdKobo(order.netAmountKobo, order.currency, usdNgnRate)),
         created_at: order.createdAt,
         paid_at: order.paidAt,
         payment_method: order.paymentMethod,
@@ -261,6 +281,7 @@ export const approveCryptoOrder = async (req: Request, res: Response, next: Next
         challengeType,
         phase,
         accountSize: updated.accountSize,
+        currency: updated.currency ?? 'USD',
       })
 
       if (assigned) {

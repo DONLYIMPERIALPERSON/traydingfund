@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { sendAnnouncement, sendTestAnnouncement, type SendAnnouncementResponse } from '../lib/adminMock'
+import { sendAnnouncement, sendTestAnnouncement, type SendAnnouncementResponse } from '../lib/adminApi'
 import './SendAnnouncementPage.css'
 
 const SendAnnouncementPage = () => {

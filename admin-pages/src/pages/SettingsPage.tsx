@@ -5,7 +5,7 @@ import {
   updateAdminAllowlistEntry,
   deleteAdminAllowlistEntry,
   type AdminAllowlistEntry,
-} from '../lib/adminMock'
+} from '../lib/adminApi'
 import './SettingsPage.css'
 
 type SettingsTab = 'addAdmin' | 'admins'

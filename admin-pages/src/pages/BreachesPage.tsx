@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { AdminUser } from './UsersPage'
-import { fetchBreachedChallengeAccounts, type ChallengeBreachListItem } from '../lib/adminMock'
+import { fetchBreachedChallengeAccounts, type ChallengeBreachListItem } from '../lib/adminApi'
 
 interface BreachesPageProps {
   onOpenProfile: (user: AdminUser) => void
@@ -79,13 +79,13 @@ const BreachesPage = ({ onOpenProfile }: BreachesPageProps) => {
   const maxDDBreaches = statsRows.filter((row) => row.breach_reason === 'drawdown_limit').length
   const scalpingBreaches = statsRows.filter((row) => row.breach_reason === 'scalping_rule').length
 
-  const formatBreachReason = (value: string | null) => {
+  const formatBreachReason = (value?: string | null) => {
     if (value === 'drawdown_limit') return 'Max DD'
     if (value === 'scalping_rule') return 'Scalping rule'
     return value || '-'
   }
 
-  const formatDate = (iso: string | null) => {
+  const formatDate = (iso?: string | null) => {
     if (!iso) return '-'
     const date = new Date(iso)
     if (Number.isNaN(date.getTime())) return iso
@@ -225,9 +225,9 @@ const BreachesPage = ({ onOpenProfile }: BreachesPageProps) => {
                       type="button"
                       onClick={() =>
                         onOpenProfile({
-                          user_id: row.user_id,
-                          name: row.trader_name ?? `User ${row.user_id}`,
-                          email: row.trader_email ?? '',
+                        user_id: row.user_id ?? undefined,
+                        name: row.trader_name ?? `User ${row.user_id ?? 'Unknown'}`,
+                        email: row.trader_email ?? '',
                           accounts: '',
                           revenue: '',
                           orders: '',

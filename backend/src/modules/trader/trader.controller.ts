@@ -9,6 +9,7 @@ import {
   generatePassedChallengeCertificateTest,
 } from '../../services/rewardCertificate.service'
 import { listUserCertificates } from '../../services/certificate.service'
+import { requestAccountAccess } from '../../services/accessEngine.service'
 
 type AuthRequest = Request & { user?: { id: number; email: string } }
 
@@ -39,7 +40,7 @@ const isActiveStatus = (status: string) => {
 const normalizeChallengeType = (value?: string | null) => {
   if (!value) return 'two_step'
   const normalized = value.toLowerCase().replace(/-/g, '_')
-  if (['two_step', 'one_step', 'instant_funded'].includes(normalized)) {
+  if (['two_step', 'one_step', 'instant_funded', 'ngn_standard', 'ngn_flexi'].includes(normalized)) {
     return normalized
   }
   if (['challenge', 'funded', 'assigned_pending_access'].includes(normalized)) {
@@ -48,7 +49,22 @@ const normalizeChallengeType = (value?: string | null) => {
   return normalized
 }
 
-const formatUsd = (value: number) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const formatCurrency = (value: number, currency: string) => {
+  const normalized = currency.toUpperCase()
+  try {
+    if (normalized === 'NGN') {
+      return `₦${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    }
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: normalized,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value)
+  } catch {
+    return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  }
+}
 
 const splitFullName = (fullName?: string | null) => {
   const parts = (fullName ?? '').trim().split(/\s+/).filter(Boolean)
@@ -92,7 +108,7 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
       payout_crypto_first_name: dbUser.payoutCryptoFirstName,
       payout_crypto_last_name: dbUser.payoutCryptoLastName,
       payout_verified_at: dbUser.payoutVerifiedAt,
-      use_nickname_for_certificates: true,
+      use_nickname_for_certificates: (dbUser as { useNicknameForCertificates?: boolean }).useNicknameForCertificates ?? false,
     })
   } catch (err) {
     next(err as Error)
@@ -102,27 +118,31 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
 export const updateProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureUser(req)
-    const { first_name, last_name, nick_name } = req.body as {
+    const { first_name, last_name, nick_name, use_nickname_for_certificates } = req.body as {
       first_name?: string
       last_name?: string
       nick_name?: string | null
+      use_nickname_for_certificates?: boolean
     }
 
-    if (!first_name && !last_name && typeof nick_name === 'undefined') {
-      throw new ApiError('first_name/last_name or nick_name is required', 400)
+    if (!first_name && !last_name && typeof nick_name === 'undefined' && typeof use_nickname_for_certificates === 'undefined') {
+      throw new ApiError('first_name/last_name, nick_name, or use_nickname_for_certificates is required', 400)
     }
 
     if ((first_name && !last_name) || (!first_name && last_name)) {
       throw new ApiError('first_name and last_name are required together', 400)
     }
 
-    const data: { fullName?: string; nickName?: string | null } = {}
+    const data: { fullName?: string; nickName?: string | null; useNicknameForCertificates?: boolean } = {}
     if (first_name && last_name) {
       data.fullName = `${first_name.trim()} ${last_name.trim()}`.trim()
     }
     if (typeof nick_name !== 'undefined') {
       const trimmed = nick_name?.trim()
       data.nickName = trimmed ? trimmed : null
+    }
+    if (typeof use_nickname_for_certificates !== 'undefined') {
+      data.useNicknameForCertificates = Boolean(use_nickname_for_certificates)
     }
 
     const updated = await prisma.user.update({
@@ -153,7 +173,7 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
       payout_crypto_first_name: updated.payoutCryptoFirstName,
       payout_crypto_last_name: updated.payoutCryptoLastName,
       payout_verified_at: updated.payoutVerifiedAt,
-      use_nickname_for_certificates: true,
+      use_nickname_for_certificates: (updated as { useNicknameForCertificates?: boolean }).useNicknameForCertificates ?? false,
     })
   } catch (err) {
     next(err as Error)
@@ -180,6 +200,7 @@ export const listChallengeAccounts = async (req: AuthRequest, res: Response, nex
       return {
         challenge_id: account.challengeId,
         account_size: account.accountSize,
+        currency: account.currency,
         challenge_type: normalizeChallengeType(account.challengeType),
         phase: account.phase,
         objective_status: account.status.toLowerCase(),
@@ -289,6 +310,9 @@ export const getChallengeAccountDetail = async (
 
     const initialBalance = objectiveFields.initialBalance ?? metrics.balance
     const resolvedInitialBalance = account.initialBalance ?? initialBalance
+    const normalizedChallengeType = normalizeChallengeType(account.challengeType)
+    const accountCurrency = account.currency ?? 'USD'
+    const formatAccountCurrency = (value: number) => formatCurrency(value, accountCurrency)
     const profitTargetBalance = objectiveFields.profitTargetAmount != null
       ? initialBalance + objectiveFields.profitTargetAmount
       : metrics.profitTargetBalance
@@ -301,6 +325,7 @@ export const getChallengeAccountDetail = async (
     const minTradeDurationMinutes = objectiveFields.minTradeDurationMinutes ?? 0
     const minTradingDaysRequired = objectiveFields.minTradingDaysRequired ?? 0
     const stageElapsedHours = metrics.stageElapsedHours ?? 0
+    const minTradingDaysMet = metrics.minTradingDaysMet || stageElapsedHours >= minTradingDaysRequired * 24
     const profitRemaining = Math.max(0, profitTargetBalance - metrics.equity)
     const maxDrawdownRemaining = Math.max(0, metrics.equity - maxDrawdownBalance)
     const dailyDrawdownRemaining = Math.max(0, metrics.equity - dailyDrawdownBalance)
@@ -310,23 +335,25 @@ export const getChallengeAccountDetail = async (
         label: 'Profit Target',
         status: metrics.equity >= profitTargetBalance ? 'passed' : 'pending',
         note: profitTargetBalance
-          ? `${formatUsd(profitRemaining)} left`
+          ? `${formatAccountCurrency(profitRemaining)} left`
           : 'Pending',
       },
       max_drawdown: {
         label: 'Max Drawdown',
         status: metrics.equity < maxDrawdownBalance ? 'breached' : 'passed',
         note: maxDrawdownBalance
-          ? `${formatUsd(maxDrawdownRemaining)} loss remaining`
+          ? `${formatAccountCurrency(maxDrawdownRemaining)} loss remaining`
           : 'Pending',
       },
-      max_daily_drawdown: {
-        label: 'Max Daily Drawdown',
-        status: metrics.equity < dailyDrawdownBalance ? 'breached' : 'passed',
-        note: dailyDrawdownBalance
-          ? `${formatUsd(dailyDrawdownRemaining)} loss remaining`
-          : 'Pending',
-      },
+      ...(normalizedChallengeType === 'ngn_flexi' ? {} : {
+        max_daily_drawdown: {
+          label: 'Max Daily Drawdown',
+          status: metrics.equity < dailyDrawdownBalance ? 'breached' : 'passed',
+          note: dailyDrawdownBalance
+            ? `${formatAccountCurrency(dailyDrawdownRemaining)} loss remaining`
+            : 'Pending',
+        },
+      }),
       min_trade_duration: {
         label: 'Minimum Trade Duration',
         status: metrics.scalpingViolationsCount > 0 ? 'breached' : 'passed',
@@ -336,7 +363,7 @@ export const getChallengeAccountDetail = async (
       },
       min_trading_days: {
         label: 'Minimum Trading Days',
-        status: metrics.minTradingDaysMet ? 'passed' : 'pending',
+        status: minTradingDaysMet ? 'passed' : 'pending',
         note: `${stageElapsedHours.toFixed(2)}h / ${(minTradingDaysRequired * 24).toFixed(2)}h`,
       },
     }
@@ -346,6 +373,8 @@ export const getChallengeAccountDetail = async (
     res.json({
       challenge_id: account.challengeId,
       account_size: account.accountSize,
+      currency: account.currency,
+      challenge_type: normalizedChallengeType,
       initial_balance: resolvedInitialBalance,
       phase: account.phase,
       objective_status: account.status.toLowerCase(),
@@ -357,7 +386,7 @@ export const getChallengeAccountDetail = async (
       passed_at: account.passedAt?.toISOString() ?? null,
       mt5_account: account.accountNumber,
       last_feed_at: account.metrics?.capturedAt?.toISOString() ?? null,
-      last_refresh_requested_at: null,
+      last_refresh_requested_at: (account as { lastRefreshRequestedAt?: Date | null }).lastRefreshRequestedAt?.toISOString() ?? null,
       metrics: {
         balance: metrics.balance,
         equity: metrics.equity,
@@ -390,6 +419,44 @@ export const getChallengeAccountDetail = async (
       funded_profit_cap_amount: null,
       funded_user_payout_amount: null,
     })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const requestChallengeRefresh = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const user = ensureUser(req)
+    const { challenge_id } = req.body as { challenge_id?: string }
+    if (!challenge_id) {
+      throw new ApiError('challenge_id is required', 400)
+    }
+
+    const account = await prisma.cTraderAccount.findFirst({
+      where: { userId: user.id, challengeId: challenge_id },
+    })
+    if (!account) {
+      throw new ApiError('Account not found', 404)
+    }
+
+    const now = new Date()
+    await prisma.cTraderAccount.update({
+      where: { id: account.id },
+      data: { lastRefreshRequestedAt: now } as unknown as Record<string, unknown>,
+    })
+
+    try {
+      await requestAccountAccess({
+        user_email: user.email,
+        account_number: account.accountNumber,
+        broker: account.brokerName,
+        platform: 'ctrader',
+      })
+    } catch (error) {
+      console.error('Failed to request account refresh', error)
+    }
+
+    res.json({ status: 'refresh_requested', requested_at: now.toISOString() })
   } catch (err) {
     next(err as Error)
   }

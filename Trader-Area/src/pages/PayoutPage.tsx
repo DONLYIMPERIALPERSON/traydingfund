@@ -4,7 +4,7 @@ import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
 import '../styles/DesktopPayoutPage.css'
-import { payoutAPI, formatCurrency, formatDate, formatTime, formatTimeAgo, type PayoutSummaryResponse } from '../mocks/payout'
+import { payoutAPI, formatCurrency, formatDate, formatTime, formatTimeAgo, type PayoutSummaryResponse } from '../lib/payoutApi'
 import {
   fetchBankAccountProfile,
   fetchCryptoPayoutProfile,
@@ -12,7 +12,7 @@ import {
   fetchKycHistory,
   type BankAccountProfile,
   type CryptoPayoutProfile,
-} from '../mocks/auth'
+} from '../lib/traderAuth'
 
 const PayoutPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'request' | 'history'>('request')

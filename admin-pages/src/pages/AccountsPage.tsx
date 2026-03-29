@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { AdminUser } from './UsersPage'
-import { fetchActiveChallengeAccounts, type ChallengeAccountListItem } from '../lib/adminMock'
+import { fetchActiveChallengeAccounts, type ChallengeAccountListItem } from '../lib/adminApi'
 
 interface AccountsPageProps {
   onOpenProfile: (user: AdminUser) => void
@@ -128,8 +128,8 @@ const AccountsPage = ({ onOpenProfile }: AccountsPageProps) => {
                     type="button"
                     onClick={() =>
                       onOpenProfile({
-                        user_id: row.user_id,
-                        name: row.trader_name ?? `User ${row.user_id}`,
+                        user_id: row.user_id ?? undefined,
+                        name: row.trader_name ?? `User ${row.user_id ?? 'Unknown'}`,
                         email: row.trader_email ?? '',
                         accounts: '',
                         revenue: '',

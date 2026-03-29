@@ -3,7 +3,7 @@ import { getAdminMe, getDashboardStats, listActiveChallengeAccounts, listAdminUs
 import { approveCryptoOrder, declineCryptoOrder, getOrderStats, listOrders, listPendingAssignments } from './admin.orders.controller'
 import { authenticate, requireRole } from '../../common/auth'
 import { createAllowlistEntry, deleteAllowlistEntry, listAllowlist, updateAllowlistEntry } from './admin.allowlist.controller'
-import { deleteReadyCTraderAccount, getCTraderSummary, listCTraderAccounts, uploadCTraderAccounts } from './ctrader.controller'
+import { deleteReadyCTraderAccount, downloadCTraderTemplate, getCTraderSummary, listCTraderAccounts, uploadCTraderAccounts } from './ctrader.controller'
 import { listAdminKycProfiles, listAdminKycRequests, reviewKycRequest } from '../kyc/kyc.admin.controller'
 import { createCouponAdmin, listCouponsAdmin, updateCouponPlanAdmin, updateCouponStatusAdmin } from '../coupons/coupon.controller'
 import {
@@ -29,6 +29,7 @@ adminRouter.get('/orders/pending-assign', authenticate, requireRole(['admin', 's
 adminRouter.post('/orders/:id/approve', authenticate, requireRole(['admin', 'super_admin']), approveCryptoOrder)
 adminRouter.post('/orders/:id/decline', authenticate, requireRole(['admin', 'super_admin']), declineCryptoOrder)
 adminRouter.post('/ctrader/accounts/upload', authenticate, requireRole(['admin', 'super_admin']), uploadCTraderAccounts)
+adminRouter.get('/ctrader/accounts/template', authenticate, requireRole(['admin', 'super_admin']), downloadCTraderTemplate)
 adminRouter.delete('/ctrader/accounts/:id', authenticate, requireRole(['admin', 'super_admin']), deleteReadyCTraderAccount)
 adminRouter.get('/ctrader/accounts', authenticate, requireRole(['admin', 'super_admin']), listCTraderAccounts)
 adminRouter.get('/ctrader/summary', authenticate, requireRole(['admin', 'super_admin']), getCTraderSummary)

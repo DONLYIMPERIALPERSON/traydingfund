@@ -15,7 +15,7 @@ import {
   type BankListItem,
   type BankAccountProfile,
   type CryptoPayoutProfile,
-} from '../mocks/auth'
+} from '../lib/traderAuth'
 
 const SettingsPage: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(true)

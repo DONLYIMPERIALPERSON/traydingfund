@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import { prisma } from '../../config/prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma, type Order } from '@prisma/client'
 import { env } from '../../config/env'
 import { ApiError } from '../../common/errors'
 import { createVirtualAccount } from '../../services/safehaven.service'
@@ -29,12 +29,13 @@ const resolveCryptoAddress = (currency: keyof typeof CRYPTO_ADDRESSES) => {
 
 const assignReadyAccount = async (
   userId: number,
-  payload: { challengeType: string; phase: string; accountSize: string },
+  payload: { challengeType: string; phase: string; accountSize: string; currency?: string },
 ) => assignReadyAccountFromPool({
   userId,
   challengeType: payload.challengeType,
   phase: payload.phase,
   accountSize: payload.accountSize,
+  currency: payload.currency ?? 'USD',
 })
 
 const maybeBurnAccount = async (accountId: number) => {
@@ -70,8 +71,163 @@ const createAffiliateCommission = async (tx: Prisma.TransactionClient, order: { 
   })
 }
 
-const formatCurrency = (amountKobo: number) =>
-  `$${(amountKobo / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+const formatCurrency = (amountKobo: number, currency: string = 'USD') => {
+  const normalized = currency.toUpperCase()
+  const amount = amountKobo / 100
+  if (normalized === 'NGN') {
+    return `₦${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+  }
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: normalized,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount)
+}
+
+const buildEmailSubject = (base: string) => {
+  const suffix = Math.random().toString(36).slice(2, 7).toUpperCase()
+  return `${base} #${suffix}`
+}
+
+const handleCompletedOrder = async (order: Order) => {
+  let onboardingCertificateUrl: string | null = null
+  let certificateAttachments: Array<{ filename: string; content: Buffer; contentType?: string }> | undefined
+
+  try {
+    const certificate = await createOnboardingCertificate({
+      userId: order.userId,
+      orderId: order.id,
+      challengeType: order.challengeType,
+      phase: order.phase,
+      accountSize: order.accountSize,
+    })
+    onboardingCertificateUrl = certificate.certificateUrl
+    if (onboardingCertificateUrl) {
+      certificateAttachments = [
+        await fetchRemoteAttachment({
+          url: onboardingCertificateUrl,
+          filename: 'onboarding-certificate.png',
+          contentType: 'image/png',
+        }),
+      ]
+    }
+  } catch (error) {
+    console.error('Failed to create onboarding certificate', error)
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: order.userId } })
+  if (user?.email) {
+    try {
+      const objectives = await buildObjectiveFields({
+        accountSize: order.accountSize,
+        challengeType: order.challengeType ?? 'two_step',
+        phase: order.phase ?? 'phase_1',
+      })
+      const objectivesLines = [
+        objectives.maxDdPercent != null ? `Max Drawdown: ${objectives.maxDdPercent}%` : null,
+        objectives.dailyDdPercent != null ? `Daily Drawdown: ${objectives.dailyDdPercent}%` : null,
+        objectives.profitTargetPercent != null ? `Profit Target: ${objectives.profitTargetPercent}%` : null,
+        objectives.minTradingDaysRequired != null ? `Minimum Trading Days: ${objectives.minTradingDaysRequired}` : null,
+        objectives.minTradeDurationMinutes != null ? `Min Trade Duration: ${objectives.minTradeDurationMinutes} mins` : null,
+        objectives.profitSplitPercent != null ? `Profit Split: ${objectives.profitSplitPercent}%` : null,
+        objectives.withdrawalSchedule ? `Withdrawal Schedule: ${objectives.withdrawalSchedule}` : null,
+      ].filter(Boolean)
+
+      const emailResponse = await sendUnifiedEmail({
+        to: user.email,
+        subject: buildEmailSubject('Your purchase receipt & trading objectives'),
+        title: 'Challenge Purchase Confirmed',
+        subtitle: 'Your trading objectives are ready',
+        content: `Thank you for your purchase! Your ${order.accountSize} ${order.challengeType ?? 'two_step'} challenge has been confirmed. Please review your receipt and objectives below.`,
+        buttonText: 'View Dashboard',
+        infoBox: [
+          `Receipt: ${formatCurrency(order.netAmountKobo, order.currency ?? 'USD')} (${order.paymentMethod ?? 'payment'})`,
+          `Order ID: ${order.providerOrderId ?? order.id}`,
+          `Status: ${order.status}`,
+          `Objectives: ${objectivesLines.length ? objectivesLines.join(' | ') : 'Check your dashboard for objectives.'}`,
+        ].join('<br>'),
+        ...(certificateAttachments ? { attachments: certificateAttachments } : {}),
+      })
+      console.info('Purchase email send result', {
+        orderId: order.id,
+        providerOrderId: order.providerOrderId,
+        to: user.email,
+        response: emailResponse,
+      })
+    } catch (error) {
+      console.error('Failed to send purchase email', error)
+    }
+  } else {
+    console.warn('Purchase email skipped because user email is missing', {
+      orderId: order.id,
+      providerOrderId: order.providerOrderId,
+    })
+  }
+
+  if (order.assignmentStatus !== 'assigned') {
+    const normalizedAccountSize = order.accountSize
+      .replace(/\$|,/g, '')
+      .replace(/k$/i, '000')
+      .replace(/\s+/g, '')
+
+    try {
+      const assigned = await assignReadyAccount(order.userId, {
+        challengeType: order.challengeType ?? 'challenge',
+        phase: order.phase ?? 'phase_1',
+        accountSize: normalizedAccountSize ? `$${normalizedAccountSize}` : order.accountSize,
+        currency: order.currency ?? 'USD',
+      })
+
+      if (assigned) {
+        await prisma.order.update({
+          where: { id: order.id },
+          data: { assignmentStatus: 'assigned' },
+        })
+
+        try {
+          await requestAccountAccess({
+            user_email: user?.email ?? '',
+            account_number: assigned.accountNumber,
+            broker: assigned.brokerName,
+            platform: 'ctrader',
+          })
+        } catch (error) {
+          console.error('Failed to request access-engine account grant', {
+            orderId: order.id,
+            providerOrderId: order.providerOrderId,
+            accountNumber: assigned.accountNumber,
+            error,
+          })
+        }
+      } else {
+        await prisma.order.update({
+          where: { id: order.id },
+          data: { assignmentStatus: 'pending_assign' },
+        })
+        console.warn('No ready account available for assignment', {
+          orderId: order.id,
+          providerOrderId: order.providerOrderId,
+          accountSize: order.accountSize,
+          challengeType: order.challengeType,
+          phase: order.phase,
+        })
+      }
+    } catch (error) {
+      console.error('Failed to assign ready account after payment completion', {
+        orderId: order.id,
+        providerOrderId: order.providerOrderId,
+        error,
+      })
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { assignmentStatus: 'pending_assign' },
+      })
+    }
+  }
+
+  return prisma.order.findUnique({ where: { id: order.id } })
+}
 
 export const markAccountStatus = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -249,10 +405,11 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
       userId: user.id,
     })
 
+    const isNgnOrder = challenge_type?.toLowerCase().includes('ngn')
     const fxConfig = await getFxRatesConfig()
-    const usdAmount = couponResult.finalAmountKobo / 100
+    const baseAmount = couponResult.finalAmountKobo / 100
     const usdToNgnRate = fxConfig.rules?.usd_ngn_rate ?? 1300
-    const ngnAmount = Math.round(usdAmount * usdToNgnRate)
+    const ngnAmount = Math.round(isNgnOrder ? baseAmount : baseAmount * usdToNgnRate)
 
     const virtualAccount = await createVirtualAccount({
       amount: ngnAmount,
@@ -296,7 +453,7 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
         providerOrderId,
         status: 'pending',
         assignmentStatus: 'unassigned',
-        currency: 'USD',
+        currency: challenge_type?.toLowerCase().includes('ngn') ? 'NGN' : 'USD',
         grossAmountKobo: amount_kobo,
         discountAmountKobo: couponResult.discountAmountKobo,
         netAmountKobo: couponResult.finalAmountKobo,
@@ -350,6 +507,91 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
   }
 }
 
+export const createFreeOrder = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const user = ensureUser(req)
+    const { plan_id, account_size, amount_kobo, coupon_code, challenge_type, phase } = req.body as {
+      plan_id?: string
+      account_size?: string
+      amount_kobo?: number
+      coupon_code?: string | null
+      challenge_type?: string
+      phase?: string
+    }
+    const rawAffiliateId = req.header('x-affiliate-id')
+    const affiliateId = rawAffiliateId
+      ? Number(Array.isArray(rawAffiliateId) ? rawAffiliateId[0] : rawAffiliateId)
+      : (req.body as { affiliate_id?: number }).affiliate_id
+
+    if (!plan_id || !account_size || !amount_kobo || !challenge_type || !phase) {
+      throw new ApiError('plan_id, account_size, amount_kobo, challenge_type, and phase are required', 400)
+    }
+
+    const couponResult = await applyCouponToOrder({
+      code: coupon_code ?? null,
+      planId: plan_id,
+      amountKobo: amount_kobo,
+      userId: user.id,
+    })
+
+    if (couponResult.finalAmountKobo > 0) {
+      throw new ApiError('Coupon does not cover the full amount', 400)
+    }
+
+    const providerOrderId = `FREE-${Date.now()}-${Math.floor(Math.random() * 9999)}`
+
+    const order = await prisma.order.create({
+      data: {
+        providerOrderId,
+        status: 'completed',
+        assignmentStatus: 'unassigned',
+        currency: challenge_type?.toLowerCase().includes('ngn') ? 'NGN' : 'USD',
+        grossAmountKobo: amount_kobo,
+        discountAmountKobo: couponResult.discountAmountKobo,
+        netAmountKobo: couponResult.finalAmountKobo,
+        planId: plan_id,
+        accountSize: account_size,
+        challengeType: challenge_type,
+        phase,
+        couponCode: couponResult.couponCode,
+        paymentMethod: 'coupon',
+        paymentProvider: 'internal',
+        paidAt: new Date(),
+        userId: user.id,
+        affiliateId: affiliateId && !Number.isNaN(affiliateId) && affiliateId !== user.id ? affiliateId : null,
+      } as Prisma.OrderUncheckedCreateInput,
+    })
+
+    if (order.netAmountKobo > 0) {
+      await createAffiliateCommission(prisma, {
+        id: order.id,
+        affiliateId: (order as { affiliateId?: number | null }).affiliateId,
+        netAmountKobo: order.netAmountKobo,
+      })
+    }
+
+    const finalized = (await handleCompletedOrder(order)) ?? order
+
+    res.json({
+      provider_order_id: finalized.providerOrderId,
+      status: finalized.status,
+      assignment_status: finalized.assignmentStatus,
+      currency: finalized.currency,
+      gross_amount_kobo: finalized.grossAmountKobo,
+      discount_amount_kobo: finalized.discountAmountKobo,
+      net_amount_kobo: finalized.netAmountKobo,
+      plan_id: finalized.planId,
+      account_size: finalized.accountSize,
+      challenge_type: finalized.challengeType,
+      phase: finalized.phase,
+      coupon_code: finalized.couponCode,
+      challenge_id: null,
+    })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
 export const createCryptoOrder = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureUser(req)
@@ -394,7 +636,7 @@ export const createCryptoOrder = async (req: AuthRequest, res: Response, next: N
         providerOrderId,
         status: 'pending',
         assignmentStatus: 'unassigned',
-        currency: 'USD',
+        currency: challenge_type?.toLowerCase().includes('ngn') ? 'NGN' : 'USD',
         grossAmountKobo: amount_kobo,
         discountAmountKobo: couponResult.discountAmountKobo,
         netAmountKobo: couponResult.finalAmountKobo,
@@ -493,102 +735,8 @@ export const handleSafeHavenWebhook = async (req: Request, res: Response, next: 
       return nextOrder
     })
 
-    let onboardingCertificateUrl: string | null = null
-    let certificateAttachments: Array<{ filename: string; content: Buffer; contentType?: string }> | undefined
     if (mapped === 'completed') {
-      try {
-        const certificate = await createOnboardingCertificate({
-          userId: updatedOrder.userId,
-          orderId: updatedOrder.id,
-          challengeType: updatedOrder.challengeType,
-          phase: updatedOrder.phase,
-          accountSize: updatedOrder.accountSize,
-        })
-        onboardingCertificateUrl = certificate.certificateUrl
-        if (onboardingCertificateUrl) {
-          certificateAttachments = [
-            await fetchRemoteAttachment({
-              url: onboardingCertificateUrl,
-              filename: 'onboarding-certificate.png',
-              contentType: 'image/png',
-            }),
-          ]
-        }
-      } catch (error) {
-        console.error('Failed to create onboarding certificate', error)
-      }
-    }
-
-    if (mapped === 'completed') {
-      const user = await prisma.user.findUnique({ where: { id: updatedOrder.userId } })
-      if (user?.email) {
-        try {
-          const objectives = await buildObjectiveFields({
-            accountSize: updatedOrder.accountSize,
-            challengeType: updatedOrder.challengeType ?? 'two_step',
-            phase: updatedOrder.phase ?? 'phase_1',
-          })
-          const objectivesLines = [
-            objectives.maxDdPercent != null ? `Max Drawdown: ${objectives.maxDdPercent}%` : null,
-            objectives.dailyDdPercent != null ? `Daily Drawdown: ${objectives.dailyDdPercent}%` : null,
-            objectives.profitTargetPercent != null ? `Profit Target: ${objectives.profitTargetPercent}%` : null,
-            objectives.minTradingDaysRequired != null ? `Minimum Trading Days: ${objectives.minTradingDaysRequired}` : null,
-            objectives.minTradeDurationMinutes != null ? `Min Trade Duration: ${objectives.minTradeDurationMinutes} mins` : null,
-            objectives.profitSplitPercent != null ? `Profit Split: ${objectives.profitSplitPercent}%` : null,
-            objectives.withdrawalSchedule ? `Withdrawal Schedule: ${objectives.withdrawalSchedule}` : null,
-          ].filter(Boolean)
-
-          await sendUnifiedEmail({
-            to: user.email,
-            subject: 'Your purchase receipt & trading objectives',
-            title: 'Challenge Purchase Confirmed',
-            subtitle: 'Your trading objectives are ready',
-            content: `Thank you for your purchase! Your ${updatedOrder.accountSize} ${updatedOrder.challengeType ?? 'two_step'} challenge has been confirmed. Please review your receipt and objectives below.`,
-            buttonText: 'View Dashboard',
-            infoBox: [
-              `Receipt: ${formatCurrency(updatedOrder.netAmountKobo)} (${updatedOrder.paymentMethod ?? 'payment'})`,
-              `Order ID: ${updatedOrder.providerOrderId ?? updatedOrder.id}`,
-              `Status: ${updatedOrder.status}`,
-              `Objectives: ${objectivesLines.length ? objectivesLines.join(' | ') : 'Check your dashboard for objectives.'}`,
-            ].join('<br>'),
-            ...(certificateAttachments ? { attachments: certificateAttachments } : {}),
-          })
-        } catch (error) {
-          console.error('Failed to send purchase email', error)
-        }
-      }
-    }
-
-    if (mapped === 'completed' && updatedOrder.assignmentStatus !== 'assigned') {
-      const normalizedAccountSize = order.accountSize
-        .replace(/\$|,/g, '')
-        .replace(/k$/i, '000')
-        .replace(/\s+/g, '')
-
-      const assigned = await assignReadyAccount(order.userId, {
-        challengeType: order.challengeType ?? 'challenge',
-        phase: order.phase ?? 'phase_1',
-        accountSize: normalizedAccountSize ? `$${normalizedAccountSize}` : order.accountSize,
-      })
-
-      if (assigned) {
-        await prisma.order.update({
-          where: { id: order.id },
-          data: { assignmentStatus: 'assigned' },
-        })
-
-        await requestAccountAccess({
-          user_email: (await prisma.user.findUnique({ where: { id: order.userId } }))?.email ?? '',
-          account_number: assigned.accountNumber,
-          broker: assigned.brokerName,
-          platform: 'ctrader',
-        })
-      } else {
-        await prisma.order.update({
-          where: { id: order.id },
-          data: { assignmentStatus: 'pending_assign' },
-        })
-      }
+      await handleCompletedOrder(updatedOrder)
     }
 
     res.json({ received: true })

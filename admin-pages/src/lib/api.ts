@@ -36,8 +36,11 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   const performFetch = async (accessToken?: string | null) =>
     fetch(`${baseUrl}${path}`, {
       ...init,
+      cache: 'no-store',
       headers: {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        Pragma: 'no-cache',
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         ...(init.headers ?? {}),
       },
@@ -66,4 +69,44 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   }
 
   return response.json() as Promise<T>
+}
+
+export async function apiFetchText(path: string, init: RequestInit = {}): Promise<string> {
+  const token = localStorage.getItem('supabase_access_token')
+
+  const performFetch = async (accessToken?: string | null) =>
+    fetch(`${baseUrl}${path}`, {
+      ...init,
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        Pragma: 'no-cache',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...(init.headers ?? {}),
+      },
+    })
+
+  let response = await performFetch(token)
+  let responseText: string | undefined
+
+  if (!response.ok) {
+    responseText = await response.clone().text()
+  }
+
+  if (responseText && shouldRefresh(response, responseText)) {
+    const refreshedToken = await refreshSession()
+    if (refreshedToken) {
+      response = await performFetch(refreshedToken)
+    } else {
+      await handleExpiredSession()
+      throw new Error('Session expired. Please log in again.')
+    }
+  }
+
+  if (!response.ok) {
+    const text = responseText ?? await response.text()
+    throw new Error(text || 'Request failed')
+  }
+
+  return response.text()
 }

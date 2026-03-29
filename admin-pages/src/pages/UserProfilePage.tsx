@@ -18,7 +18,7 @@ import {
   type UserOrder,
   type UserPayout,
   type UserSupportTicket,
-} from '../lib/adminMock'
+} from '../lib/adminApi'
 import './UserProfilePage.css'
 
 const profileTabs = [

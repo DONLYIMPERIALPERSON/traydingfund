@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { fetchDashboardStats } from '../lib/adminMock'
+import { fetchDashboardStats } from '../lib/adminApi'
 import './DashboardPage.css'
 
 interface DashboardData {
@@ -143,9 +143,9 @@ const DashboardPage = () => {
         </article>
         <article className="admin-kpi-card analysis-kpi-card">
           <h3>Today's Payout</h3>
-          <strong>{kpis.newSignups.toLocaleString()}</strong>
-          <p className={`kpi-meta ${getChangeClass(kpis.newSignupsChange)}`}>
-            {getChangeText(kpis.newSignupsChange)} vs prev
+          <strong>{kpis.todayApprovedPayouts}</strong>
+          <p className={`kpi-meta ${getChangeClass(kpis.todayApprovedPayoutsChange)}`}>
+            {getChangeText(kpis.todayApprovedPayoutsChange)} vs prev
           </p>
           <span className="kpi-sparkline" />
         </article>

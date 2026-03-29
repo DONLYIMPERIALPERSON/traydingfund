@@ -3,7 +3,7 @@ import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
 import '../styles/DesktopProfilePage.css'
-import { fetchProfile, getPersistedAuthUser, persistAuthUser, updateProfile } from '../mocks/auth'
+import { fetchProfile, getPersistedAuthUser, persistAuthUser, updateProfile } from '../lib/traderAuth'
 
 const persistedUser = getPersistedAuthUser()
 

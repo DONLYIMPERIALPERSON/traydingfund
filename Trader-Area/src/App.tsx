@@ -20,6 +20,7 @@ import StatisticsPage from './pages/StatisticsPage'
 import CredentialsPage from './pages/CredentialsPage'
 import LoginPage from './pages/LoginPage'
 import OrdersPage from './pages/OrdersPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 
 const isAuthenticated = () => Boolean(localStorage.getItem('supabase_access_token'))
 
@@ -37,6 +38,7 @@ function App() {
           <Route path="/ref/:affiliateId" element={<AffiliateRefRedirect />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<LoginPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route
             path="/"
             element={

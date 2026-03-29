@@ -8,7 +8,7 @@ import {
   type AffiliateOverviewStats,
   type AffiliateCommission,
   type AffiliatePayout,
-} from '../lib/adminMock'
+} from '../lib/adminApi'
 import './ReferralsPage.css'
 
 interface ReferralsPageProps {}

@@ -11,7 +11,7 @@ import {
   uploadKycDocument,
   submitKyc,
   type KycRequestItem,
-} from '../mocks/auth'
+} from '../lib/traderAuth'
 
 type UploadStatus = 'idle' | 'ready' | 'uploading'
 

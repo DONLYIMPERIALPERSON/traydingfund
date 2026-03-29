@@ -3,13 +3,14 @@ import { prisma } from '../../config/prisma'
 import { ApiError } from '../../common/errors'
 import { Prisma } from '@prisma/client'
 import { requestAccountAccess } from '../../services/accessEngine.service'
-import { assignReadyAccountFromPool, buildBaseChallengeId } from '../ctrader/ctrader.assignment'
+import { assignReadyAccountFromPool, buildBaseChallengeId, normalizeChallengeBase } from '../ctrader/ctrader.assignment'
 
 type UploadAccountPayload = {
   account_number: string
   broker: string
   account_size: string
   status?: string
+  currency?: string
 }
 
 type AccountSummary = {
@@ -46,6 +47,7 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
       brokerName: String(account.broker ?? '').trim(),
       accountSize: normalizeAccountSize(String(account.account_size ?? '').trim()),
       status: String(account.status ?? 'Ready').trim(),
+      currency: String(account.currency ?? 'USD').trim().toUpperCase(),
     }))
 
     normalized.forEach((account, index) => {
@@ -62,6 +64,7 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
           accountSize: account.accountSize,
           phase: 'Ready',
           status: account.status,
+          currency: account.currency,
           brokerName: account.brokerName,
           accountNumber: account.accountNumber,
           userId: null as number | null,
@@ -76,7 +79,16 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
     })
     const existingIds = new Set(existing.map((item) => item.challengeId))
 
-    const toCreate = uniqueAccounts.filter((account) => !existingIds.has(account.challengeId))
+    const existingAccounts = await prisma.cTraderAccount.findMany({
+      where: { accountNumber: { in: uniqueAccounts.map((account) => account.accountNumber) } },
+      select: { accountNumber: true, status: true, challengeId: true },
+    })
+    const existingAccountNumbers = new Set(existingAccounts.map((item) => item.accountNumber))
+
+    const toCreate = uniqueAccounts.filter((account) => (
+      !existingIds.has(account.challengeId)
+      && !existingAccountNumbers.has(account.accountNumber)
+    ))
     if (toCreate.length) {
       await prisma.cTraderAccount.createMany({ data: toCreate, skipDuplicates: true })
     }
@@ -93,6 +105,7 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
         challengeType: order.challengeType ?? 'two_step',
         phase: order.phase ?? 'phase_1',
         accountSize: order.accountSize,
+        currency: order.currency ?? 'USD',
         baseChallengeId: buildBaseChallengeId(order.id),
       })
 
@@ -111,9 +124,64 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
       })
     }
 
+    const awaitingNextStage = await prisma.cTraderAccount.findMany({
+      where: {
+        status: { equals: 'passed', mode: Prisma.QueryMode.insensitive },
+        userId: { not: null },
+      },
+      orderBy: { passedAt: 'asc' },
+      include: { user: true },
+    })
+
+    for (const account of awaitingNextStage) {
+      const normalizedChallengeType = String(account.challengeType ?? 'two_step').toLowerCase()
+      const normalizedPhase = String(account.phase ?? '').toLowerCase()
+      if (normalizedChallengeType === 'instant_funded' || normalizedPhase === 'funded') {
+        continue
+      }
+
+      const nextPhase = normalizedChallengeType === 'two_step'
+        ? (normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null)
+        : normalizedChallengeType === 'one_step'
+          ? (normalizedPhase === 'phase_1' ? 'funded' : null)
+          : null
+
+      if (!nextPhase || !account.userId) {
+        continue
+      }
+
+      const assigned = await assignReadyAccountFromPool({
+        userId: account.userId,
+        challengeType: account.challengeType ?? 'two_step',
+        phase: nextPhase,
+        accountSize: account.accountSize,
+        currency: account.currency ?? 'USD',
+        baseChallengeId: normalizeChallengeBase(account.challengeId ?? ''),
+      })
+
+      if (!assigned) {
+        continue
+      }
+
+      await prisma.cTraderAccount.update({
+        where: { id: account.id },
+        data: { status: 'completed' },
+      })
+
+      if (account.user?.email) {
+        await requestAccountAccess({
+          user_email: account.user.email,
+          account_number: assigned.accountNumber,
+          broker: assigned.brokerName,
+          platform: 'ctrader',
+        })
+      }
+    }
+
     res.status(201).json({
       created: toCreate.length,
       skipped: Array.from(existingIds),
+      skipped_accounts: Array.from(existingAccountNumbers),
     })
   } catch (err) {
     next(err as Error)
@@ -162,6 +230,7 @@ export const listCTraderAccounts = async (req: Request, res: Response, next: Nex
       account_number: account.accountNumber,
       server: account.brokerName,
       account_size: account.accountSize,
+      currency: account.currency,
       challenge_type: account.challengeType,
       status: account.status,
       phase: account.phase,
@@ -199,6 +268,23 @@ export const getCTraderSummary = async (_req: Request, res: Response, next: Next
     }
 
     res.json(summary)
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const downloadCTraderTemplate = async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const template = [
+      'account_number,broker,account_size,currency,status',
+      '100001,ICMarkets,"$2,000",USD,Ready',
+      '100002,ICMarkets,"$10,000",USD,Ready',
+      '200001,ICMarkets,"₦200,000",NGN,Ready',
+    ].join('\n')
+
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+    res.setHeader('Content-Disposition', 'attachment; filename="ctrader_accounts_template.csv"')
+    res.send(template)
   } catch (err) {
     next(err as Error)
   }

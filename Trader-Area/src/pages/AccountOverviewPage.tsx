@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
-import { fetchUserChallengeAccountDetail, type UserChallengeAccountDetailResponse } from '../mocks/auth'
+import { fetchUserChallengeAccountDetail, type UserChallengeAccountDetailResponse } from '../lib/traderAuth'
 import '../styles/DesktopAccountOverviewPage.css'
 
 const AccountOverviewPage: React.FC = () => {
@@ -12,8 +12,25 @@ const AccountOverviewPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const formatUsd = (value: number) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-  const formatSignedUsd = (value: number) => `${value >= 0 ? '+' : ''}$${Math.abs(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const resolveCurrencyCode = (account: UserChallengeAccountDetailResponse) => {
+    const currency = account.currency
+      ?? account.account_currency
+      ?? account.plan_currency
+      ?? account.challenge_currency
+    return currency ? currency.toUpperCase() : 'USD'
+  }
+
+  const formatCurrency = (value: number, currencyCode: string) => new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currencyCode,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value)
+
+  const formatSignedCurrency = (value: number, currencyCode: string) => {
+    const formatted = formatCurrency(Math.abs(value), currencyCode)
+    return `${value >= 0 ? '+' : '-'}${formatted}`
+  }
   const parseAccountSize = (value: string) => {
     const normalized = value
       .toLowerCase()
@@ -76,6 +93,7 @@ const AccountOverviewPage: React.FC = () => {
   }
 
   const hasPendingWithdrawal = Boolean(accountData.has_pending_withdrawal)
+  const accountCurrency = resolveCurrencyCode(accountData)
   const pendingWithdrawalAmount = accountData.pending_withdrawal_amount ?? 0
   return (
     <div className="account-overview-page">
@@ -115,7 +133,7 @@ const AccountOverviewPage: React.FC = () => {
               <div>
                 <h3>Withdrawal Under Review</h3>
                 <p>
-                  Your withdrawal request for <strong>{formatUsd(pendingWithdrawalAmount)}</strong> is being reviewed.
+                  Your withdrawal request for <strong>{formatCurrency(pendingWithdrawalAmount, accountCurrency)}</strong> is being reviewed.
                   Trading is paused for this account until the review completes.
                 </p>
               </div>
@@ -127,14 +145,14 @@ const AccountOverviewPage: React.FC = () => {
                   <i className="fas fa-wallet"></i>
                   Balance
                 </div>
-                <div className="balance-value">{formatUsd(accountData.metrics.balance)}</div>
+                <div className="balance-value">{formatCurrency(accountData.metrics.balance, accountCurrency)}</div>
               </div>
               <div className="balance-card">
                 <div className="balance-card-header">
                   <i className="fas fa-chart-line"></i>
                   Equity
                 </div>
-                <div className="balance-value">{formatUsd(accountData.metrics.equity)}</div>
+                <div className="balance-value">{formatCurrency(accountData.metrics.equity, accountCurrency)}</div>
               </div>
               <div className="balance-card">
                 <div className="balance-card-header">
@@ -142,7 +160,7 @@ const AccountOverviewPage: React.FC = () => {
                   Unrealized PnL
                 </div>
                 <div className={`balance-value ${accountData.metrics.unrealized_pnl >= 0 ? 'positive' : 'negative'}`}>
-                  {formatSignedUsd(accountData.metrics.unrealized_pnl)}
+                  {formatSignedCurrency(accountData.metrics.unrealized_pnl, accountCurrency)}
                 </div>
               </div>
               {accountData.phase === 'Funded' && (
@@ -152,7 +170,7 @@ const AccountOverviewPage: React.FC = () => {
                     Total Profit
                   </div>
                   <div className={`balance-value ${(accountData.funded_profit_raw || 0) >= 0 ? 'positive' : 'negative'}`}>
-                    {formatSignedUsd(accountData.funded_profit_raw || 0)}
+                    {formatSignedCurrency(accountData.funded_profit_raw || 0, accountCurrency)}
                   </div>
                 </div>
               )}
@@ -170,7 +188,7 @@ const AccountOverviewPage: React.FC = () => {
                   const profitValue = accountData.metrics.balance - initialBalance
                   return (
                     <div className={`balance-value ${profitValue >= 0 ? 'positive' : 'negative'}`}>
-                      {formatSignedUsd(profitValue)}
+                      {formatSignedCurrency(profitValue, accountCurrency)}
                     </div>
                   )
                 })()}
@@ -189,6 +207,7 @@ const AccountOverviewPage: React.FC = () => {
               {(
                 ['profit_target', 'max_drawdown', 'max_daily_drawdown', 'min_trade_duration', 'min_trading_days'] as const
               )
+                .filter((key) => !(accountData.challenge_type === 'ngn_flexi' && key === 'max_daily_drawdown'))
                 .filter((key) => !(accountData.phase?.toLowerCase() === 'funded' && key === 'profit_target'))
                 .map((key) => {
                   const objective = accountData.objectives[key] ?? {

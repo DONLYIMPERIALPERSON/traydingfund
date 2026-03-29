@@ -5,7 +5,7 @@ import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopActiveAccountsSection from '../components/DesktopActiveAccountsSection'
 import DesktopHistorySection from '../components/DesktopHistorySection'
 import DesktopFooter from '../components/DesktopFooter'
-import { fetchUserChallengeAccounts, type UserChallengeAccountListItem } from '../mocks/auth'
+import { fetchUserChallengeAccounts, type UserChallengeAccountListItem } from '../lib/traderAuth'
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate()
@@ -70,6 +70,7 @@ const HomePage: React.FC = () => {
           <div className="home-desktop-cta">
             <button
               onClick={() => window.location.href = '/trading-accounts'}
+              className="home-desktop-cta-button"
               style={{
                 display: 'flex',
                 alignItems: 'center',

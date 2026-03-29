@@ -12,7 +12,7 @@ import {
   type MT5Account,
   type Order,
   uploadMT5AccountsTxt,
-} from '../lib/adminMock'
+} from '../lib/adminApi'
 
 type TabMode = 'ready' | 'assigned' | 'pending-assign' | 'awaiting-next-stage'
 
@@ -26,6 +26,17 @@ const publicAccountSizes = [
 ]
 
 const normalizeAccountSize = (size: string) => size.replace(/\s*Account$/i, '').trim()
+
+const formatAccountSize = (size: string, currency?: string | null) => {
+  if ((currency ?? 'USD').toUpperCase() !== 'NGN') {
+    return size
+  }
+  const numeric = size.replace(/[^0-9]/g, '')
+  if (!numeric) {
+    return size
+  }
+  return `₦${Number(numeric).toLocaleString('en-NG')}`
+}
 
 const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; canAssignMt5: boolean }) => {
   const [activeTab, setActiveTab] = useState<TabMode>('ready')
@@ -97,7 +108,21 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
 
   const accountSizeCounts = useMemo(() => {
     return readyAccounts.reduce<Record<string, number>>((acc, account) => {
+      if ((account.currency ?? 'USD').toUpperCase() === 'NGN') {
+        return acc
+      }
       const normalized = normalizeAccountSize(account.account_size)
+      acc[normalized] = (acc[normalized] ?? 0) + 1
+      return acc
+    }, {})
+  }, [readyAccounts])
+
+  const ngnSizeCounts = useMemo(() => {
+    return readyAccounts.reduce<Record<string, number>>((acc, account) => {
+      if ((account.currency ?? 'USD').toUpperCase() !== 'NGN') {
+        return acc
+      }
+      const normalized = account.account_size.replace(/\s*Account$/i, '').trim()
       acc[normalized] = (acc[normalized] ?? 0) + 1
       return acc
     }, {})
@@ -337,6 +362,21 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
             )
           })}
         </div>
+
+        <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
+          {Object.entries(ngnSizeCounts).length === 0 ? (
+            <div style={{ border: '1px dashed #2a2f3a', borderRadius: 12, padding: 12, background: '#0f131b', color: '#9ca3af' }}>
+              No NGN inventory yet
+            </div>
+          ) : (
+            Object.entries(ngnSizeCounts).map(([sizeLabel, count]) => (
+              <div key={`ngn-${sizeLabel}`} style={{ border: '1px solid rgba(16,185,129,0.35)', borderRadius: 12, padding: 12, background: 'rgba(16,185,129,0.08)' }}>
+                <p style={{ margin: 0, color: '#a7f3d0', fontSize: 12 }}>{sizeLabel} (NGN)</p>
+                <p style={{ margin: '6px 0 0', color: '#ecfdf3', fontWeight: 800, fontSize: 18 }}>{count}</p>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       <div className="admin-table-card">
@@ -542,6 +582,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
                 <th>Account Number</th>
                 <th>Broker</th>
                 <th>Account Size</th>
+                <th>Currency</th>
                 <th>Status</th>
                 {(isSuperAdmin || canAssignMt5) && <th>Action</th>}
                 {isSuperAdmin && <th>Delete</th>}
@@ -552,7 +593,8 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
                 <tr key={account.id}>
                   <td>{account.account_number}</td>
                   <td>{account.server}</td>
-                  <td>{account.account_size}</td>
+                  <td>{formatAccountSize(account.account_size, account.currency)}</td>
+                  <td>{account.currency ?? '-'}</td>
                   <td>
                     <span
                       style={{
@@ -631,6 +673,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
                 <th>Challenge ID</th>
                 <th>Account Number</th>
                 <th>Broker</th>
+                <th>Currency</th>
                 <th>cTrader ID</th>
                 <th>User Email</th>
                 <th>Access Status</th>
@@ -647,6 +690,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
                   <td>{account.challenge_id ?? '-'}</td>
                   <td>{account.account_number}</td>
                   <td>{account.server}</td>
+                  <td>{account.currency ?? '-'}</td>
                   <td>{account.account_number}</td>
                   <td>{account.assigned_user_email ?? '-'}</td>
                   <td>{account.access_status ?? '-'}</td>
@@ -685,6 +729,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
                 <th>Challenge ID</th>
                 <th>User</th>
                 <th>Account Size</th>
+                <th>Currency</th>
                 <th>Current Stage</th>
                 <th>Account Number</th>
                 <th>Status</th>
@@ -695,7 +740,8 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
                 <tr key={account.challenge_id ?? account.id}>
                   <td>{account.challenge_id ?? '-'}</td>
                   <td>{account.assigned_user_id ?? '-'}</td>
-                  <td>{account.account_size}</td>
+                  <td>{formatAccountSize(account.account_size, account.currency)}</td>
+                  <td>{formatAccountSize(account.account_size, account.currency)}</td>
                   <td>{account.phase ?? '-'}</td>
                   <td>{account.account_number}</td>
                   <td>
@@ -727,6 +773,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
                 <th>User</th>
                 <th>Email</th>
                 <th>Account Size</th>
+                <th>Currency</th>
                 <th>Amount</th>
                 <th>Paid At</th>
                 <th>Status</th>
@@ -739,6 +786,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
                   <td>{order.user.name}</td>
                   <td>{order.user.email}</td>
                   <td>{order.account_size}</td>
+                  <td>{order.currency ?? '-'}</td>
                   <td>{order.net_amount_formatted}</td>
                   <td>{new Date(order.paid_at || '').toLocaleDateString()}</td>
                   <td>
@@ -789,7 +837,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
           >
             <h3 style={{ margin: 0, color: '#fff' }}>Assign Ready cTrader Account</h3>
             <p style={{ margin: 0, color: '#9ca3af', fontSize: 13 }}>
-              Account <strong>{selectedAccount.account_number}</strong> ({selectedAccount.account_size})
+              Account <strong>{selectedAccount.account_number}</strong> ({formatAccountSize(selectedAccount.account_size, selectedAccount.currency)})
             </p>
 
             <label style={{ display: 'grid', gap: 6 }}>

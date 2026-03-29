@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { AdminUser } from './UsersPage'
-import { fetchFundedChallengeAccounts, fetchProfitableFundedAccounts, type ChallengeAccountListItem } from '../lib/adminMock'
+import { fetchFundedChallengeAccounts, fetchProfitableFundedAccounts, type ChallengeAccountListItem } from '../lib/adminApi'
 
 interface FundedAccountsPageProps {
   onOpenProfile: (user: AdminUser) => void
@@ -40,8 +40,8 @@ const FundedAccountsPage = ({ onOpenProfile }: FundedAccountsPageProps) => {
 
   const openProfileFromRow = (row: ChallengeAccountListItem) => {
     onOpenProfile({
-      user_id: row.user_id,
-      name: row.trader_name ?? `User ${row.user_id}`,
+      user_id: row.user_id ?? undefined,
+      name: row.trader_name ?? `User ${row.user_id ?? 'Unknown'}`,
       email: row.trader_email ?? '',
       accounts: '',
       revenue: '',

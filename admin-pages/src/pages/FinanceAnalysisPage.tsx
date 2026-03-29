@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fetchMonthlyFinanceStats } from '../lib/adminMock'
+import { fetchMonthlyFinanceStats } from '../lib/adminApi'
 
 const FinanceAnalysisPage = () => {
   const [monthlyFinance, setMonthlyFinance] = useState<Array<{ month: string; totalPurchase: string; totalPayouts: string }>>([])

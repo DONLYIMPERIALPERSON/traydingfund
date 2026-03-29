@@ -13,7 +13,7 @@ import {
   type SalaryDisbursementPreview,
   type SalaryDisbursementResponse,
   type SalaryStaff,
-} from '../lib/adminMock'
+} from '../lib/adminApi'
 import './SalaryPage.css'
 
 type SalaryTab = 'add' | 'list' | 'profitSplit'

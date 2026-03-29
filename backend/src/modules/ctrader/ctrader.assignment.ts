@@ -29,12 +29,14 @@ export const assignReadyAccountFromPool = async ({
   phase,
   accountSize,
   baseChallengeId,
+  currency,
 }: {
   userId: number
   challengeType: string
   phase: string
   accountSize: string
   baseChallengeId?: string
+  currency?: string
 }) => {
   const normalizedAccountSize = normalizeAccountSize(accountSize)
   const objectiveFields = await buildObjectiveFields({
@@ -49,6 +51,7 @@ export const assignReadyAccountFromPool = async ({
       FROM "CTraderAccount"
       WHERE lower(status) = 'ready'
         AND "userId" IS NULL
+        AND lower("currency") = lower(${currency ?? 'USD'})
         AND regexp_replace(lower("accountSize"), '[^0-9]', '', 'g') = ${normalizedAccountSize.replace(/\D/g, '')}
       ORDER BY "createdAt" ASC
       LIMIT 1
@@ -62,11 +65,20 @@ export const assignReadyAccountFromPool = async ({
 
     const baseId = baseChallengeId ?? buildBaseChallengeId(account.id)
     const challengeId = buildChallengeIdForPhase(baseId, phase)
+
+    const existingChallenge = await tx.cTraderAccount.findFirst({
+      where: { challengeId },
+      select: { id: true },
+    })
+    if (existingChallenge) {
+      return null
+    }
     const updateData = {
       challengeId,
       userId,
       challengeType,
       phase,
+      currency: currency ?? 'USD',
       ...objectiveFields,
       status: 'assigned_pending_access',
       accessStatus: 'pending',

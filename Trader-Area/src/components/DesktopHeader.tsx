@@ -1,6 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { clearPersistedAuthUser, logoutFromBackend } from '../mocks/auth'
+import { clearPersistedAuthUser, logoutFromBackend } from '../lib/traderAuth'
 import { supabase } from '../lib/supabaseClient'
 import { useSidebar } from '../contexts/SidebarContext'
 

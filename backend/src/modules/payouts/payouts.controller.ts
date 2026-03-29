@@ -3,6 +3,7 @@ import { prisma } from '../../config/prisma'
 import { ApiError } from '../../common/errors'
 import { buildObjectiveFields, parseAccountSize } from '../ctrader/ctrader.objectives'
 import { createPayoutCertificate } from '../../services/certificate.service'
+import { getFxRatesConfig } from '../fxRates/fxRates.service'
 import { fetchRemoteAttachment, sendUnifiedEmail } from '../../services/email.service'
 
 type AuthRequest = Request & { user?: { id: number; email: string } }
@@ -15,6 +16,28 @@ const ensureUser = (req: AuthRequest) => {
 }
 
 const MIN_WITHDRAWAL_AMOUNT = 1
+
+const resolveCurrencyLabel = (currency?: string | null) => {
+  const normalized = currency?.toUpperCase() ?? 'USD'
+  return normalized === 'NGN' ? 'NGN' : 'USD'
+}
+
+const formatMoney = (amount: number, currency?: string | null) => {
+  const normalized = currency?.toUpperCase() ?? 'USD'
+  if (normalized === 'NGN') {
+    return `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  }
+  return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+const toUsdAmount = (amount: number, currency?: string | null, rate?: number | null) => {
+  const normalized = currency?.toUpperCase() ?? 'USD'
+  if (normalized === 'NGN') {
+    const divider = rate && rate > 0 ? rate : 1300
+    return amount / divider
+  }
+  return amount
+}
 
 const normalizeChallengeType = (value?: string | null) => {
   if (!value) return 'two_step'
@@ -281,6 +304,7 @@ export const requestPayout = async (req: AuthRequest, res: Response, next: NextF
 
     const providerRef = `PAYOUT-${Date.now()}-${Math.floor(Math.random() * 9999)}`
     const amountKobo = Math.round(payoutInfo.profitSplitAmount * 100)
+    const payoutCurrency = resolveCurrencyLabel(payoutInfo.account.currency)
     const payout = await prisma.payout.create({
       data: {
         providerRef,
@@ -303,6 +327,7 @@ export const requestPayout = async (req: AuthRequest, res: Response, next: NextF
         metadata: {
           withdrawal_schedule: payoutInfo.withdrawalSchedule,
           mt5_account_number: payoutInfo.account.accountNumber,
+          currency: payoutCurrency,
         },
       },
     })
@@ -341,22 +366,28 @@ export const listAdminPayouts = async (req: AuthRequest, res: Response, next: Ne
       prisma.payout.count(),
       prisma.payout.count({ where: { status: 'pending_approval' } }),
       prisma.payout.count({ where: { approvedAt: { gte: startOfDay }, status: { in: ['processing', 'completed'] } } }),
-      prisma.payout.aggregate({
-        _sum: { amountKobo: true },
+      prisma.payout.findMany({
         where: { completedAt: { gte: startOfDay }, status: 'completed' },
+        select: { amountKobo: true, account: { select: { currency: true } } },
       }),
       prisma.payout.count({ where: { status: 'failed' } }),
     ])
 
-    const paidTodayAmount = paidTodayKobo._sum.amountKobo ?? 0
+    const fxConfig = await getFxRatesConfig()
+    const usdNgnRate = fxConfig.rules?.usd_ngn_rate ?? 1300
+    const paidTodayAmountUsd = paidTodayKobo.reduce((sum, payout) => {
+      const amount = payout.amountKobo / 100
+      return sum + toUsdAmount(amount, payout.account?.currency ?? null, usdNgnRate)
+    }, 0)
+    const paidTodayAmountKobo = Math.round(paidTodayAmountUsd * 100)
 
     res.json({
       stats: {
         period: 'today',
         pending_review: pendingReview,
         approved_today: approvedToday,
-        paid_today_kobo: paidTodayAmount,
-        paid_today_formatted: `$${(paidTodayAmount / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`,
+        paid_today_kobo: paidTodayAmountKobo,
+        paid_today_formatted: `$${paidTodayAmountUsd.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`,
         rejected: rejectedCount,
       },
       payouts: payouts.map((payout) => ({
@@ -364,7 +395,7 @@ export const listAdminPayouts = async (req: AuthRequest, res: Response, next: Ne
         provider_order_id: payout.providerRef ?? `PAYOUT-${payout.id}`,
         status: payout.status,
         amount_kobo: payout.amountKobo,
-        amount_formatted: `$${(payout.amountKobo / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+        amount_formatted: formatMoney(payout.amountKobo / 100, payout.account?.currency ?? null),
         created_at: payout.requestedAt.toISOString(),
         completed_at: payout.completedAt?.toISOString() ?? null,
         user: {
@@ -389,6 +420,7 @@ export const listAdminPayouts = async (req: AuthRequest, res: Response, next: Ne
           profit_split_percent: payout.profitSplitPercent,
           profit_amount: payout.profitAmount,
           profit_base_amount: payout.profitBaseAmount,
+          currency: payout.account?.currency ?? null,
           ...((payout.metadata ?? {}) as Record<string, unknown>),
         },
       })),
@@ -474,11 +506,16 @@ export const approvePayoutRequest = async (req: AuthRequest, res: Response, next
     })
 
     try {
+      const payoutAccount = updated.accountId
+        ? await prisma.cTraderAccount.findUnique({ where: { id: updated.accountId } })
+        : null
+      const payoutCurrency = resolveCurrencyLabel(payoutAccount?.currency)
       const certificate = await createPayoutCertificate({
         userId: updated.userId,
         payoutId: updated.id,
         accountId: updated.accountId,
-        amountUsd: updated.amountKobo / 100,
+        amount: updated.amountKobo / 100,
+        currency: payoutCurrency,
       })
 
       const user = await prisma.user.findUnique({ where: { id: updated.userId } })
@@ -500,7 +537,7 @@ export const approvePayoutRequest = async (req: AuthRequest, res: Response, next
           subtitle: 'Your payout has been approved',
           content: 'Your payout request has been approved and is being processed. Thank you for trading with MACHEFUNDED!',
           buttonText: 'View Dashboard',
-          infoBox: `Amount: $${(updated.amountKobo / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}<br>Status: Approved<br>Reference: ${updated.providerRef ?? updated.id}`,
+          infoBox: `Amount: ${formatMoney(updated.amountKobo / 100, payoutCurrency)}<br>Status: Approved<br>Reference: ${updated.providerRef ?? updated.id}`,
           ...(attachments ? { attachments } : {}),
         })
       }

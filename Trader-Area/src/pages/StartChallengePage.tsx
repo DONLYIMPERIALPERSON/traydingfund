@@ -7,11 +7,12 @@ import PaymentDetailsModal from '../components/PaymentDetailsModal'
 import {
   initPalmPayBankTransfer,
   initCryptoOrder,
+  initFreeOrder,
   previewCheckoutCoupon,
   refreshPaymentOrderStatus,
   type CheckoutCouponPreviewResponse,
   type PaymentOrderResponse,
-} from '../mocks/auth'
+} from '../lib/traderAuth'
 import '../styles/DesktopChallengeCheckoutPage.css'
 
 interface AccountData {
@@ -45,6 +46,17 @@ const DesktopStartChallengePage: React.FC = () => {
   const [currentOrder, setCurrentOrder] = useState<PaymentOrderResponse | null>(null)
   const [modalStatus, setModalStatus] = useState<'waiting' | 'confirming' | 'success'>('waiting')
   const pollingActiveRef = useRef(false)
+  const isNgnAccount = Boolean(
+    accountData?.size?.trim().startsWith('₦')
+    || String((accountData as any)?.challenge_type ?? '').toLowerCase().startsWith('ngn')
+  )
+  const isFreeCheckout = Boolean(couponPreview && couponPreview.final_amount === 0)
+
+  React.useEffect(() => {
+    if ((isNgnAccount || isFreeCheckout) && selectedPaymentMethod === 'crypto') {
+      setSelectedPaymentMethod('bank-transfer')
+    }
+  }, [isNgnAccount, isFreeCheckout, selectedPaymentMethod])
 
   const inferPlanId = (account: AccountData | undefined): string => {
     if (!account) return ''
@@ -72,7 +84,37 @@ const DesktopStartChallengePage: React.FC = () => {
     const amountNumeric = couponPreview?.final_amount ?? Number(accountData.fee.replace(/[^0-9.]/g, ''))
     const amountKobo = Math.round(amountNumeric * 100)
 
+    if (isFreeCheckout) {
+      setPaymentLoading(true)
+      setPaymentStatus('Activating free challenge...')
+      initFreeOrder({
+        plan_id: planId,
+        account_size: accountData.size,
+        amount_kobo: amountKobo,
+        coupon_code: couponPreview?.code ?? (promoCode.trim() || null),
+        challenge_type: (accountData as any).challenge_type,
+        phase: (accountData as any).phase,
+      })
+        .then(() => {
+          setPaymentStatus('Challenge activated! Redirecting...')
+          setTimeout(() => {
+            navigate('/')
+          }, 2500)
+        })
+        .catch((err: unknown) => {
+          setPaymentStatus(err instanceof Error ? err.message : 'Failed to activate free challenge')
+        })
+        .finally(() => {
+          setPaymentLoading(false)
+        })
+      return
+    }
+
     if (selectedPaymentMethod === 'crypto') {
+      if (isNgnAccount) {
+        setPaymentStatus('Crypto payments are not available for NGN accounts.')
+        return
+      }
       setPaymentLoading(true)
       setPaymentStatus('Generating crypto payment details...')
       initCryptoOrder({
@@ -284,56 +326,60 @@ const DesktopStartChallengePage: React.FC = () => {
                     </>
                   )}
                   <div className="desktop-summary-row desktop-summary-total" style={{color: 'black'}}><span>Total</span><strong style={{color: 'black'}}>{couponPreview?.formatted_final_amount ?? accountData.fee}</strong></div>
-                  {selectedPaymentMethod === 'crypto' && (
+                  {selectedPaymentMethod === 'crypto' && !isFreeCheckout && (
                     <div className="desktop-summary-row">
                       <span>Crypto Fee</span>
                       <strong>$1</strong>
                     </div>
                   )}
 
-                  <div className="desktop-payment-method-block">
-                    <h4>Payment Method</h4>
-                    <div className="desktop-checkout-methods">
-                      <label className={`desktop-method-option ${selectedPaymentMethod === 'bank-transfer' ? 'active' : ''}`}>
-                        <input
-                          type="radio"
-                          name="payment-method"
-                          value="bank-transfer"
-                          checked={selectedPaymentMethod === 'bank-transfer'}
-                          onChange={() => setSelectedPaymentMethod('bank-transfer')}
-                        />
-                        <span>NGN Bank Transfer</span>
-                      </label>
-                      <label className={`desktop-method-option ${selectedPaymentMethod === 'crypto' ? 'active' : ''}`}>
-                        <input
-                          type="radio"
-                          name="payment-method"
-                          value="crypto"
-                          checked={selectedPaymentMethod === 'crypto'}
-                          onChange={() => setSelectedPaymentMethod('crypto')}
-                        />
-                        <span>Crypto</span>
-                      </label>
-                    </div>
-                    {selectedPaymentMethod === 'crypto' && (
-                      <div className="desktop-crypto-picker">
-                        <p>Crypto: <strong>USDT</strong></p>
-                        <div className="desktop-crypto-options">
-                          {(['ERC20', 'TRC20', 'SOL'] as const).map((network) => (
-                            <button
-                              key={network}
-                              type="button"
-                              className={selectedNetwork === network ? 'active' : ''}
-                              onClick={() => setSelectedNetwork(network)}
-                            >
-                              {network}
-                            </button>
-                          ))}
-                        </div>
-                        <p style={{ marginTop: '8px' }}>Select network to pay with</p>
+                  {!isFreeCheckout && (
+                    <div className="desktop-payment-method-block">
+                      <h4>Payment Method</h4>
+                      <div className="desktop-checkout-methods">
+                        <label className={`desktop-method-option ${selectedPaymentMethod === 'bank-transfer' ? 'active' : ''}`}>
+                          <input
+                            type="radio"
+                            name="payment-method"
+                            value="bank-transfer"
+                            checked={selectedPaymentMethod === 'bank-transfer'}
+                            onChange={() => setSelectedPaymentMethod('bank-transfer')}
+                          />
+                          <span>NGN Bank Transfer</span>
+                        </label>
+                        {!isNgnAccount && (
+                          <label className={`desktop-method-option ${selectedPaymentMethod === 'crypto' ? 'active' : ''}`}>
+                            <input
+                              type="radio"
+                              name="payment-method"
+                              value="crypto"
+                              checked={selectedPaymentMethod === 'crypto'}
+                              onChange={() => setSelectedPaymentMethod('crypto')}
+                            />
+                            <span>Crypto</span>
+                          </label>
+                        )}
                       </div>
-                    )}
-                  </div>
+                      {selectedPaymentMethod === 'crypto' && (
+                        <div className="desktop-crypto-picker">
+                          <p>Crypto: <strong>USDT</strong></p>
+                          <div className="desktop-crypto-options">
+                            {(['ERC20', 'TRC20', 'SOL'] as const).map((network) => (
+                              <button
+                                key={network}
+                                type="button"
+                                className={selectedNetwork === network ? 'active' : ''}
+                                onClick={() => setSelectedNetwork(network)}
+                              >
+                                {network}
+                              </button>
+                            ))}
+                          </div>
+                          <p style={{ marginTop: '8px' }}>Select network to pay with</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <label className="desktop-check-row" style={{marginTop: '16px', marginBottom: '16px'}}>
                     <input type="checkbox" checked={agreements.terms} onChange={() => handleAgreementChange('terms')} />
@@ -345,7 +391,7 @@ const DesktopStartChallengePage: React.FC = () => {
                     onClick={handleContinue}
                     disabled={!agreements.terms || paymentLoading}
                   >
-                    {paymentLoading ? 'Processing...' : 'Proceed to Payment'}
+                    {paymentLoading ? 'Processing...' : isFreeCheckout ? 'Activate Free Challenge' : 'Proceed to Payment'}
                   </button>
                   {paymentStatus && <p className="desktop-coupon-success">{paymentStatus}</p>}
                 </div>

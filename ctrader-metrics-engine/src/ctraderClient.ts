@@ -51,15 +51,25 @@ const decodePayload = (root: protobuf.Root, payloadType: number, payload?: Uint8
   const payloadEnum = root.lookupEnum('ProtoOAPayloadType')
   const payloadName = payloadEnum.valuesById[payloadType]
 
+  const payloadNameOverrides: Record<string, string> = {
+    PROTO_OA_GET_ACCOUNTS_BY_ACCESS_TOKEN_RES: 'ProtoOAGetAccountListByAccessTokenRes',
+  }
+
   if (!payloadName) return null
   const payloadMessageName = payloadName
     .replace('PROTO_OA_', '')
     .toLowerCase()
     .replace(/_([a-z])/g, (_, c) => c.toUpperCase())
 
-  const messageTypeName = `ProtoOA${payloadMessageName.charAt(0).toUpperCase()}${payloadMessageName.slice(1)}`
-  const messageType = root.lookupType(messageTypeName)
-  return messageType.decode(payload)
+  const defaultMessageTypeName = `ProtoOA${payloadMessageName.charAt(0).toUpperCase()}${payloadMessageName.slice(1)}`
+  const messageTypeName = payloadNameOverrides[payloadName] ?? defaultMessageTypeName
+  try {
+    const messageType = root.lookupType(messageTypeName)
+    return messageType.decode(payload)
+  } catch (error) {
+    console.warn('[ctrader] Unknown payload type', { payloadName, messageTypeName, error })
+    return null
+  }
 }
 
 const createAccountSnapshot = (accountId: string, trader: any): CTraderAccountSnapshot => {
@@ -105,6 +115,13 @@ const createAccountAuthReq = (root: protobuf.Root, accountId: string) => {
   })
 }
 
+const createAccountListReq = (root: protobuf.Root) => {
+  const MessageType = root.lookupType('ProtoOAGetAccountListByAccessTokenReq')
+  return MessageType.create({
+    accessToken: config.ctrader.accessToken,
+  })
+}
+
 const createTraderReq = (root: protobuf.Root, accountId: string) => {
   const MessageType = root.lookupType('ProtoOATraderReq')
   return MessageType.create({
@@ -133,15 +150,78 @@ export const startCTraderStream = async (
 ) => {
   const root = await loadRoot()
   const ws = new WebSocket(config.ctrader.wsUrl)
+  let pingInterval: NodeJS.Timeout | undefined
+  let resolvedAccountIds: string[] = []
+  let accountListRequested = false
+  const initializedAccounts = new Set<string>()
+  const pendingAccountAuths: string[] = []
+  let accountAuthTimer: NodeJS.Timeout | undefined
+  const ACCOUNT_AUTH_DELAY_MS = 300
+  const ACCOUNT_INIT_DELAY_MS = 300
+  const pendingAccountInitTasks: Array<() => void> = []
+  let accountInitTimer: NodeJS.Timeout | undefined
+  const ACCOUNT_INIT_STEP_DELAY_MS = 300
 
   const send = (payload: protobuf.Message<{}>) => {
     const data = encodeEnvelope(root, payload)
     ws.send(data)
   }
 
+  const queueAccountAuths = (accountIds: string[]) => {
+    pendingAccountAuths.push(...accountIds)
+    if (accountAuthTimer) return
+    accountAuthTimer = setInterval(() => {
+      const nextAccount = pendingAccountAuths.shift()
+      if (!nextAccount) {
+        if (accountAuthTimer) {
+          clearInterval(accountAuthTimer)
+          accountAuthTimer = undefined
+        }
+        return
+      }
+      send(createAccountAuthReq(root, nextAccount))
+      console.log('[ctrader] Sent account auth request', nextAccount)
+    }, ACCOUNT_AUTH_DELAY_MS)
+  }
+
+  const queueAccountInit = (accountId: string) => {
+    pendingAccountInitTasks.push(() => {
+      send(createTraderReq(root, accountId))
+      console.log('[ctrader] Requested trader snapshot', accountId)
+    })
+    pendingAccountInitTasks.push(() => {
+      send(createDealListReq(root, accountId))
+      console.log('[ctrader] Requested deal list', accountId)
+    })
+    pendingAccountInitTasks.push(() => {
+      send(createReconcileReq(root, accountId))
+      console.log('[ctrader] Requested reconcile', accountId)
+    })
+
+    if (accountInitTimer) return
+    accountInitTimer = setInterval(() => {
+      const nextTask = pendingAccountInitTasks.shift()
+      if (!nextTask) {
+        if (accountInitTimer) {
+          clearInterval(accountInitTimer)
+          accountInitTimer = undefined
+        }
+        return
+      }
+      nextTask()
+    }, ACCOUNT_INIT_STEP_DELAY_MS)
+  }
+
   ws.on('open', () => {
+    console.log('[ctrader] WebSocket open')
     onState?.({ status: 'connected' })
     send(createAppAuthReq(root))
+    console.log('[ctrader] Sent application auth request')
+    pingInterval = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.ping()
+      }
+    }, 20000)
   })
 
   ws.on('message', (data) => {
@@ -151,16 +231,60 @@ export const startCTraderStream = async (
     if (!payload) return
 
     const payloadType = envelope.payloadType
+    const payloadEnum = root.lookupEnum('ProtoOAPayloadType')
+    const payloadName = payloadEnum.valuesById[payloadType]
+    console.log('[ctrader] Message received', payloadName)
     switch (payloadType) {
       case root.lookupEnum('ProtoOAPayloadType').values['PROTO_OA_APPLICATION_AUTH_RES']:
-        config.ctrader.accountIds.forEach((accountId) => send(createAccountAuthReq(root, accountId)))
+        console.log('[ctrader] Application auth ok')
+        if (!accountListRequested) {
+          send(createAccountListReq(root))
+          accountListRequested = true
+          console.log('[ctrader] Requested account list by access token')
+        }
+        break
+      case root.lookupEnum('ProtoOAPayloadType').values['PROTO_OA_GET_ACCOUNTS_BY_ACCESS_TOKEN_RES']:
+        {
+          const accounts = (payload as any).ctidTraderAccount ?? []
+          resolvedAccountIds = accounts.map((account: any) => String(account.ctidTraderAccountId))
+          console.log(
+            '[ctrader] Accounts from token',
+            accounts.map((account: any) => ({
+              ctidTraderAccountId: account.ctidTraderAccountId,
+              login: account.traderLogin ?? account.login,
+            })),
+          )
+          if (!resolvedAccountIds.length) {
+            console.warn('[ctrader] No accounts returned for access token')
+            break
+          }
+          queueAccountAuths(resolvedAccountIds)
+          console.log('[ctrader] Queued account auth requests for resolved account IDs')
+        }
         break
       case root.lookupEnum('ProtoOAPayloadType').values['PROTO_OA_ACCOUNT_AUTH_RES']:
-        config.ctrader.accountIds.forEach((accountId) => {
-          send(createTraderReq(root, accountId))
-          send(createDealListReq(root, accountId))
-          send(createReconcileReq(root, accountId))
-        })
+        {
+          const accountId = String((payload as any).ctidTraderAccountId)
+          console.log('[ctrader] Account auth ok', accountId)
+          if (!initializedAccounts.has(accountId)) {
+            initializedAccounts.add(accountId)
+            setTimeout(() => {
+              queueAccountInit(accountId)
+            }, ACCOUNT_INIT_DELAY_MS)
+          }
+        }
+        break
+      case root.lookupEnum('ProtoOAPayloadType').values['PROTO_OA_ERROR_RES']:
+        console.error('[ctrader] Error response', payload)
+        break
+      case root.lookupEnum('ProtoOAPayloadType').values['PROTO_OA_CLIENT_DISCONNECT_EVENT']:
+        console.warn('[ctrader] Client disconnect event', payload)
+        break
+      case root.lookupEnum('ProtoOAPayloadType').values['PROTO_OA_ACCOUNTS_TOKEN_INVALIDATED_EVENT']:
+        console.warn('[ctrader] Accounts token invalidated', payload)
+        break
+      case root.lookupEnum('ProtoOAPayloadType').values['PROTO_OA_ACCOUNT_DISCONNECT_EVENT']:
+        console.warn('[ctrader] Account disconnected', payload)
         break
       case root.lookupEnum('ProtoOAPayloadType').values['PROTO_OA_TRADER_RES']:
       case root.lookupEnum('ProtoOAPayloadType').values['PROTO_OA_TRADER_UPDATE_EVENT']:
@@ -189,10 +313,23 @@ export const startCTraderStream = async (
   })
 
   ws.on('error', (error) => {
+    console.error('[ctrader] WebSocket error', error)
     onState?.({ status: 'error', error })
   })
 
-  ws.on('close', () => {
+  ws.on('close', (code, reason) => {
+    if (pingInterval) {
+      clearInterval(pingInterval)
+    }
+    if (accountAuthTimer) {
+      clearInterval(accountAuthTimer)
+      accountAuthTimer = undefined
+    }
+    if (accountInitTimer) {
+      clearInterval(accountInitTimer)
+      accountInitTimer = undefined
+    }
+    console.warn('[ctrader] WebSocket closed', { code, reason: reason.toString() })
     onState?.({ status: 'closed' })
   })
 }

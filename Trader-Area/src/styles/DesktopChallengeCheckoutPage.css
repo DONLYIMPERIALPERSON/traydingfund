@@ -396,4 +396,9 @@
   .desktop-promo-row {
     grid-template-columns: 1fr;
   }
+
+  .desktop-promo-row button {
+    min-height: 44px;
+    padding: 12px 16px;
+  }
 }

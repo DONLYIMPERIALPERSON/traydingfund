@@ -7,7 +7,7 @@ import {
   updateAdminCouponStatus,
   type AdminCoupon,
   type ChallengePlanConfig,
-} from '../lib/adminMock'
+} from '../lib/adminApi'
 import './CouponsPage.css'
 
 type CouponStatus = 'Active' | 'Expired'

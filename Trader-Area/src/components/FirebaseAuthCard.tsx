@@ -1,8 +1,8 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { supabase } from '../lib/supabaseClient'
-import { loginWithBackend, updateProfile } from '../mocks/firebaseAuth'
+import { loginWithBackend, updateProfile } from '../lib/traderAuth'
 import './FirebaseAuthCard.css'
 
 type FirebaseAuthCardProps = {
@@ -10,7 +10,7 @@ type FirebaseAuthCardProps = {
   subtitle: string
 }
 
-type AuthStep = 'email' | 'password' | 'otp' | 'createPassword'
+type AuthStep = 'email' | 'password' | 'otp' | 'createPassword' | 'profile'
 
 function toSafeAuthErrorMessage(err: unknown): string {
   if (err instanceof Error) {
@@ -18,6 +18,18 @@ function toSafeAuthErrorMessage(err: unknown): string {
 
     if (message.includes('failed to fetch') || message.includes('network')) {
       return 'Network error. Please check your connection and try again.'
+    }
+
+    if (message.includes('invalid login credentials') || message.includes('wrong password')) {
+      return 'Incorrect password. Please try again.'
+    }
+
+    if (message.includes('user-not-found') || message.includes('user not found')) {
+      return 'No account found with that email address.'
+    }
+
+    if (message.includes('email not confirmed') || message.includes('confirm')) {
+      return 'Please confirm your email address before signing in.'
     }
 
     if (
@@ -43,9 +55,9 @@ function toSafeAuthErrorMessage(err: unknown): string {
 const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) => {
   const navigate = useNavigate()
   const [error, setError] = useState<string>('')
+  const [info, setInfo] = useState<string>('')
   const [loading, setLoading] = useState<boolean>(false)
   const [step, setStep] = useState<AuthStep>('email')
-  const [profilePromptVisible, setProfilePromptVisible] = useState(false)
 
   // Form state
   const [email, setEmail] = useState<string>('')
@@ -54,6 +66,29 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
   const [otpCode, setOtpCode] = useState<string>('')
   const [firstName, setFirstName] = useState<string>('')
   const [lastName, setLastName] = useState<string>('')
+  const [otpAttemptsLeft, setOtpAttemptsLeft] = useState<number>(4)
+  const [otpCooldown, setOtpCooldown] = useState<number>(0)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const appBaseUrl = import.meta.env.VITE_APP_BASE_URL || window.location.origin
+
+  const otpLocked = otpAttemptsLeft <= 0
+  const otpResendDisabled = loading || otpCooldown > 0
+
+  useEffect(() => {
+    if (otpCooldown <= 0) return
+    const timer = window.setInterval(() => {
+      setOtpCooldown((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [otpCooldown])
+
+  useEffect(() => {
+    if (step !== 'otp') {
+      setOtpCooldown(0)
+      setOtpAttemptsLeft(4)
+    }
+  }, [step])
 
   const shouldPromptForName = (user?: { full_name: string | null; first_name?: string | null; last_name?: string | null }) => {
     if (!user) return false
@@ -74,6 +109,7 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
     }
 
     setError('')
+    setInfo('')
     setLoading(true)
 
     try {
@@ -81,7 +117,7 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
         first_name: firstName.trim(),
         last_name: lastName.trim(),
       })
-      setProfilePromptVisible(false)
+      setStep('email')
       navigate('/')
     } catch (err) {
       console.error('Profile update failed', err)
@@ -98,6 +134,7 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
     }
 
     setError('')
+    setInfo('')
     setLoading(true)
 
     try {
@@ -118,6 +155,8 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
         if (otpError) {
           throw otpError
         }
+        setOtpAttemptsLeft(4)
+        setOtpCooldown(60)
         setStep('otp')
       }
     } catch (err) {
@@ -141,6 +180,7 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
     }
 
     setError('')
+    setInfo('')
     setLoading(true)
 
     try {
@@ -156,7 +196,7 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
         localStorage.setItem('supabase_access_token', data.session.access_token)
         const user = await loginWithBackend()
         if (shouldPromptForName(user)) {
-          setProfilePromptVisible(true)
+          setStep('profile')
           return
         }
       }
@@ -181,7 +221,13 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
       return
     }
 
+    if (otpLocked) {
+      setError('You have reached the maximum OTP attempts. Please resend the code.')
+      return
+    }
+
     setError('')
+    setInfo('')
     setLoading(true)
 
     try {
@@ -191,15 +237,12 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
         type: 'email',
       })
       if (verifyError) {
+        setOtpAttemptsLeft((prev) => Math.max(prev - 1, 0))
         throw verifyError
       }
       if (data?.session?.access_token) {
         localStorage.setItem('supabase_access_token', data.session.access_token)
-        const user = await loginWithBackend()
-        if (shouldPromptForName(user)) {
-          setProfilePromptVisible(true)
-          return
-        }
+        await loginWithBackend()
       }
       setStep('createPassword')
     } catch (err) {
@@ -208,7 +251,7 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
     } finally {
       setLoading(false)
     }
-  }, [email, otpCode])
+  }, [email, otpCode, otpLocked])
 
   const handleOtpKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -233,6 +276,7 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
     }
 
     setError('')
+    setInfo('')
     setLoading(true)
 
     try {
@@ -249,7 +293,7 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
           localStorage.setItem('supabase_access_token', session.data.session.access_token)
           const user = await loginWithBackend()
           if (shouldPromptForName(user)) {
-            setProfilePromptVisible(true)
+            setStep('profile')
             return
           }
         }
@@ -272,10 +316,57 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
   const handleBackToEmail = useCallback(() => {
     setStep('email')
     setError('')
+    setInfo('')
     setPassword('')
     setOtpCode('')
     setConfirmPassword('')
   }, [])
+
+  const handleForgotPassword = useCallback(async () => {
+    if (!email.trim()) {
+      setError('Please enter your email address')
+      return
+    }
+
+    setError('')
+    setInfo('')
+    setLoading(true)
+
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${appBaseUrl}/reset-password`,
+      })
+      if (resetError) {
+        throw resetError
+      }
+      setInfo('Password reset email sent. Check your inbox to continue.')
+    } catch (err) {
+      console.error('Password reset failed', err)
+      setError(toSafeAuthErrorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }, [appBaseUrl, email])
+
+  const handleResendOtp = useCallback(async () => {
+    setError('')
+    setInfo('')
+    setLoading(true)
+
+    try {
+      const { error: otpError } = await supabase.auth.signInWithOtp({ email: email.trim() })
+      if (otpError) {
+        throw otpError
+      }
+      setOtpAttemptsLeft(4)
+      setOtpCooldown(60)
+    } catch (err) {
+      console.error('Resend OTP failed', err)
+      setError(toSafeAuthErrorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }, [email])
 
   const renderEmailStep = () => (
     <div className="naira-auth-stack">
@@ -325,13 +416,32 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
         <i className="fas fa-lock input-icon" />
         <input
           className="form-input"
-          type="password"
+          type={showPassword ? 'text' : 'password'}
           placeholder="Enter your password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={handlePasswordKeyDown}
           disabled={loading}
         />
+        <button
+          type="button"
+          className="naira-auth-visibility"
+          onClick={() => setShowPassword((prev) => !prev)}
+          disabled={loading}
+        >
+          <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} />
+        </button>
+      </div>
+
+      <div className="naira-auth-forgot">
+        <button
+          type="button"
+          className="naira-auth-link"
+          onClick={handleForgotPassword}
+          disabled={loading}
+        >
+          Forgot password?
+        </button>
       </div>
 
       <button
@@ -373,14 +483,14 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
           value={otpCode}
           onChange={(e) => setOtpCode(e.target.value)}
           onKeyDown={handleOtpKeyDown}
-          disabled={loading}
+          disabled={loading || otpLocked}
         />
       </div>
 
       <button
         className="submit-button"
         type="button"
-        disabled={loading || !otpCode.trim()}
+        disabled={loading || !otpCode.trim() || otpLocked}
         onClick={handleOtpSubmit}
       >
         {loading ? 'Please wait...' : 'Verify Code'}
@@ -389,10 +499,10 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
       <button
         className="submit-button naira-auth-secondary-btn"
         type="button"
-        disabled={loading}
-        onClick={handleEmailSubmit}
+        disabled={otpResendDisabled}
+        onClick={handleResendOtp}
       >
-        {loading ? 'Please wait...' : 'Send again'}
+        {otpResendDisabled ? `Resend in ${otpCooldown}s` : 'Send again'}
       </button>
     </div>
   )
@@ -416,13 +526,21 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
         <i className="fas fa-lock input-icon" />
         <input
           className="form-input"
-          type="password"
+          type={showPassword ? 'text' : 'password'}
           placeholder="Create password (min 6 characters)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={handleCreateAccountKeyDown}
           disabled={loading}
         />
+        <button
+          type="button"
+          className="naira-auth-visibility"
+          onClick={() => setShowPassword((prev) => !prev)}
+          disabled={loading}
+        >
+          <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} />
+        </button>
       </div>
 
       <label className="form-label naira-auth-label">Confirm Password</label>
@@ -430,13 +548,21 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
         <i className="fas fa-lock input-icon" />
         <input
           className="form-input"
-          type="password"
+          type={showConfirmPassword ? 'text' : 'password'}
           placeholder="Confirm password"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           onKeyDown={handleCreateAccountKeyDown}
           disabled={loading}
         />
+        <button
+          type="button"
+          className="naira-auth-visibility"
+          onClick={() => setShowConfirmPassword((prev) => !prev)}
+          disabled={loading}
+        >
+          <i className={`fas ${showConfirmPassword ? 'fa-eye-slash' : 'fa-eye'}`} />
+        </button>
       </div>
 
       <button
@@ -451,7 +577,7 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
   )
 
   const renderCurrentStep = () => {
-    if (profilePromptVisible) {
+    if (step === 'profile') {
       return (
         <div className="naira-auth-stack">
           <p className="naira-auth-helper">
@@ -517,6 +643,7 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
       {renderCurrentStep()}
 
       {loading && <p className="naira-auth-helper">Please wait...</p>}
+      {info && <p className="naira-auth-info">{info}</p>}
       {error && <p className="naira-auth-error">{error}</p>}
     </div>
   )

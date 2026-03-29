@@ -121,6 +121,10 @@ export const listAdminTickets = async (status?: SupportTicketStatus) => {
 }
 
 export const getTicketWithMessages = async (ticketId: number) => {
+  if (!Number.isFinite(ticketId) || ticketId <= 0) {
+    return null
+  }
+
   const ticket = await prisma.supportTicket.findUnique({
     where: { id: ticketId },
     include: {

@@ -8,7 +8,7 @@ import {
   rejectPayout,
   type PayoutStats,
   type PayoutRequest
-} from '../lib/adminMock'
+} from '../lib/adminApi'
 import './PayoutsPage.css'
 
 interface AdminUser {
@@ -41,6 +41,18 @@ type PayoutMetadata = {
   rejected_by?: string | null
   rejected_at?: string | null
   rejection_reason?: string | null
+  currency?: string | null
+}
+
+const formatPayoutAmount = (amountFormatted: string, currency?: string | null) => {
+  if (currency?.toUpperCase() === 'NGN') {
+    const numeric = Number(amountFormatted.replace(/[^0-9.]/g, ''))
+    if (Number.isFinite(numeric)) {
+      return `₦${numeric.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    }
+    return `₦${amountFormatted.replace(/[^0-9,\.]/g, '')}`
+  }
+  return amountFormatted
 }
 
 const PayoutsPage = ({
@@ -72,7 +84,7 @@ const PayoutsPage = ({
       setStats(requestsData.stats ?? statsData)
       setPayoutRequests(requestsData.payouts)
       setBankMap(
-        (bankListData.banks || []).reduce<Record<string, string>>((acc, bank) => {
+        (bankListData.banks || []).reduce<Record<string, string>>((acc, bank: { bank_code: string; bank_name: string }) => {
           acc[bank.bank_code] = bank.bank_name
           return acc
         }, {})
@@ -359,7 +371,7 @@ const PayoutsPage = ({
                       )}
                     </div>
                   </td>
-                  <td>{request.amount_formatted}</td>
+                  <td>{formatPayoutAmount(request.amount_formatted, ((request.metadata || {}) as PayoutMetadata).currency)}</td>
                   <td>
                     <span style={{
                       padding: '4px 8px',
@@ -447,7 +459,7 @@ const PayoutsPage = ({
                       </div>
                     </td>
                     <td>
-                      <div>{request.amount_formatted}</div>
+                      <div>{formatPayoutAmount(request.amount_formatted, ((request.metadata || {}) as PayoutMetadata).currency)}</div>
                       {((request.metadata || {}) as PayoutMetadata).mt5_account_number && (
                         <div style={{ fontSize: '12px', color: '#fff' }}>Ctrader: {((request.metadata || {}) as PayoutMetadata).mt5_account_number}</div>
                       )}

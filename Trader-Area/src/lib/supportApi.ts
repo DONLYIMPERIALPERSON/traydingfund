@@ -1,7 +1,5 @@
 import { apiFetch } from '../lib/api'
 
-const mockDelay = (ms = 200) => new Promise((resolve) => setTimeout(resolve, ms))
-
 export interface SupportChat {
   id: string;
   subject: string;

@@ -1,15 +1,60 @@
+import http from 'http'
+import { URL } from 'url'
 import { config } from './config'
 import { startCTraderStream } from './ctraderClient'
-import { buildMetricsPayload, publishMetrics } from './metricsPublisher'
+import { buildMetricsPayload, publishMetrics, fetchActiveAccounts, ActiveAccountSnapshot } from './metricsPublisher'
+
+const CALLBACK_PORT = 6000
+
+const startCallbackServer = () => {
+  const server = http.createServer((req, res) => {
+    const requestUrl = req.url ? new URL(req.url, `http://${req.headers.host}`) : null
+
+    if (requestUrl?.pathname === '/callback') {
+      const code = requestUrl.searchParams.get('code')
+      console.log('AUTH CODE:', code)
+      res.writeHead(200, { 'Content-Type': 'text/plain' })
+      res.end('Auth successful. You can close this tab.')
+      return
+    }
+
+    res.writeHead(404, { 'Content-Type': 'text/plain' })
+    res.end('Not found')
+  })
+
+  server.listen(CALLBACK_PORT, () => {
+    console.log(`[metrics] Callback server listening on http://localhost:${CALLBACK_PORT}/callback`)
+  })
+}
 
 const run = async () => {
-  if (!config.ctrader.accountIds.length) {
-    throw new Error('CTRADER_ACCOUNT_IDS is empty. Provide at least one account id.')
+  startCallbackServer()
+
+  if (!config.ctrader.accessToken) {
+    console.warn('[metrics] CTRADER_ACCESS_TOKEN is not set. Skipping cTrader stream startup.')
+    return
   }
 
   console.log(`[metrics] Starting cTrader metrics engine for ${config.ctrader.accountIds.length} accounts`)
 
   const accountState = new Map<string, { snapshot?: { accountNumber: string; balance: number; equity: number }; deals: any[] }>()
+  const activeAccounts = new Map<string, ActiveAccountSnapshot>()
+
+  const syncActiveAccounts = async () => {
+    try {
+      const accounts = await fetchActiveAccounts()
+      activeAccounts.clear()
+      accounts.forEach((account) => {
+        activeAccounts.set(String(account.accountNumber), account)
+      })
+      console.log(`[metrics] Synced ${activeAccounts.size} active accounts`)
+    } catch (error) {
+      console.error('[metrics] Failed to sync active accounts', error)
+    }
+  }
+
+  await syncActiveAccounts()
+  const activeAccountsTimer = setInterval(syncActiveAccounts, config.activeAccountsPollSeconds * 1000)
 
   await startCTraderStream(async (event) => {
     const state = accountState.get(event.accountId) ?? { deals: [] }
@@ -26,6 +71,9 @@ const run = async () => {
     accountState.set(event.accountId, state)
 
     if (state.snapshot) {
+      if (!activeAccounts.has(state.snapshot.accountNumber)) {
+        return
+      }
       const payload = buildMetricsPayload({
         accountNumber: state.snapshot.accountNumber,
         balance: state.snapshot.balance,
@@ -33,8 +81,12 @@ const run = async () => {
         deals: state.deals,
       })
 
-      await publishMetrics(payload)
-      console.log(`[metrics] Sent metrics for ${state.snapshot.accountNumber}`)
+      try {
+        await publishMetrics(payload)
+        console.log(`[metrics] Sent metrics for ${state.snapshot.accountNumber}`)
+      } catch (error) {
+        console.error(`[metrics] Failed to publish metrics for ${state.snapshot.accountNumber}`, error)
+      }
     }
   }, (state) => {
     if (state.status === 'connected') {
@@ -48,6 +100,11 @@ const run = async () => {
     }
 
     console.warn('[metrics] WebSocket closed')
+  })
+
+  process.on('SIGINT', () => {
+    clearInterval(activeAccountsTimer)
+    process.exit(0)
   })
 }
 

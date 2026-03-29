@@ -29,7 +29,7 @@ import {
   logoutAdmin,
   persistAdminUser,
   type AdminAuthMeResponse,
-} from './lib/adminMock'
+} from './lib/adminApi'
 import AdminSupabaseAuthCard from './components/AdminSupabaseAuthCard'
 import { supabase } from './lib/supabaseClient'
 import './App.css'

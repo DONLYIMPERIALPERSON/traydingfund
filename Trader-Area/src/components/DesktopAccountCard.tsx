@@ -8,12 +8,13 @@ interface AccountProps {
   accountNumber: string;
   startDate: string;
   amount: string;
+  currency?: string;
   status: 'Active' | 'Ready' | 'Passed' | 'Failed';
   passedStage?: string | null;
   hasPendingWithdrawal?: boolean | undefined;
 }
 
-const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType, phase, accountNumber, startDate, amount, status, passedStage, hasPendingWithdrawal }) => {
+const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType, phase, accountNumber, startDate, amount, currency, status, passedStage, hasPendingWithdrawal }) => {
   const navigate = useNavigate()
 
   const formatChallengeType = (value?: string) => {
@@ -53,6 +54,25 @@ const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType
   const phaseLabel = formatPhase(phase)
   const passedLabel = formatPhase(passedStage ?? undefined)
 
+  const formatAccountSize = () => {
+    if (!currency) return amount
+    const numeric = Number(amount.replace(/[^0-9.]/g, ''))
+    if (!Number.isFinite(numeric)) return amount
+    try {
+      if (currency.toUpperCase() === 'NGN') {
+        return `₦${numeric.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+      }
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currency.toUpperCase(),
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(numeric)
+    } catch {
+      return amount
+    }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Active': return '#2ecc71';
@@ -70,11 +90,11 @@ const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType
   return (
     <div
       style={{
-        backgroundColor: 'white',
+        background: 'linear-gradient(135deg, #0b9fb8 0%, #006d80 100%)',
         borderRadius: '12px',
         padding: '20px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        border: '1px solid #e0e0e0',
+        boxShadow: '0 10px 24px rgba(0, 110, 128, 0.35)',
+        border: '1px solid rgba(255,255,255,0.2)',
         cursor: 'pointer',
         transition: 'all 0.2s ease',
         marginBottom: '16px'
@@ -126,14 +146,14 @@ const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType
           <div style={{
             fontSize: '16px',
             fontWeight: '600',
-            color: '#333'
+            color: '#f8fafc'
           }}>
             {(challengeLabel ? `${challengeLabel} · ` : '')}{phaseLabel} · {accountNumber}
             {passedStage && (
               <div style={{
                 fontSize: '12px',
                 fontWeight: '500',
-                color: '#27ae60',
+                color: '#dcfce7',
                 marginTop: '2px'
               }}>
                 ✓ {passedLabel || passedStage} Passed
@@ -146,7 +166,7 @@ const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType
       {/* Divider Line */}
       <div style={{
         height: '1px',
-        backgroundColor: '#e0e0e0',
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
         marginBottom: '12px'
       }}></div>
 
@@ -169,13 +189,13 @@ const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType
             <div style={{
               fontSize: '14px',
               fontWeight: '700',
-              color: '#333'
+              color: '#f8fafc'
             }}>
-              {amount}
+              {formatAccountSize()}
             </div>
             <div style={{
               fontSize: '14px',
-              color: '#666'
+              color: '#e2e8f0'
             }}>
               {startDate}
             </div>
@@ -197,17 +217,17 @@ const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType
               borderRadius: '6px',
               cursor: 'pointer',
               transition: 'background-color 0.2s',
-              color: '#666',
+              color: '#f8fafc',
               fontSize: '14px',
-              backgroundColor: 'rgba(52, 152, 219, 0.1)',
-              border: '1px solid rgba(52, 152, 219, 0.2)'
+              backgroundColor: 'rgba(255, 255, 255, 0.18)',
+              border: '1px solid rgba(255, 255, 255, 0.3)'
             }}
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/credentials?challenge_id=${encodeURIComponent(challengeId)}`);
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(52, 152, 219, 0.2)'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(52, 152, 219, 0.1)'}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.28)'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.18)'}
           >
             <i className="fas fa-key" style={{fontSize: '14px'}}></i>
             <span>Credentials</span>
@@ -221,17 +241,17 @@ const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType
               borderRadius: '6px',
               cursor: 'pointer',
               transition: 'background-color 0.2s',
-              color: '#666',
+              color: '#f8fafc',
               fontSize: '14px',
-              backgroundColor: 'rgba(231, 76, 60, 0.1)',
-              border: '1px solid rgba(231, 76, 60, 0.2)'
+              backgroundColor: 'rgba(255, 255, 255, 0.18)',
+              border: '1px solid rgba(255, 255, 255, 0.3)'
             }}
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/account-overview?challenge_id=${encodeURIComponent(challengeId)}`);
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(231, 76, 60, 0.2)'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(231, 76, 60, 0.1)'}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.28)'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.18)'}
           >
             <i className="fas fa-chart-bar" style={{fontSize: '14px'}}></i>
             <span>Account Metrics</span>

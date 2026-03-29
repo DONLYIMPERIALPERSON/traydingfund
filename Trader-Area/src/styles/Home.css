@@ -428,6 +428,10 @@
         justify-content: center;
     }
 
+    .home-desktop-cta-button {
+        display: none !important;
+    }
+
     .home-desktop-header-text {
         width: 100%;
         text-align: left;

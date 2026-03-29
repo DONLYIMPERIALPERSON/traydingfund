@@ -3,7 +3,7 @@ import {
   fetchAdminKycRequests,
   reviewKycRequest,
   type AdminKycRequestItem,
-} from '../lib/adminMock'
+} from '../lib/adminApi'
 import './KycReviewPage.css'
 
 const KycReviewPage = () => {

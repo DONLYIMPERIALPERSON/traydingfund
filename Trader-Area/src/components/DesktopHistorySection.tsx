@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import DesktopAccountCard from './DesktopAccountCard'
-import type { UserChallengeAccountListItem } from '../mocks/auth'
+import type { UserChallengeAccountListItem } from '../lib/traderAuth'
 
 type DesktopHistorySectionProps = {
   accounts: UserChallengeAccountListItem[]
@@ -53,6 +53,7 @@ const DesktopHistorySection: React.FC<DesktopHistorySectionProps> = ({ accounts 
                 accountNumber={account.mt5_account ?? 'Pending'}
                 startDate={account.started_at ? new Date(account.started_at).toLocaleDateString() : '-'}
                 amount={account.account_size}
+                currency={account.currency}
                 status={(account.display_status as 'Active' | 'Ready' | 'Passed' | 'Failed')}
                 passedStage={account.passed_stage}
                 hasPendingWithdrawal={account.has_pending_withdrawal}

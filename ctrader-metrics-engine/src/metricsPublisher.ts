@@ -8,6 +8,24 @@ const backendClient = axios.create({
   timeout: 15000,
 })
 
+export type ActiveAccountSnapshot = {
+  accountNumber: string
+  balance?: number
+  status?: string
+  phase?: string
+  challengeType?: string
+}
+
+export const fetchActiveAccounts = async () => {
+  const response = await backendClient.get<ActiveAccountSnapshot[]>(config.backendActiveAccountsPath, {
+    headers: {
+      'Content-Type': 'application/json',
+      'X-ENGINE-SECRET': config.backendEngineSecret,
+    },
+  })
+  return response.data ?? []
+}
+
 const mapDealToTrade = (deal: CTraderDeal): TradePayload => ({
   ticket: deal.dealId,
   open_time: deal.openTime,

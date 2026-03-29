@@ -8,9 +8,11 @@ import {
   generatePassedChallengeCertificatePreview,
   listCertificates,
   updateProfile,
+  requestChallengeRefresh,
 } from './trader.controller'
 import {
   createBankTransferOrder,
+  createFreeOrder,
   createCryptoOrder,
   handleSafeHavenWebhook,
   listOrders,
@@ -36,9 +38,11 @@ traderRouter.post('/certificates/onboarding-preview', generateOnboardingCertific
 traderRouter.post('/certificates/passed-challenge-preview', generatePassedChallengeCertificatePreview)
 traderRouter.get('/challenges', authenticate, requireRole('trader'), listChallengeAccounts)
 traderRouter.get('/challenges/:challengeId', authenticate, requireRole('trader'), getChallengeAccountDetail)
+traderRouter.post('/challenges/refresh', authenticate, requireRole('trader'), requestChallengeRefresh)
 traderRouter.get('/orders', authenticate, requireRole('trader'), listOrders)
 traderRouter.get('/orders/:providerOrderId', authenticate, requireRole('trader'), getOrderStatus)
 traderRouter.post('/orders/bank-transfer', authenticate, requireRole('trader'), createBankTransferOrder)
+traderRouter.post('/orders/free', authenticate, requireRole('trader'), createFreeOrder)
 traderRouter.post('/orders/crypto', authenticate, requireRole('trader'), createCryptoOrder)
 traderRouter.post('/safehaven/webhook', handleSafeHavenWebhook)
 traderRouter.post('/access-confirmed', confirmAccessGrant)

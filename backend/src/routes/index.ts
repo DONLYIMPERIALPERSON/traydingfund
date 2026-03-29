@@ -9,6 +9,7 @@ import { kycRouter } from '../modules/kyc/kyc.routes'
 import { payoutRouter } from '../modules/payouts/payouts.routes'
 import { supportRouter } from '../modules/support/support.routes'
 import { couponRouter } from '../modules/coupons/coupon.routes'
+import { planRouter } from '../modules/plans/plan.routes'
 
 export const router = Router()
 
@@ -26,3 +27,4 @@ router.use('/v1/kyc', kycRouter)
 router.use('/v1/payouts', payoutRouter)
 router.use('/v1/coupons', couponRouter)
 router.use('/v1/support', supportRouter)
+router.use('/v1/public', planRouter)

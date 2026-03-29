@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
-import { fetchCertificates } from '../mocks/auth'
+import { fetchCertificates } from '../lib/traderAuth'
 import '../styles/DesktopCertificatePage.css'
 
 interface Certificate {
