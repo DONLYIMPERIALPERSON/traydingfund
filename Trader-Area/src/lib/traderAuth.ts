@@ -503,6 +503,7 @@ export async function previewCheckoutCoupon(payload: {
   code: string
   plan_id: string
   amount_kobo: number
+  challenge_type?: string
 }): Promise<CheckoutCouponPreviewResponse> {
   return apiFetch<CheckoutCouponPreviewResponse>('/coupons/preview', {
     method: 'POST',
@@ -510,6 +511,7 @@ export async function previewCheckoutCoupon(payload: {
       code: payload.code,
       plan_id: payload.plan_id,
       amount_kobo: payload.amount_kobo,
+      challenge_type: payload.challenge_type,
     }),
   })
 }

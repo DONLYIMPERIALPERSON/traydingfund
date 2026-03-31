@@ -5,10 +5,10 @@ type GrantAccessPayload = {
   account_number: string
   broker: string
   platform: string
-  user_name?: string
-  account_type?: string
-  account_phase?: string
-  account_size?: string
+  user_name?: string | undefined
+  account_type?: string | undefined
+  account_phase?: string | undefined
+  account_size?: string | undefined
 }
 
 export const requestAccountAccess = async (payload: GrantAccessPayload) => {

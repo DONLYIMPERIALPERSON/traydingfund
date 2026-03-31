@@ -238,9 +238,26 @@
 }
 
 .desktop-coupon-error {
-  margin-top: 10px;
-  color: #e11d48;
+  margin-top: 12px;
+  background: #fff1f2;
+  border: 1px solid rgba(225, 29, 72, 0.25);
+  color: #b91c1c;
   font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  box-shadow: 0 6px 12px rgba(225, 29, 72, 0.1);
+}
+
+.desktop-coupon-error i {
+  font-size: 14px;
+  margin-top: 2px;
+}
+
+.desktop-coupon-error span {
+  line-height: 1.4;
 }
 
 .desktop-coupon-success {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
@@ -14,6 +14,17 @@ const StatisticsPage: React.FC = () => {
 
   const challengeId = searchParams.get('challenge_id')
 
+  const loadAccountData = useCallback(async () => {
+    if (!challengeId) return
+    try {
+      const data = await fetchUserChallengeAccountDetail(challengeId)
+      setAccountData(data)
+      setError('')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load account details')
+    }
+  }, [challengeId])
+
   useEffect(() => {
     if (!challengeId) {
       setError('Challenge ID is required')
@@ -22,16 +33,13 @@ const StatisticsPage: React.FC = () => {
     }
 
     setLoading(true)
-    setError('')
-    fetchUserChallengeAccountDetail(challengeId)
-      .then((data) => {
-        setAccountData(data)
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Failed to load account details')
-      })
-      .finally(() => setLoading(false))
-  }, [challengeId])
+    loadAccountData().finally(() => setLoading(false))
+    const refreshInterval = window.setInterval(() => {
+      loadAccountData()
+    }, 15000)
+
+    return () => window.clearInterval(refreshInterval)
+  }, [challengeId, loadAccountData])
 
   if (loading) {
     return (

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import { prisma } from '../../config/prisma'
 import { ApiError } from '../../common/errors'
 import { resolveAccountName } from '../../services/safehaven.service'
+import { buildCacheKey, clearCacheByPrefix } from '../../common/cache'
 import { createSignedUploadUrl, uploadBufferToR2 } from '../../services/r2.service'
 import { SAFEHAVEN_BANKS } from './kyc.banks'
 import type { AuthenticatedRequest } from '../../common/auth'
@@ -65,6 +66,9 @@ export const resolveBankAccount = async (req: AuthenticatedRequest, res: Respons
       },
     })
 
+    await clearCacheByPrefix(buildCacheKey(['trader', 'me', user.id]))
+    await clearCacheByPrefix(buildCacheKey(['payouts', 'summary', user.id]))
+
     res.json({
       bank_code,
       bank_account_number,
@@ -105,6 +109,9 @@ export const saveCryptoPayout = async (req: AuthenticatedRequest, res: Response,
         payoutUpdatedAt: now,
       },
     })
+
+    await clearCacheByPrefix(buildCacheKey(['trader', 'me', user.id]))
+    await clearCacheByPrefix(buildCacheKey(['payouts', 'summary', user.id]))
 
     res.json({
       crypto_currency: crypto_currency.toUpperCase(),
@@ -182,6 +189,8 @@ export const submitKyc = async (req: AuthenticatedRequest, res: Response, next: 
       where: { id: user.id },
       data: { kycStatus: 'pending' },
     })
+
+    await clearCacheByPrefix(buildCacheKey(['trader', 'me', user.id]))
 
     const requestRecord = await prisma.kycRequest.create({
       data: {

@@ -1,8 +1,20 @@
 export type TradePayload = {
   ticket?: string
+  position_id?: string
   open_time?: string
   close_time?: string
   profit?: number
+}
+
+export type PositionPayload = {
+  position_id: string
+  symbol_id: string
+  volume: number
+  entry_price: number
+  open_time?: string
+  close_time?: string
+  trade_side: 'BUY' | 'SELL'
+  is_open: boolean
 }
 
 export type MetricsPayload = {
@@ -10,6 +22,8 @@ export type MetricsPayload = {
   balance: number
   equity: number
   trades?: TradePayload[]
+  positions?: PositionPayload[]
+  timestamp?: string
 }
 
 export type CTraderStreamState = {
@@ -22,6 +36,7 @@ export type CTraderAccountSnapshot = {
   accountNumber: string
   balance: number
   equity: number
+  unrealizedPnl?: number
 }
 
 export type CTraderDeal = {

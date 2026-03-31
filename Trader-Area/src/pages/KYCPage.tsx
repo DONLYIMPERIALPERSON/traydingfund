@@ -35,6 +35,7 @@ const KYCPage: React.FC = () => {
   const isKycApproved = kycStatus === 'approved' || kycStatus === 'verified'
   const isKycPending = ['pending', 'in_review', 'processing', 'submitted'].includes(kycStatus)
   const canResubmit = kycStatus === 'declined' || kycStatus === 'rejected'
+  const canShowForm = eligibleForKyc && !isKycApproved && !isKycPending
 
   useEffect(() => {
     const load = async () => {
@@ -263,7 +264,7 @@ const KYCPage: React.FC = () => {
                 </div>
               )}
 
-              {canResubmit && (
+              {canShowForm && (
                 <div className="kyc-form-section">
                 <div className="section-header">
                   <div className="status-icon">

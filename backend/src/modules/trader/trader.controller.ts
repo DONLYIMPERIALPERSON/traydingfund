@@ -10,6 +10,7 @@ import {
 } from '../../services/rewardCertificate.service'
 import { listUserCertificates } from '../../services/certificate.service'
 import { requestAccountAccess } from '../../services/accessEngine.service'
+import { buildCacheKey, getCached, setCached, clearCacheByPrefix } from '../../common/cache'
 
 type AuthRequest = Request & { user?: { id: number; email: string } }
 
@@ -26,6 +27,7 @@ const mapAccountStatus = (status: string) => {
   if (normalized === 'passed') return 'Passed'
   if (normalized === 'failed') return 'Failed'
   if (normalized === 'funded') return 'Funded'
+  if (normalized === 'withdrawn') return 'Withdrawn'
   if (normalized === 'assigned_pending_access') return 'Active'
   if (normalized === 'assigned') return 'Assigned'
   if (normalized === 'ready') return 'Ready'
@@ -80,6 +82,12 @@ const splitFullName = (fullName?: string | null) => {
 export const getMe = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureUser(req)
+    const cacheKey = buildCacheKey(['trader', 'me', user.id])
+    const cached = await getCached<Record<string, unknown>>(cacheKey)
+    if (cached) {
+      res.json(cached)
+      return
+    }
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
     if (!dbUser) {
       throw new ApiError('User not found', 404)
@@ -87,7 +95,7 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
 
     const { firstName, lastName } = splitFullName(dbUser.fullName)
 
-    res.json({
+    const payload = {
       id: dbUser.id,
       descope_user_id: null,
       email: dbUser.email,
@@ -109,7 +117,10 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
       payout_crypto_last_name: dbUser.payoutCryptoLastName,
       payout_verified_at: dbUser.payoutVerifiedAt,
       use_nickname_for_certificates: (dbUser as { useNicknameForCertificates?: boolean }).useNicknameForCertificates ?? false,
-    })
+    }
+
+    await setCached(cacheKey, payload, 30)
+    res.json(payload)
   } catch (err) {
     next(err as Error)
   }
@@ -152,7 +163,7 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
 
     const { firstName, lastName } = splitFullName(updated.fullName)
 
-    res.json({
+    const payload = {
       id: updated.id,
       descope_user_id: null,
       email: updated.email,
@@ -174,7 +185,10 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
       payout_crypto_last_name: updated.payoutCryptoLastName,
       payout_verified_at: updated.payoutVerifiedAt,
       use_nickname_for_certificates: (updated as { useNicknameForCertificates?: boolean }).useNicknameForCertificates ?? false,
-    })
+    }
+
+    await clearCacheByPrefix(buildCacheKey(['trader', 'me', user.id]))
+    res.json(payload)
   } catch (err) {
     next(err as Error)
   }
@@ -183,6 +197,12 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
 export const listChallengeAccounts = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureUser(req)
+    const cacheKey = buildCacheKey(['trader', 'challenges', user.id])
+    const cached = await getCached<Record<string, unknown>>(cacheKey)
+    if (cached) {
+      res.json(cached)
+      return
+    }
     const accounts: (CTraderAccount & { payouts: { status: string }[] })[] = await prisma.cTraderAccount.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
@@ -215,12 +235,15 @@ export const listChallengeAccounts = async (req: AuthRequest, res: Response, nex
       }
     })
 
-    res.json({
+    const payload = {
       has_any_accounts: accounts.length > 0,
       has_active_accounts: mapped.some((account) => account.is_active),
       active_accounts: mapped.filter((account) => account.is_active),
       history_accounts: mapped.filter((account) => !account.is_active),
-    })
+    }
+
+    await setCached(cacheKey, payload, 30)
+    res.json(payload)
   } catch (err) {
     next(err as Error)
   }
@@ -331,7 +354,10 @@ export const getChallengeAccountDetail = async (
     const dailyDrawdownRemaining = Math.max(0, metrics.equity - dailyDrawdownBalance)
 
     const breachReason = (account.metrics as { breachReason?: string | null } | null)?.breachReason ?? null
-    const minTradeDurationBreached = breachReason?.toUpperCase() === 'MIN_TRADE_DURATION'
+    const normalizedBreachReason = breachReason?.toUpperCase() ?? null
+    const breachedByMaxDrawdown = normalizedBreachReason === 'MAX_DRAWDOWN'
+    const breachedByDailyDrawdown = normalizedBreachReason === 'DAILY_DRAWDOWN'
+    const minTradeDurationBreached = normalizedBreachReason === 'MIN_TRADE_DURATION'
 
     const objectives = {
       profit_target: {
@@ -343,7 +369,7 @@ export const getChallengeAccountDetail = async (
       },
       max_drawdown: {
         label: 'Max Drawdown',
-        status: metrics.equity < maxDrawdownBalance ? 'breached' : 'passed',
+        status: breachedByMaxDrawdown || metrics.equity < maxDrawdownBalance ? 'breached' : 'passed',
         note: maxDrawdownBalance
           ? `${formatAccountCurrency(maxDrawdownRemaining)} loss remaining`
           : 'Pending',
@@ -351,7 +377,7 @@ export const getChallengeAccountDetail = async (
       ...(normalizedChallengeType === 'ngn_flexi' ? {} : {
         max_daily_drawdown: {
           label: 'Max Daily Drawdown',
-          status: metrics.equity < dailyDrawdownBalance ? 'breached' : 'passed',
+          status: breachedByDailyDrawdown || metrics.equity < dailyDrawdownBalance ? 'breached' : 'passed',
           note: dailyDrawdownBalance
             ? `${formatAccountCurrency(dailyDrawdownRemaining)} loss remaining`
             : 'Pending',
@@ -437,6 +463,7 @@ export const requestChallengeRefresh = async (req: AuthRequest, res: Response, n
 
     const account = await prisma.cTraderAccount.findFirst({
       where: { userId: user.id, challengeId: challenge_id },
+      include: { user: true },
     })
     if (!account) {
       throw new ApiError('Account not found', 404)
@@ -511,8 +538,18 @@ export const generatePassedChallengeCertificatePreview = async (
 export const listCertificates = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureUser(req)
+    const page = Number(req.query.page ?? 1)
+    const limit = Number(req.query.limit ?? 10)
     const certificates = await listUserCertificates(user.id)
-    res.json({ certificates })
+    const total = certificates.length
+    const pages = Math.max(1, Math.ceil(total / limit))
+    const start = (page - 1) * limit
+    const end = start + limit
+
+    res.json({
+      certificates: certificates.slice(start, end),
+      pagination: { page, limit, total, pages },
+    })
   } catch (err) {
     next(err as Error)
   }

@@ -2,11 +2,20 @@ import { Request, Response, NextFunction } from 'express'
 import { prisma } from '../../config/prisma'
 import { ApiError } from '../../common/errors'
 import { buildObjectiveFields, parseAccountSize } from '../ctrader/ctrader.objectives'
-import { createPayoutCertificate } from '../../services/certificate.service'
+import { assignReadyAccountFromPool } from '../ctrader/ctrader.assignment'
+import { createOverallRewardCertificate, createPayoutCertificate } from '../../services/certificate.service'
 import { getFxRatesConfig } from '../fxRates/fxRates.service'
 import { fetchRemoteAttachment, sendUnifiedEmail } from '../../services/email.service'
+import { requestAccountAccess } from '../../services/accessEngine.service'
+import { buildCacheKey, getCached, setCached, clearCacheByPrefix } from '../../common/cache'
 
 type AuthRequest = Request & { user?: { id: number; email: string } }
+
+const getIdempotencyKey = (req: Request) =>
+  req.header('idempotency-key')
+  ?? req.header('Idempotency-Key')
+  ?? req.header('x-idempotency-key')
+  ?? undefined
 
 const ensureUser = (req: AuthRequest) => {
   if (!req.user) {
@@ -169,6 +178,12 @@ const clampNonNegative = (value: number | null | undefined) => Math.max(0, value
 export const getPayoutSummary = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureUser(req)
+    const cacheKey = buildCacheKey(['payouts', 'summary', user.id])
+    const cached = await getCached<Record<string, unknown>>(cacheKey)
+    if (cached) {
+      res.json(cached)
+      return
+    }
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
     if (!dbUser) {
       throw new ApiError('User not found', 404)
@@ -177,10 +192,15 @@ export const getPayoutSummary = async (req: AuthRequest, res: Response, next: Ne
     const fundedAccounts = await prisma.cTraderAccount.findMany({
       where: {
         userId: user.id,
-        status: { in: ['funded', 'active', 'assigned', 'assigned_pending_access'] },
+        status: { in: ['funded', 'active'] },
         OR: [
-          { phase: { contains: 'funded', mode: 'insensitive' } },
-          { status: { in: ['funded', 'active'] } },
+          {
+            AND: [
+              { status: 'active' },
+              { phase: { contains: 'funded', mode: 'insensitive' } },
+            ],
+          },
+          { status: 'funded' },
           { challengeType: 'instant_funded' },
         ],
       },
@@ -219,7 +239,19 @@ export const getPayoutSummary = async (req: AuthRequest, res: Response, next: Ne
     const withdrawals = await prisma.payout.findMany({
       where: { userId: user.id },
       orderBy: { requestedAt: 'desc' },
-      include: { account: true },
+      select: {
+        id: true,
+        amountKobo: true,
+        status: true,
+        requestedAt: true,
+        completedAt: true,
+        reference: true,
+        account: {
+          select: {
+            accountNumber: true,
+          },
+        },
+      },
     })
 
     const totalAvailable = payoutAccounts.reduce((sum, account) => sum + account.available_payout, 0)
@@ -229,7 +261,7 @@ export const getPayoutSummary = async (req: AuthRequest, res: Response, next: Ne
     const hasAvailablePayout = totalAvailable >= MIN_WITHDRAWAL_AMOUNT
     const isEligible = hasVerifiedBankAccount && hasAvailablePayout && payoutAccounts.length > 0
 
-    res.json({
+    const payload = {
       total_available_payout: totalAvailable,
       total_earned_all_time: totalEarned,
       funded_accounts: payoutAccounts,
@@ -247,7 +279,7 @@ export const getPayoutSummary = async (req: AuthRequest, res: Response, next: Ne
         has_verified_bank_account: hasVerifiedBankAccount,
         has_available_payout: hasAvailablePayout,
         minimum_payout_amount: MIN_WITHDRAWAL_AMOUNT,
-        bank_account_masked: dbUser.payoutAccountNumber ? dbUser.payoutAccountNumber.slice(-4) : null,
+        bank_account_masked: dbUser.payoutAccountNumber ?? null,
         ineligibility_reasons: [
           ...(payoutAccounts.length === 0 ? ['No funded accounts are available for payout.'] : []),
           ...(!hasVerifiedBankAccount ? ['Please save a payout method in Settings.'] : []),
@@ -255,7 +287,10 @@ export const getPayoutSummary = async (req: AuthRequest, res: Response, next: Ne
         ],
       },
       payout_method: mapPayoutMethodDetails(dbUser),
-    })
+    }
+
+    await setCached(cacheKey, payload, 20)
+    res.json(payload)
   } catch (err) {
     next(err as Error)
   }
@@ -264,6 +299,7 @@ export const getPayoutSummary = async (req: AuthRequest, res: Response, next: Ne
 export const requestPayout = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureUser(req)
+    const idempotencyKey = getIdempotencyKey(req)
     const { account_id } = req.body as { account_id?: number; pin?: string }
     if (!account_id) {
       throw new ApiError('account_id is required', 400)
@@ -302,6 +338,22 @@ export const requestPayout = async (req: AuthRequest, res: Response, next: NextF
       throw new ApiError('Please configure a payout method in settings.', 400)
     }
 
+    if (idempotencyKey) {
+      const existing = await prisma.payout.findFirst({
+        where: { userId: user.id, idempotencyKey },
+      })
+      if (existing) {
+        res.json({
+          request_id: existing.providerRef ?? existing.id,
+          amount: existing.amountKobo / 100,
+          status: existing.status,
+          estimated_completion: null,
+          message: 'Payout request submitted successfully.',
+        })
+        return
+      }
+    }
+
     const providerRef = `PAYOUT-${Date.now()}-${Math.floor(Math.random() * 9999)}`
     const amountKobo = Math.round(payoutInfo.profitSplitAmount * 100)
     const payoutCurrency = resolveCurrencyLabel(payoutInfo.account.currency)
@@ -324,6 +376,7 @@ export const requestPayout = async (req: AuthRequest, res: Response, next: NextF
         payoutCryptoLastName: dbUser.payoutCryptoLastName,
         userId: user.id,
         accountId: payoutInfo.account.id,
+        idempotencyKey: idempotencyKey ?? null,
         metadata: {
           withdrawal_schedule: payoutInfo.withdrawalSchedule,
           mt5_account_number: payoutInfo.account.accountNumber,
@@ -332,12 +385,50 @@ export const requestPayout = async (req: AuthRequest, res: Response, next: NextF
       },
     })
 
-    res.json({
+    const payload = {
       request_id: payout.providerRef ?? payout.id,
       amount: payout.amountKobo / 100,
       status: payout.status,
       estimated_completion: null,
       message: 'Payout request submitted successfully.',
+    }
+
+    await clearCacheByPrefix(buildCacheKey(['payouts', 'summary', user.id]))
+    await clearCacheByPrefix(buildCacheKey(['trader', 'challenges', user.id]))
+    res.json(payload)
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const getOverallRewardCertificate = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const user = ensureUser(req)
+
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
+    if (!dbUser) {
+      throw new ApiError('User not found', 404)
+    }
+
+    const payoutAccounts = await prisma.payout.findMany({
+      where: { userId: user.id, status: { in: ['processing', 'completed', 'pending_approval'] } },
+      select: { profitAmount: true, account: { select: { currency: true } } },
+    })
+
+    const totalReward = payoutAccounts.reduce((sum, payout) => sum + (payout.profitAmount ?? 0), 0)
+    const currency = payoutAccounts[0]?.account?.currency ?? 'USD'
+
+    const certificate = await createOverallRewardCertificate({
+      userId: user.id,
+      totalReward,
+      currency,
+    })
+
+    res.json({
+      certificate_url: certificate.certificateUrl,
+      total_reward: totalReward,
+      currency,
+      generated_at: certificate.generatedAt.toISOString(),
     })
   } catch (err) {
     next(err as Error)
@@ -447,6 +538,25 @@ export const approvePayoutRequest = async (req: AuthRequest, res: Response, next
       throw new ApiError('Only pending payouts can be approved', 400)
     }
 
+    const payoutAccount = payout.accountId
+      ? await prisma.cTraderAccount.findUnique({ where: { id: payout.accountId }, include: { user: true } })
+      : null
+
+    let newlyAssignedAccount: Awaited<ReturnType<typeof assignReadyAccountFromPool>> | null = null
+    if (payoutAccount?.userId) {
+      newlyAssignedAccount = await assignReadyAccountFromPool({
+        userId: payoutAccount.userId,
+        challengeType: payoutAccount.challengeType ?? 'two_step',
+        phase: 'funded',
+        accountSize: payoutAccount.accountSize,
+        currency: payoutAccount.currency ?? 'USD',
+      })
+
+      if (!newlyAssignedAccount) {
+        throw new ApiError('No ready accounts available to assign after payout approval.', 409)
+      }
+    }
+
     const completedAt = new Date()
     const updated = await prisma.$transaction(async (tx) => {
       const payoutUpdate = await tx.payout.update({
@@ -460,55 +570,18 @@ export const approvePayoutRequest = async (req: AuthRequest, res: Response, next
       })
 
       if (payout.accountId) {
-        const adjustmentAmount = payout.profitBaseAmount
-          ?? payout.profitAmount
-          ?? payout.amountKobo / 100
-
-        await tx.accountAdjustment.create({
+        await tx.cTraderAccount.update({
+          where: { id: payout.accountId },
           data: {
-            accountId: payout.accountId,
-            type: 'withdrawal',
-            amount: adjustmentAmount,
-            reason: `Payout approved: ${payout.providerRef ?? payout.id}`,
+            status: 'withdrawn',
           },
         })
-
-        const metrics = await tx.cTraderAccountMetric.findUnique({
-          where: { accountId: payout.accountId },
-        })
-
-        if (metrics) {
-          const adjustment = adjustmentAmount
-          const adjustedHighestBalance = clampNonNegative(metrics.highestBalance - adjustment)
-          const adjustedDailyHighBalance = clampNonNegative(metrics.dailyHighBalance - adjustment)
-          const adjustedBalance = clampNonNegative(metrics.balance - adjustment)
-          const adjustedEquity = clampNonNegative(metrics.equity - adjustment)
-
-          await tx.cTraderAccountMetric.update({
-            where: { accountId: payout.accountId },
-            data: {
-              balance: adjustedBalance,
-              equity: adjustedEquity,
-              lastBalance: adjustedBalance,
-              lastEquity: adjustedEquity,
-              highestBalance: adjustedHighestBalance,
-              dailyHighBalance: adjustedDailyHighBalance,
-              breachBalance: clampNonNegative(metrics.breachBalance - adjustment),
-              dailyBreachBalance: clampNonNegative(metrics.dailyBreachBalance - adjustment),
-              maxPermittedLossLeft: clampNonNegative(metrics.maxPermittedLossLeft + adjustment),
-              capturedAt: completedAt,
-            },
-          })
-        }
       }
 
       return payoutUpdate
     })
 
     try {
-      const payoutAccount = updated.accountId
-        ? await prisma.cTraderAccount.findUnique({ where: { id: updated.accountId } })
-        : null
       const payoutCurrency = resolveCurrencyLabel(payoutAccount?.currency)
       const certificate = await createPayoutCertificate({
         userId: updated.userId,
@@ -516,6 +589,18 @@ export const approvePayoutRequest = async (req: AuthRequest, res: Response, next
         accountId: updated.accountId,
         amount: updated.amountKobo / 100,
         currency: payoutCurrency,
+      })
+
+      const allPayouts = await prisma.payout.findMany({
+        where: { userId: updated.userId, status: { in: ['processing', 'completed', 'pending_approval'] } },
+        select: { profitAmount: true, account: { select: { currency: true } } },
+      })
+      const totalReward = allPayouts.reduce((sum, payoutItem) => sum + (payoutItem.profitAmount ?? 0), 0)
+      const overallCurrency = allPayouts[0]?.account?.currency ?? payoutCurrency
+      await createOverallRewardCertificate({
+        userId: updated.userId,
+        totalReward,
+        currency: overallCurrency,
       })
 
       const user = await prisma.user.findUnique({ where: { id: updated.userId } })
@@ -541,6 +626,19 @@ export const approvePayoutRequest = async (req: AuthRequest, res: Response, next
           ...(attachments ? { attachments } : {}),
         })
       }
+
+      if (newlyAssignedAccount && payoutAccount?.user?.email) {
+        await requestAccountAccess({
+          user_email: payoutAccount.user.email,
+          user_name: payoutAccount.user.fullName ?? undefined,
+          account_type: newlyAssignedAccount.challengeType ?? payoutAccount.challengeType ?? undefined,
+          account_phase: newlyAssignedAccount.phase ?? 'funded',
+          account_size: newlyAssignedAccount.accountSize ?? payoutAccount.accountSize ?? undefined,
+          account_number: newlyAssignedAccount.accountNumber,
+          broker: newlyAssignedAccount.brokerName,
+          platform: 'ctrader',
+        })
+      }
     } catch (error) {
       console.error('Failed to create payout certificate', error)
     }
@@ -550,6 +648,9 @@ export const approvePayoutRequest = async (req: AuthRequest, res: Response, next
       status: updated.status,
       message: 'Payout approved.',
     })
+
+    await clearCacheByPrefix(buildCacheKey(['payouts', 'summary', updated.userId]))
+    await clearCacheByPrefix(buildCacheKey(['trader', 'challenges', updated.userId]))
   } catch (err) {
     next(err as Error)
   }
@@ -587,6 +688,9 @@ export const rejectPayoutRequest = async (req: AuthRequest, res: Response, next:
       status: updated.status,
       message: 'Payout rejected.',
     })
+
+    await clearCacheByPrefix(buildCacheKey(['payouts', 'summary', updated.userId]))
+    await clearCacheByPrefix(buildCacheKey(['trader', 'challenges', updated.userId]))
   } catch (err) {
     next(err as Error)
   }

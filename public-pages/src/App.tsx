@@ -4,6 +4,7 @@ import Home from './pages/Home';
 import RulesPage from './pages/RulesPage';
 import ContactPage from './pages/ContactPage';
 import FAQPage from './pages/FAQPage';
+import StorePage from './pages/StorePage';
 import Footer from './components/Footer';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
 	const isRulesPage = window.location.pathname === '/rules';
 	const isContactPage = window.location.pathname === '/contact';
 	const isFaqPage = window.location.pathname === '/faq';
+	const isStorePage = window.location.pathname === '/store';
 	const isReferralPage = window.location.pathname.startsWith('/ref/');
 
 	return (
@@ -42,7 +44,7 @@ function App() {
 				</a>
 			</div>
 			<Navbar />
-			{isReferralPage ? null : (isRulesPage ? <RulesPage /> : isFaqPage ? <FAQPage /> : isContactPage ? <ContactPage /> : <Home />)}
+			{isReferralPage ? null : (isRulesPage ? <RulesPage /> : isFaqPage ? <FAQPage /> : isContactPage ? <ContactPage /> : isStorePage ? <StorePage /> : <Home />)}
 			<Footer />
 		</>
 	);

@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../config/prisma'
 import { buildObjectiveFields } from './ctrader.objectives'
+import { pushActiveAccountAdd } from '../../services/ctraderEngine.service'
 
 export const normalizeChallengeBase = (challengeId: string) =>
   challengeId.replace(/-(ph2|funded)$/i, '')
@@ -85,9 +86,20 @@ export const assignReadyAccountFromPool = async ({
       assignedAt: new Date(),
     } as Prisma.CTraderAccountUncheckedUpdateInput
 
-    return tx.cTraderAccount.update({
+    const updated = await tx.cTraderAccount.update({
       where: { id: account.id },
       data: updateData,
     })
+    try {
+      await pushActiveAccountAdd({
+        accountNumber: updated.accountNumber,
+        phase: updated.phase,
+        status: updated.status,
+        challengeType: updated.challengeType,
+      })
+    } catch (error) {
+      console.error('Failed to push active account add', error)
+    }
+    return updated
   })
 }

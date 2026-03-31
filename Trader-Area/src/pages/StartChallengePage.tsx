@@ -52,6 +52,27 @@ const DesktopStartChallengePage: React.FC = () => {
   )
   const isFreeCheckout = Boolean(couponPreview && couponPreview.final_amount === 0)
 
+  const normalizeCouponError = (error: unknown) => {
+    if (!error) return 'Failed to apply coupon'
+    if (typeof error === 'string') {
+      const trimmed = error.trim()
+      if (!trimmed) return 'Failed to apply coupon'
+      if (trimmed.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(trimmed)
+          if (parsed?.message) return String(parsed.message)
+        } catch {
+          return trimmed
+        }
+      }
+      return trimmed
+    }
+    if (error instanceof Error) {
+      return normalizeCouponError(error.message)
+    }
+    return 'Failed to apply coupon'
+  }
+
   React.useEffect(() => {
     if ((isNgnAccount || isFreeCheckout) && selectedPaymentMethod === 'crypto') {
       setSelectedPaymentMethod('bank-transfer')
@@ -81,8 +102,8 @@ const DesktopStartChallengePage: React.FC = () => {
       return
     }
 
-    const amountNumeric = couponPreview?.final_amount ?? Number(accountData.fee.replace(/[^0-9.]/g, ''))
-    const amountKobo = Math.round(amountNumeric * 100)
+    const baseAmountNumeric = Number(accountData.fee.replace(/[^0-9.]/g, ''))
+    const baseAmountKobo = Math.round(baseAmountNumeric * 100)
 
     if (isFreeCheckout) {
       setPaymentLoading(true)
@@ -90,7 +111,7 @@ const DesktopStartChallengePage: React.FC = () => {
       initFreeOrder({
         plan_id: planId,
         account_size: accountData.size,
-        amount_kobo: amountKobo,
+        amount_kobo: baseAmountKobo,
         coupon_code: couponPreview?.code ?? (promoCode.trim() || null),
         challenge_type: (accountData as any).challenge_type,
         phase: (accountData as any).phase,
@@ -120,7 +141,7 @@ const DesktopStartChallengePage: React.FC = () => {
       initCryptoOrder({
         plan_id: planId,
         account_size: accountData.size,
-        amount_kobo: amountKobo + 100,
+        amount_kobo: baseAmountKobo + 100,
         coupon_code: couponPreview?.code ?? (promoCode.trim() || null),
         crypto_currency: 'USDT',
         challenge_type: (accountData as any).challenge_type,
@@ -146,7 +167,7 @@ const DesktopStartChallengePage: React.FC = () => {
     initPalmPayBankTransfer({
       plan_id: planId,
       account_size: accountData.size,
-      amount_kobo: amountKobo,
+      amount_kobo: baseAmountKobo,
       coupon_code: couponPreview?.code ?? (promoCode.trim() || null),
       challenge_type: (accountData as any).challenge_type,
       phase: (accountData as any).phase,
@@ -182,11 +203,12 @@ const DesktopStartChallengePage: React.FC = () => {
         code: promoCode.trim().toUpperCase(),
         plan_id: planId,
         amount_kobo: amountKobo,
+        challenge_type: (accountData as any).challenge_type,
       })
       setCouponPreview(preview)
     } catch (err: unknown) {
       setCouponPreview(null)
-      setCouponError(err instanceof Error ? err.message : 'Failed to apply coupon')
+      setCouponError(normalizeCouponError(err))
     } finally {
       setCouponLoading(false)
     }
@@ -301,7 +323,12 @@ const DesktopStartChallengePage: React.FC = () => {
                       {couponLoading ? 'Applying...' : 'Apply'}
                     </button>
                   </div>
-                  {couponError && <p className="desktop-coupon-error">{couponError}</p>}
+                  {couponError && (
+                    <div className="desktop-coupon-error" role="alert">
+                      <i className="fas fa-exclamation-circle" aria-hidden="true"></i>
+                      <span>{couponError}</span>
+                    </div>
+                  )}
                   {couponPreview && (
                     <p className="desktop-coupon-success">
                       Applied {couponPreview.code}: -{couponPreview.formatted_discount_amount}

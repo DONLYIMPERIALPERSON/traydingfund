@@ -232,7 +232,11 @@ export const approveCryptoOrder = async (req: Request, res: Response, next: Next
       console.error('Failed to create onboarding certificate', error)
     }
 
-    await createAffiliateCommission(updated as { id: number; affiliateId?: number | null; netAmountKobo: number })
+    await createAffiliateCommission({
+      id: updated.id,
+      ...(updated.affiliateId !== null && updated.affiliateId !== undefined ? { affiliateId: updated.affiliateId } : {}),
+      netAmountKobo: updated.netAmountKobo,
+    })
 
     const challengeType = updated.challengeType ?? 'two_step'
     const phase = updated.phase ?? 'phase_1'

@@ -5,7 +5,7 @@ import { authenticate, requireRole } from '../../common/auth'
 import { createAllowlistEntry, deleteAllowlistEntry, listAllowlist, updateAllowlistEntry } from './admin.allowlist.controller'
 import { deleteReadyCTraderAccount, downloadCTraderTemplate, getCTraderSummary, listCTraderAccounts, uploadCTraderAccounts } from './ctrader.controller'
 import { listAdminKycProfiles, listAdminKycRequests, reviewKycRequest } from '../kyc/kyc.admin.controller'
-import { createCouponAdmin, listCouponsAdmin, updateCouponPlanAdmin, updateCouponStatusAdmin } from '../coupons/coupon.controller'
+import { createCouponAdmin, deleteCouponAdmin, listCouponsAdmin, updateCouponChallengeTypeAdmin, updateCouponPlanAdmin, updateCouponStatusAdmin } from '../coupons/coupon.controller'
 import {
   listAdminAffiliateOverview,
   listAdminAffiliateCommissions,
@@ -49,3 +49,5 @@ adminRouter.get('/coupons', authenticate, requireRole(['admin', 'super_admin']),
 adminRouter.post('/coupons', authenticate, requireRole(['admin', 'super_admin']), createCouponAdmin)
 adminRouter.patch('/coupons/:id/status', authenticate, requireRole(['admin', 'super_admin']), updateCouponStatusAdmin)
 adminRouter.patch('/coupons/:id/plans', authenticate, requireRole(['admin', 'super_admin']), updateCouponPlanAdmin)
+adminRouter.patch('/coupons/:id/challenge-types', authenticate, requireRole(['admin', 'super_admin']), updateCouponChallengeTypeAdmin)
+adminRouter.delete('/coupons/:id', authenticate, requireRole(['admin', 'super_admin']), deleteCouponAdmin)

@@ -1,4 +1,4 @@
-import { Resend } from 'resend'
+import { SESClient, SendRawEmailCommand } from '@aws-sdk/client-ses'
 import { env } from '../config/env'
 import { buildEmailTemplate } from './emailTemplate'
 
@@ -14,7 +14,69 @@ export type EmailPayload = {
   attachments?: Array<{ filename: string; content: Buffer; contentType?: string }>
 }
 
-const resolveButtonLink = (override?: string) => override ?? env.resendDashboardUrl
+const resolveButtonLink = (override?: string) => override ?? env.sesDashboardUrl
+
+const resolveSender = () => {
+  const fromEmail = env.sesFromEmail
+  if (!fromEmail) return ''
+  return env.sesFromName ? `${env.sesFromName} <${fromEmail}>` : fromEmail
+}
+
+const buildRawEmail = (payload: {
+  to: string
+  subject: string
+  html: string
+  text: string
+  replyTo?: string
+  from: string
+  attachments?: Array<{ filename: string; content: Buffer; contentType: string }>
+}) => {
+  const boundary = `BOUNDARY_${Date.now()}`
+  const headerLines = [
+    `From: ${payload.from}`,
+    `To: ${payload.to}`,
+    `Subject: ${payload.subject}`,
+    'MIME-Version: 1.0',
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+  ]
+
+  if (payload.replyTo) {
+    headerLines.push(`Reply-To: ${payload.replyTo}`)
+  }
+
+  const bodyLines = [
+    `--${boundary}`,
+    'Content-Type: multipart/alternative; boundary="ALT_BOUNDARY"',
+    '',
+    '--ALT_BOUNDARY',
+    'Content-Type: text/plain; charset="UTF-8"',
+    'Content-Transfer-Encoding: 7bit',
+    '',
+    payload.text,
+    '',
+    '--ALT_BOUNDARY',
+    'Content-Type: text/html; charset="UTF-8"',
+    'Content-Transfer-Encoding: 7bit',
+    '',
+    payload.html,
+    '',
+    '--ALT_BOUNDARY--',
+  ]
+
+  const attachmentLines = (payload.attachments ?? []).flatMap((attachment) => [
+    `--${boundary}`,
+    `Content-Type: ${attachment.contentType}; name="${attachment.filename}"`,
+    'Content-Transfer-Encoding: base64',
+    `Content-Disposition: attachment; filename="${attachment.filename}"`,
+    '',
+    attachment.content.toString('base64'),
+    '',
+  ])
+
+  const ending = `--${boundary}--`
+
+  return [...headerLines, '', ...bodyLines, ...attachmentLines, ending].join('\r\n')
+}
 
 export const fetchRemoteAttachment = async (payload: {
   url: string
@@ -34,12 +96,10 @@ export const fetchRemoteAttachment = async (payload: {
 }
 
 export const sendUnifiedEmail = async (payload: EmailPayload) => {
-  if (!env.resendApiKey || !env.resendFromEmail) {
-    console.warn('[email] RESEND_API_KEY or RESEND_FROM_EMAIL not configured')
+  if (!env.sesAccessKeyId || !env.sesSecretAccessKey || !env.sesFromEmail) {
+    console.warn('[email] AWS SES credentials or from email not configured')
     return null
   }
-
-  const resend = new Resend(env.resendApiKey)
   const html = buildEmailTemplate({
     title: payload.title,
     subtitle: payload.subtitle,
@@ -49,19 +109,34 @@ export const sendUnifiedEmail = async (payload: EmailPayload) => {
     infoBox: payload.infoBox,
   })
 
+
   const attachments = payload.attachments?.map((attachment) => ({
     filename: attachment.filename,
     content: attachment.content,
-    ...(attachment.contentType ? { contentType: attachment.contentType } : { contentType: 'application/pdf' }),
+    contentType: attachment.contentType ?? 'application/pdf',
   }))
 
-  return resend.emails.send({
-    from: env.resendFromEmail,
+  const client = new SESClient({
+    region: env.sesRegion,
+    credentials: {
+      accessKeyId: env.sesAccessKeyId,
+      secretAccessKey: env.sesSecretAccessKey,
+    },
+  })
+
+  const rawEmail = buildRawEmail({
     to: payload.to,
     subject: payload.subject,
     html,
     text: payload.content,
-    ...(env.resendReplyToEmail ? { replyTo: env.resendReplyToEmail } : {}),
+    from: resolveSender(),
+    ...(env.sesReplyToEmail ? { replyTo: env.sesReplyToEmail } : {}),
     ...(attachments ? { attachments } : {}),
   })
+
+  const command = new SendRawEmailCommand({
+    RawMessage: { Data: Buffer.from(rawEmail) },
+  })
+
+  return client.send(command)
 }

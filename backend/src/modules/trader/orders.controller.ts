@@ -6,11 +6,13 @@ import { ApiError } from '../../common/errors'
 import { createVirtualAccount } from '../../services/safehaven.service'
 import { getFxRatesConfig } from '../fxRates/fxRates.service'
 import { requestAccountAccess } from '../../services/accessEngine.service'
+import { pushActiveAccountRemove } from '../../services/ctraderEngine.service'
 import { assignReadyAccountFromPool } from '../ctrader/ctrader.assignment'
 import { createOnboardingCertificate } from '../../services/certificate.service'
 import { buildObjectiveFields } from '../ctrader/ctrader.objectives'
 import { fetchRemoteAttachment, sendUnifiedEmail } from '../../services/email.service'
 import { applyCouponToOrder } from '../../services/coupon.service'
+import { buildCacheKey, clearCacheByPrefix } from '../../common/cache'
 
 const CRYPTO_ADDRESSES = {
   BTC: env.cryptoBtcAddress,
@@ -89,6 +91,117 @@ const buildEmailSubject = (base: string) => {
   const suffix = Math.random().toString(36).slice(2, 7).toUpperCase()
   return `${base} #${suffix}`
 }
+
+const getIdempotencyKey = (req: Request) =>
+  req.header('idempotency-key')
+  ?? req.header('Idempotency-Key')
+  ?? req.header('x-idempotency-key')
+  ?? undefined
+
+const resolveSafeHavenPayload = (order: Order) => (order.metadata as { safehaven?: any } | null)?.safehaven
+
+const buildBankTransferResponse = (order: Order, safehavenPayload?: any) => {
+  const safehaven = safehavenPayload ?? resolveSafeHavenPayload(order)
+  const resolvedAccountNumber = String(
+    safehaven?.accountNumber
+      ?? safehaven?.account_number
+      ?? safehaven?.account?.accountNumber
+      ?? safehaven?.account?.account_number
+      ?? safehaven?.account?.number
+      ?? order.safehavenAccountNumber
+      ?? ''
+  )
+  const resolvedAccountName = String(
+    safehaven?.accountName
+      ?? safehaven?.account_name
+      ?? safehaven?.account?.accountName
+      ?? safehaven?.account?.account_name
+      ?? safehaven?.account?.name
+      ?? order.safehavenAccountName
+      ?? ''
+  )
+  const resolvedBankName = String(
+    safehaven?.bankName
+      ?? safehaven?.bank_name
+      ?? safehaven?.account?.bankName
+      ?? safehaven?.account?.bank_name
+      ?? order.safehavenBankName
+      ?? 'SafeHaven MFB'
+  )
+  const resolvedBankCode = String(
+    safehaven?.bankCode
+      ?? safehaven?.bank_code
+      ?? safehaven?.account?.bankCode
+      ?? safehaven?.account?.bank_code
+      ?? ''
+  )
+  const resolvedAmount = safehaven?.amount ?? order.netAmountKobo / 100
+
+  return {
+    provider_order_id: order.providerOrderId,
+    status: order.status,
+    assignment_status: order.assignmentStatus,
+    currency: order.currency,
+    gross_amount_kobo: order.grossAmountKobo,
+    discount_amount_kobo: order.discountAmountKobo,
+    net_amount_kobo: order.netAmountKobo,
+    bank_transfer_amount_ngn: resolvedAmount,
+    bank_transfer_rate: null,
+    bank_transfer_bank_code: resolvedBankCode,
+    plan_id: order.planId,
+    account_size: order.accountSize,
+    challenge_type: order.challengeType,
+    phase: order.phase,
+    coupon_code: order.couponCode,
+    checkout_url: order.checkoutUrl,
+    payer_bank_name: resolvedBankName,
+    payer_account_name: resolvedAccountName,
+    payer_virtual_acc_no: resolvedAccountNumber,
+    expires_at: order.safehavenExpiresAt?.toISOString() ?? null,
+    challenge_id: null,
+  }
+}
+
+const buildFreeOrderResponse = (order: Order) => ({
+  provider_order_id: order.providerOrderId,
+  status: order.status,
+  assignment_status: order.assignmentStatus,
+  currency: order.currency,
+  gross_amount_kobo: order.grossAmountKobo,
+  discount_amount_kobo: order.discountAmountKobo,
+  net_amount_kobo: order.netAmountKobo,
+  plan_id: order.planId,
+  account_size: order.accountSize,
+  challenge_type: order.challengeType,
+  phase: order.phase,
+  coupon_code: order.couponCode,
+  challenge_id: null,
+})
+
+const buildCryptoOrderResponse = (order: Order) => ({
+  provider_order_id: order.providerOrderId,
+  status: order.status,
+  assignment_status: order.assignmentStatus,
+  currency: order.currency,
+  gross_amount_kobo: order.grossAmountKobo,
+  discount_amount_kobo: order.discountAmountKobo,
+  net_amount_kobo: order.netAmountKobo,
+  plan_id: order.planId,
+  account_size: order.accountSize,
+  challenge_type: order.challengeType,
+  phase: order.phase,
+  coupon_code: order.couponCode,
+  crypto_currency: order.cryptoCurrency,
+  crypto_address: order.cryptoAddress,
+  crypto_networks: order.cryptoCurrency === 'USDT'
+    ? {
+      ERC20: env.cryptoEthAddress,
+      SOL: env.cryptoSolAddress,
+      TRC20: env.cryptoTrxAddress,
+    }
+    : null,
+  challenge_id: null,
+})
 
 const handleCompletedOrder = async (order: Order) => {
   let onboardingCertificateUrl: string | null = null
@@ -230,6 +343,8 @@ const handleCompletedOrder = async (order: Order) => {
     }
   }
 
+  await clearCacheByPrefix(buildCacheKey(['trader', 'challenges', order.userId]))
+
   return prisma.order.findUnique({ where: { id: order.id } })
 }
 
@@ -248,8 +363,19 @@ export const markAccountStatus = async (req: Request, res: Response, next: NextF
       throw new ApiError('Account not found', 404)
     }
 
-    if (burnStatuses.has(status.toLowerCase())) {
+    const normalizedStatus = status.toLowerCase()
+    if (burnStatuses.has(normalizedStatus)) {
       await maybeBurnAccount(account.id)
+      try {
+        await pushActiveAccountRemove(account.accountNumber, normalizedStatus)
+      } catch (error) {
+        console.error('Failed to push active account removal', error)
+      }
+    }
+
+    if (account.userId) {
+      await clearCacheByPrefix(buildCacheKey(['trader', 'challenges', account.userId]))
+      await clearCacheByPrefix(buildCacheKey(['payouts', 'summary', account.userId]))
     }
 
     res.json({ message: 'Account status updated', account_id: account.id })
@@ -283,7 +409,7 @@ export const confirmAccessGrant = async (req: Request, res: Response, next: Next
       throw new ApiError('Account not found', 404)
     }
 
-    await prisma.cTraderAccount.update({
+    const updated = await prisma.cTraderAccount.update({
       where: { id: account.id },
       data: {
         status: status?.toLowerCase() === 'granted' ? 'active' : account.status,
@@ -291,6 +417,19 @@ export const confirmAccessGrant = async (req: Request, res: Response, next: Next
         accessGrantedAt: status?.toLowerCase() === 'granted' ? new Date() : null,
       },
     })
+
+    if (status?.toLowerCase() !== 'granted') {
+      try {
+        await pushActiveAccountRemove(updated.accountNumber, status ?? 'revoked')
+      } catch (error) {
+        console.error('Failed to push active account removal', error)
+      }
+    }
+
+    if (account.userId) {
+      await clearCacheByPrefix(buildCacheKey(['trader', 'challenges', account.userId]))
+      await clearCacheByPrefix(buildCacheKey(['payouts', 'summary', account.userId]))
+    }
 
     res.json({ message: 'Access status updated' })
   } catch (err) {
@@ -383,6 +522,7 @@ export const getOrderStatus = async (req: AuthRequest, res: Response, next: Next
 export const createBankTransferOrder = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureUser(req)
+    const idempotencyKey = getIdempotencyKey(req)
     const { plan_id, account_size, amount_kobo, coupon_code, challenge_type, phase } = req.body as {
       plan_id?: string
       account_size?: string
@@ -400,12 +540,26 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
       throw new ApiError('plan_id, account_size, amount_kobo, challenge_type, and phase are required', 400)
     }
 
+    if (idempotencyKey) {
+      const existing = await prisma.order.findFirst({
+        where: { userId: user.id, idempotencyKey },
+      })
+      if (existing) {
+        if (existing.paymentMethod !== 'bank_transfer') {
+          throw new ApiError('Idempotency key already used for another order.', 409)
+        }
+        res.json(buildBankTransferResponse(existing))
+        return
+      }
+    }
+
     const providerOrderId = `MF-${Date.now()}-${Math.floor(Math.random() * 9999)}`
 
     const couponResult = await applyCouponToOrder({
       code: coupon_code ?? null,
       planId: plan_id,
       amountKobo: amount_kobo,
+      challengeType: challenge_type,
       userId: user.id,
     })
 
@@ -480,31 +634,18 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
         },
         userId: user.id,
         affiliateId: affiliateId && !Number.isNaN(affiliateId) && affiliateId !== user.id ? affiliateId : null,
+        idempotencyKey,
       } as Prisma.OrderUncheckedCreateInput,
     })
 
     res.json({
-      provider_order_id: order.providerOrderId,
-      status: order.status,
-      assignment_status: order.assignmentStatus,
-      currency: order.currency,
-      gross_amount_kobo: order.grossAmountKobo,
-      discount_amount_kobo: order.discountAmountKobo,
-      net_amount_kobo: order.netAmountKobo,
-      bank_transfer_amount_ngn: resolvedAmount,
+      ...buildBankTransferResponse(order, virtualAccount),
       bank_transfer_rate: usdToNgnRate,
       bank_transfer_bank_code: resolvedBankCode,
-      plan_id: order.planId,
-      account_size: order.accountSize,
-      challenge_type: order.challengeType,
-      phase: order.phase,
-      coupon_code: order.couponCode,
-      checkout_url: order.checkoutUrl,
+      bank_transfer_amount_ngn: resolvedAmount,
       payer_bank_name: resolvedBankName || order.safehavenBankName,
       payer_account_name: resolvedAccountName || order.safehavenAccountName,
       payer_virtual_acc_no: resolvedAccountNumber || order.safehavenAccountNumber,
-      expires_at: order.safehavenExpiresAt?.toISOString() ?? null,
-      challenge_id: null,
     })
   } catch (err) {
     next(err as Error)
@@ -514,6 +655,7 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
 export const createFreeOrder = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureUser(req)
+    const idempotencyKey = getIdempotencyKey(req)
     const { plan_id, account_size, amount_kobo, coupon_code, challenge_type, phase } = req.body as {
       plan_id?: string
       account_size?: string
@@ -535,11 +677,25 @@ export const createFreeOrder = async (req: AuthRequest, res: Response, next: Nex
       code: coupon_code ?? null,
       planId: plan_id,
       amountKobo: amount_kobo,
+      challengeType: challenge_type,
       userId: user.id,
     })
 
     if (couponResult.finalAmountKobo > 0) {
       throw new ApiError('Coupon does not cover the full amount', 400)
+    }
+
+    if (idempotencyKey) {
+      const existing = await prisma.order.findFirst({
+        where: { userId: user.id, idempotencyKey },
+      })
+      if (existing) {
+        if (existing.paymentMethod !== 'coupon') {
+          throw new ApiError('Idempotency key already used for another order.', 409)
+        }
+        res.json(buildFreeOrderResponse(existing))
+        return
+      }
     }
 
     const providerOrderId = `FREE-${Date.now()}-${Math.floor(Math.random() * 9999)}`
@@ -563,34 +719,22 @@ export const createFreeOrder = async (req: AuthRequest, res: Response, next: Nex
         paidAt: new Date(),
         userId: user.id,
         affiliateId: affiliateId && !Number.isNaN(affiliateId) && affiliateId !== user.id ? affiliateId : null,
+        idempotencyKey,
       } as Prisma.OrderUncheckedCreateInput,
     })
 
     if (order.netAmountKobo > 0) {
+      const affiliateId = (order as { affiliateId?: number | null }).affiliateId
       await createAffiliateCommission(prisma, {
         id: order.id,
-        affiliateId: (order as { affiliateId?: number | null }).affiliateId,
+        ...(affiliateId !== undefined && affiliateId !== null ? { affiliateId } : {}),
         netAmountKobo: order.netAmountKobo,
       })
     }
 
     const finalized = (await handleCompletedOrder(order)) ?? order
 
-    res.json({
-      provider_order_id: finalized.providerOrderId,
-      status: finalized.status,
-      assignment_status: finalized.assignmentStatus,
-      currency: finalized.currency,
-      gross_amount_kobo: finalized.grossAmountKobo,
-      discount_amount_kobo: finalized.discountAmountKobo,
-      net_amount_kobo: finalized.netAmountKobo,
-      plan_id: finalized.planId,
-      account_size: finalized.accountSize,
-      challenge_type: finalized.challengeType,
-      phase: finalized.phase,
-      coupon_code: finalized.couponCode,
-      challenge_id: null,
-    })
+    res.json(buildFreeOrderResponse(finalized))
   } catch (err) {
     next(err as Error)
   }
@@ -599,6 +743,7 @@ export const createFreeOrder = async (req: AuthRequest, res: Response, next: Nex
 export const createCryptoOrder = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureUser(req)
+    const idempotencyKey = getIdempotencyKey(req)
     const { plan_id, account_size, amount_kobo, crypto_currency, challenge_type, phase, coupon_code } = req.body as {
       plan_id?: string
       account_size?: string
@@ -627,12 +772,26 @@ export const createCryptoOrder = async (req: AuthRequest, res: Response, next: N
       throw new ApiError('Unsupported crypto currency', 400)
     }
 
+    if (idempotencyKey) {
+      const existing = await prisma.order.findFirst({
+        where: { userId: user.id, idempotencyKey },
+      })
+      if (existing) {
+        if (existing.paymentMethod !== 'crypto') {
+          throw new ApiError('Idempotency key already used for another order.', 409)
+        }
+        res.json(buildCryptoOrderResponse(existing))
+        return
+      }
+    }
+
     const providerOrderId = `CRYPTO-${Date.now()}-${Math.floor(Math.random() * 9999)}`
 
     const couponResult = await applyCouponToOrder({
       code: coupon_code ?? null,
       planId: plan_id,
       amountKobo: amount_kobo,
+      challengeType: challenge_type,
       userId: user.id,
     })
     const order = await prisma.order.create({
@@ -655,33 +814,11 @@ export const createCryptoOrder = async (req: AuthRequest, res: Response, next: N
         cryptoAddress: address,
         userId: user.id,
         affiliateId: affiliateId && !Number.isNaN(affiliateId) && affiliateId !== user.id ? affiliateId : null,
+        idempotencyKey,
       } as Prisma.OrderUncheckedCreateInput,
     })
 
-    res.json({
-      provider_order_id: order.providerOrderId,
-      status: order.status,
-      assignment_status: order.assignmentStatus,
-      currency: order.currency,
-      gross_amount_kobo: order.grossAmountKobo,
-      discount_amount_kobo: order.discountAmountKobo,
-      net_amount_kobo: order.netAmountKobo,
-      plan_id: order.planId,
-      account_size: order.accountSize,
-      challenge_type: order.challengeType,
-      phase: order.phase,
-      coupon_code: order.couponCode,
-      crypto_currency: order.cryptoCurrency,
-      crypto_address: order.cryptoAddress,
-      crypto_networks: order.cryptoCurrency === 'USDT'
-        ? {
-          ERC20: env.cryptoEthAddress,
-          SOL: env.cryptoSolAddress,
-          TRC20: env.cryptoTrxAddress,
-        }
-        : null,
-      challenge_id: null,
-    })
+    res.json(buildCryptoOrderResponse(order))
   } catch (err) {
     next(err as Error)
   }
@@ -729,11 +866,11 @@ export const handleSafeHavenWebhook = async (req: Request, res: Response, next: 
 
       if (mapped === 'completed') {
         const affiliateId = (nextOrder as { affiliateId?: number | null }).affiliateId
-        await createAffiliateCommission(tx, {
-          id: nextOrder.id,
-          ...(affiliateId !== undefined ? { affiliateId } : {}),
-          netAmountKobo: nextOrder.netAmountKobo,
-        })
+      await createAffiliateCommission(tx, {
+        id: nextOrder.id,
+        ...(affiliateId !== undefined && affiliateId !== null ? { affiliateId } : {}),
+        netAmountKobo: nextOrder.netAmountKobo,
+      })
       }
 
       return nextOrder

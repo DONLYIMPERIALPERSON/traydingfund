@@ -2,9 +2,11 @@ import { Router } from 'express'
 import {
   applyCouponForOrder,
   createCouponAdmin,
+  deleteCouponAdmin,
   listCouponsAdmin,
   listPublicActiveCoupons,
   previewCheckoutCoupon,
+  updateCouponChallengeTypeAdmin,
   updateCouponPlanAdmin,
   updateCouponStatusAdmin,
 } from './coupon.controller'
@@ -21,3 +23,5 @@ couponRouter.get('/admin', authenticate, requireRole(['admin', 'super_admin']), 
 couponRouter.post('/admin', authenticate, requireRole(['admin', 'super_admin']), createCouponAdmin)
 couponRouter.patch('/admin/:id/status', authenticate, requireRole(['admin', 'super_admin']), updateCouponStatusAdmin)
 couponRouter.patch('/admin/:id/plans', authenticate, requireRole(['admin', 'super_admin']), updateCouponPlanAdmin)
+couponRouter.patch('/admin/:id/challenge-types', authenticate, requireRole(['admin', 'super_admin']), updateCouponChallengeTypeAdmin)
+couponRouter.delete('/admin/:id', authenticate, requireRole(['admin', 'super_admin']), deleteCouponAdmin)

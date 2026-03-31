@@ -4,7 +4,15 @@ import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
 import '../styles/DesktopPayoutPage.css'
-import { payoutAPI, formatCurrency, formatDate, formatTime, formatTimeAgo, type PayoutSummaryResponse } from '../lib/payoutApi'
+import {
+  payoutAPI,
+  formatCurrency,
+  formatDate,
+  formatTime,
+  formatTimeAgo,
+  type OverallRewardCertificate,
+  type PayoutSummaryResponse,
+} from '../lib/payoutApi'
 import {
   fetchBankAccountProfile,
   fetchCryptoPayoutProfile,
@@ -25,6 +33,7 @@ const PayoutPage: React.FC = () => {
   const [bankProfile, setBankProfile] = useState<BankAccountProfile | null>(null)
   const [cryptoProfile, setCryptoProfile] = useState<CryptoPayoutProfile | null>(null)
   const [kycStatus, setKycStatus] = useState('not_started')
+  const [overallCertificate, setOverallCertificate] = useState<OverallRewardCertificate | null>(null)
 
   const navigate = useNavigate()
 
@@ -64,11 +73,12 @@ const PayoutPage: React.FC = () => {
   useEffect(() => {
     const loadPayoutMethods = async () => {
       try {
-        const [payoutProfile, cryptoPayoutProfile, profileRes, historyRes] = await Promise.all([
+        const [payoutProfile, cryptoPayoutProfile, profileRes, historyRes, overallReward] = await Promise.all([
           fetchBankAccountProfile(),
           fetchCryptoPayoutProfile(),
           fetchProfile(),
           fetchKycHistory(),
+          payoutAPI.fetchOverallRewardCertificate(),
         ])
         setBankProfile(payoutProfile)
         setCryptoProfile(cryptoPayoutProfile)
@@ -77,6 +87,7 @@ const PayoutPage: React.FC = () => {
         const latestRequestStatus = historyItems[0]?.status?.toLowerCase()
         const profileStatus = (profileRes.kyc_status || 'not_started').toLowerCase()
         setKycStatus(latestRequestStatus || profileStatus)
+        setOverallCertificate(overallReward)
 
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load payout methods.')
@@ -103,6 +114,17 @@ const PayoutPage: React.FC = () => {
       ? 'Your KYC needs attention. Please resubmit your documents to unlock withdrawals.'
       : 'Please verify your identity before requesting or setting up withdrawals.'
 
+  const handleDownloadCertificate = () => {
+    if (!overallCertificate?.certificate_url) return
+    const link = document.createElement('a')
+    link.href = overallCertificate.certificate_url
+    link.download = 'overall-reward-certificate.png'
+    link.target = '_blank'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   const handleRequestPayout = async () => {
     if (!selectedAccountId) {
       setRequestError('Please select an account')
@@ -119,6 +141,9 @@ const PayoutPage: React.FC = () => {
       // Refresh payout data
       const data = await payoutAPI.getPayoutSummary()
       setPayoutData(data)
+
+      const updatedCertificate = await payoutAPI.fetchOverallRewardCertificate()
+      setOverallCertificate(updatedCertificate)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       setRequestError(errorMessage)
@@ -183,33 +208,48 @@ const PayoutPage: React.FC = () => {
             {/* Stats Cards */}
             {payoutData && (
               <div className="stats-grid">
-                {/* Total Earned All Time */}
-                <div className="stat-card payout-highlight">
+                {/* Overall Reward */}
+                <div className="stat-card payout-highlight reward-certificate-card">
                   <div className="stat-card-header">
                     <div className="stat-icon">
                       <i className="fas fa-trophy"></i>
                     </div>
                     <div className="stat-content">
-                      <div className="stat-label">Total Earned</div>
+                      <div className="stat-label">Overall Reward</div>
                       <div className="stat-value">{formatCurrency(payoutData.total_earned_all_time)}</div>
                       <div className="stat-subtitle">All-time earnings</div>
                     </div>
                   </div>
+                  {overallCertificate?.certificate_url && (
+                    <div
+                      className="reward-certificate-preview"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => window.open(overallCertificate.certificate_url, '_blank')}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          window.open(overallCertificate.certificate_url, '_blank')
+                        }
+                      }}
+                    >
+                      <img
+                        src={overallCertificate.certificate_url}
+                        alt="Overall reward certificate"
+                      />
+                      <button
+                        type="button"
+                        className="reward-certificate-download"
+                        onClick={handleDownloadCertificate}
+                        aria-label="Download certificate"
+                        title="Download certificate"
+                      >
+                        <i className="fas fa-download"></i>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                {/* Available Payout */}
-                <div className="stat-card payout-highlight">
-                  <div className="stat-card-header">
-                    <div className="stat-icon">
-                      <i className="fas fa-money-bill-wave"></i>
-                    </div>
-                    <div className="stat-content">
-                      <div className="stat-label">Available Payout</div>
-                      <div className="stat-value">{formatCurrency(availablePayoutTotal)}</div>
-                      <div className="stat-subtitle">Ready to withdraw</div>
-                    </div>
-                  </div>
-                </div>
               </div>
             )}
 
@@ -277,15 +317,6 @@ const PayoutPage: React.FC = () => {
                     </div>
 
                     {/* Bank Account Info */}
-                    {payoutData.eligibility.has_verified_bank_account && (
-                      <div className="bank-info">
-                        <label className="balance-label">Payout Destination</label>
-                        <div className="bank-details">
-                          <i className="fas fa-university"></i>
-                          <span>****{payoutData.eligibility.bank_account_masked}</span>
-                        </div>
-                      </div>
-                    )}
 
                     {/* Request Button */}
                     <div className="request-button-container">

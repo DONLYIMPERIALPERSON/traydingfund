@@ -36,7 +36,7 @@ const navItemsWithSections: SidebarSection[] = [
     label: "Financial",
     items: [
       {
-        label: "Payouts",
+        label: "Rewards",
         href: "/payout",
         icon: () => <i className="fas fa-credit-card" style={{fontSize: '18px', color: '#666'}}></i>,
       },

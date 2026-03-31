@@ -86,6 +86,8 @@ model Coupon {
   usedCount       Int      @default(0)
   appliesToAllPlans Boolean @default(true)
   applicablePlanIds String[]
+  appliesToAllChallengeTypes Boolean @default(true)
+  applicableChallengeTypes  String[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -249,6 +251,7 @@ model AccountAdjustment {
 model Order {
   id              Int      @id @default(autoincrement())
   providerOrderId String   @unique
+  idempotencyKey  String?
   status          String
   assignmentStatus String
   currency        String
@@ -281,6 +284,9 @@ model Order {
   affiliateId     Int?
   affiliate       User?    @relation("AffiliateOrders", fields: [affiliateId], references: [id])
   affiliateCommission AffiliateCommission?
+
+  @@index([userId])
+  @@index([idempotencyKey])
 }
 
 model AffiliateCommission {
@@ -325,6 +331,7 @@ model AffiliatePayout {
 model Payout {
   id               Int      @id @default(autoincrement())
   providerRef      String?  @unique
+  idempotencyKey   String?
   amountKobo       Int
   profitSplitPercent Float?
   profitBaseAmount Float?
@@ -355,6 +362,10 @@ model Payout {
   user             User     @relation(fields: [userId], references: [id])
   accountId        Int?
   account          CTraderAccount? @relation(fields: [accountId], references: [id])
+
+  @@index([userId])
+  @@index([accountId])
+  @@index([idempotencyKey])
 }
 
 model AdminAllowlist {

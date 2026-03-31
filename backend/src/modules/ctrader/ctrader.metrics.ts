@@ -5,15 +5,29 @@ import { env } from '../../config/env'
 import { ApiError } from '../../common/errors'
 import { buildObjectiveFields } from './ctrader.objectives'
 import { assignReadyAccountFromPool, normalizeChallengeBase } from './ctrader.assignment'
+import { pushActiveAccountRemove } from '../../services/ctraderEngine.service'
 import { requestAccountAccess } from '../../services/accessEngine.service'
 import { createPassedChallengeCertificate } from '../../services/certificate.service'
 import { fetchRemoteAttachment, sendUnifiedEmail } from '../../services/email.service'
+import { buildCacheKey, clearCacheByPrefix } from '../../common/cache'
 
 type TradePayload = {
   ticket?: string
+  position_id?: string
   open_time?: string
   close_time?: string
   profit?: number
+}
+
+type PositionPayload = {
+  position_id?: string
+  symbol_id?: string
+  volume?: number
+  entry_price?: number
+  open_time?: string
+  close_time?: string
+  trade_side?: 'BUY' | 'SELL'
+  is_open?: boolean
 }
 
 type MetricsPayload = {
@@ -21,6 +35,8 @@ type MetricsPayload = {
   balance?: number
   equity?: number
   trades?: TradePayload[]
+  positions?: PositionPayload[]
+  timestamp?: string
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -35,8 +51,10 @@ const parseDate = (value?: string) => (value ? new Date(value) : null)
 const calculateTradeDurationMinutes = (trade: TradePayload) => {
   const opened = parseDate(trade.open_time)
   const closed = parseDate(trade.close_time)
-  if (!opened || !closed) return null
-  return (closed.getTime() - opened.getTime()) / (60 * 1000)
+  if (!opened || !closed || closed.getTime() === 0) return null
+  const durationMs = closed.getTime() - opened.getTime()
+  if (durationMs <= 0) return null
+  return durationMs / (60 * 1000)
 }
 
 export const upsertCTraderMetrics = async (req: Request, res: Response, next: NextFunction) => {
@@ -101,13 +119,22 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       : ((metrics as any)?.dailyBreachBalance ?? balance)
 
     const trades = payload.trades ?? []
-    const totalTrades = ((metrics as any)?.totalTrades ?? 0) + trades.length
-    const shortDurationViolation = trades.some((trade) => {
+    const positions = payload.positions ?? []
+    const tradeEvents = trades.length
+      ? trades
+      : positions.map((position) => ({
+        position_id: position.position_id,
+        open_time: position.open_time,
+        close_time: position.close_time,
+      }))
+    const closedTrades = tradeEvents.filter((trade) => trade.open_time && trade.close_time)
+    const totalTrades = ((metrics as any)?.totalTrades ?? 0) + closedTrades.length
+    const shortDurationViolation = closedTrades.some((trade) => {
       const duration = calculateTradeDurationMinutes(trade)
       return duration != null && accountData.minTradeDurationMinutes != null && duration < accountData.minTradeDurationMinutes
     })
     const firstTradeAt = (metrics as any)?.firstTradeAt
-      ?? trades.map((trade) => parseDate(trade.open_time)).find(Boolean)
+      ?? tradeEvents.map((trade) => parseDate(trade.open_time)).find(Boolean)
       ?? accountData.startedAt
       ?? accountData.assignedAt
       ?? null
@@ -150,8 +177,35 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         ? (normalizedPhase === 'phase_1' ? 'funded' : null)
         : null
 
-    await prisma.$transaction(async (tx) => {
-      const createData = {
+    const expectedStatus = breached
+      ? 'breached'
+      : passed
+        ? (accountData.phase === 'funded' ? 'funded' : 'passed')
+        : account.status
+    const statusWillChange = expectedStatus && account.status?.toLowerCase() !== expectedStatus
+
+    if (breached && !wasBreached) {
+      console.warn('[ctrader-metrics] Breach detected', {
+        accountNumber: account.accountNumber,
+        breachReason,
+        balance,
+        equity,
+        highestBalance,
+        breachBalance,
+        dailyHighBalance,
+        dailyBreachBalance,
+        maxDdAmount: accountData.maxDdAmount,
+        dailyDdAmount: accountData.dailyDdAmount,
+        minTradeDurationMinutes: accountData.minTradeDurationMinutes,
+        shortDurationViolation,
+        payloadTimestamp: payload.timestamp ?? null,
+      })
+    }
+
+    const transactionSteps: Prisma.PrismaPromise<unknown>[] = []
+    transactionSteps.push(prisma.cTraderAccountMetric.upsert({
+      where: { accountId: account.id },
+      create: {
         accountId: account.id,
         balance,
         equity,
@@ -181,9 +235,8 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         lastBalance: balance,
         lastEquity: equity,
         capturedAt: now,
-      } as Prisma.CTraderAccountMetricUncheckedCreateInput
-
-      const updateData = {
+      } as Prisma.CTraderAccountMetricUncheckedCreateInput,
+      update: {
         balance,
         equity,
         unrealizedPnl: equity - balance,
@@ -204,32 +257,35 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         lastBalance: balance,
         lastEquity: equity,
         capturedAt: now,
-      } as Prisma.CTraderAccountMetricUncheckedUpdateInput
+      } as Prisma.CTraderAccountMetricUncheckedUpdateInput,
+    }))
+    if (breached) {
+      transactionSteps.push(prisma.cTraderAccount.update({
+        where: { id: account.id },
+        data: {
+          status: 'breached',
+          breachedAt: now,
+        },
+      }))
+    } else if (passed && account.status.toLowerCase() !== 'breached') {
+      transactionSteps.push(prisma.cTraderAccount.update({
+        where: { id: account.id },
+        data: {
+          status: accountData.phase === 'funded' ? 'funded' : 'passed',
+          passedAt: now,
+        },
+      }))
+    }
 
-      await tx.cTraderAccountMetric.upsert({
-        where: { accountId: account.id },
-        create: createData,
-        update: updateData,
-      })
+    await prisma.$transaction(transactionSteps)
 
-      if (breached) {
-        await tx.cTraderAccount.update({
-          where: { id: account.id },
-          data: {
-            status: 'breached',
-            breachedAt: now,
-          },
-        })
-      } else if (passed && account.status.toLowerCase() !== 'breached') {
-        await tx.cTraderAccount.update({
-          where: { id: account.id },
-          data: {
-            status: accountData.phase === 'funded' ? 'funded' : 'passed',
-            passedAt: now,
-          },
-        })
+    if (breached) {
+      try {
+        await pushActiveAccountRemove(account.accountNumber, breachReason ?? 'breached')
+      } catch (error) {
+        console.error('Failed to push active account removal', error)
       }
-    })
+    }
 
     if (breached && !wasBreached && accountData.user?.email) {
       try {
@@ -318,9 +374,19 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
             platform: 'ctrader',
           })
         }
+        try {
+          await pushActiveAccountRemove(account.accountNumber, 'passed')
+        } catch (error) {
+          console.error('Failed to push active account removal', error)
+        }
       } else {
         nextStageAssigned = false
       }
+    }
+
+    if (accountData.userId && (statusWillChange || nextStageAssigned !== null)) {
+      await clearCacheByPrefix(buildCacheKey(['trader', 'challenges', accountData.userId]))
+      await clearCacheByPrefix(buildCacheKey(['payouts', 'summary', accountData.userId]))
     }
 
     res.json({

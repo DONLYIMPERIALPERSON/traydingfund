@@ -16,12 +16,24 @@ const toUpper = (value: string) => value.trim().toUpperCase()
 const isExpired = (expiresAt: Date | null, now = new Date()) =>
   Boolean(expiresAt && expiresAt.getTime() < now.getTime())
 
+const normalizeType = (value?: string | null) =>
+  (value ?? '').trim().toLowerCase()
+
 const validatePlan = (planId: string, coupon: { appliesToAllPlans: boolean; applicablePlanIds: string[] }) => {
   if (coupon.appliesToAllPlans) return true
   return coupon.applicablePlanIds.includes(planId)
 }
 
-export const previewCoupon = async (payload: { code: string; planId: string; amountKobo: number }) => {
+const validateChallengeType = (
+  challengeType: string | null | undefined,
+  coupon: { appliesToAllChallengeTypes: boolean; applicableChallengeTypes: string[] },
+) => {
+  if (coupon.appliesToAllChallengeTypes) return true
+  const normalized = normalizeType(challengeType)
+  return coupon.applicableChallengeTypes.map(normalizeType).includes(normalized)
+}
+
+export const previewCoupon = async (payload: { code: string; planId: string; amountKobo: number; challengeType?: string | null }) => {
   const code = toUpper(payload.code)
   const coupon = await prisma.coupon.findUnique({ where: { code } })
   if (!coupon || !coupon.isActive) {
@@ -38,6 +50,10 @@ export const previewCoupon = async (payload: { code: string; planId: string; amo
 
   if (!validatePlan(payload.planId, coupon)) {
     throw new ApiError('Coupon is not valid for this account size', 400)
+  }
+
+  if (!validateChallengeType(payload.challengeType, coupon)) {
+    throw new ApiError('Coupon is not valid for this challenge type', 400)
   }
 
   const originalAmountKobo = payload.amountKobo
@@ -64,6 +80,7 @@ export const applyCouponToOrder = async (payload: {
   planId: string
   amountKobo: number
   userId: number
+  challengeType?: string | null
 }) => {
   if (!payload.code) {
     return {
@@ -78,6 +95,7 @@ export const applyCouponToOrder = async (payload: {
     code: payload.code,
     planId: payload.planId,
     amountKobo: payload.amountKobo,
+    challengeType: payload.challengeType,
   })
 
   await prisma.$transaction(async (tx) => {
@@ -112,6 +130,8 @@ export const createAdminCoupon = async (payload: {
   expiresAt?: string | null
   applyAllPlans: boolean
   applicablePlanIds: string[]
+  applyAllChallengeTypes: boolean
+  applicableChallengeTypes: string[]
 }) => {
   const code = toUpper(payload.code)
   return prisma.coupon.create({
@@ -123,6 +143,8 @@ export const createAdminCoupon = async (payload: {
       expiresAt: payload.expiresAt ? new Date(payload.expiresAt) : null,
       appliesToAllPlans: payload.applyAllPlans,
       applicablePlanIds: payload.applyAllPlans ? [] : payload.applicablePlanIds,
+      appliesToAllChallengeTypes: payload.applyAllChallengeTypes,
+      applicableChallengeTypes: payload.applyAllChallengeTypes ? [] : payload.applicableChallengeTypes,
     },
   })
 }
@@ -132,6 +154,14 @@ export const setAdminCouponStatus = async (couponId: number, isActive: boolean) 
     where: { id: couponId },
     data: { isActive },
   })
+
+export const deleteAdminCoupon = async (couponId: number) => {
+  const coupon = await prisma.coupon.findUnique({ where: { id: couponId } })
+  if (!coupon) {
+    throw new ApiError('Coupon not found', 404)
+  }
+  return prisma.coupon.delete({ where: { id: couponId } })
+}
 
 export const toggleAdminCouponPlan = async (couponId: number, payload: { planId: string; enabled: boolean }) => {
   const coupon = await prisma.coupon.findUnique({ where: { id: couponId } })
@@ -150,6 +180,30 @@ export const toggleAdminCouponPlan = async (couponId: number, payload: { planId:
   return prisma.coupon.update({
     where: { id: couponId },
     data: { applicablePlanIds: nextPlanIds },
+  })
+}
+
+export const toggleAdminCouponChallengeType = async (
+  couponId: number,
+  payload: { challengeType: string; enabled: boolean },
+) => {
+  const coupon = await prisma.coupon.findUnique({ where: { id: couponId } })
+  if (!coupon) {
+    throw new ApiError('Coupon not found', 404)
+  }
+
+  if (coupon.appliesToAllChallengeTypes) {
+    return coupon
+  }
+
+  const normalized = normalizeType(payload.challengeType)
+  const nextTypes = payload.enabled
+    ? Array.from(new Set([...coupon.applicableChallengeTypes, normalized]))
+    : coupon.applicableChallengeTypes.filter((type) => normalizeType(type) !== normalized)
+
+  return prisma.coupon.update({
+    where: { id: couponId },
+    data: { applicableChallengeTypes: nextTypes },
   })
 }
 

@@ -1,11 +1,12 @@
 import fs from 'fs/promises'
 import path from 'path'
-import { createCanvas, loadImage, registerFont } from 'canvas'
+import { createCanvas, loadImage, registerFont, type CanvasRenderingContext2D as CanvasRenderingContext } from 'canvas'
 import QRCode from 'qrcode'
 
 const TEMPLATE_FILENAME = 'reward-template.png'
 const ONBOARDING_TEMPLATE_FILENAME = 'onboarding-cert.png'
 const PASSED_CHALLENGE_TEMPLATE_FILENAME = 'pass-challenge-cert.png'
+const OVERALL_REWARD_TEMPLATE_FILENAME = 'overall-reward-cert.png'
 
 const CERTIFICATE_LAYOUT = {
   name: { x: 75, y: 344, width: 959 - 75, height: 408 - 344 },
@@ -14,14 +15,22 @@ const CERTIFICATE_LAYOUT = {
   qr: { x: 991, y: 295, width: 1140 - 991, height: 445 - 295 },
 }
 
+const OVERALL_REWARD_LAYOUT = {
+  name: { x: 30, y: 318, width: 606 - 30, height: 377 - 318 },
+  reward: { x: 30, y: 460, width: 496 - 30, height: 569 - 460 },
+  date: { x: 192, y: 687, width: 384 - 192, height: 733 - 687 },
+}
+
 const resolveTemplatePath = () => path.join(process.cwd(), 'assets', TEMPLATE_FILENAME)
 const resolveOnboardingTemplatePath = () => path.join(process.cwd(), 'assets', ONBOARDING_TEMPLATE_FILENAME)
 const resolvePassedChallengeTemplatePath = () => path.join(process.cwd(), 'assets', PASSED_CHALLENGE_TEMPLATE_FILENAME)
+const resolveOverallRewardTemplatePath = () => path.join(process.cwd(), 'assets', OVERALL_REWARD_TEMPLATE_FILENAME)
 const resolveBoldFontPath = () => path.join(process.cwd(), 'assets', 'fonts', 'static', 'OpenSans-Bold.ttf')
 const resolveRegularFontPath = () => path.join(process.cwd(), 'assets', 'fonts', 'static', 'OpenSans-Regular.ttf')
 const resolveOutputPath = () => path.join(process.cwd(), 'outputs', 'reward-certificate-test.png')
 const resolveOnboardingOutputPath = () => path.join(process.cwd(), 'outputs', 'onboarding-certificate-test.png')
 const resolvePassedChallengeOutputPath = () => path.join(process.cwd(), 'outputs', 'passed-challenge-certificate-test.png')
+const resolveOverallRewardOutputPath = () => path.join(process.cwd(), 'outputs', 'overall-reward-certificate-test.png')
 
 type CertificateRenderPayload = {
   templatePath: string
@@ -39,6 +48,12 @@ const registerCertificateFonts = () => {
   const regularFontPath = resolveRegularFontPath()
   registerFont(boldFontPath, { family: 'Open Sans', weight: 'bold' })
   registerFont(regularFontPath, { family: 'Open Sans', weight: 'normal' })
+}
+
+const drawCenteredText = (ctx: CanvasRenderingContext, text: string, box: { x: number; y: number; width: number; height: number }) => {
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(text, box.x + box.width / 2, box.y + box.height / 2)
 }
 
 const renderCertificateBuffer = async ({
@@ -92,6 +107,39 @@ const renderCertificateBuffer = async ({
   return canvas.toBuffer('image/png')
 }
 
+const renderOverallRewardCertificateBuffer = async (payload: {
+  name: string
+  rewardLabel: string
+  date: Date
+}) => {
+  registerCertificateFonts()
+
+  const templateImage = await loadImage(resolveOverallRewardTemplatePath())
+  const canvas = createCanvas(templateImage.width, templateImage.height)
+  const ctx = canvas.getContext('2d')
+
+  ctx.drawImage(templateImage, 0, 0, templateImage.width, templateImage.height)
+
+  ctx.fillStyle = '#FFFFFF'
+
+  ctx.font = 'bold 50px "Open Sans", "Arial", sans-serif'
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(payload.name, OVERALL_REWARD_LAYOUT.name.x, OVERALL_REWARD_LAYOUT.name.y + OVERALL_REWARD_LAYOUT.name.height / 2)
+
+  ctx.font = 'bold 75px "Open Sans", "Arial", sans-serif'
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(payload.rewardLabel, OVERALL_REWARD_LAYOUT.reward.x, OVERALL_REWARD_LAYOUT.reward.y + OVERALL_REWARD_LAYOUT.reward.height / 2)
+
+  ctx.font = '20px "Open Sans", "Arial", sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(formatCertificateDate(payload.date), OVERALL_REWARD_LAYOUT.date.x + OVERALL_REWARD_LAYOUT.date.width / 2, OVERALL_REWARD_LAYOUT.date.y + OVERALL_REWARD_LAYOUT.date.height / 2)
+
+  return canvas.toBuffer('image/png')
+}
+
 export const generateRewardCertificateBuffer = async (payload: {
   name: string
   rewardLabel: string
@@ -125,6 +173,16 @@ export const generatePassedChallengeCertificateBuffer = async (payload: {
   name: payload.name,
   dateLabel: formatCertificateDate(payload.date),
   ...(payload.qrValue ? { qrValue: payload.qrValue } : {}),
+})
+
+export const generateOverallRewardCertificateBuffer = async (payload: {
+  name: string
+  rewardLabel: string
+  date: Date
+}) => renderOverallRewardCertificateBuffer({
+  name: payload.name,
+  rewardLabel: payload.rewardLabel,
+  date: payload.date,
 })
 
 export const generateRewardCertificateTest = async () => {
@@ -161,6 +219,21 @@ export const generatePassedChallengeCertificateTest = async () => {
 
   const buffer = await generatePassedChallengeCertificateBuffer({
     name: 'LUCKY CHI',
+    date: new Date('2026-03-18T00:00:00Z'),
+  })
+
+  await fs.mkdir(path.dirname(outputPath), { recursive: true })
+  await fs.writeFile(outputPath, buffer)
+
+  return outputPath
+}
+
+export const generateOverallRewardCertificateTest = async () => {
+  const outputPath = resolveOverallRewardOutputPath()
+
+  const buffer = await generateOverallRewardCertificateBuffer({
+    name: 'LUCKY CHI',
+    rewardLabel: '$24,750',
     date: new Date('2026-03-18T00:00:00Z'),
   })
 

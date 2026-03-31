@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
-import { supabaseAdmin } from '../../config/supabaseAdmin'
 import { ApiError } from '../../common/errors'
+import { prisma } from '../../config/prisma'
 
 export const checkEmailExists = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -9,16 +9,15 @@ export const checkEmailExists = async (req: Request, res: Response, next: NextFu
       throw new ApiError('Email is required', 400)
     }
 
-    const { data, error } = await supabaseAdmin.auth.admin.listUsers({
-      page: 1,
-      perPage: 1000,
-    })
-    if (error) {
-      throw new ApiError(error.message, 500)
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new ApiError('Invalid email format', 400)
     }
 
     const lowerEmail = email.toLowerCase()
-    const exists = (data?.users ?? []).some((user) => user.email?.toLowerCase() === lowerEmail)
+    const exists = await prisma.user.findFirst({
+      where: { email: lowerEmail },
+      select: { id: true },
+    })
     res.json({ exists })
   } catch (err) {
     next(err as Error)

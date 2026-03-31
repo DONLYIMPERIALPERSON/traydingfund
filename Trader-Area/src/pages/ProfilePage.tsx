@@ -14,7 +14,6 @@ const ProfilePage: React.FC = () => {
   const [lastName, setLastName] = useState(persistedUser?.last_name || '')
   const [nickName, setNickName] = useState(persistedUser?.nick_name || '')
   const [newNickName, setNewNickName] = useState(persistedUser?.nick_name || '')
-  const [editPin, setEditPin] = useState('')
   const [editError, setEditError] = useState('')
   const [email, setEmail] = useState(persistedUser?.email || '')
 
@@ -37,14 +36,12 @@ const ProfilePage: React.FC = () => {
 
   const handleEditName = () => {
     setNewNickName(nickName)
-    setEditPin('')
     setEditError('')
     setShowEditNameModal(true)
   }
 
   const handleCloseEditNameModal = () => {
     setShowEditNameModal(false)
-    setEditPin('')
     setEditError('')
   }
 
@@ -52,11 +49,6 @@ const ProfilePage: React.FC = () => {
     const cleaned = newNickName.trim()
     if (!cleaned) {
       setEditError('Nickname is required')
-      return
-    }
-
-    if (!/^\d{4}$/.test(editPin)) {
-      setEditError('Enter your 4-digit PIN to change nickname')
       return
     }
 
@@ -163,19 +155,6 @@ const ProfilePage: React.FC = () => {
                   if (editError) setEditError('')
                 }}
                 placeholder="Enter nick name"
-              />
-            </div>
-
-            <div className="desktop-edit-name-field" style={{ marginTop: '10px' }}>
-              <label>Transaction PIN</label>
-              <input
-                type="password"
-                value={editPin}
-                onChange={(e) => {
-                  setEditPin(e.target.value.replace(/\D/g, '').slice(0, 4))
-                  if (editError) setEditError('')
-                }}
-                placeholder="Enter 4-digit PIN"
               />
             </div>
 

@@ -2,6 +2,7 @@ import { prisma } from '../config/prisma'
 import { Prisma, type Certificate, type User } from '@prisma/client'
 import {
   generateRewardCertificateBuffer,
+  generateOverallRewardCertificateBuffer,
   generateOnboardingCertificateBuffer,
   generatePassedChallengeCertificateBuffer,
 } from './rewardCertificate.service'
@@ -236,6 +237,51 @@ export const createPayoutCertificate = async (payload: {
       payout_id: payload.payoutId,
       account_id: payload.accountId,
       amount: payload.amount,
+      currency: normalizedCurrency,
+    },
+    buffer,
+  })
+}
+
+export const createOverallRewardCertificate = async (payload: {
+  userId: number
+  totalReward: number
+  currency?: string | null
+}): Promise<Certificate> => {
+  const relatedEntityId = 'overall-reward'
+  await prisma.certificate.deleteMany({
+    where: {
+      userId: payload.userId,
+      type: 'overall_reward',
+      relatedEntityId,
+    },
+  })
+
+  const user = await prisma.user.findUnique({ where: { id: payload.userId } })
+  if (!user) {
+    throw new Error('User not found for certificate generation')
+  }
+
+  const name = resolveCertificateName(user)
+  const normalizedCurrency = payload.currency?.toUpperCase() ?? 'USD'
+  const rewardLabel = normalizedCurrency === 'NGN'
+    ? `₦${payload.totalReward.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : `$${payload.totalReward.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+  const buffer = await generateOverallRewardCertificateBuffer({
+    name,
+    rewardLabel,
+    date: new Date(),
+  })
+
+  return createCertificateFromBuffer({
+    userId: user.id,
+    type: 'overall_reward',
+    title: 'Overall Reward Certificate',
+    description: 'Issued for total rewards earned on MACHEFUNDED.',
+    relatedEntityId,
+    metadata: {
+      total_reward: payload.totalReward,
       currency: normalizedCurrency,
     },
     buffer,

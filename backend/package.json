@@ -4,11 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "prisma generate && tsc",
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "lint": "echo \"No lint configured\"",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "keywords": [],
   "author": "",
@@ -16,12 +16,15 @@
   "type": "commonjs",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1011.0",
+    "@aws-sdk/client-ses": "^3.1021.0",
     "@aws-sdk/s3-request-presigner": "^3.1011.0",
     "@supabase/supabase-js": "^2.99.2",
     "canvas": "^3.2.1",
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.3.2",
     "helmet": "^8.1.0",
+    "ioredis": "^5.10.1",
     "jose": "^6.2.1",
     "morgan": "^1.10.1",
     "qrcode": "^1.5.4",
@@ -32,11 +35,16 @@
     "@prisma/client": "^5.22.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
     "@types/morgan": "^1.9.10",
     "@types/node": "^25.5.0",
     "@types/qrcode": "^1.5.6",
+    "@types/supertest": "^7.2.0",
     "dotenv": "^17.3.1",
+    "jest": "^30.3.0",
     "prisma": "^5.22.0",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.6",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3"
   }

@@ -164,6 +164,70 @@
   color: white;
 }
 
+.reward-certificate-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.reward-certificate-preview {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  max-height: 170px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.reward-certificate-preview:hover {
+  transform: translateY(-2px);
+}
+
+.reward-certificate-download {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #0b9fb8;
+  border: none;
+  border-radius: 999px;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+}
+
+.reward-certificate-download i {
+  font-size: 16px;
+}
+
+.reward-certificate-download:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.25);
+}
+
+.reward-certificate-preview img {
+  width: 100%;
+  height: 140px;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 10px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+}
+
+
 .stat-card-header {
   display: flex;
   align-items: center;
@@ -257,6 +321,61 @@
   margin: 4px 0 0;
   color: #64748b;
   font-size: 14px;
+}
+
+.payout-method-required {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(11, 159, 184, 0.2);
+  border-radius: 16px;
+  padding: 20px 22px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+  flex-wrap: wrap;
+}
+
+.payout-method-required-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: rgba(11, 159, 184, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0b9fb8;
+  font-size: 20px;
+}
+
+.payout-method-required h4 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  color: #1f2937;
+}
+
+.payout-method-required p {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.payout-method-required button {
+  margin-left: auto;
+  background: #0b9fb8;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 8px 16px rgba(11, 159, 184, 0.25);
+}
+
+.payout-method-required button:hover {
+  background: #008ea4;
+  transform: translateY(-1px);
 }
 
 .payout-empty-state {
@@ -464,10 +583,18 @@
 
 .balance-label {
   font-size: 14px;
-  color: #666;
+  color: #111;
   font-weight: 500;
   display: block;
   margin-bottom: 8px;
+}
+
+.bank-info .balance-label {
+  color: #111;
+}
+
+.bank-details {
+  color: #111;
 }
 
 .balance-value {

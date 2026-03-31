@@ -64,6 +64,11 @@ const AccountOverviewPage: React.FC = () => {
     }
 
     loadAccountData().finally(() => setLoading(false))
+    const refreshInterval = window.setInterval(() => {
+      loadAccountData()
+    }, 15000)
+
+    return () => window.clearInterval(refreshInterval)
   }, [challengeId, loadAccountData])
 
 

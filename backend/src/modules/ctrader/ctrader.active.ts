@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import { prisma } from '../../config/prisma'
 import { ApiError } from '../../common/errors'
 import { env } from '../../config/env'
+import { pushActiveAccountFullSync } from '../../services/ctraderEngine.service'
 
 const ACTIVE_STATUSES = ['active', 'assigned', 'assigned_pending_access', 'funded']
 
@@ -18,13 +19,23 @@ export const listActiveCTraderAccounts = async (req: Request, res: Response, nex
       orderBy: { updatedAt: 'desc' },
     })
 
-    res.json(accounts.map((account) => ({
+    const payload = accounts.map((account) => ({
       accountNumber: account.accountNumber,
       balance: account.metrics?.balance ?? account.initialBalance ?? 0,
       status: account.status,
       phase: account.phase,
       challengeType: account.challengeType,
-    })))
+    }))
+
+    if (req.query?.push_engine === 'true') {
+      try {
+        await pushActiveAccountFullSync(payload)
+      } catch (error) {
+        console.error('Failed to push active account sync', error)
+      }
+    }
+
+    res.json(payload)
   } catch (err) {
     next(err as Error)
   }

@@ -226,7 +226,21 @@ export type TradingObjectivesResponse = {
   rules: TradingObjectivesConfig
 }
 
-export type AdminCoupon = any
+export type AdminCoupon = {
+  id: number
+  code: string
+  discount_type: 'percent' | 'fixed'
+  discount_value: number
+  is_active: boolean
+  expires_at: string | null
+  max_uses: number | null
+  used_count: number
+  applicable_plan_ids: string[]
+  applies_to_all_plans: boolean
+  applicable_challenge_types: string[]
+  applies_to_all_challenge_types: boolean
+  status: string
+}
 
 export type ChallengePlanConfig = {
   id: string
@@ -540,7 +554,7 @@ export const fetchAdminCoupons = async () =>
 export const fetchAdminChallengeConfig = async () =>
   apiFetch<{ plans: ChallengePlanConfig[] }>('/public/plans')
 
-export const createAdminCoupon = async (payload: { code: string; discount_type: 'percent' | 'fixed'; discount_value: number; max_uses?: number | null; expires_at?: string | null; apply_all_plans: boolean; applicable_plan_ids: string[] }) =>
+export const createAdminCoupon = async (payload: { code: string; discount_type: 'percent' | 'fixed'; discount_value: number; max_uses?: number | null; expires_at?: string | null; apply_all_plans: boolean; applicable_plan_ids: string[]; apply_all_challenge_types: boolean; applicable_challenge_types: string[] }) =>
   apiFetch<AdminCoupon>('/admin/coupons', {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -556,6 +570,19 @@ export const toggleAdminCouponPlan = async (couponId: number, payload: { plan_id
   apiFetch<AdminCoupon>(`/admin/coupons/${couponId}/plans`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
+  })
+
+export const toggleAdminCouponChallengeType = async (
+  couponId: number,
+  payload: { challenge_type: string; enabled: boolean }
+) => apiFetch<AdminCoupon>(`/admin/coupons/${couponId}/challenge-types`, {
+  method: 'PATCH',
+  body: JSON.stringify(payload),
+})
+
+export const deleteAdminCoupon = async (couponId: number) =>
+  apiFetch<AdminCoupon>(`/admin/coupons/${couponId}`, {
+    method: 'DELETE',
   })
 
 export const fetchMT5Accounts = async (status?: string) =>

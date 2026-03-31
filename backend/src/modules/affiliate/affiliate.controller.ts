@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
+import { paginationSchema } from '../../common/validation'
 import { prisma } from '../../config/prisma'
 import { ApiError } from '../../common/errors'
 

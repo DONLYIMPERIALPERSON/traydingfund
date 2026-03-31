@@ -7,7 +7,7 @@ import '../styles/DesktopContactPage.css'
 const socialLinks = [
   { name: 'Discord', color: '#5865F2', url: 'https://discord.gg/HR6QW83W6' },
   { name: 'X', color: '#ffffff', url: 'https://x.com/machefunded?s=21' },
-  { name: 'Instagram', color: '#E1306C', url: 'https://www.instagram.com/machefunded?igsh=Y2g0d3BrbnFkbmNl&utm_source=qr' },
+  { name: 'Instagram', color: '#E1306C', url: 'https://www.instagram.com/mache.funded?igsh=NDZsbXhzM3c4d2hu&utm_source=qr' },
 ]
 
 const ContactPage: React.FC = () => {

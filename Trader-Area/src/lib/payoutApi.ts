@@ -54,6 +54,13 @@ export interface PayoutSummaryResponse {
   }
 }
 
+export interface OverallRewardCertificate {
+  certificate_url: string
+  total_reward: number
+  currency: string
+  generated_at: string
+}
+
 export interface PayoutEligibilityResponse {
   eligible: boolean
   has_bank_account: boolean
@@ -86,6 +93,10 @@ class PayoutAPI {
         body: JSON.stringify({ account_id: accountId }),
       }
     )
+  }
+
+  async fetchOverallRewardCertificate(): Promise<OverallRewardCertificate> {
+    return apiFetch<OverallRewardCertificate>('/payouts/overall-reward-certificate')
   }
 }
 

@@ -2,10 +2,12 @@ import { Request, Response, NextFunction } from 'express'
 import {
   applyCouponToOrder,
   createAdminCoupon,
+  deleteAdminCoupon,
   listAdminCoupons,
   listPublicCoupons,
   previewCoupon,
   setAdminCouponStatus,
+  toggleAdminCouponChallengeType,
   toggleAdminCouponPlan,
 } from '../../services/coupon.service'
 import { ApiError } from '../../common/errors'
@@ -32,13 +34,20 @@ const serializeCoupon = (coupon: Coupon) => ({
   used_count: coupon.usedCount,
   applicable_plan_ids: coupon.applicablePlanIds,
   applies_to_all_plans: coupon.appliesToAllPlans,
+  applicable_challenge_types: coupon.applicableChallengeTypes,
+  applies_to_all_challenge_types: coupon.appliesToAllChallengeTypes,
   status: coupon.isActive ? 'Active' : 'Inactive',
 })
 
 export const previewCheckoutCoupon = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     ensureUser(req)
-    const { code, plan_id, amount_kobo } = req.body as { code?: string; plan_id?: string; amount_kobo?: number }
+    const { code, plan_id, amount_kobo, challenge_type } = req.body as {
+      code?: string
+      plan_id?: string
+      amount_kobo?: number
+      challenge_type?: string
+    }
     if (!code || !plan_id || !amount_kobo) {
       throw new ApiError('code, plan_id, and amount_kobo are required', 400)
     }
@@ -47,6 +56,7 @@ export const previewCheckoutCoupon = async (req: AuthRequest, res: Response, nex
       code,
       planId: plan_id,
       amountKobo: amount_kobo,
+      challengeType: challenge_type ?? null,
     })
 
     res.json({
@@ -84,7 +94,7 @@ export const listCouponsAdmin = async (_req: Request, res: Response, next: NextF
 
 export const createCouponAdmin = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { code, discount_type, discount_value, max_uses, expires_at, apply_all_plans, applicable_plan_ids } = req.body as {
+    const { code, discount_type, discount_value, max_uses, expires_at, apply_all_plans, applicable_plan_ids, apply_all_challenge_types, applicable_challenge_types } = req.body as {
       code?: string
       discount_type?: 'percent' | 'fixed'
       discount_value?: number
@@ -92,10 +102,12 @@ export const createCouponAdmin = async (req: Request, res: Response, next: NextF
       expires_at?: string | null
       apply_all_plans?: boolean
       applicable_plan_ids?: string[]
+      apply_all_challenge_types?: boolean
+      applicable_challenge_types?: string[]
     }
 
-    if (!code || !discount_type || !discount_value || apply_all_plans === undefined) {
-      throw new ApiError('code, discount_type, discount_value, and apply_all_plans are required', 400)
+    if (!code || !discount_type || !discount_value || apply_all_plans === undefined || apply_all_challenge_types === undefined) {
+      throw new ApiError('code, discount_type, discount_value, apply_all_plans, and apply_all_challenge_types are required', 400)
     }
 
     const coupon = await createAdminCoupon({
@@ -106,6 +118,8 @@ export const createCouponAdmin = async (req: Request, res: Response, next: NextF
       expiresAt: expires_at ?? null,
       applyAllPlans: apply_all_plans,
       applicablePlanIds: applicable_plan_ids ?? [],
+      applyAllChallengeTypes: apply_all_challenge_types,
+      applicableChallengeTypes: applicable_challenge_types ?? [],
     })
 
     res.json(serializeCoupon(coupon))
@@ -130,6 +144,19 @@ export const updateCouponStatusAdmin = async (req: Request, res: Response, next:
   }
 }
 
+export const deleteCouponAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const couponId = Number(req.params.id)
+    if (!couponId) {
+      throw new ApiError('coupon id is required', 400)
+    }
+    const coupon = await deleteAdminCoupon(couponId)
+    res.json(serializeCoupon(coupon))
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
 export const updateCouponPlanAdmin = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const couponId = Number(req.params.id)
@@ -145,10 +172,25 @@ export const updateCouponPlanAdmin = async (req: Request, res: Response, next: N
   }
 }
 
+export const updateCouponChallengeTypeAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const couponId = Number(req.params.id)
+    const { challenge_type, enabled } = req.body as { challenge_type?: string; enabled?: boolean }
+    if (!couponId || !challenge_type || enabled === undefined) {
+      throw new ApiError('coupon id, challenge_type, and enabled are required', 400)
+    }
+
+    const coupon = await toggleAdminCouponChallengeType(couponId, { challengeType: challenge_type, enabled })
+    res.json(serializeCoupon(coupon))
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
 export const applyCouponForOrder = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureUser(req)
-    const { code, plan_id, amount_kobo } = req.body as { code?: string; plan_id?: string; amount_kobo?: number }
+    const { code, plan_id, amount_kobo, challenge_type } = req.body as { code?: string; plan_id?: string; amount_kobo?: number; challenge_type?: string }
     if (!code || !plan_id || !amount_kobo) {
       throw new ApiError('code, plan_id, and amount_kobo are required', 400)
     }
@@ -157,6 +199,7 @@ export const applyCouponForOrder = async (req: AuthRequest, res: Response, next:
       code,
       planId: plan_id,
       amountKobo: amount_kobo,
+      challengeType: challenge_type ?? null,
       userId: user.id,
     })
 
