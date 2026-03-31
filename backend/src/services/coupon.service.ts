@@ -95,7 +95,7 @@ export const applyCouponToOrder = async (payload: {
     code: payload.code,
     planId: payload.planId,
     amountKobo: payload.amountKobo,
-    challengeType: payload.challengeType,
+    ...(payload.challengeType !== undefined ? { challengeType: payload.challengeType } : {}),
   })
 
   await prisma.$transaction(async (tx) => {

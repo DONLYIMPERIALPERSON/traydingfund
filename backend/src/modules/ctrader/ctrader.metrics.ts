@@ -122,11 +122,19 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     const positions = payload.positions ?? []
     const tradeEvents = trades.length
       ? trades
-      : positions.map((position) => ({
-        position_id: position.position_id,
-        open_time: position.open_time,
-        close_time: position.close_time,
-      }))
+      : positions.map((position) => {
+        const event: TradePayload = {}
+        if (position.position_id) {
+          event.position_id = position.position_id
+        }
+        if (position.open_time) {
+          event.open_time = position.open_time
+        }
+        if (position.close_time) {
+          event.close_time = position.close_time
+        }
+        return event
+      })
     const closedTrades = tradeEvents.filter((trade) => trade.open_time && trade.close_time)
     const totalTrades = ((metrics as any)?.totalTrades ?? 0) + closedTrades.length
     const shortDurationViolation = closedTrades.some((trade) => {

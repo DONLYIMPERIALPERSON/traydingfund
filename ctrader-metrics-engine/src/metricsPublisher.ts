@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { config } from './config'
-import { MetricsPayload, PositionPayload } from './types'
+import { MetricsPayload, PositionPayload, TradePayload } from './types'
 
 const backendClient = axios.create({
   baseURL: config.backendBaseUrl,
@@ -63,7 +63,7 @@ export const buildMetricsPayload = (params: {
   accountNumber: string
   balance: number
   equity: number
-  trades?: PositionPayload[]
+  trades?: TradePayload[]
   positions?: PositionPayload[]
   timestamp?: string
 }): MetricsPayload => ({
