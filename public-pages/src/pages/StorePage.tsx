@@ -31,7 +31,7 @@ export default function StorePage() {
                             Store
                         </p>
                         <h1 className="text-3xl md:text-5xl font-semibold text-white mb-4 leading-tight">
-                            Buy challenge or refer your friends and earn points
+                            Buy challange or refer your friends and earn points
                         </h1>
                         <p className="text-gray-300 text-base md:text-lg max-w-xl">
                             Redeem your loyalty points for MacheFunded merch and rewards. Everything is currently out of stock, but we are restocking soon.
@@ -79,7 +79,7 @@ export default function StorePage() {
                                     className="mt-auto w-full rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white/70 cursor-not-allowed"
                                     disabled
                                 >
-                                    Out of stock
+                                    Out of stocks
                                 </button>
                             </div>
                         </div>

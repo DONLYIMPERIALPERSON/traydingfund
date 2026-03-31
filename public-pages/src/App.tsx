@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import RulesPage from './pages/RulesPage';
@@ -8,8 +9,10 @@ import StorePage from './pages/StorePage';
 import Footer from './components/Footer';
 
 function App() {
+	const location = useLocation();
+
 	useEffect(() => {
-		const path = window.location.pathname;
+		const path = location.pathname;
 		if (!path.startsWith('/ref/')) return;
 
 		const code = path.split('/ref/')[1]?.split('/')[0]?.trim();
@@ -17,13 +20,7 @@ function App() {
 
 		// Backend tracking removed; keep referral routing client-side for now.
 		window.location.replace('/');
-	}, []);
-
-	const isRulesPage = window.location.pathname === '/rules';
-	const isContactPage = window.location.pathname === '/contact';
-	const isFaqPage = window.location.pathname === '/faq';
-	const isStorePage = window.location.pathname === '/store';
-	const isReferralPage = window.location.pathname.startsWith('/ref/');
+	}, [location.pathname]);
 
 	return (
 		<>
@@ -44,7 +41,15 @@ function App() {
 				</a>
 			</div>
 			<Navbar />
-			{isReferralPage ? null : (isRulesPage ? <RulesPage /> : isFaqPage ? <FAQPage /> : isContactPage ? <ContactPage /> : isStorePage ? <StorePage /> : <Home />)}
+			<Routes>
+				<Route path="/" element={<Home />} />
+				<Route path="/rules" element={<RulesPage />} />
+				<Route path="/contact" element={<ContactPage />} />
+				<Route path="/faq" element={<FAQPage />} />
+				<Route path="/store" element={<StorePage />} />
+				<Route path="/ref/:code" element={<Navigate to="/" replace />} />
+				<Route path="*" element={<Navigate to="/" replace />} />
+			</Routes>
 			<Footer />
 		</>
 	);

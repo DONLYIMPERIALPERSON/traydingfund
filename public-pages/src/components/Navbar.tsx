@@ -1,5 +1,6 @@
 import { MenuIcon, XIcon } from 'lucide-react';
 import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
@@ -14,10 +15,12 @@ export default function Navbar() {
         { name: 'Contact', href: '/contact', isSection: false },
     ];
 
+    const location = useLocation();
+
     const handleNavClick = (link: typeof navLinks[0], e: React.MouseEvent) => {
         if (link.isSection && link.sectionId) {
             e.preventDefault();
-            if (window.location.pathname !== '/') {
+            if (location.pathname !== '/') {
                 // Navigate to home page first, then scroll
                 window.location.href = link.href;
             } else {
@@ -34,19 +37,35 @@ export default function Navbar() {
     return (
         <nav className='fixed top-12 md:top-14 left-0 right-0 z-50 px-4'>
             <div className='max-w-6xl mx-auto flex items-center justify-between bg-white rounded-2xl p-3 shadow-[0_0_24px_rgba(0,0,0,0.1)]'>
-                <a href='/#' className="flex items-center gap-2">
+                <Link to='/' className="flex items-center gap-2">
                     <img src='/logo.png' alt="MacheFunded logo" className="h-8 rounded-md" />
                     <span className="text-lg font-bold tracking-wide">
                         <span className="text-[#008ea4]">MACHE</span>
                         <span className="text-black">FUNDED</span>
                     </span>
-                </a>
+                </Link>
 
                 <div className='hidden md:flex items-center gap-8 text-sm font-medium text-gray-900'>
                     {navLinks.map((link) => (
-                        <a href={link.href} key={link.name} onClick={(e) => handleNavClick(link, e)} className="hover:text-black/70 transition">
-                            {link.name}
-                        </a>
+                        link.isSection ? (
+                            <a
+                                href={link.href}
+                                key={link.name}
+                                onClick={(e) => handleNavClick(link, e)}
+                                className="hover:text-black/70 transition"
+                            >
+                                {link.name}
+                            </a>
+                        ) : (
+                            <Link
+                                to={link.href}
+                                key={link.name}
+                                onClick={(e) => handleNavClick(link, e)}
+                                className="hover:text-black/70 transition"
+                            >
+                                {link.name}
+                            </Link>
+                        )
                     ))}
                 </div>
 
@@ -65,9 +84,23 @@ export default function Navbar() {
             </div>
             <div className={`flex flex-col items-center justify-center gap-6 text-lg font-medium fixed inset-0 bg-black/40 backdrop-blur-md z-50 transition-all duration-300 ${isOpen ? "translate-x-0" : "translate-x-full"}`}>
                 {navLinks.map((link) => (
-                    <a key={link.name} href={link.href} onClick={(e) => { handleNavClick(link, e); setIsOpen(false); }}>
-                        {link.name}
-                    </a>
+                    link.isSection ? (
+                        <a
+                            key={link.name}
+                            href={link.href}
+                            onClick={(e) => { handleNavClick(link, e); setIsOpen(false); }}
+                        >
+                            {link.name}
+                        </a>
+                    ) : (
+                        <Link
+                            key={link.name}
+                            to={link.href}
+                            onClick={(e) => { handleNavClick(link, e); setIsOpen(false); }}
+                        >
+                            {link.name}
+                        </Link>
+                    )
                 ))}
 
                 <a
