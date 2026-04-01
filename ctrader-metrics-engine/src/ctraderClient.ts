@@ -668,6 +668,9 @@ export const startCTraderStream = async (
           const filteredEntries = resolvedEntries.filter((entry: { accountNumber: string }) =>
             options?.shouldAuthorizeAccount ? options.shouldAuthorizeAccount(entry.accountNumber) : true
           )
+          console.log('[ctrader] 10636005 resolved?', resolvedEntries.some((entry) => entry.accountNumber === '10636005'))
+          console.log('[ctrader] Filtered account count', filteredEntries.length)
+          console.log('[ctrader] Filtered account numbers (sample)', filteredEntries.slice(0, 5).map((entry) => entry.accountNumber))
           resolvedAccountIds.splice(0, resolvedAccountIds.length, ...filteredEntries.map((entry: { accountNumber: string; ctidTraderAccountId: string; brokerName?: string }) => {
             const resolved: CTraderResolvedAccount = {
               accountNumber: entry.accountNumber,
