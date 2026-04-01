@@ -5,34 +5,28 @@ import dotenv from 'dotenv'
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses'
 import { buildEmailTemplate } from '../src/services/emailTemplate'
 
-const SUBJECT = '🚀 Trade NGN Accounts with 20% DD & Instant Payout – Limited Offer'
+const SUBJECT = 'Quick update about NGN trading accounts'
 
 const HTML_BODY = buildEmailTemplate({
-  title: 'MACHEFUNDED NGN ACCOUNTS ARE LIVE 🇳🇬',
+  title: 'MACHEFUNDED NGN ACCOUNTS ARE LIVE',
   subtitle: 'Trade funded accounts in Naira with more flexibility and faster payouts.',
   content: `
     <p>
       You can now trade funded accounts in Naira with powerful features:
     </p>
     <ul>
-      <li>✅ Up to 20% Max Drawdown</li>
-      <li>✅ No Daily Drawdown (Flexi)</li>
-      <li>✅ Instant Payouts</li>
-      <li>✅ Instant Next Phase</li>
-      <li>✅ Fully Automated Stats</li>
+      <li>Up to 20% Max Drawdown</li>
+      <li>No Daily Drawdown (Flexi)</li>
+      <li>Instant Payouts</li>
+      <li>Instant Next Phase</li>
+      <li>Fully Automated Stats</li>
     </ul>
 
-    <h3 style="margin-top:16px;">💰 Pricing</h3>
     <p>
-      <b>Flexi Account:</b><br/>
-      ₦200,000 account – ₦9,000
-    </p>
-    <p>
-      <b>Standard Account:</b><br/>
-      ₦200,000 account – ₦5,000
+      Accounts starting from N5,000.
     </p>
 
-    <h3 style="margin-top:16px;">🎁 Easter Discount</h3>
+    <h3 style="margin-top:16px;">Easter Discount</h3>
     <p>
       Use code: <b>EASTER20</b><br/>
       Get <b>10% OFF</b><br/>
