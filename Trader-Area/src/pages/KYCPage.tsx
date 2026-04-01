@@ -52,7 +52,9 @@ const KYCPage: React.FC = () => {
         const historyItems = historyRes.requests ?? []
         const latestRequestStatus = historyItems[0]?.status?.toLowerCase()
         const profileStatus = (profileRes.kyc_status || 'not_started').toLowerCase()
-        const resolvedStatus = latestRequestStatus || profileStatus
+        const resolvedStatus = historyItems.length > 0
+          ? (latestRequestStatus || profileStatus)
+          : 'not_started'
         setKycStatus(resolvedStatus)
         setKycHistory(historyItems)
       } catch (error) {

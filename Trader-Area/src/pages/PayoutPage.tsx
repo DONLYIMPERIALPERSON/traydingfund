@@ -86,7 +86,9 @@ const PayoutPage: React.FC = () => {
         const historyItems = historyRes.requests ?? []
         const latestRequestStatus = historyItems[0]?.status?.toLowerCase()
         const profileStatus = (profileRes.kyc_status || 'not_started').toLowerCase()
-        setKycStatus(latestRequestStatus || profileStatus)
+        setKycStatus(historyItems.length > 0
+          ? (latestRequestStatus || profileStatus)
+          : 'not_started')
         setOverallCertificate(overallReward)
 
       } catch (err) {
