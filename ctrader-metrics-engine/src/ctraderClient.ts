@@ -658,6 +658,7 @@ export const startCTraderStream = async (
             const ctidTraderAccountId = String(account.ctidTraderAccountId)
             return { accountNumber, ctidTraderAccountId, brokerName: account.brokerTitleShort }
           })
+          console.log('[ctrader] Resolved account numbers', resolvedEntries.map((entry: { accountNumber: string }) => entry.accountNumber))
           const filteredEntries = resolvedEntries.filter((entry: { accountNumber: string }) =>
             options?.shouldAuthorizeAccount ? options.shouldAuthorizeAccount(entry.accountNumber) : true
           )
