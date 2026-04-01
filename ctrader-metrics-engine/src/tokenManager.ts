@@ -130,6 +130,9 @@ export const createTokenManager = () => {
       clear()
       const tokens = state.current
       if (!tokens?.accessToken) return
+      if (config.ctrader.accessToken) {
+        return
+      }
       const expiresIn = tokens.expiresIn ?? config.ctrader.tokenRefreshFallbackSeconds
       const leeway = config.ctrader.tokenRefreshLeewaySeconds
       const refreshSeconds = Math.max(30, expiresIn - leeway)
