@@ -3,18 +3,17 @@ import path from 'path'
 import readline from 'readline'
 import dotenv from 'dotenv'
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses'
+import { buildEmailTemplate } from '../src/services/emailTemplate'
 
 const SUBJECT = '🚀 Trade NGN Accounts with 20% DD & Instant Payout – Limited Offer'
 
-const HTML_BODY = `<!DOCTYPE html>
-<html>
-  <body style="font-family: Arial; line-height:1.6;">
-    <h2>MACHEFUNDED NGN ACCOUNTS ARE LIVE 🇳🇬</h2>
-
+const HTML_BODY = buildEmailTemplate({
+  title: 'MACHEFUNDED NGN ACCOUNTS ARE LIVE 🇳🇬',
+  subtitle: 'Trade funded accounts in Naira with more flexibility and faster payouts.',
+  content: `
     <p>
       You can now trade funded accounts in Naira with powerful features:
     </p>
-
     <ul>
       <li>✅ Up to 20% Max Drawdown</li>
       <li>✅ No Daily Drawdown (Flexi)</li>
@@ -23,41 +22,27 @@ const HTML_BODY = `<!DOCTYPE html>
       <li>✅ Fully Automated Stats</li>
     </ul>
 
-    <h3>💰 Pricing</h3>
+    <h3 style="margin-top:16px;">💰 Pricing</h3>
     <p>
       <b>Flexi Account:</b><br/>
       ₦200,000 account – ₦9,000
     </p>
-
     <p>
       <b>Standard Account:</b><br/>
       ₦200,000 account – ₦5,000
     </p>
 
-    <h3>🎁 Easter Discount</h3>
+    <h3 style="margin-top:16px;">🎁 Easter Discount</h3>
     <p>
       Use code: <b>EASTER20</b><br/>
       Get <b>10% OFF</b><br/>
       Valid till <b>05/04/2026</b>
     </p>
-
-    <p>
-      👉 <a href="https://machefunded.com">Purchase Now</a>
-    </p>
-
-    <br/>
-
-    <p>
-      Trade Smart. Fear Less.<br/>
-      <b>MACHEFUNDED</b>
-    </p>
-
-    <p style="font-size:12px;">
-      If you no longer want to receive emails, reply with "unsubscribe".
-    </p>
-  </body>
-</html>
-`
+  `,
+  buttonText: 'Purchase Now',
+  buttonLink: 'https://machefunded.com',
+  infoBox: 'If you no longer want to receive emails, reply with "unsubscribe".',
+})
 
 type CliOptions = {
   filePath: string
