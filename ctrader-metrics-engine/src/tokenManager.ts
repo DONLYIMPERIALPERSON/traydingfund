@@ -119,6 +119,7 @@ export const createTokenManager = () => {
 
   const scheduleRefresh = (callback: (tokens: CTraderTokens) => void) => {
     let timer: NodeJS.Timeout | undefined
+    let failureCount = 0
 
     const clear = () => {
       if (timer) clearTimeout(timer)
@@ -136,10 +137,13 @@ export const createTokenManager = () => {
         try {
           const refreshed = await refreshTokens()
           callback(refreshed)
+          failureCount = 0
           schedule()
         } catch (error) {
-          console.error('[ctrader-token] Refresh failed, retrying in 60s', error)
-          timer = setTimeout(schedule, 60000)
+          failureCount += 1
+          const backoffSeconds = Math.min(600, 60 * Math.pow(2, Math.min(failureCount, 3)))
+          console.error(`[ctrader-token] Refresh failed, retrying in ${backoffSeconds}s`, error)
+          timer = setTimeout(schedule, backoffSeconds * 1000)
         }
       }, refreshInMs)
     }
