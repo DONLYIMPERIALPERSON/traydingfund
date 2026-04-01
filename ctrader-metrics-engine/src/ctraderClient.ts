@@ -644,10 +644,6 @@ export const startCTraderStream = async (
       case root.lookupEnum('ProtoOAPayloadType').values['PROTO_OA_GET_ACCOUNTS_BY_ACCESS_TOKEN_RES']:
         {
           const accounts = (payload as any).ctidTraderAccount ?? []
-          console.log('[ctrader] Access-token accounts payload', {
-            count: Array.isArray(accounts) ? accounts.length : 0,
-            accounts,
-          })
           const resolvedEntries = accounts.map((account: any) => {
             const accountNumber = String(
               account.accountNumber
@@ -658,19 +654,9 @@ export const startCTraderStream = async (
             const ctidTraderAccountId = String(account.ctidTraderAccountId)
             return { accountNumber, ctidTraderAccountId, brokerName: account.brokerTitleShort }
           })
-          console.log('[ctrader] Resolved account numbers', resolvedEntries.map((entry: { accountNumber: string }) => entry.accountNumber))
-          const target = accounts.find((account: any) =>
-            String(account.accountNumber ?? account.traderLogin ?? account.login ?? '') === '10636005'
-          )
-          if (target) {
-            console.log('[ctrader] Matched 10636005 in cTrader payload', target)
-          }
           const filteredEntries = resolvedEntries.filter((entry: { accountNumber: string }) =>
             options?.shouldAuthorizeAccount ? options.shouldAuthorizeAccount(entry.accountNumber) : true
           )
-          console.log('[ctrader] 10636005 resolved?', resolvedEntries.some((entry: { accountNumber: string }) => entry.accountNumber === '10636005'))
-          console.log('[ctrader] Filtered account count', filteredEntries.length)
-          console.log('[ctrader] Filtered account numbers (sample)', filteredEntries.slice(0, 5).map((entry: { accountNumber: string }) => entry.accountNumber))
           resolvedAccountIds.splice(0, resolvedAccountIds.length, ...filteredEntries.map((entry: { accountNumber: string; ctidTraderAccountId: string; brokerName?: string }) => {
             const resolved: CTraderResolvedAccount = {
               accountNumber: entry.accountNumber,
