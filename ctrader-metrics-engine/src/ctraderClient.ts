@@ -659,6 +659,12 @@ export const startCTraderStream = async (
             return { accountNumber, ctidTraderAccountId, brokerName: account.brokerTitleShort }
           })
           console.log('[ctrader] Resolved account numbers', resolvedEntries.map((entry: { accountNumber: string }) => entry.accountNumber))
+          const target = accounts.find((account: any) =>
+            String(account.accountNumber ?? account.traderLogin ?? account.login ?? '') === '10636005'
+          )
+          if (target) {
+            console.log('[ctrader] Matched 10636005 in cTrader payload', target)
+          }
           const filteredEntries = resolvedEntries.filter((entry: { accountNumber: string }) =>
             options?.shouldAuthorizeAccount ? options.shouldAuthorizeAccount(entry.accountNumber) : true
           )
