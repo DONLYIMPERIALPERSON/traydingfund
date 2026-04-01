@@ -132,7 +132,8 @@ export const createTokenManager = () => {
       if (!tokens?.accessToken) return
       const expiresIn = tokens.expiresIn ?? config.ctrader.tokenRefreshFallbackSeconds
       const leeway = config.ctrader.tokenRefreshLeewaySeconds
-      const refreshInMs = Math.max(30, expiresIn - leeway) * 1000
+      const refreshSeconds = Math.max(30, expiresIn - leeway)
+      const refreshInMs = Math.min(refreshSeconds * 1000, 2_147_000_000)
       timer = setTimeout(async () => {
         try {
           const refreshed = await refreshTokens()
