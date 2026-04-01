@@ -6,6 +6,7 @@ import { config } from './config'
 import { startCTraderStream, CTraderResolvedAccount, CTraderAccountState, CTraderExecutionEvent } from './ctraderClient'
 import { buildMetricsPayload, publishMetrics, fetchActiveAccounts, ActiveAccountSnapshot } from './metricsPublisher'
 import { PositionPayload, TradePayload } from './types'
+import { createTokenManager } from './tokenManager'
 
 const CALLBACK_PORT = 6000
 const ENGINE_PORT = config.enginePort
@@ -91,7 +92,10 @@ const parseBody = async (req: http.IncomingMessage) => {
 const run = async () => {
   startCallbackServer()
 
-  if (!config.ctrader.accessToken) {
+  const tokenManager = createTokenManager()
+  const initialTokens = tokenManager.initialize()
+  if (!initialTokens?.accessToken) {
+    console.error('[ctrader-token] Missing access token; set CTRADER_ACCESS_TOKEN or CTRADER_REFRESH_TOKEN')
     return
   }
 
@@ -334,6 +338,15 @@ const run = async () => {
     },
   }, {
     shouldAuthorizeAccount: (accountNumber) => activeAccounts.has(accountNumber),
+    getAccessToken: () => tokenManager.getTokens()?.accessToken,
+    onAccessTokenUpdate: (tokens) => {
+      console.log('[ctrader-token] Access token updated', { obtainedAt: new Date(tokens.obtainedAt).toISOString() })
+    },
+  })
+
+  tokenManager.scheduleRefresh((tokens) => {
+    console.log('[ctrader-token] Refreshed access token')
+    stream.updateAccessToken(tokens)
   })
 
   const resolveRiskLevel = (state?: CTraderAccountState) => {

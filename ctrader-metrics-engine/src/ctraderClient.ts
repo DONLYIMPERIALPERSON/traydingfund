@@ -3,6 +3,7 @@ import protobuf from 'protobufjs'
 import path from 'path'
 import fs from 'fs'
 import { config } from './config'
+import type { CTraderTokens } from './tokenManager'
 import { CTraderAccountSnapshot, CTraderStreamState } from './types'
 
 type ProtoMessageEnvelope = {
@@ -351,18 +352,18 @@ const createAppAuthReq = (root: protobuf.Root) => {
   })
 }
 
-const createAccountAuthReq = (root: protobuf.Root, accountId: string) => {
+const createAccountAuthReq = (root: protobuf.Root, accountId: string, accessToken?: string) => {
   const MessageType = root.lookupType('ProtoOAAccountAuthReq')
   return MessageType.create({
     ctidTraderAccountId: Number(accountId),
-    accessToken: config.ctrader.accessToken,
+    accessToken: accessToken ?? config.ctrader.accessToken,
   })
 }
 
-const createAccountListReq = (root: protobuf.Root) => {
+const createAccountListReq = (root: protobuf.Root, accessToken?: string) => {
   const MessageType = root.lookupType('ProtoOAGetAccountListByAccessTokenReq')
   return MessageType.create({
-    accessToken: config.ctrader.accessToken,
+    accessToken: accessToken ?? config.ctrader.accessToken,
   })
 }
 
@@ -417,6 +418,8 @@ export const startCTraderStream = async (
   handlers: CTraderStreamHandlers,
   options?: {
     shouldAuthorizeAccount?: (accountNumber: string) => boolean
+    getAccessToken?: () => string | undefined
+    onAccessTokenUpdate?: (tokens: CTraderTokens) => void
   },
 ) => {
   const root = await loadRoot()
@@ -454,6 +457,8 @@ export const startCTraderStream = async (
     const data = encodeEnvelope(root, payload)
     ws.send(data)
   }
+
+  const getAccessToken = () => options?.getAccessToken?.() ?? config.ctrader.accessToken
 
   const ensureAccountState = (accountNumber: string) => {
     const existing = accountStates.get(accountNumber)
@@ -578,7 +583,7 @@ export const startCTraderStream = async (
         resolved.authSent = true
         resolvedAccounts.set(accountNumber, resolved)
       }
-      send(createAccountAuthReq(root, nextAccount))
+      send(createAccountAuthReq(root, nextAccount, getAccessToken()))
     }, ACCOUNT_AUTH_DELAY_MS)
   }
 
@@ -632,7 +637,7 @@ export const startCTraderStream = async (
     switch (payloadType) {
       case root.lookupEnum('ProtoOAPayloadType').values['PROTO_OA_APPLICATION_AUTH_RES']:
         if (!accountListRequested) {
-          send(createAccountListReq(root))
+          send(createAccountListReq(root, getAccessToken()))
           accountListRequested = true
         }
         break
@@ -978,7 +983,7 @@ export const startCTraderStream = async (
     send,
     getResolvedAccounts: () => resolvedAccounts,
     getAccountStates: () => accountStates,
-    resolveAccountsByAccessToken: () => send(createAccountListReq(root)),
+    resolveAccountsByAccessToken: () => send(createAccountListReq(root, getAccessToken())),
     requestTraderSnapshot: (accountNumber: string) => {
       const resolved = resolvedAccounts.get(accountNumber)
       if (!resolved?.ctidTraderAccountId) {
@@ -1005,6 +1010,29 @@ export const startCTraderStream = async (
       }
       queueAccountAuths([resolved.ctidTraderAccountId])
       return { status: 'auth-queued' as const }
+    },
+    updateAccessToken: (tokens: CTraderTokens) => {
+      if (options?.onAccessTokenUpdate) {
+        options.onAccessTokenUpdate(tokens)
+      }
+      accountListRequested = false
+      resolvedAccounts.forEach((value, key) => {
+        resolvedAccounts.set(key, {
+          ...value,
+          authSent: false,
+          authOk: false,
+        })
+      })
+      resolvedAccountIds.splice(0, resolvedAccountIds.length)
+      pollableAccounts.clear()
+      pollableAccountNumbers.clear()
+      accountNumbersById.clear()
+      if (accountAuthTimer) {
+        clearInterval(accountAuthTimer)
+        accountAuthTimer = undefined
+      }
+      pendingAccountAuths.splice(0, pendingAccountAuths.length)
+      send(createAccountListReq(root, tokens.accessToken))
     },
   }
 }
