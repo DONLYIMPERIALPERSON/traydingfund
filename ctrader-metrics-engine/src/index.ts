@@ -100,6 +100,7 @@ const run = async () => {
   }
 
   const activeAccounts = loadActiveAccounts()
+  console.log('[active-sync] Loaded active accounts', Array.from(activeAccounts.keys()))
   const resolvedMap = new Map<string, CTraderResolvedAccount>()
   const accountRuntimeState = new Map<string, CTraderAccountState>()
   const lastMetricsPublishedAt = new Map<string, number>()
@@ -409,8 +410,10 @@ const run = async () => {
     }
     const resolved = resolvedMap.get(accountNumber)
     if (!resolved) {
+      console.log('[active-sync] Account not resolved yet', accountNumber)
       return
     }
+    console.log('[active-sync] Starting monitoring', accountNumber, resolved.ctidTraderAccountId)
     const result = stream.startMonitoring(accountNumber)
     if (result.status === 'already-auth') {
       return
