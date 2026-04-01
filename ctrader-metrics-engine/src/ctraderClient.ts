@@ -644,6 +644,10 @@ export const startCTraderStream = async (
       case root.lookupEnum('ProtoOAPayloadType').values['PROTO_OA_GET_ACCOUNTS_BY_ACCESS_TOKEN_RES']:
         {
           const accounts = (payload as any).ctidTraderAccount ?? []
+          console.log('[ctrader] Access-token accounts payload', {
+            count: Array.isArray(accounts) ? accounts.length : 0,
+            accounts,
+          })
           const resolvedEntries = accounts.map((account: any) => {
             const accountNumber = String(
               account.accountNumber
