@@ -164,14 +164,7 @@ const AffiliatePage: React.FC = () => {
             <div className="stat-label">Referrals</div>
           </div>
 
-          {/* Impressions */}
-          <div className="stat-card">
-            <div className="stat-icon">
-              <i className="fas fa-eye"></i>
-            </div>
-            <div className="stat-value">{dashboardData?.stats.impressions || 0}</div>
-            <div className="stat-label">Impressions</div>
-          </div>
+          {/* Impressions removed until tracking is implemented */}
         </div>
 
         {/* Rewards Section removed per request */}
