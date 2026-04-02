@@ -50,6 +50,7 @@ export const config = {
     wsUrl: optional('CTRADER_WS_URL', 'wss://demo.ctraderapi.com:5035'),
     clientId: must('CTRADER_CLIENT_ID'),
     clientSecret: must('CTRADER_CLIENT_SECRET'),
+    accessTokens: parseList(optional('CTRADER_ACCESS_TOKENS')),
     accessToken: optional('CTRADER_ACCESS_TOKEN'),
     refreshToken: optional('CTRADER_REFRESH_TOKEN'),
     tokenEndpoint: optional('CTRADER_TOKEN_ENDPOINT', 'https://openapi.ctrader.com/apps/token'),

@@ -16,6 +16,8 @@ export type CTraderResolvedAccount = {
   accountNumber: string
   ctidTraderAccountId: string
   brokerName?: string
+  sourceToken?: string
+  accountKey?: string
   connected: boolean
   authSent: boolean
   authOk: boolean
@@ -420,6 +422,7 @@ export const startCTraderStream = async (
     shouldAuthorizeAccount?: (accountNumber: string) => boolean
     getAccessToken?: () => string | undefined
     onAccessTokenUpdate?: (tokens: CTraderTokens) => void
+    connectionId?: string
   },
 ) => {
   const root = await loadRoot()
@@ -652,7 +655,14 @@ export const startCTraderStream = async (
                 ?? account.ctidTraderAccountId,
             )
             const ctidTraderAccountId = String(account.ctidTraderAccountId)
-            return { accountNumber, ctidTraderAccountId, brokerName: account.brokerTitleShort }
+            const connectionId = options?.connectionId
+            return {
+              accountNumber,
+              ctidTraderAccountId,
+              brokerName: account.brokerTitleShort,
+              sourceToken: connectionId,
+              accountKey: connectionId ? `${connectionId}_${ctidTraderAccountId}` : ctidTraderAccountId,
+            }
           })
           const filteredEntries = resolvedEntries.filter((entry: { accountNumber: string }) =>
             options?.shouldAuthorizeAccount ? options.shouldAuthorizeAccount(entry.accountNumber) : true

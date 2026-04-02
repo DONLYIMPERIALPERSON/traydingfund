@@ -93,15 +93,18 @@ const run = async () => {
   startCallbackServer()
 
   const tokenManager = createTokenManager()
-  const initialTokens = tokenManager.initialize()
-  if (!initialTokens?.accessToken) {
-    console.error('[ctrader-token] Missing access token; set CTRADER_ACCESS_TOKEN or CTRADER_REFRESH_TOKEN')
+  const explicitTokens = config.ctrader.accessTokens
+  const usingExplicitTokens = explicitTokens.length > 0
+  const initialTokens = usingExplicitTokens ? null : tokenManager.initialize()
+  if (!usingExplicitTokens && !initialTokens?.accessToken) {
+    console.error('[ctrader-token] Missing access token; set CTRADER_ACCESS_TOKENS or CTRADER_ACCESS_TOKEN/CTRADER_REFRESH_TOKEN')
     return
   }
 
   const activeAccounts = loadActiveAccounts()
   console.log('[active-sync] Loaded active accounts', Array.from(activeAccounts.keys()))
   const resolvedMap = new Map<string, CTraderResolvedAccount>()
+  const streamByAccount = new Map<string, Awaited<ReturnType<typeof startCTraderStream>>>()
   const accountRuntimeState = new Map<string, CTraderAccountState>()
   const lastMetricsPublishedAt = new Map<string, number>()
   const metricsPublishInFlight = new Set<string>()
@@ -143,6 +146,8 @@ const run = async () => {
     pendingBalanceRefreshes.delete(accountNumber)
   }
 
+  const getStreamForAccount = (accountNumber: string) => streamByAccount.get(accountNumber)
+
   const scheduleBalanceRefresh = (accountNumber: string, options?: { attempts?: number; delayMs?: number; jitterMs?: number; reason?: string }) => {
     const attempts = options?.attempts ?? 3
     const delayMs = options?.delayMs ?? 500
@@ -166,189 +171,225 @@ const run = async () => {
           return
         }
         lastSnapshotRequestAt.set(accountNumber, snapshotNow)
-        stream.requestTraderSnapshot?.(accountNumber)
+        const targetStream = getStreamForAccount(accountNumber)
+        targetStream?.requestTraderSnapshot?.(accountNumber)
       }, delay)
       timers.push(timer)
     }
     pendingBalanceRefreshes.set(accountNumber, timers)
   }
 
-  const stream = await startCTraderStream({
-    onState: (state) => {
-      if (state.status === 'error') {
-        console.error('[metrics] WebSocket error', state.error)
-      }
-    },
-    onResolvedAccounts: (resolved) => {
-      resolved.forEach((value, key) => {
-        resolvedMap.set(key, value)
-      })
-      activeAccounts.forEach((account) => {
-        if (!resolvedMap.has(account.accountNumber)) {
+  const createStreamHandlers = (connectionId?: string) => {
+    let streamRef: Awaited<ReturnType<typeof startCTraderStream>> | null = null
+
+    const handlers = {
+      onState: (state: { status?: string; error?: unknown }) => {
+        if (state.status === 'error') {
+          console.error('[metrics] WebSocket error', state.error)
+        }
+      },
+      onResolvedAccounts: (resolved: Map<string, CTraderResolvedAccount>) => {
+        console.log('[ctrader] Accounts fetched', resolved.size, connectionId ? { connectionId } : undefined)
+        resolved.forEach((value, key) => {
+          resolvedMap.set(key, value)
+          if (streamRef) {
+            streamByAccount.set(key, streamRef)
+          }
+        })
+        activeAccounts.forEach((account) => {
+          if (!resolvedMap.has(account.accountNumber)) {
+            return
+          }
+        })
+        activeAccounts.forEach((account) => {
+          startMonitoring(account.accountNumber)
+        })
+      },
+      onAccountAuth: (accountNumber: string, resolved: CTraderResolvedAccount) => {
+        if (!isActive(accountNumber)) {
           return
         }
-      })
-      activeAccounts.forEach((account) => {
-        startMonitoring(account.accountNumber)
-      })
-    },
-    onAccountAuth: (accountNumber, resolved) => {
-      if (!isActive(accountNumber)) {
-        return
-      }
-    },
-    onAccountDisconnect: (accountNumber) => {
-      if (!isActive(accountNumber)) {
-        return
-      }
-    },
-    onBalanceUpdate: (accountNumber, balance) => {
-      if (!isActive(accountNumber)) {
-        return
-      }
-      const state = ensureAccountState(accountNumber)
-      state.balance = balance
-      lastBalanceUpdatedAt.set(accountNumber, Date.now())
-      lastBalanceByAccount.set(accountNumber, balance)
-    },
-    onExecution: (accountNumber, executionEvent: CTraderExecutionEvent) => {
-      if (!isActive(accountNumber)) {
-        return
-      }
-      const hasDeal = Boolean(executionEvent.deal)
-      const hasDepositWithdraw = Boolean(executionEvent.depositWithdraw)
-      if (!hasDeal && !hasDepositWithdraw) {
-        return
-      }
-      if (executionEvent.deal) {
-        const deal = executionEvent.deal as any
-        const positionId = deal?.positionId != null ? String(deal.positionId) : undefined
-        const isClose = Boolean(deal?.closePositionDetail)
-        const closeTimeMs = deal?.executionTimestamp != null ? Number(deal.executionTimestamp) : undefined
-        const runtimeState = accountRuntimeState.get(accountNumber) ?? ensureAccountState(accountNumber)
-        const openTimeMs = positionId ? runtimeState.positions.get(positionId)?.openTime : undefined
-        if (isClose && positionId && closeTimeMs != null && openTimeMs != null) {
-          const key = deal?.dealId != null ? String(deal.dealId) : `${positionId}:${closeTimeMs}`
-          const seen = closedTradeKeys.get(accountNumber) ?? new Set<string>()
-          if (!seen.has(key)) {
-            seen.add(key)
-            closedTradeKeys.set(accountNumber, seen)
-            const trades = pendingClosedTrades.get(accountNumber) ?? []
-            trades.push({
-              ticket: deal?.dealId != null ? String(deal.dealId) : undefined,
-              position_id: positionId,
-              open_time: new Date(openTimeMs).toISOString(),
-              close_time: new Date(closeTimeMs).toISOString(),
-              profit: deal?.grossProfit != null ? Number(deal.grossProfit) : deal?.profit != null ? Number(deal.profit) : undefined,
-            })
-            pendingClosedTrades.set(accountNumber, trades)
+      },
+      onAccountDisconnect: (accountNumber: string) => {
+        if (!isActive(accountNumber)) {
+          return
+        }
+      },
+      onBalanceUpdate: (accountNumber: string, balance: number) => {
+        if (!isActive(accountNumber)) {
+          return
+        }
+        const state = ensureAccountState(accountNumber)
+        state.balance = balance
+        lastBalanceUpdatedAt.set(accountNumber, Date.now())
+        lastBalanceByAccount.set(accountNumber, balance)
+      },
+      onExecution: (accountNumber: string, executionEvent: CTraderExecutionEvent) => {
+        if (!isActive(accountNumber)) {
+          return
+        }
+        const hasDeal = Boolean(executionEvent.deal)
+        const hasDepositWithdraw = Boolean(executionEvent.depositWithdraw)
+        if (!hasDeal && !hasDepositWithdraw) {
+          return
+        }
+        if (executionEvent.deal) {
+          const deal = executionEvent.deal as any
+          const positionId = deal?.positionId != null ? String(deal.positionId) : undefined
+          const isClose = Boolean(deal?.closePositionDetail)
+          const closeTimeMs = deal?.executionTimestamp != null ? Number(deal.executionTimestamp) : undefined
+          const runtimeState = accountRuntimeState.get(accountNumber) ?? ensureAccountState(accountNumber)
+          const openTimeMs = positionId ? runtimeState.positions.get(positionId)?.openTime : undefined
+          if (isClose && positionId && closeTimeMs != null && openTimeMs != null) {
+            const key = deal?.dealId != null ? String(deal.dealId) : `${positionId}:${closeTimeMs}`
+            const seen = closedTradeKeys.get(accountNumber) ?? new Set<string>()
+            if (!seen.has(key)) {
+              seen.add(key)
+              closedTradeKeys.set(accountNumber, seen)
+              const trades = pendingClosedTrades.get(accountNumber) ?? []
+              trades.push({
+                ticket: deal?.dealId != null ? String(deal.dealId) : undefined,
+                position_id: positionId,
+                open_time: new Date(openTimeMs).toISOString(),
+                close_time: new Date(closeTimeMs).toISOString(),
+                profit: deal?.grossProfit != null ? Number(deal.grossProfit) : deal?.profit != null ? Number(deal.profit) : undefined,
+              })
+              pendingClosedTrades.set(accountNumber, trades)
+            }
           }
         }
-      }
-      scheduleBalanceRefresh(accountNumber, { attempts: 2, delayMs: 250, jitterMs: 100, reason: 'execution' })
-    },
-    onPositionsUpdate: async (accountNumber, state) => {
-      if (!isActive(accountNumber)) {
-        return
-      }
-      const now = Date.now()
-      const currentOpenCount = Array.from(state.positions.values()).filter((position) => position.isOpen).length
-      const previousOpenCount = accountRuntimeState.get(accountNumber)
-        ? Array.from((accountRuntimeState.get(accountNumber) as CTraderAccountState).positions.values()).filter((position) => position.isOpen).length
-        : currentOpenCount
-      if (currentOpenCount < previousOpenCount) {
-        lastPositionsClosedAt.set(accountNumber, now)
-        lastBalanceByAccount.set(accountNumber, state.balance)
-        scheduleBalanceRefresh(accountNumber, { reason: 'position-drop' })
-      }
-      if (currentOpenCount === 0) {
-        const closedAt = lastPositionsClosedAt.get(accountNumber)
-        const balanceUpdatedAt = lastBalanceUpdatedAt.get(accountNumber) ?? 0
-        if (closedAt) {
-          const balanceAtClose = lastBalanceByAccount.get(accountNumber)
-          const balanceChanged = balanceAtClose == null || state.balance !== balanceAtClose
-          if ((!balanceChanged || balanceUpdatedAt < closedAt) && now - closedAt < 15000) {
-            scheduleBalanceRefresh(accountNumber, { attempts: 4, delayMs: 650, jitterMs: 250, reason: 'position-zero' })
-          }
+        scheduleBalanceRefresh(accountNumber, { attempts: 2, delayMs: 250, jitterMs: 100, reason: 'execution' })
+      },
+      onPositionsUpdate: async (accountNumber: string, state: CTraderAccountState) => {
+        if (!isActive(accountNumber)) {
+          return
         }
-        state.positionPnls.clear()
-        state.lastPnlPositions = 0
-        state.lastPnlRaw = 0
-        state.lastPnlAt = now
-        state.equity = state.balance
-        state.unrealizedPnl = 0
-      }
-      const pnlPositions = state.lastPnlPositions
-      if (pnlPositions == null || (pnlPositions > 0 && (state.lastPnlAt == null || state.lastPnlRaw == null || state.balanceRaw == null))) {
+        const now = Date.now()
+        const currentOpenCount = Array.from(state.positions.values()).filter((position) => position.isOpen).length
+        const previousOpenCount = accountRuntimeState.get(accountNumber)
+          ? Array.from((accountRuntimeState.get(accountNumber) as CTraderAccountState).positions.values()).filter((position) => position.isOpen).length
+          : currentOpenCount
+        if (currentOpenCount < previousOpenCount) {
+          lastPositionsClosedAt.set(accountNumber, now)
+          lastBalanceByAccount.set(accountNumber, state.balance)
+          scheduleBalanceRefresh(accountNumber, { reason: 'position-drop' })
+        }
+        if (currentOpenCount === 0) {
+          const closedAt = lastPositionsClosedAt.get(accountNumber)
+          const balanceUpdatedAt = lastBalanceUpdatedAt.get(accountNumber) ?? 0
+          if (closedAt) {
+            const balanceAtClose = lastBalanceByAccount.get(accountNumber)
+            const balanceChanged = balanceAtClose == null || state.balance !== balanceAtClose
+            if ((!balanceChanged || balanceUpdatedAt < closedAt) && now - closedAt < 15000) {
+              scheduleBalanceRefresh(accountNumber, { attempts: 4, delayMs: 650, jitterMs: 250, reason: 'position-zero' })
+            }
+          }
+          state.positionPnls.clear()
+          state.lastPnlPositions = 0
+          state.lastPnlRaw = 0
+          state.lastPnlAt = now
+          state.equity = state.balance
+          state.unrealizedPnl = 0
+        }
+        const pnlPositions = state.lastPnlPositions
+        if (pnlPositions == null || (pnlPositions > 0 && (state.lastPnlAt == null || state.lastPnlRaw == null || state.balanceRaw == null))) {
+          accountRuntimeState.set(accountNumber, state)
+          return
+        }
         accountRuntimeState.set(accountNumber, state)
-        return
-      }
-      accountRuntimeState.set(accountNumber, state)
-      const positions: PositionPayload[] = Array.from(state.positions.values()).map((position) => ({
-        position_id: position.positionId,
-        symbol_id: position.symbolId,
-        volume: position.volume,
-        entry_price: position.entryPrice,
-        open_time: position.openTime ? new Date(position.openTime).toISOString() : undefined,
-        close_time: position.closeTime ? new Date(position.closeTime).toISOString() : undefined,
-        trade_side: position.tradeSide,
-        is_open: position.isOpen,
-      }))
-      const tradesToPublish = pendingClosedTrades.get(accountNumber) ?? []
-      const hasPendingTrades = tradesToPublish.length > 0
-      const lastPublishedAt = lastMetricsPublishedAt.get(accountNumber) ?? 0
-      if (metricsPublishInFlight.has(accountNumber)) {
-        return
-      }
-      if (!hasPendingTrades && now - lastPublishedAt < config.metricsPublishIntervalMs) {
-        return
-      }
-      if (!Number.isFinite(state.balance) || !Number.isFinite(state.equity)) {
-        return
-      }
-      if (state.balance <= 0 || state.equity <= 0) {
-        return
-      }
-      const payload = buildMetricsPayload({
-        accountNumber,
-        balance: state.balance,
-        equity: state.equity,
-        trades: hasPendingTrades ? tradesToPublish : undefined,
-        positions,
-        timestamp: new Date().toISOString(),
-      })
-      try {
-        metricsPublishInFlight.add(accountNumber)
-        lastMetricsPublishedAt.set(accountNumber, now)
-        await publishMetrics(payload)
-        if (hasPendingTrades) {
-          pendingClosedTrades.set(accountNumber, [])
+        const positions: PositionPayload[] = Array.from(state.positions.values()).map((position) => ({
+          position_id: position.positionId,
+          symbol_id: position.symbolId,
+          volume: position.volume,
+          entry_price: position.entryPrice,
+          open_time: position.openTime ? new Date(position.openTime).toISOString() : undefined,
+          close_time: position.closeTime ? new Date(position.closeTime).toISOString() : undefined,
+          trade_side: position.tradeSide,
+          is_open: position.isOpen,
+        }))
+        const tradesToPublish = pendingClosedTrades.get(accountNumber) ?? []
+        const hasPendingTrades = tradesToPublish.length > 0
+        const lastPublishedAt = lastMetricsPublishedAt.get(accountNumber) ?? 0
+        if (metricsPublishInFlight.has(accountNumber)) {
+          return
         }
-      } catch (error) {
-        console.error(`[metrics] Failed to publish metrics for ${accountNumber}`, error)
-      } finally {
-        metricsPublishInFlight.delete(accountNumber)
-      }
-    },
-    onSpotUpdate: (accountNumber, symbolId) => {
-      if (!isActive(accountNumber)) {
-        return
-      }
-      const state = ensureAccountState(accountNumber)
-      accountRuntimeState.set(accountNumber, state)
-    },
-  }, {
-    shouldAuthorizeAccount: (accountNumber) => activeAccounts.has(accountNumber),
-    getAccessToken: () => tokenManager.getTokens()?.accessToken,
-    onAccessTokenUpdate: (tokens) => {
-      console.log('[ctrader-token] Access token updated', { obtainedAt: new Date(tokens.obtainedAt).toISOString() })
-    },
-  })
+        if (!hasPendingTrades && now - lastPublishedAt < config.metricsPublishIntervalMs) {
+          return
+        }
+        if (!Number.isFinite(state.balance) || !Number.isFinite(state.equity)) {
+          return
+        }
+        if (state.balance <= 0 || state.equity <= 0) {
+          return
+        }
+        const payload = buildMetricsPayload({
+          accountNumber,
+          balance: state.balance,
+          equity: state.equity,
+          trades: hasPendingTrades ? tradesToPublish : undefined,
+          positions,
+          timestamp: new Date().toISOString(),
+        })
+        try {
+          metricsPublishInFlight.add(accountNumber)
+          lastMetricsPublishedAt.set(accountNumber, now)
+          await publishMetrics(payload)
+          if (hasPendingTrades) {
+            pendingClosedTrades.set(accountNumber, [])
+          }
+        } catch (error) {
+          console.error(`[metrics] Failed to publish metrics for ${accountNumber}`, error)
+        } finally {
+          metricsPublishInFlight.delete(accountNumber)
+        }
+      },
+      onSpotUpdate: (accountNumber: string) => {
+        if (!isActive(accountNumber)) {
+          return
+        }
+        const state = ensureAccountState(accountNumber)
+        accountRuntimeState.set(accountNumber, state)
+      },
+    }
 
-  tokenManager.scheduleRefresh((tokens) => {
-    console.log('[ctrader-token] Refreshed access token')
-    stream.updateAccessToken(tokens)
-  })
+    return {
+      handlers,
+      setStream: (stream: Awaited<ReturnType<typeof startCTraderStream>>) => {
+        streamRef = stream
+      },
+    }
+  }
+
+  const streams: Awaited<ReturnType<typeof startCTraderStream>>[] = []
+  if (usingExplicitTokens) {
+    for (const token of explicitTokens) {
+      const connectionId = token.slice(0, 10)
+      console.log('[ctrader] Connected token', connectionId)
+      const { handlers, setStream } = createStreamHandlers(connectionId)
+      const stream = await startCTraderStream(handlers, {
+        shouldAuthorizeAccount: (accountNumber) => activeAccounts.has(accountNumber),
+        getAccessToken: () => token,
+        connectionId,
+      })
+      setStream(stream)
+      streams.push(stream)
+    }
+  } else if (initialTokens?.accessToken) {
+    const { handlers, setStream } = createStreamHandlers()
+    const stream = await startCTraderStream(handlers, {
+      shouldAuthorizeAccount: (accountNumber) => activeAccounts.has(accountNumber),
+      getAccessToken: () => tokenManager.getTokens()?.accessToken,
+      onAccessTokenUpdate: (tokens) => {
+        console.log('[ctrader-token] Access token updated', { obtainedAt: new Date(tokens.obtainedAt).toISOString() })
+      },
+    })
+    setStream(stream)
+    streams.push(stream)
+    tokenManager.scheduleRefresh((tokens) => {
+      console.log('[ctrader-token] Refreshed access token')
+      stream.updateAccessToken(tokens)
+    })
+  }
 
   const resolveRiskLevel = (state?: CTraderAccountState) => {
     if (!state) return 'LOW' as const
@@ -395,7 +436,8 @@ const run = async () => {
       accounts.forEach((accountNumber) => {
         if (remaining <= 0) return
         if (!shouldRequestPnl(accountNumber, interval, now)) return
-        const result = stream.requestUnrealizedPnl(accountNumber)
+        const targetStream = getStreamForAccount(accountNumber)
+        const result = targetStream?.requestUnrealizedPnl(accountNumber)
         if (result.status === 'requested') {
           lastPnlRequestAt.set(accountNumber, now)
           remaining -= 1
@@ -414,7 +456,12 @@ const run = async () => {
       return
     }
     console.log('[active-sync] Starting monitoring', accountNumber, resolved.ctidTraderAccountId)
-    const result = stream.startMonitoring(accountNumber)
+    const targetStream = getStreamForAccount(accountNumber)
+    if (!targetStream) {
+      console.log('[active-sync] Stream not ready for account', accountNumber)
+      return
+    }
+    const result = targetStream.startMonitoring(accountNumber)
     if (result.status === 'already-auth') {
       return
     }
@@ -424,7 +471,7 @@ const run = async () => {
   }
 
   const refreshAccounts = async () => {
-    stream.resolveAccountsByAccessToken()
+    streams.forEach((entry) => entry.resolveAccountsByAccessToken())
     try {
       const remoteAccounts = await fetchActiveAccounts()
       if (!remoteAccounts.length) {
