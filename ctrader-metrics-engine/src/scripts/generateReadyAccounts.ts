@@ -20,7 +20,6 @@ const PROTO_PATHS = [
 
 const USD_SIZES = [2000, 10000, 30000, 50000, 100000, 200000]
 const NGN_SIZES = [200000, 500000, 800000]
-const ACCESS_TOKEN = '3sJdwXP0po_HwihywAkeQtiuxe4tlc08cTaH-8OrNQ8'
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -158,7 +157,10 @@ const main = async () => {
   if (!env.wsUrl) {
     throw new Error('CTRADER_WS_URL is not configured.')
   }
-  const accessToken = ACCESS_TOKEN
+  const accessToken = env.accessToken
+  if (!accessToken) {
+    throw new Error('CTRADER_ACCESS_TOKEN is required to run this script.')
+  }
   if (!env.clientId || !env.clientSecret) {
     throw new Error('CTRADER_CLIENT_ID and CTRADER_CLIENT_SECRET are required to run this script.')
   }
