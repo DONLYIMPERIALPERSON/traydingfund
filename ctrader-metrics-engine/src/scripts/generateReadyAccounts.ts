@@ -20,6 +20,7 @@ const PROTO_PATHS = [
 
 const USD_SIZES = [2000, 10000, 30000, 50000, 100000, 200000]
 const NGN_SIZES = [200000, 500000, 800000]
+const ACCESS_TOKEN = '3sJdwXP0po_HwihywAkeQtiuxe4tlc08cTaH-8OrNQ8'
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -28,6 +29,11 @@ const isValidPropAccount = (balance: number, currency: string) => {
   if (currency === 'USD') return USD_SIZES.includes(rounded)
   if (currency === 'NGN') return NGN_SIZES.includes(rounded)
   return false
+}
+
+const isTargetAccount = (balance: number, currency: string) => {
+  const rounded = Math.round(balance)
+  return currency === 'USD' && rounded === 2000
 }
 
 const formatSize = (balance: number, currency: string) => {
@@ -152,10 +158,7 @@ const main = async () => {
   if (!env.wsUrl) {
     throw new Error('CTRADER_WS_URL is not configured.')
   }
-  const accessToken = env.accessToken
-  if (!accessToken) {
-    throw new Error('CTRADER_ACCESS_TOKEN is required to run this script.')
-  }
+  const accessToken = ACCESS_TOKEN
   if (!env.clientId || !env.clientSecret) {
     throw new Error('CTRADER_CLIENT_ID and CTRADER_CLIENT_SECRET are required to run this script.')
   }
@@ -215,6 +218,7 @@ const main = async () => {
   )
 
   const accounts = accountListRes?.ctidTraderAccount ?? []
+  console.log('Total accounts fetched:', accounts.length)
   const readyAccounts: Array<Record<string, string>> = []
 
   for (const account of accounts) {
@@ -254,6 +258,11 @@ const main = async () => {
       continue
     }
 
+    if (!isTargetAccount(balance, currency)) {
+      await sleep(200)
+      continue
+    }
+
     send(createReconcileReq(root, accountId))
     const reconcileRes = await waitFor(`reconcile:${accountId}`, (payloadType, payload) =>
       payloadType === root.lookupEnum('ProtoOAPayloadType').values.PROTO_OA_RECONCILE_RES
@@ -289,12 +298,13 @@ const main = async () => {
     await sleep(200)
   }
 
-  const header = 'account_number,broker,account_size,currency,status,review_status\n'
+  console.log('Valid $2k accounts:', readyAccounts.length)
+  const header = 'account_number,broker,account_size,currency,status\n'
   const rows = readyAccounts.map((row) =>
-    `${row.account_number},${row.broker},${row.account_size},${row.currency},${row.status},${row.review_status}`
+    `${row.account_number},${row.broker},${row.account_size},${row.currency},${row.status}`
   )
 
-  const outputPath = path.resolve(process.cwd(), 'ready_accounts.csv')
+  const outputPath = path.resolve(process.cwd(), 'usd_2000_accounts.csv')
   fs.writeFileSync(outputPath, header + rows.join('\n'))
   console.log(`✅ Saved ${readyAccounts.length} ready accounts to ${outputPath}`)
   ws.close()
