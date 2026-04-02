@@ -99,7 +99,7 @@ export default function MacheMinutePage() {
               </div>
 
               <div className="grid gap-4">
-                <h3 className="text-lg font-semibold text-white">Trading Proof (The Vetting)</h3>
+                <h3 className="text-lg font-semibold text-white">Trading Proof</h3>
                 <label className="grid gap-2 text-sm text-gray-300">
                   MacheFunded payout proof link
                   <input
