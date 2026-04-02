@@ -1,17 +1,17 @@
 import { useState } from 'react';
 
-const FORM_ACTION = 'https://docs.google.com/forms/d/e/FORM_ID_PLACEHOLDER/formResponse';
+const FORM_ACTION = 'https://docs.google.com/forms/d/e/1BlxKwkW05R8QZCyrZ4H4ny3UTdcAx8bt4OvI3wSujH8/formResponse';
 
 const FIELD_IDS = {
-  fullName: 'entry.FULL_NAME',
-  whatsapp: 'entry.WHATSAPP',
-  email: 'entry.EMAIL',
-  payoutProof: 'entry.PAYOUT_PROOF',
-  payoutAmount: 'entry.PAYOUT_AMOUNT',
-  tradingStyle: 'entry.TRADING_STYLE',
-  mainAsset: 'entry.MAIN_ASSET',
-  bigWinStory: 'entry.BIG_WIN',
-  cameraReady: 'entry.CAMERA_READY',
+  fullName: 'entry.651761561',
+  whatsapp: 'entry.327336430',
+  email: 'entry.265510089',
+  payoutProof: 'entry.1290594590',
+  payoutAmount: 'entry.1464480036',
+  tradingStyle: 'entry.1864163779',
+  mainAsset: 'entry.671668543',
+  bigWinStory: 'entry.1086834067',
+  cameraReady: 'entry.1330110893',
 };
 
 const tradingStyles = ['Scalper', 'Day Trader', 'Swing Trader'];
