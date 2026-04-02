@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { AdminUser } from './UsersPage'
 import { fetchBreachedChallengeAccounts, type ChallengeBreachListItem } from '../lib/adminApi'
+import { formatAccountSize } from '../lib/formatters'
 
 interface BreachesPageProps {
   onOpenProfile: (user: AdminUser) => void
@@ -216,7 +217,7 @@ const BreachesPage = ({ onOpenProfile }: BreachesPageProps) => {
                 <tr key={row.challenge_id}>
                   <td>{row.challenge_id}</td>
                   <td>{row.trader_name ?? `User ${row.user_id}`}</td>
-                  <td>{row.account_size}</td>
+                  <td>{formatAccountSize(row.account_size, row.currency)}</td>
                   <td>{row.phase}</td>
                   <td>{formatBreachReason(row.breach_reason)}</td>
                   <td>{formatDate(row.breached_at)}</td>

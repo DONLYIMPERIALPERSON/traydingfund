@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { AdminUser } from './UsersPage'
 import { fetchActiveChallengeAccounts, type ChallengeAccountListItem } from '../lib/adminApi'
+import { formatAccountSize } from '../lib/formatters'
 
 interface AccountsPageProps {
   onOpenProfile: (user: AdminUser) => void
@@ -118,7 +119,7 @@ const AccountsPage = ({ onOpenProfile }: AccountsPageProps) => {
               <tr key={row.challenge_id}>
                 <td>{row.challenge_id}</td>
                 <td>{row.trader_name ?? `User ${row.user_id}`}</td>
-                <td>{row.account_size}</td>
+                <td>{formatAccountSize(row.account_size, row.currency)}</td>
                 <td>{row.mt5_account ?? '-'}</td>
                 <td>{row.mt5_server ?? '-'}</td>
                 <td>{row.phase}</td>

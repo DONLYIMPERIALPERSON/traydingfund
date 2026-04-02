@@ -31,6 +31,7 @@ export type ChallengeAccountListItem = {
   trader_name?: string | null
   trader_email?: string | null
   account_size: string
+  currency?: string | null
   phase?: string | null
   mt5_account?: string | null
   mt5_server?: string | null
@@ -46,6 +47,7 @@ export type ChallengeBreachListItem = {
   trader_name?: string | null
   trader_email?: string | null
   account_size: string
+  currency?: string | null
   phase?: string | null
   mt5_account?: string | null
   breach_reason?: string | null
