@@ -3,7 +3,7 @@ import { prisma } from '../../config/prisma'
 import { ApiError } from '../../common/errors'
 import { Prisma } from '@prisma/client'
 import { requestAccountAccess } from '../../services/accessEngine.service'
-import { assignReadyAccountFromPool, buildBaseChallengeId, normalizeChallengeBase } from '../ctrader/ctrader.assignment'
+import { assignReadyAccountFromPool, buildBaseChallengeId, normalizeChallengeBase, resolveChallengeCurrency } from '../ctrader/ctrader.assignment'
 
 type UploadAccountPayload = {
   account_number: string
@@ -22,6 +22,10 @@ type AccountSummary = {
 
 type ListCTraderQuery = {
   status?: string
+}
+
+type ForceNextStagePayload = {
+  account_id?: number
 }
 
 const normalizeAccountSize = (raw: string) => {
@@ -159,7 +163,7 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
         challengeType: account.challengeType ?? 'two_step',
         phase: nextPhase,
         accountSize: account.accountSize,
-        currency: account.currency ?? 'USD',
+        currency: resolveChallengeCurrency(account.challengeType, account.currency ?? null),
         baseChallengeId: normalizeChallengeBase(account.challengeId ?? ''),
       })
 
@@ -190,6 +194,83 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
       created: toCreate.length,
       skipped: Array.from(existingIds),
       skipped_accounts: Array.from(existingAccountNumbers),
+    })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const forceAssignNextStage = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { account_id } = req.body as ForceNextStagePayload
+    if (!account_id || !Number.isFinite(Number(account_id))) {
+      throw new ApiError('account_id is required', 400)
+    }
+
+    const account = await prisma.cTraderAccount.findUnique({
+      where: { id: Number(account_id) },
+      include: { user: true },
+    })
+
+    if (!account) {
+      throw new ApiError('Account not found', 404)
+    }
+
+    if (!account.userId) {
+      throw new ApiError('Account has no assigned user', 400)
+    }
+
+    const normalizedChallengeType = String(account.challengeType ?? 'two_step').toLowerCase()
+    const normalizedPhase = String(account.phase ?? '').toLowerCase()
+    if (normalizedChallengeType === 'instant_funded' || normalizedPhase === 'funded') {
+      throw new ApiError('Account is not eligible for next stage', 400)
+    }
+
+    const nextPhase = normalizedChallengeType === 'two_step'
+      ? (normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null)
+      : normalizedChallengeType === 'one_step'
+        ? (normalizedPhase === 'phase_1' ? 'funded' : null)
+        : null
+
+    if (!nextPhase) {
+      throw new ApiError('Account is not eligible for next stage', 400)
+    }
+
+    const assigned = await assignReadyAccountFromPool({
+      userId: account.userId,
+      challengeType: account.challengeType ?? 'two_step',
+      phase: nextPhase,
+      accountSize: account.accountSize,
+      currency: resolveChallengeCurrency(account.challengeType, account.currency ?? null),
+      baseChallengeId: normalizeChallengeBase(account.challengeId ?? ''),
+    })
+
+    if (!assigned) {
+      throw new ApiError('No ready account available to assign next stage', 409)
+    }
+
+    await prisma.cTraderAccount.update({
+      where: { id: account.id },
+      data: { status: 'completed' },
+    })
+
+    if (account.user?.email) {
+      await requestAccountAccess({
+        user_email: account.user.email,
+        user_name: account.user.fullName ?? undefined,
+        account_type: account.challengeType ?? undefined,
+        account_phase: nextPhase ?? undefined,
+        account_size: assigned.accountSize ?? account.accountSize ?? undefined,
+        account_number: assigned.accountNumber,
+        broker: assigned.brokerName,
+        platform: 'ctrader',
+      })
+    }
+
+    res.json({
+      message: 'Next stage assigned',
+      assigned_challenge_id: assigned.challengeId,
+      assigned_account_number: assigned.accountNumber,
     })
   } catch (err) {
     next(err as Error)

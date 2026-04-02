@@ -16,13 +16,25 @@ export const buildChallengeIdForPhase = (baseChallengeId: string, phase: string)
   return baseChallengeId
 }
 
-const normalizeAccountSize = (value: string) =>
+export const normalizeAccountSize = (value: string) =>
   value
     .toLowerCase()
     .replace(/\$/g, '')
     .replace(/,/g, '')
     .replace(/\s+/g, '')
     .replace(/k$/, '000')
+
+export const resolveChallengeCurrency = (challengeType?: string | null, currency?: string | null) => {
+  const trimmed = currency?.trim()
+  if (trimmed) {
+    return trimmed.toUpperCase()
+  }
+  const normalized = String(challengeType ?? '').toLowerCase()
+  if (normalized.includes('ngn')) {
+    return 'NGN'
+  }
+  return 'USD'
+}
 
 export const assignReadyAccountFromPool = async ({
   userId,
@@ -40,6 +52,7 @@ export const assignReadyAccountFromPool = async ({
   currency?: string
 }) => {
   const normalizedAccountSize = normalizeAccountSize(accountSize)
+  const resolvedCurrency = resolveChallengeCurrency(challengeType, currency ?? null)
   const objectiveFields = await buildObjectiveFields({
     accountSize,
     challengeType,
@@ -52,7 +65,7 @@ export const assignReadyAccountFromPool = async ({
       FROM "CTraderAccount"
       WHERE lower(status) = 'ready'
         AND "userId" IS NULL
-        AND lower("currency") = lower(${currency ?? 'USD'})
+        AND lower("currency") = lower(${resolvedCurrency})
         AND regexp_replace(lower("accountSize"), '[^0-9]', '', 'g') = ${normalizedAccountSize.replace(/\D/g, '')}
       ORDER BY "createdAt" ASC
       LIMIT 1
@@ -79,7 +92,7 @@ export const assignReadyAccountFromPool = async ({
       userId,
       challengeType,
       phase,
-      currency: currency ?? 'USD',
+      currency: resolvedCurrency,
       ...objectiveFields,
       status: 'assigned_pending_access',
       accessStatus: 'pending',

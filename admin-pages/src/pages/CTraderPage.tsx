@@ -8,6 +8,7 @@ import {
   fetchNextChallengeId,
   fetchMT5Summary,
   fetchPendingAssignments,
+  forceAssignNextStage,
   deleteMT5Account,
   type MT5Account,
   type Order,
@@ -54,6 +55,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
   const [awaitingSizeFilter, setAwaitingSizeFilter] = useState('')
   const [pendingSizeFilter, setPendingSizeFilter] = useState('')
   const [deletingAccountId, setDeletingAccountId] = useState<number | null>(null)
+  const [assigningNextStageId, setAssigningNextStageId] = useState<number | null>(null)
 
   const [selectedAccount, setSelectedAccount] = useState<MT5Account | null>(null)
   const [assignmentStage, setAssignmentStage] = useState<'Phase 1' | 'Phase 2' | 'Funded'>('Phase 1')
@@ -215,6 +217,20 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
       setFormError(err instanceof Error ? err.message : 'Failed to assign account')
     } finally {
       setSavingAssignment(false)
+    }
+  }
+
+  const handleForceNextStage = async (account: MT5Account) => {
+    if (!account.id) return
+    setAssigningNextStageId(account.id)
+    setError('')
+    try {
+      await forceAssignNextStage(account.id)
+      await loadData()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to assign next stage')
+    } finally {
+      setAssigningNextStageId(null)
     }
   }
 
@@ -733,6 +749,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
                 <th>Current Stage</th>
                 <th>Account Number</th>
                 <th>Status</th>
+                {(isSuperAdmin || canAssignMt5) && <th>Action</th>}
               </tr>
             </thead>
             <tbody>
@@ -759,6 +776,28 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
                       Awaiting Next Stage
                     </span>
                   </td>
+                  {(isSuperAdmin || canAssignMt5) && (
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => void handleForceNextStage(account)}
+                        disabled={assigningNextStageId === account.id}
+                        style={{
+                          border: '1px solid #10b981',
+                          background: 'rgba(16,185,129,0.12)',
+                          color: '#6ee7b7',
+                          borderRadius: 10,
+                          padding: '7px 10px',
+                          fontWeight: 700,
+                          fontSize: 12,
+                          cursor: assigningNextStageId === account.id ? 'not-allowed' : 'pointer',
+                          opacity: assigningNextStageId === account.id ? 0.7 : 1,
+                        }}
+                      >
+                        {assigningNextStageId === account.id ? 'Assigning...' : 'Force Assign'}
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

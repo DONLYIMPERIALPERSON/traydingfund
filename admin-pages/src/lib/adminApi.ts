@@ -607,6 +607,15 @@ export const fetchAwaitingNextStageAccounts = async () =>
     '/admin/ctrader/accounts?status=awaiting-next-stage',
   )
 
+export const forceAssignNextStage = async (accountId: number) =>
+  apiFetch<{ message: string; assigned_challenge_id: string; assigned_account_number: string }>(
+    '/admin/ctrader/accounts/force-next-stage',
+    {
+      method: 'POST',
+      body: JSON.stringify({ account_id: accountId }),
+    },
+  )
+
 export const fetchNextChallengeId = async () =>
   apiFetch<{ challenge_id: string }>('/admin/ctrader/next-challenge-id')
 
