@@ -410,7 +410,7 @@ const DesktopStartChallengePage: React.FC = () => {
 
                   <label className="desktop-check-row" style={{marginTop: '16px', marginBottom: '16px'}}>
                     <input type="checkbox" checked={agreements.terms} onChange={() => handleAgreementChange('terms')} />
-                    I agree to the <a href="https://nairatrader.com/rules" target="_blank" rel="noopener noreferrer" style={{color: 'black', fontWeight: 'bold'}}>Rules and Conditions</a>
+                    I agree to the <a href="https://machefunded.com/rules" target="_blank" rel="noopener noreferrer" style={{color: 'black', fontWeight: 'bold'}}>Rules and Conditions</a>
                   </label>
 
                   <button
