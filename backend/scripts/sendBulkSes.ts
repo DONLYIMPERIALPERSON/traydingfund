@@ -5,35 +5,73 @@ import dotenv from 'dotenv'
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses'
 import { buildEmailTemplate } from '../src/services/emailTemplate'
 
-const SUBJECT = 'Quick update about NGN trading accounts'
+const SUBJECT = 'He passed N800,000 in hours and withdrew same day'
 
 const HTML_BODY = buildEmailTemplate({
-  title: 'MACHEFUNDED NGN ACCOUNTS ARE LIVE',
-  subtitle: 'Trade funded accounts in Naira with more flexibility and faster payouts.',
+  title: 'He passed N800,000 in hours and withdrew same day',
+  subtitle: 'No noise. Just performance.',
   content: `
+    <p>Hey Trader,</p>
+
     <p>
-      You can now trade funded accounts in Naira with powerful features:
+      Yesterday, one of our traders picked up a Flexi ₦800,000 account.
+    </p>
+    <p>
+      No noise. No hype.
+    </p>
+    <p>
+      Within a few hours…<br/>
+      He completed both phases.
+    </p>
+    <p>
+      And yes — he requested a withdrawal the same day.
+    </p>
+    <p>
+      No delays. No complications.
+    </p>
+
+    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 20px 0;" />
+
+    <p>
+      Now compare that to what most traders are used to:
     </p>
     <ul>
-      <li>Up to 20% Max Drawdown</li>
-      <li>No Daily Drawdown (Flexi)</li>
-      <li>Instant Payouts</li>
-      <li>Instant Next Phase</li>
-      <li>Fully Automated Stats</li>
+      <li>Platforms crashing mid-trade</li>
+      <li>Manual processes slowing everything down</li>
+      <li>Delayed payouts</li>
+      <li>Rules that don’t match real market conditions</li>
     </ul>
 
     <p>
-      Accounts starting from N5,000.
+      At MacheFunded, we built things differently:
+    </p>
+    <ul>
+      <li>Fast, stable platform</li>
+      <li>Simple rules designed for real traders</li>
+      <li>Flexible challenge models (like Flexi)</li>
+      <li>Competitive pricing across all account sizes</li>
+    </ul>
+
+    <p>
+      If you’re tired of the usual experience…
+    </p>
+    <p>
+      👉 Take a look here: <a href="https://machefunded.com">https://machefunded.com</a>
+    </p>
+    <p>
+      Or join other traders already inside:<br/>
+      👉 <a href="https://discord.gg/SXuDQc7g2">https://discord.gg/SXuDQc7g2</a>
     </p>
 
-    <h3 style="margin-top:16px;">Easter Discount</h3>
     <p>
-      Use code: <b>EASTER20</b><br/>
-      Get <b>10% OFF</b><br/>
-      Valid till <b>05/04/2026</b>
+      No noise. Just performance.
+    </p>
+    <p>
+      — MacheFunded Team<br/>
+      machefunded.com
     </p>
   `,
-  buttonText: 'Purchase Now',
+  buttonText: 'Visit MacheFunded',
   buttonLink: 'https://machefunded.com',
   infoBox: 'If you no longer want to receive emails, reply with "unsubscribe".',
 })
