@@ -438,7 +438,7 @@ const run = async () => {
         if (!shouldRequestPnl(accountNumber, interval, now)) return
         const targetStream = getStreamForAccount(accountNumber)
         const result = targetStream?.requestUnrealizedPnl(accountNumber)
-        if (result.status === 'requested') {
+        if (result?.status === 'requested') {
           lastPnlRequestAt.set(accountNumber, now)
           remaining -= 1
         }
