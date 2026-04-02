@@ -109,14 +109,19 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       ? highestBalance - accountData.maxDdAmount
       : (metrics?.breachBalance ?? balance)
 
-    const dailyStartAt = (metrics as any)?.dailyStartAt ? new Date((metrics as any).dailyStartAt) : null
-    const isNewDay = !dailyStartAt || !isSameDay(dailyStartAt, now)
-    const dailyHighBalance = isNewDay
-      ? balance
-      : Math.max((metrics as any)?.dailyHighBalance ?? balance, balance)
-    const dailyBreachBalance = accountData.dailyDdAmount != null
+    const dailyDdEnabled = accountData.dailyDdAmount != null && accountData.dailyDdAmount > 0
+    const dailyStartAt = dailyDdEnabled && (metrics as any)?.dailyStartAt
+      ? new Date((metrics as any).dailyStartAt)
+      : null
+    const isNewDay = dailyDdEnabled && (!dailyStartAt || !isSameDay(dailyStartAt, now))
+    const dailyHighBalance = dailyDdEnabled
+      ? (isNewDay
+        ? balance
+        : Math.max((metrics as any)?.dailyHighBalance ?? balance, balance))
+      : 0
+    const dailyBreachBalance = dailyDdEnabled
       ? dailyHighBalance - accountData.dailyDdAmount
-      : ((metrics as any)?.dailyBreachBalance ?? balance)
+      : 0
 
     const trades = payload.trades ?? []
     const positions = payload.positions ?? []
@@ -162,7 +167,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       // keep breached status locked once triggered
     } else if (equity < breachBalance) {
       breachReason = 'MAX_DRAWDOWN'
-    } else if (equity < dailyBreachBalance) {
+    } else if (dailyDdEnabled && equity < dailyBreachBalance) {
       breachReason = 'DAILY_DRAWDOWN'
     } else if (shortDurationViolation || (metrics as any)?.shortDurationViolation) {
       breachReason = 'MIN_TRADE_DURATION'
@@ -233,9 +238,9 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         minTradingDaysMet,
         stageElapsedHours,
         scalpingViolationsCount: metrics?.scalpingViolationsCount ?? 0,
-        dailyStartAt: isNewDay ? now : dailyStartAt,
-        dailyHighBalance,
-        dailyBreachBalance,
+        dailyStartAt: dailyDdEnabled ? (isNewDay ? now : dailyStartAt) : null,
+        dailyHighBalance: dailyDdEnabled ? dailyHighBalance : 0,
+        dailyBreachBalance: dailyDdEnabled ? dailyBreachBalance : 0,
         firstTradeAt,
         totalTrades,
         shortDurationViolation: shortDurationViolation || (metrics?.shortDurationViolation ?? false),
@@ -255,9 +260,9 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         minTradingDaysRequired: accountData.minTradingDaysRequired ?? 0,
         minTradingDaysMet,
         stageElapsedHours,
-        dailyStartAt: isNewDay ? now : dailyStartAt,
-        dailyHighBalance,
-        dailyBreachBalance,
+        dailyStartAt: dailyDdEnabled ? (isNewDay ? now : dailyStartAt) : null,
+        dailyHighBalance: dailyDdEnabled ? dailyHighBalance : 0,
+        dailyBreachBalance: dailyDdEnabled ? dailyBreachBalance : 0,
         firstTradeAt,
         totalTrades,
         shortDurationViolation: shortDurationViolation || (metrics?.shortDurationViolation ?? false),
