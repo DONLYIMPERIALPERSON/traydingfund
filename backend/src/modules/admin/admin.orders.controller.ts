@@ -127,18 +127,19 @@ export const getOrderStats = async (req: Request, res: Response, next: NextFunct
 
     const where: Prisma.OrderWhereInput = startDate ? { createdAt: { gte: startDate } } : {}
 
+    const completedWhere: Prisma.OrderWhereInput = { ...where, status: 'completed' }
     const [totalOrders, paidOrders, pendingOrders, failedOrders, usdVolume, ngnVolume] = await Promise.all([
-      prisma.order.count({ where }),
-      prisma.order.count({ where: { ...where, status: 'completed' } }),
+      prisma.order.count({ where: completedWhere }),
+      prisma.order.count({ where: completedWhere }),
       prisma.order.count({ where: { ...where, status: 'pending' } }),
       prisma.order.count({ where: { ...where, status: { in: ['failed', 'expired'] } } }),
-      prisma.order.aggregate({ _sum: { netAmountKobo: true }, where: { ...where, currency: 'USD' } }),
-      prisma.order.aggregate({ _sum: { netAmountKobo: true }, where: { ...where, currency: 'NGN' } }),
+      prisma.order.aggregate({ _sum: { netAmountKobo: true }, where: { ...completedWhere, currency: 'USD' } }),
+      prisma.order.aggregate({ _sum: { netAmountKobo: true }, where: { ...completedWhere, currency: 'NGN' } }),
     ])
 
     const totalVolumeKobo = (usdVolume._sum.netAmountKobo ?? 0)
       + toUsdKobo(ngnVolume._sum.netAmountKobo ?? 0, 'NGN', usdNgnRate)
-    const successRate = totalOrders === 0 ? 0 : (paidOrders / totalOrders) * 100
+    const successRate = totalOrders === 0 ? 0 : (paidOrders / (totalOrders + pendingOrders + failedOrders)) * 100
 
     res.json({
       period,
