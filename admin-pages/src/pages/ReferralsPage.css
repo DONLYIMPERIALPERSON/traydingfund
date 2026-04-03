@@ -152,6 +152,73 @@
   border-color: rgba(239, 68, 68, 0.5);
 }
 
+.ref-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 12, 0.72);
+  backdrop-filter: blur(3px);
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.ref-modal-card {
+  width: min(460px, 95vw);
+  background: linear-gradient(180deg, #131b2b 0%, #101827 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 28px 60px rgba(0, 0, 0, 0.58);
+}
+
+.ref-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ref-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.ref-modal-header button {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+}
+
+.ref-modal-grid {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.ref-modal-grid article {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.ref-modal-grid span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+}
+
+.ref-modal-grid strong {
+  color: #ffffff;
+  font-size: 14px;
+}
+
 /* Error styling */
 .error {
   color: #ef4444;

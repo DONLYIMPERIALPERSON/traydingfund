@@ -208,6 +208,18 @@ export type AffiliatePayout = {
   amount: number
   status: string
   bank_details: string
+  payout_method_type?: string | null
+  payout_bank_name?: string | null
+  payout_bank_code?: string | null
+  payout_account_number?: string | null
+  payout_account_name?: string | null
+  payout_crypto_currency?: string | null
+  payout_crypto_address?: string | null
+  payout_crypto_first_name?: string | null
+  payout_crypto_last_name?: string | null
+  amount_usd?: number | null
+  amount_ngn?: number | null
+  usd_ngn_rate?: number | null
   requested_at: string
   approved_at: string | null
 }

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import { paginationSchema } from '../../common/validation'
 import { prisma } from '../../config/prisma'
+import { getFxRatesConfig } from '../fxRates/fxRates.service'
 import { ApiError } from '../../common/errors'
 
 type AuthRequest = Request & { user?: { id: number; email: string } }
@@ -347,7 +348,7 @@ export const listAdminAffiliatePayouts = async (req: Request, res: Response, nex
     const limit = Number(req.query.limit ?? 50)
     const skip = (page - 1) * limit
 
-    const [payouts, total] = await Promise.all([
+    const [payouts, total, fxConfig] = await Promise.all([
       affiliatePayoutClient.findMany({
         include: { affiliate: true },
         orderBy: { requestedAt: 'desc' },
@@ -355,20 +356,55 @@ export const listAdminAffiliatePayouts = async (req: Request, res: Response, nex
         take: limit,
       }),
       affiliatePayoutClient.count(),
+      getFxRatesConfig(),
     ])
 
+    const usdNgnRate = fxConfig.rules?.usd_ngn_rate ?? 1300
+
     res.json({
-      payouts: (payouts as Array<{ id: number; amountKobo: number; status: string; requestedAt: Date; approvedAt?: Date | null; affiliate: { fullName?: string | null; email: string }; payoutMethodType?: string | null; payoutBankName?: string | null; payoutAccountNumber?: string | null; payoutCryptoCurrency?: string | null; payoutCryptoAddress?: string | null }>).map((payout) => ({
-        id: payout.id,
-        affiliate: payout.affiliate.fullName ?? payout.affiliate.email,
-        amount: payout.amountKobo / 100,
-        status: payout.status,
-        bank_details: payout.payoutMethodType === 'bank'
-          ? `${payout.payoutBankName ?? 'Bank'} •••• ${(payout.payoutAccountNumber ?? '').slice(-4)}`
-          : `${payout.payoutCryptoCurrency ?? 'Crypto'} •••• ${(payout.payoutCryptoAddress ?? '').slice(-4)}`,
-        requested_at: payout.requestedAt.toISOString(),
-        approved_at: payout.approvedAt?.toISOString() ?? null,
-      })),
+      payouts: (payouts as Array<{
+        id: number
+        amountKobo: number
+        status: string
+        requestedAt: Date
+        approvedAt?: Date | null
+        affiliate: { fullName?: string | null; email: string }
+        payoutMethodType?: string | null
+        payoutBankName?: string | null
+        payoutBankCode?: string | null
+        payoutAccountNumber?: string | null
+        payoutAccountName?: string | null
+        payoutCryptoCurrency?: string | null
+        payoutCryptoAddress?: string | null
+        payoutCryptoFirstName?: string | null
+        payoutCryptoLastName?: string | null
+      }>).map((payout) => {
+        const amountUsd = payout.amountKobo / 100
+        const amountNgn = Math.round(amountUsd * usdNgnRate)
+        return {
+          id: payout.id,
+          affiliate: payout.affiliate.fullName ?? payout.affiliate.email,
+          amount: amountUsd,
+          amount_usd: amountUsd,
+          amount_ngn: amountNgn,
+          usd_ngn_rate: usdNgnRate,
+          status: payout.status,
+          payout_method_type: payout.payoutMethodType ?? null,
+          payout_bank_name: payout.payoutBankName ?? null,
+          payout_bank_code: payout.payoutBankCode ?? null,
+          payout_account_number: payout.payoutAccountNumber ?? null,
+          payout_account_name: payout.payoutAccountName ?? null,
+          payout_crypto_currency: payout.payoutCryptoCurrency ?? null,
+          payout_crypto_address: payout.payoutCryptoAddress ?? null,
+          payout_crypto_first_name: payout.payoutCryptoFirstName ?? null,
+          payout_crypto_last_name: payout.payoutCryptoLastName ?? null,
+          bank_details: payout.payoutMethodType === 'bank'
+            ? `${payout.payoutBankName ?? 'Bank'} •••• ${(payout.payoutAccountNumber ?? '').slice(-4)}`
+            : `${payout.payoutCryptoCurrency ?? 'Crypto'} •••• ${(payout.payoutCryptoAddress ?? '').slice(-4)}`,
+          requested_at: payout.requestedAt.toISOString(),
+          approved_at: payout.approvedAt?.toISOString() ?? null,
+        }
+      }),
       pagination: { page, limit, total, pages: Math.max(1, Math.ceil(total / limit)) },
     })
   } catch (err) {

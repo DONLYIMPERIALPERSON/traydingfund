@@ -11,15 +11,14 @@ import {
 } from '../lib/adminApi'
 import './ReferralsPage.css'
 
-interface ReferralsPageProps {}
-
-const ReferralsPage = ({}: ReferralsPageProps) => {
+const ReferralsPage = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'commissions' | 'payouts'>('overview')
   const [overview, setOverview] = useState<AffiliateOverviewStats | null>(null)
   const [commissions, setCommissions] = useState<AffiliateCommission[]>([])
   const [payouts, setPayouts] = useState<AffiliatePayout[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedPayout, setSelectedPayout] = useState<AffiliatePayout | null>(null)
 
   useEffect(() => {
     loadOverview()
@@ -42,8 +41,8 @@ const ReferralsPage = ({}: ReferralsPageProps) => {
     try {
       const data = await fetchAffiliateCommissions()
       setCommissions(data.commissions)
-    } catch (err) {
-      console.error('Failed to load commissions:', err)
+    } catch (error) {
+      console.error('Failed to load commissions:', error)
     }
   }
 
@@ -51,8 +50,8 @@ const ReferralsPage = ({}: ReferralsPageProps) => {
     try {
       const data = await fetchAffiliatePayouts()
       setPayouts(data.payouts)
-    } catch (err) {
-      console.error('Failed to load payouts:', err)
+    } catch (error) {
+      console.error('Failed to load payouts:', error)
     }
   }
 
@@ -87,6 +86,35 @@ const ReferralsPage = ({}: ReferralsPageProps) => {
     } catch (err) {
       alert('Failed to reject payout')
     }
+  }
+
+  const openPayoutDetails = (payout: AffiliatePayout) => {
+    setSelectedPayout(payout)
+  }
+
+  const closePayoutDetails = () => {
+    setSelectedPayout(null)
+  }
+
+  const formatCurrency = (amount: number | null | undefined, currency: 'NGN' | 'USD') => {
+    const safeAmount = Number(amount ?? 0)
+    if (!Number.isFinite(safeAmount)) return currency === 'NGN' ? '₦0' : '$0'
+    return currency === 'NGN'
+      ? `₦${safeAmount.toLocaleString('en-NG')}`
+      : `$${safeAmount.toLocaleString('en-US')}`
+  }
+
+  const resolvePayoutMethod = (payout: AffiliatePayout) =>
+    payout.payout_method_type === 'crypto' ? 'Crypto' : 'Bank Transfer'
+
+  const resolvePayoutAmount = (payout: AffiliatePayout) => {
+    if (payout.payout_method_type === 'crypto') {
+      return formatCurrency(payout.amount_usd ?? payout.amount, 'USD')
+    }
+    if (payout.payout_method_type === 'bank') {
+      return formatCurrency(payout.amount_ngn ?? payout.amount, 'NGN')
+    }
+    return `$${payout.amount.toLocaleString()}`
   }
 
 
@@ -227,8 +255,9 @@ const ReferralsPage = ({}: ReferralsPageProps) => {
                 <tr>
                   <th>Affiliate</th>
                   <th>Amount</th>
+                  <th>Method</th>
                   <th>Status</th>
-                  <th>Bank Details</th>
+                  <th>Details</th>
                   <th>Requested</th>
                   <th>Approved</th>
                   <th>Actions</th>
@@ -238,13 +267,22 @@ const ReferralsPage = ({}: ReferralsPageProps) => {
                 {payouts.map((payout) => (
                   <tr key={payout.id}>
                     <td>{payout.affiliate}</td>
-                    <td>${payout.amount.toLocaleString()}</td>
+                    <td>{resolvePayoutAmount(payout)}</td>
+                    <td>{resolvePayoutMethod(payout)}</td>
                     <td>
                       <span className={`status-chip ${payout.status.toLowerCase()}`}>
                         {payout.status}
                       </span>
                     </td>
-                    <td>{payout.bank_details}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="ref-view-btn"
+                        onClick={() => openPayoutDetails(payout)}
+                      >
+                        View details
+                      </button>
+                    </td>
                     <td>{payout.requested_at}</td>
                     <td>{payout.approved_at || 'N/A'}</td>
                     <td>
@@ -269,6 +307,74 @@ const ReferralsPage = ({}: ReferralsPageProps) => {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {selectedPayout && (
+        <div className="ref-modal-backdrop" onClick={closePayoutDetails}>
+          <div className="ref-modal-card" onClick={(event) => event.stopPropagation()}>
+            <header className="ref-modal-header">
+              <h3>Payout Details</h3>
+              <button type="button" onClick={closePayoutDetails}>×</button>
+            </header>
+            <div className="ref-modal-grid">
+              <article>
+                <span>Affiliate</span>
+                <strong>{selectedPayout.affiliate}</strong>
+              </article>
+              <article>
+                <span>Method</span>
+                <strong>{resolvePayoutMethod(selectedPayout)}</strong>
+              </article>
+              <article>
+                <span>Amount</span>
+                <strong>{resolvePayoutAmount(selectedPayout)}</strong>
+              </article>
+              {selectedPayout.payout_method_type === 'bank' ? (
+                <>
+                  <article>
+                    <span>Bank Name</span>
+                    <strong>{selectedPayout.payout_bank_name ?? '—'}</strong>
+                  </article>
+                  <article>
+                    <span>Account Name</span>
+                    <strong>{selectedPayout.payout_account_name ?? '—'}</strong>
+                  </article>
+                  <article>
+                    <span>Account Number</span>
+                    <strong>{selectedPayout.payout_account_number ?? '—'}</strong>
+                  </article>
+                  <article>
+                    <span>FX Rate</span>
+                    <strong>{selectedPayout.usd_ngn_rate ? `₦${selectedPayout.usd_ngn_rate.toLocaleString('en-NG')}` : '—'}</strong>
+                  </article>
+                </>
+              ) : (
+                <>
+                  <article>
+                    <span>Crypto Currency</span>
+                    <strong>{selectedPayout.payout_crypto_currency ?? '—'}</strong>
+                  </article>
+                  <article>
+                    <span>Wallet Address</span>
+                    <strong>{selectedPayout.payout_crypto_address ?? '—'}</strong>
+                  </article>
+                  <article>
+                    <span>Beneficiary</span>
+                    <strong>{`${selectedPayout.payout_crypto_first_name ?? ''} ${selectedPayout.payout_crypto_last_name ?? ''}`.trim() || '—'}</strong>
+                  </article>
+                  <article>
+                    <span>USD Amount</span>
+                    <strong>{formatCurrency(selectedPayout.amount_usd ?? selectedPayout.amount, 'USD')}</strong>
+                  </article>
+                </>
+              )}
+              <article>
+                <span>Status</span>
+                <strong>{selectedPayout.status}</strong>
+              </article>
+            </div>
           </div>
         </div>
       )}
