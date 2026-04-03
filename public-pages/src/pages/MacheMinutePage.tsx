@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const FORM_ACTION = 'https://docs.google.com/forms/d/e/1BlxKwkW05R8QZCyrZ4H4ny3UTdcAx8bt4OvI3wSujH8/formResponse';
+const FORM_ACTION = 'https://docs.google.com/forms/d/e/1FAIpQLSej1y1iuuLRC8YGeevL-w3kVgTf1A3J6ZWNcqkHbHtlELLnIQ/formResponse';
 
 const FIELD_IDS = {
   fullName: 'entry.651761561',
