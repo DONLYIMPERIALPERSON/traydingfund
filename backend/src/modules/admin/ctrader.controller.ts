@@ -150,8 +150,8 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
 
       const nextPhase = normalizedChallengeType === 'two_step'
         ? (normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null)
-        : normalizedChallengeType === 'one_step'
-          ? (normalizedPhase === 'phase_1' ? 'funded' : null)
+        : ['one_step', 'ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)
+          ? (normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null)
           : null
 
       if (!nextPhase || !account.userId) {
@@ -228,8 +228,8 @@ export const forceAssignNextStage = async (req: Request, res: Response, next: Ne
 
     const nextPhase = normalizedChallengeType === 'two_step'
       ? (normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null)
-      : normalizedChallengeType === 'one_step'
-        ? (normalizedPhase === 'phase_1' ? 'funded' : null)
+      : ['one_step', 'ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)
+        ? (normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null)
         : null
 
     if (!nextPhase) {
