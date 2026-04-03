@@ -108,13 +108,9 @@ const ReferralsPage = () => {
     payout.payout_method_type === 'crypto' ? 'Crypto' : 'Bank Transfer'
 
   const resolvePayoutAmount = (payout: AffiliatePayout) => {
-    if (payout.payout_method_type === 'crypto') {
-      return formatCurrency(payout.amount_usd ?? payout.amount, 'USD')
-    }
-    if (payout.payout_method_type === 'bank') {
-      return formatCurrency(payout.amount_ngn ?? payout.amount, 'NGN')
-    }
-    return `$${payout.amount.toLocaleString()}`
+    const amountUsd = formatCurrency(payout.amount_usd ?? payout.amount, 'USD')
+    const amountNgn = formatCurrency(payout.amount_ngn ?? (payout.amount_usd ?? payout.amount) * (payout.usd_ngn_rate ?? 0), 'NGN')
+    return `${amountUsd} • ${amountNgn}`
   }
 
 
@@ -363,10 +359,6 @@ const ReferralsPage = () => {
                   <article>
                     <span>Beneficiary</span>
                     <strong>{`${selectedPayout.payout_crypto_first_name ?? ''} ${selectedPayout.payout_crypto_last_name ?? ''}`.trim() || '—'}</strong>
-                  </article>
-                  <article>
-                    <span>USD Amount</span>
-                    <strong>{formatCurrency(selectedPayout.amount_usd ?? selectedPayout.amount, 'USD')}</strong>
                   </article>
                 </>
               )}
