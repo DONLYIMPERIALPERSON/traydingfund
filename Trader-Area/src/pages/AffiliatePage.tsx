@@ -59,9 +59,8 @@ const AffiliatePage: React.FC = () => {
     }
   }
 
-  const formatCurrency = (amount: number) => {
-    return `$${amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
-  }
+  const formatCurrency = (amount: number) =>
+    `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 
   if (loading) {
