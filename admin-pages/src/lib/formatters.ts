@@ -21,3 +21,24 @@ export const formatAccountSize = (size: string, currency?: string | null) => {
 
   return `$${numeric.toLocaleString('en-US')}`
 }
+
+export const formatCurrencyValue = (
+  value: string | number | null | undefined,
+  currency?: string | null,
+  fallbackValue?: string,
+) => {
+  if (value === null || value === undefined || value === '') {
+    return fallbackValue ?? (currency?.toUpperCase() === 'NGN' ? '₦0' : '$0')
+  }
+
+  const raw = String(value).trim()
+  const sign = raw.startsWith('-') ? '-' : raw.startsWith('+') ? '+' : ''
+  const numeric = Number(raw.replace(/[^0-9.]/g, ''))
+  if (!Number.isFinite(numeric)) {
+    return fallbackValue ?? raw
+  }
+
+  const formatted = numeric.toLocaleString(currency?.toUpperCase() === 'NGN' ? 'en-NG' : 'en-US')
+  const prefix = currency?.toUpperCase() === 'NGN' ? '₦' : '$'
+  return `${sign}${prefix}${formatted}`
+}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { AdminUser } from './UsersPage'
 import { fetchFundedChallengeAccounts, fetchProfitableFundedAccounts, type ChallengeAccountListItem } from '../lib/adminApi'
-import { formatAccountSize } from '../lib/formatters'
+import { formatAccountSize, formatCurrencyValue } from '../lib/formatters'
 
 interface FundedAccountsPageProps {
   onOpenProfile: (user: AdminUser) => void
@@ -139,7 +139,7 @@ const FundedAccountsPage = ({ onOpenProfile }: FundedAccountsPageProps) => {
                 <td>#{(leaderboardPage - 1) * leaderboardPageSize + index + 1}</td>
                 <td>{row.trader_name ?? `User ${row.user_id}`}</td>
                 <td>{formatAccountSize(row.account_size, row.currency)}</td>
-                <td>{row.profit ?? '$0'}</td>
+                <td>{formatCurrencyValue(row.profit, row.currency)}</td>
                 <td>{row.win_rate ?? '0%'}</td>
                 <td>
                   <button type="button" onClick={() => openProfileFromRow(row)}>
@@ -234,7 +234,7 @@ const FundedAccountsPage = ({ onOpenProfile }: FundedAccountsPageProps) => {
                   <td>{formatAccountSize(row.account_size, row.currency)}</td>
                   <td>{row.mt5_account ?? '-'}</td>
                   <td>{row.phase}</td>
-                  <td>{row.current_pnl ?? '$0'}</td>
+                  <td>{formatCurrencyValue(row.current_pnl, row.currency)}</td>
                   <td>
                     <button type="button" onClick={() => openProfileFromRow(row)}>
                       View Profile

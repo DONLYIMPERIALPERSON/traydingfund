@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { AdminUser } from './UsersPage'
 import { fetchActiveChallengeAccounts, type ChallengeAccountListItem } from '../lib/adminApi'
-import { formatAccountSize } from '../lib/formatters'
+import { formatAccountSize, formatCurrencyValue } from '../lib/formatters'
 
 interface AccountsPageProps {
   onOpenProfile: (user: AdminUser) => void
@@ -123,7 +123,7 @@ const AccountsPage = ({ onOpenProfile }: AccountsPageProps) => {
                 <td>{row.mt5_account ?? '-'}</td>
                 <td>{row.mt5_server ?? '-'}</td>
                 <td>{row.phase}</td>
-                <td>{row.current_pnl ?? '+$0'}</td>
+                <td>{formatCurrencyValue(row.current_pnl, row.currency, '+$0')}</td>
                 <td>
                   <button
                     type="button"
