@@ -3,6 +3,12 @@ export const formatAccountSize = (size: string, currency?: string | null) => {
 
   const normalizedCurrency = (currency ?? '').toUpperCase()
   if (size.includes('₦') || size.includes('$')) {
+    if (normalizedCurrency === 'NGN') {
+      return `₦${size.replace(/[^0-9.]/g, '')}`
+    }
+    if (normalizedCurrency === 'USD') {
+      return `$${size.replace(/[^0-9.]/g, '')}`
+    }
     return size
   }
 
