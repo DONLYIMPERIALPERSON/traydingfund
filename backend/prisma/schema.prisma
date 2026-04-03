@@ -222,6 +222,8 @@ model CTraderAccountMetric {
   minTradingDaysMet       Boolean
   stageElapsedHours       Float
   scalpingViolationsCount Int
+  durationViolationsCount Int      @default(0)
+  processedTradeIds       String[] @default([])
   dailyStartAt            DateTime?
   dailyHighBalance        Float     @default(0)
   dailyBreachBalance       Float     @default(0)

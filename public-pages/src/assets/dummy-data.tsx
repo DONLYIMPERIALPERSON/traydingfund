@@ -11,7 +11,7 @@ export const plansData = [
             'Phase 2 Target: 5%',
             'Profit Split: 80%',
             'Withdrawals: Weekly',
-            'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach'
+            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)'
         ]
     },
     {
@@ -26,7 +26,7 @@ export const plansData = [
             'Phase 2 Target: 5%',
             'Profit Split: 80%',
             'Withdrawals: Weekly',
-            'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach'
+            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)'
         ],
         popular: true
     },
@@ -42,7 +42,7 @@ export const plansData = [
             'Phase 2 Target: 5%',
             'Profit Split: 80%',
             'Withdrawals: Weekly',
-            'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach'
+            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)'
         ]
     },
     {
@@ -57,7 +57,7 @@ export const plansData = [
             'Phase 2 Target: 5%',
             'Profit Split: 80%',
             'Withdrawals: Weekly',
-            'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach'
+            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)'
         ]
     },
     {
@@ -72,7 +72,7 @@ export const plansData = [
             'Phase 2 Target: 5%',
             'Profit Split: 80%',
             'Withdrawals: Weekly',
-            'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach'
+            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)'
         ]
     },
     {
@@ -87,7 +87,7 @@ export const plansData = [
             'Phase 2 Target: 5%',
             'Profit Split: 80%',
             'Withdrawals: Weekly',
-            'Minimum Trade Duration Rule: Closing any trade in under 5 minutes is a breach'
+            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)'
         ]
     }
 ];

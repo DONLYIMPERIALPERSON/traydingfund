@@ -118,6 +118,8 @@ const buildAccountPayout = async (accountId: number) => {
         minTradingDaysMet: false,
         stageElapsedHours: 0,
         scalpingViolationsCount: 0,
+        durationViolationsCount: 0,
+        processedTradeIds: [],
         dailyStartAt: now,
         dailyHighBalance: initialBalance,
         dailyBreachBalance: initialBalance,

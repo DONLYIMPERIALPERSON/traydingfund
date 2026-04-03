@@ -40,6 +40,8 @@ type MetricsPayload = {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
+const MIN_TRADE_DURATION_SECONDS = 180
+const MAX_DURATION_VIOLATIONS = 3
 
 const isSameDay = (lhs: Date, rhs: Date) =>
   lhs.getUTCFullYear() === rhs.getUTCFullYear()
@@ -142,10 +144,28 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       })
     const closedTrades = tradeEvents.filter((trade) => trade.open_time && trade.close_time)
     const totalTrades = ((metrics as any)?.totalTrades ?? 0) + closedTrades.length
-    const shortDurationViolation = closedTrades.some((trade) => {
-      const duration = calculateTradeDurationMinutes(trade)
-      return duration != null && accountData.minTradeDurationMinutes != null && duration < accountData.minTradeDurationMinutes
+    const priorProcessedTrades = Array.isArray((metrics as any)?.processedTradeIds)
+      ? (metrics as any).processedTradeIds
+      : []
+    const processedTradeIds = new Set(priorProcessedTrades)
+    const newlyProcessedTrades: TradePayload[] = []
+    closedTrades.forEach((trade) => {
+      const tradeId = trade.ticket ?? trade.position_id
+      if (!tradeId) return
+      if (processedTradeIds.has(tradeId)) return
+      processedTradeIds.add(tradeId)
+      newlyProcessedTrades.push(trade)
     })
+    const priorViolations = (metrics as any)?.durationViolationsCount ?? 0
+    const minDurationSeconds = accountData.minTradeDurationMinutes != null
+      ? accountData.minTradeDurationMinutes * 60
+      : MIN_TRADE_DURATION_SECONDS
+    const newViolations = newlyProcessedTrades.filter((trade) => {
+      const duration = calculateTradeDurationMinutes(trade)
+      return duration != null && duration * 60 < minDurationSeconds
+    }).length
+    const durationViolationsCount = priorViolations + newViolations
+    const shortDurationViolation = durationViolationsCount >= MAX_DURATION_VIOLATIONS
     const firstTradeAt = (metrics as any)?.firstTradeAt
       ?? tradeEvents.map((trade) => parseDate(trade.open_time)).find(Boolean)
       ?? accountData.startedAt
@@ -169,7 +189,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       breachReason = 'MAX_DRAWDOWN'
     } else if (dailyDdEnabled && equity < dailyBreachBalance) {
       breachReason = 'DAILY_DRAWDOWN'
-    } else if (shortDurationViolation || (metrics as any)?.shortDurationViolation) {
+    } else if (shortDurationViolation) {
       breachReason = 'MIN_TRADE_DURATION'
     }
 
@@ -210,6 +230,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         maxDdAmount: accountData.maxDdAmount,
         dailyDdAmount: accountData.dailyDdAmount,
         minTradeDurationMinutes: accountData.minTradeDurationMinutes,
+        durationViolationsCount,
         shortDurationViolation,
         payloadTimestamp: payload.timestamp ?? null,
       })
@@ -238,12 +259,14 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         minTradingDaysMet,
         stageElapsedHours,
         scalpingViolationsCount: metrics?.scalpingViolationsCount ?? 0,
+        durationViolationsCount,
+        processedTradeIds: Array.from(processedTradeIds),
         dailyStartAt: dailyDdEnabled ? (isNewDay ? now : dailyStartAt) : null,
         dailyHighBalance: dailyDdEnabled ? dailyHighBalance : 0,
         dailyBreachBalance: dailyDdEnabled ? dailyBreachBalance : 0,
         firstTradeAt,
         totalTrades,
-        shortDurationViolation: shortDurationViolation || (metrics?.shortDurationViolation ?? false),
+        shortDurationViolation,
         breachReason,
         lastBalance: balance,
         lastEquity: equity,
@@ -260,12 +283,14 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         minTradingDaysRequired: accountData.minTradingDaysRequired ?? 0,
         minTradingDaysMet,
         stageElapsedHours,
+        durationViolationsCount,
+        processedTradeIds: Array.from(processedTradeIds),
         dailyStartAt: dailyDdEnabled ? (isNewDay ? now : dailyStartAt) : null,
         dailyHighBalance: dailyDdEnabled ? dailyHighBalance : 0,
         dailyBreachBalance: dailyDdEnabled ? dailyBreachBalance : 0,
         firstTradeAt,
         totalTrades,
-        shortDurationViolation: shortDurationViolation || (metrics?.shortDurationViolation ?? false),
+        shortDurationViolation,
         breachReason,
         lastBalance: balance,
         lastEquity: equity,

@@ -41,7 +41,7 @@ const pricingTabs: PricingTab[] = [
     key: 'twoPhase',
     label: '2 Step',
     tiers: [
-      { account: '$2K', price: '$12', originalPrice: '$12', discountPrice: '$5', discountBadge: '58% OFF' },
+      { account: '$2K', price: '$12' },
       { account: '$10K', price: '$81' },
       { account: '$30K', price: '$163' },
       { account: '$50K', price: '$203' },
@@ -54,7 +54,7 @@ const pricingTabs: PricingTab[] = [
     key: 'onePhase',
     label: '1 Step',
     tiers: [
-      { account: '$2K', price: '$26', originalPrice: '$26', discountPrice: '$11', discountBadge: '58% OFF' },
+      { account: '$2K', price: '$26' },
       { account: '$10K', price: '$108' },
       { account: '$30K', price: '$203' },
       { account: '$50K', price: '$299' },
@@ -67,7 +67,7 @@ const pricingTabs: PricingTab[] = [
     key: 'instant',
     label: 'Instant Funded',
     tiers: [
-      { account: '$2K', price: '$53', originalPrice: '$53', discountPrice: '$22', discountBadge: '58% OFF' },
+      { account: '$2K', price: '$53' },
       { account: '$10K', price: '$163' },
       { account: '$30K', price: '$381' },
       { account: '$50K', price: '$612' },

@@ -25,18 +25,18 @@ function App() {
 
 	return (
 		<>
-			<div className="bg-black text-white text-xs sm:text-sm text-center py-2 px-4">
+			<div className="bg-[#ffd700] text-black text-xs sm:text-sm text-center py-2 px-4">
 				<a
 					href="/?currency=ngn#pricing"
 					className="group inline-flex flex-wrap items-center justify-center gap-3"
 				>
 					<span className="inline-flex items-center gap-2 font-semibold">
-						<span className="rounded-full bg-[#ffd700] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-black">
+						<span className="rounded-full bg-black px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#ffd700]">
 							New
 						</span>
-						<span>NGN Accounts Are Now Available</span>
+						<span>MT5 now available</span>
 					</span>
-					<span className="inline-flex items-center justify-center rounded-full bg-[#0b9fb8] px-4 py-1 text-xs sm:text-sm font-semibold text-white transition group-hover:bg-[#008ea4]">
+					<span className="inline-flex items-center justify-center rounded-full bg-black px-4 py-1 text-xs sm:text-sm font-semibold text-[#ffd700] transition group-hover:bg-[#1a1a1a]">
 						View Now
 					</span>
 				</a>

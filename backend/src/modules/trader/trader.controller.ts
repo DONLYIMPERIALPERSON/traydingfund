@@ -299,6 +299,7 @@ export const getChallengeAccountDetail = async (
       | 'minTradingDaysMet'
       | 'stageElapsedHours'
       | 'scalpingViolationsCount'
+      | 'durationViolationsCount'
       | 'capturedAt'
     >
 
@@ -328,6 +329,7 @@ export const getChallengeAccountDetail = async (
       minTradingDaysMet: false,
       stageElapsedHours: 0,
       scalpingViolationsCount: 0,
+      durationViolationsCount: 0,
       capturedAt: new Date(),
     }
 
@@ -346,6 +348,7 @@ export const getChallengeAccountDetail = async (
       ? (metrics.highestBalance ?? initialBalance) - objectiveFields.dailyDdAmount
       : metrics.breachBalance
     const minTradeDurationMinutes = objectiveFields.minTradeDurationMinutes ?? 0
+    const durationViolationsCount = metrics.durationViolationsCount ?? 0
     const minTradingDaysRequired = objectiveFields.minTradingDaysRequired ?? 0
     const stageElapsedHours = metrics.stageElapsedHours ?? 0
     const minTradingDaysMet = metrics.minTradingDaysMet || stageElapsedHours >= minTradingDaysRequired * 24
@@ -385,9 +388,9 @@ export const getChallengeAccountDetail = async (
       }),
       min_trade_duration: {
         label: 'Minimum Trade Duration',
-        status: metrics.scalpingViolationsCount > 0 || minTradeDurationBreached ? 'breached' : 'passed',
+        status: durationViolationsCount >= 3 || minTradeDurationBreached ? 'breached' : 'passed',
         note: minTradeDurationMinutes
-          ? `${metrics.scalpingViolationsCount > 0 || minTradeDurationBreached ? 'Violated' : 'Pass'} • ${minTradeDurationMinutes} min rule`
+          ? `${durationViolationsCount >= 3 || minTradeDurationBreached ? 'Violated' : 'Pass'} • ${minTradeDurationMinutes} min rule (${durationViolationsCount}/3)`
           : 'Pending',
       },
       min_trading_days: {
@@ -435,6 +438,7 @@ export const getChallengeAccountDetail = async (
         min_trading_days_met: metrics.minTradingDaysMet,
         stage_elapsed_hours: metrics.stageElapsedHours,
         scalping_violations_count: metrics.scalpingViolationsCount,
+        duration_violations_count: durationViolationsCount,
       },
       objectives,
       credentials: {

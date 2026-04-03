@@ -20,6 +20,11 @@ const faqs = [
       'Max daily drawdown is the maximum loss you can take in a single day. It is 5% for 1-Step and 2-Step challenges, and 2% for Instant Funded accounts.',
   },
   {
+    question: 'When does the daily drawdown reset?',
+    answer:
+      'Daily drawdown resets at 00:00 UTC each day, based on the highest balance reached during the UTC day.',
+  },
+  {
     question: 'What are the profit targets?',
     answer:
       'For 2-Step challenges, the target is 10% in Phase 1 and 5% in Phase 2. For 1-Step challenges, the target is 10%.',
@@ -32,7 +37,7 @@ const faqs = [
   {
     question: 'What is the minimum trade duration?',
     answer:
-      'All challenge types enforce a minimum trade duration of 5 minutes to encourage disciplined trading.',
+      'All challenge types enforce a minimum trade duration of 3 minutes; closing 3 trades under 3 minutes breaches the account.',
   },
   {
     question: 'What profit split do I receive?',

@@ -6,7 +6,7 @@ const rulesData = [
             'Max Daily Drawdown: 5%',
             'Profit Target: 10%',
             'Minimum Trading Days: 1',
-            'Minimum Trade Duration Rule: 5 mins',
+            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)',
         ],
     },
     {
@@ -16,7 +16,7 @@ const rulesData = [
             'Max Daily Drawdown: 5%',
             'Profit Target: 5%',
             'Minimum Trading Days: 1',
-            'Minimum Trade Duration Rule: 5 mins',
+            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)',
         ],
     },
     {
@@ -27,7 +27,7 @@ const rulesData = [
             'Profit Split: 80%',
             'Withdrawals: Weekly',
             'Minimum Trading Days: 1',
-            'Minimum Trade Duration Rule: 5 mins',
+            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)',
         ],
     },
     {
@@ -37,7 +37,7 @@ const rulesData = [
             'Max Daily Drawdown: 5%',
             'Profit Target: 10%',
             'Minimum Trading Days: 1',
-            'Minimum Trade Duration Rule: 5 mins',
+            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)',
         ],
     },
     {
@@ -48,7 +48,7 @@ const rulesData = [
             'Profit Split: 80%',
             'Withdrawals: Weekly',
             'Minimum Trading Days: 1',
-            'Minimum Trade Duration Rule: 5 mins',
+            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)',
         ],
     },
     {
@@ -57,7 +57,7 @@ const rulesData = [
             'Max Drawdown: 5%',
             'Max Daily Drawdown: 2%',
             'Minimum Trading Days: 5',
-            'Minimum Trade Duration Rule: 5 mins',
+            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)',
             'Profit Split: 50%',
             'Withdrawals: Bi-weekly',
         ],
@@ -70,7 +70,7 @@ const rulesData = [
             'Phase 2 Profit Target: 10%',
             'Max Drawdown: 20%',
             'No Minimum Trading Days',
-            'Minimum Trade Duration Rule: 5 mins',
+            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)',
             'Profit Split: 70%',
             'Withdrawals: Daily',
         ],
@@ -83,11 +83,21 @@ const rulesData = [
             'Phase 1 Profit Target: 10%',
             'Phase 2 Profit Target: 5%',
             'Minimum Trading Days: 1',
-            'Minimum Trade Duration Rule: 5 mins',
+            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)',
             'Profit Split: 80%',
             'Withdrawals: Weekly',
         ],
     },
+];
+
+const prohibitedStrategies = [
+    'High-frequency trading (HFT), latency arbitrage, or ultra-fast scalping systems',
+    'Opening trades in opposite directions on the same pair at the same time (hedging)',
+    'Martingale, grid, or doubling-down position sizing to recover losses',
+    'Copy trading or signal mirroring from third-party providers',
+    'Using trade manipulation, price feed delays, or broker exploits',
+    'Placing trades during major news solely to exploit slippage or spread spikes',
+    'Account sharing, trade pooling, or coordinated group trading',
 ];
 
 export default function Rules() {
@@ -121,6 +131,28 @@ export default function Rules() {
                             </ul>
                         </div>
                     ))}
+                </div>
+
+                <div className="mt-12 rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
+                    <div className="text-center mb-6">
+                        <p className="text-sm font-medium text-[#ffd700] uppercase tracking-wide mb-2">
+                            Prohibited Trading Strategies
+                        </p>
+                        <h3 className="text-xl md:text-2xl font-semibold text-white">
+                            Gambling and exploitative strategies are not allowed
+                        </h3>
+                        <p className="text-gray-300 mt-3 max-w-3xl mx-auto text-sm md:text-base">
+                            These tactics violate our risk policies and may result in an immediate breach.
+                        </p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-200">
+                        {prohibitedStrategies.map((strategy) => (
+                            <div key={strategy} className="flex items-start gap-2 rounded-2xl border border-white/10 bg-black/30 p-4">
+                                <span className="text-[#ffd700]">•</span>
+                                <span>{strategy}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
         </section>
