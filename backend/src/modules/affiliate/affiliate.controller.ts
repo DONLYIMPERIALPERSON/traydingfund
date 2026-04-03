@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import { paginationSchema } from '../../common/validation'
 import { prisma } from '../../config/prisma'
 import { getFxRatesConfig } from '../fxRates/fxRates.service'
+import { SAFEHAVEN_BANKS } from '../kyc/kyc.banks'
 import { ApiError } from '../../common/errors'
 
 type AuthRequest = Request & { user?: { id: number; email: string } }
@@ -394,8 +395,14 @@ export const listAdminAffiliatePayouts = async (req: Request, res: Response, nex
         const amountUsd = payout.amountKobo / 100
         const amountNgn = Math.round(amountUsd * usdNgnRate)
         const payoutMethodType = payout.payoutMethodType ?? payout.affiliate.payoutMethodType ?? null
-        const payoutBankName = payout.payoutBankName ?? payout.affiliate.payoutBankName ?? null
         const payoutBankCode = payout.payoutBankCode ?? payout.affiliate.payoutBankCode ?? null
+        const resolvedBankName = payoutBankCode
+          ? SAFEHAVEN_BANKS.find((bank) => bank.bankCode === payoutBankCode)?.name ?? null
+          : null
+        const payoutBankName = payout.payoutBankName
+          ?? payout.affiliate.payoutBankName
+          ?? resolvedBankName
+          ?? null
         const payoutAccountNumber = payout.payoutAccountNumber ?? payout.affiliate.payoutAccountNumber ?? null
         const payoutAccountName = payout.payoutAccountName ?? payout.affiliate.payoutAccountName ?? null
         const payoutCryptoCurrency = payout.payoutCryptoCurrency ?? payout.affiliate.payoutCryptoCurrency ?? null
