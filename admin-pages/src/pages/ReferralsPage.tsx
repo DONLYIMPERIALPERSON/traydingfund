@@ -105,7 +105,11 @@ const ReferralsPage = () => {
   }
 
   const resolvePayoutMethod = (payout: AffiliatePayout) =>
-    payout.payout_method_type === 'crypto' ? 'Crypto' : 'Bank Transfer'
+    payout.payout_method_type === 'crypto'
+      ? 'Crypto'
+      : (payout.payout_bank_name || payout.payout_account_number || payout.payout_account_name)
+        ? 'Bank Transfer'
+        : 'Bank Transfer'
 
   const resolvePayoutAmount = (payout: AffiliatePayout) => {
     const amountUsd = formatCurrency(payout.amount_usd ?? payout.amount, 'USD')
@@ -327,7 +331,10 @@ const ReferralsPage = () => {
                 <span>Amount</span>
                 <strong>{resolvePayoutAmount(selectedPayout)}</strong>
               </article>
-              {selectedPayout.payout_method_type === 'bank' ? (
+              {(selectedPayout.payout_method_type === 'bank'
+                || selectedPayout.payout_bank_name
+                || selectedPayout.payout_account_number
+                || selectedPayout.payout_account_name) ? (
                 <>
                   <article>
                     <span>Bank Name</span>

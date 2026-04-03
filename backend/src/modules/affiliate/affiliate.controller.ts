@@ -368,7 +368,19 @@ export const listAdminAffiliatePayouts = async (req: Request, res: Response, nex
         status: string
         requestedAt: Date
         approvedAt?: Date | null
-        affiliate: { fullName?: string | null; email: string }
+        affiliate: {
+          fullName?: string | null
+          email: string
+          payoutMethodType?: string | null
+          payoutBankName?: string | null
+          payoutBankCode?: string | null
+          payoutAccountNumber?: string | null
+          payoutAccountName?: string | null
+          payoutCryptoCurrency?: string | null
+          payoutCryptoAddress?: string | null
+          payoutCryptoFirstName?: string | null
+          payoutCryptoLastName?: string | null
+        }
         payoutMethodType?: string | null
         payoutBankName?: string | null
         payoutBankCode?: string | null
@@ -381,6 +393,15 @@ export const listAdminAffiliatePayouts = async (req: Request, res: Response, nex
       }>).map((payout) => {
         const amountUsd = payout.amountKobo / 100
         const amountNgn = Math.round(amountUsd * usdNgnRate)
+        const payoutMethodType = payout.payoutMethodType ?? payout.affiliate.payoutMethodType ?? null
+        const payoutBankName = payout.payoutBankName ?? payout.affiliate.payoutBankName ?? null
+        const payoutBankCode = payout.payoutBankCode ?? payout.affiliate.payoutBankCode ?? null
+        const payoutAccountNumber = payout.payoutAccountNumber ?? payout.affiliate.payoutAccountNumber ?? null
+        const payoutAccountName = payout.payoutAccountName ?? payout.affiliate.payoutAccountName ?? null
+        const payoutCryptoCurrency = payout.payoutCryptoCurrency ?? payout.affiliate.payoutCryptoCurrency ?? null
+        const payoutCryptoAddress = payout.payoutCryptoAddress ?? payout.affiliate.payoutCryptoAddress ?? null
+        const payoutCryptoFirstName = payout.payoutCryptoFirstName ?? payout.affiliate.payoutCryptoFirstName ?? null
+        const payoutCryptoLastName = payout.payoutCryptoLastName ?? payout.affiliate.payoutCryptoLastName ?? null
         return {
           id: payout.id,
           affiliate: payout.affiliate.fullName ?? payout.affiliate.email,
@@ -389,18 +410,18 @@ export const listAdminAffiliatePayouts = async (req: Request, res: Response, nex
           amount_ngn: amountNgn,
           usd_ngn_rate: usdNgnRate,
           status: payout.status,
-          payout_method_type: payout.payoutMethodType ?? null,
-          payout_bank_name: payout.payoutBankName ?? null,
-          payout_bank_code: payout.payoutBankCode ?? null,
-          payout_account_number: payout.payoutAccountNumber ?? null,
-          payout_account_name: payout.payoutAccountName ?? null,
-          payout_crypto_currency: payout.payoutCryptoCurrency ?? null,
-          payout_crypto_address: payout.payoutCryptoAddress ?? null,
-          payout_crypto_first_name: payout.payoutCryptoFirstName ?? null,
-          payout_crypto_last_name: payout.payoutCryptoLastName ?? null,
-          bank_details: payout.payoutMethodType === 'bank'
-            ? `${payout.payoutBankName ?? 'Bank'} •••• ${(payout.payoutAccountNumber ?? '').slice(-4)}`
-            : `${payout.payoutCryptoCurrency ?? 'Crypto'} •••• ${(payout.payoutCryptoAddress ?? '').slice(-4)}`,
+          payout_method_type: payoutMethodType,
+          payout_bank_name: payoutBankName,
+          payout_bank_code: payoutBankCode,
+          payout_account_number: payoutAccountNumber,
+          payout_account_name: payoutAccountName,
+          payout_crypto_currency: payoutCryptoCurrency,
+          payout_crypto_address: payoutCryptoAddress,
+          payout_crypto_first_name: payoutCryptoFirstName,
+          payout_crypto_last_name: payoutCryptoLastName,
+          bank_details: payoutMethodType === 'bank'
+            ? `${payoutBankName ?? 'Bank'} •••• ${(payoutAccountNumber ?? '').slice(-4)}`
+            : `${payoutCryptoCurrency ?? 'Crypto'} •••• ${(payoutCryptoAddress ?? '').slice(-4)}`,
           requested_at: payout.requestedAt.toISOString(),
           approved_at: payout.approvedAt?.toISOString() ?? null,
         }
