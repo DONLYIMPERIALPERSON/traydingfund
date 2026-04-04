@@ -132,63 +132,7 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
       })
     }
 
-    const awaitingNextStage = await prisma.cTraderAccount.findMany({
-      where: {
-        status: { equals: 'passed', mode: Prisma.QueryMode.insensitive },
-        userId: { not: null },
-      },
-      orderBy: { passedAt: 'asc' },
-      include: { user: true },
-    })
-
-    for (const account of awaitingNextStage) {
-      const normalizedChallengeType = String(account.challengeType ?? 'two_step').toLowerCase()
-      const normalizedPhase = String(account.phase ?? '').toLowerCase()
-      if (normalizedChallengeType === 'instant_funded' || normalizedPhase === 'funded') {
-        continue
-      }
-
-      const nextPhase = normalizedChallengeType === 'two_step'
-        ? (normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null)
-        : ['one_step', 'ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)
-          ? (normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null)
-          : null
-
-      if (!nextPhase || !account.userId) {
-        continue
-      }
-
-      const assigned = await assignReadyAccountFromPool({
-        userId: account.userId,
-        challengeType: account.challengeType ?? 'two_step',
-        phase: nextPhase,
-        accountSize: account.accountSize,
-        currency: resolveChallengeCurrency(account.challengeType, account.currency ?? null),
-        baseChallengeId: normalizeChallengeBase(account.challengeId ?? ''),
-      })
-
-      if (!assigned) {
-        continue
-      }
-
-      await prisma.cTraderAccount.update({
-        where: { id: account.id },
-        data: { status: 'completed' },
-      })
-
-      if (account.user?.email) {
-        await requestAccountAccess({
-          user_email: account.user.email,
-          user_name: account.user.fullName ?? undefined,
-          account_type: account.challengeType ?? undefined,
-          account_phase: nextPhase ?? undefined,
-          account_size: assigned.accountSize ?? account.accountSize ?? undefined,
-          account_number: assigned.accountNumber,
-          broker: assigned.brokerName,
-          platform: 'ctrader',
-        })
-      }
-    }
+    // Next-stage assignment disabled: accounts are reused and moved forward via finance reset flow.
 
     res.status(201).json({
       created: toCreate.length,
@@ -202,6 +146,7 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
 
 export const forceAssignNextStage = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    throw new ApiError('Next stage assignment is disabled. Use the reset flow to advance phases.', 409)
     const { account_id } = req.body as ForceNextStagePayload
     if (!account_id || !Number.isFinite(Number(account_id))) {
       throw new ApiError('account_id is required', 400)
@@ -216,12 +161,14 @@ export const forceAssignNextStage = async (req: Request, res: Response, next: Ne
       throw new ApiError('Account not found', 404)
     }
 
-    if (!account.userId) {
+    const resolvedAccount = account as NonNullable<typeof account>
+    const accountUserId = resolvedAccount.userId
+    if (!accountUserId) {
       throw new ApiError('Account has no assigned user', 400)
     }
 
-    const normalizedChallengeType = String(account.challengeType ?? 'two_step').toLowerCase()
-    const normalizedPhase = String(account.phase ?? '').toLowerCase()
+    const normalizedChallengeType = String(resolvedAccount.challengeType ?? 'two_step').toLowerCase()
+    const normalizedPhase = String(resolvedAccount.phase ?? '').toLowerCase()
     if (normalizedChallengeType === 'instant_funded' || normalizedPhase === 'funded') {
       throw new ApiError('Account is not eligible for next stage', 400)
     }
@@ -236,41 +183,55 @@ export const forceAssignNextStage = async (req: Request, res: Response, next: Ne
       throw new ApiError('Account is not eligible for next stage', 400)
     }
 
+    const resolvedNextPhase = nextPhase
+
     const assigned = await assignReadyAccountFromPool({
-      userId: account.userId,
-      challengeType: account.challengeType ?? 'two_step',
-      phase: nextPhase,
-      accountSize: account.accountSize,
-      currency: resolveChallengeCurrency(account.challengeType, account.currency ?? null),
-      baseChallengeId: normalizeChallengeBase(account.challengeId ?? ''),
+      userId: accountUserId as number,
+      challengeType: resolvedAccount.challengeType ?? 'two_step',
+      phase: String(resolvedNextPhase ?? ''),
+      accountSize: resolvedAccount.accountSize,
+      currency: resolveChallengeCurrency(resolvedAccount.challengeType, resolvedAccount.currency ?? null),
+      baseChallengeId: normalizeChallengeBase(resolvedAccount.challengeId ?? ''),
     })
 
     if (!assigned) {
       throw new ApiError('No ready account available to assign next stage', 409)
     }
 
+    const assignedAccount = assigned as NonNullable<typeof assigned>
+
     await prisma.cTraderAccount.update({
-      where: { id: account.id },
+      where: { id: resolvedAccount.id },
       data: { status: 'completed' },
     })
 
-    if (account.user?.email) {
-      await requestAccountAccess({
-        user_email: account.user.email,
-        user_name: account.user.fullName ?? undefined,
-        account_type: account.challengeType ?? undefined,
-        account_phase: nextPhase ?? undefined,
-        account_size: assigned.accountSize ?? account.accountSize ?? undefined,
-        account_number: assigned.accountNumber,
-        broker: assigned.brokerName,
-        platform: 'ctrader',
+    const resolvedUser = resolvedAccount.user
+    if (!resolvedUser?.email) {
+      res.json({
+        message: 'Next stage assigned',
+        assigned_challenge_id: assignedAccount.challengeId,
+        assigned_account_number: assignedAccount.accountNumber,
       })
+      return
     }
+
+    const email = resolvedUser!.email
+    const fullName = resolvedUser!.fullName ?? undefined
+    await requestAccountAccess({
+      user_email: email,
+      user_name: fullName,
+      account_type: resolvedAccount.challengeType ?? undefined,
+      account_phase: resolvedNextPhase ?? undefined,
+      account_size: assignedAccount.accountSize ?? resolvedAccount.accountSize ?? undefined,
+      account_number: assignedAccount.accountNumber,
+      broker: assignedAccount.brokerName,
+      platform: 'ctrader',
+    })
 
     res.json({
       message: 'Next stage assigned',
-      assigned_challenge_id: assigned.challengeId,
-      assigned_account_number: assigned.accountNumber,
+      assigned_challenge_id: assignedAccount.challengeId,
+      assigned_account_number: assignedAccount.accountNumber,
     })
   } catch (err) {
     next(err as Error)
@@ -304,7 +265,7 @@ export const listCTraderAccounts = async (req: Request, res: Response, next: Nex
     const { status } = req.query as ListCTraderQuery
     const normalizedStatus = status?.toLowerCase()
     const where: Prisma.CTraderAccountWhereInput = normalizedStatus === 'awaiting-next-stage'
-      ? { status: { equals: 'passed', mode: Prisma.QueryMode.insensitive } }
+      ? { status: { equals: 'awaiting_reset', mode: Prisma.QueryMode.insensitive } }
       : status
         ? { status: { equals: status, mode: Prisma.QueryMode.insensitive } }
         : {}

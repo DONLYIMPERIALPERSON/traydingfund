@@ -186,6 +186,37 @@
   color: #0b9fb8;
 }
 
+.settings-page .settings-currency-toggle {
+  display: inline-flex;
+  gap: 8px;
+  background: rgba(11, 159, 184, 0.1);
+  padding: 4px;
+  border-radius: 999px;
+}
+
+.settings-page .settings-currency-option {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: #0b9fb8;
+  transition: all 0.2s ease;
+}
+
+.settings-page .settings-currency-option.active {
+  background: #0b9fb8;
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(11, 159, 184, 0.25);
+}
+
+.settings-page .settings-currency-option:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Security Actions */
 .settings-page .settings-action-item {
   width: 100%;

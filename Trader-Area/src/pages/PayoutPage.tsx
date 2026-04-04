@@ -34,6 +34,9 @@ const PayoutPage: React.FC = () => {
   const [cryptoProfile, setCryptoProfile] = useState<CryptoPayoutProfile | null>(null)
   const [kycStatus, setKycStatus] = useState('not_started')
   const [overallCertificate, setOverallCertificate] = useState<OverallRewardCertificate | null>(null)
+  const [certificateVersion, setCertificateVersion] = useState(Date.now())
+  const [refreshingCertificate, setRefreshingCertificate] = useState(false)
+  const [certificateError, setCertificateError] = useState('')
 
   const navigate = useNavigate()
 
@@ -90,6 +93,7 @@ const PayoutPage: React.FC = () => {
           ? (latestRequestStatus || profileStatus)
           : 'not_started')
         setOverallCertificate(overallReward)
+        setCertificateVersion(Date.now())
 
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load payout methods.')
@@ -127,6 +131,21 @@ const PayoutPage: React.FC = () => {
     document.body.removeChild(link)
   }
 
+  const handleRefreshCertificate = async () => {
+    try {
+      setRefreshingCertificate(true)
+      setCertificateError('')
+      const updatedCertificate = await payoutAPI.fetchOverallRewardCertificate()
+      setOverallCertificate(updatedCertificate)
+      setCertificateVersion(Date.now())
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to refresh certificate.'
+      setCertificateError(errorMessage)
+    } finally {
+      setRefreshingCertificate(false)
+    }
+  }
+
   const handleRequestPayout = async () => {
     if (!selectedAccountId) {
       setRequestError('Please select an account')
@@ -146,6 +165,7 @@ const PayoutPage: React.FC = () => {
 
       const updatedCertificate = await payoutAPI.fetchOverallRewardCertificate()
       setOverallCertificate(updatedCertificate)
+      setCertificateVersion(Date.now())
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       setRequestError(errorMessage)
@@ -221,22 +241,39 @@ const PayoutPage: React.FC = () => {
                       <div className="stat-value">{formatCurrency(payoutData.total_earned_all_time)}</div>
                       <div className="stat-subtitle">All-time earnings</div>
                     </div>
+                    <div className="reward-certificate-actions">
+                      <button
+                        type="button"
+                        className="reward-certificate-refresh"
+                        onClick={handleRefreshCertificate}
+                        disabled={refreshingCertificate}
+                      >
+                        <i className={`fas fa-sync-alt${refreshingCertificate ? ' fa-spin' : ''}`}></i>
+                        {refreshingCertificate ? 'Refreshing...' : 'Refresh'}
+                      </button>
+                    </div>
                   </div>
+                  {certificateError && (
+                    <div className="reward-certificate-error">
+                      <i className="fas fa-exclamation-triangle"></i>
+                      <span>{certificateError}</span>
+                    </div>
+                  )}
                   {overallCertificate?.certificate_url && (
                     <div
                       className="reward-certificate-preview"
                       role="button"
                       tabIndex={0}
-                      onClick={() => window.open(overallCertificate.certificate_url, '_blank')}
+                      onClick={() => window.open(`${overallCertificate.certificate_url}?v=${certificateVersion}`, '_blank')}
                       onKeyDown={(event) => {
                         if (event.key === 'Enter' || event.key === ' ') {
                           event.preventDefault()
-                          window.open(overallCertificate.certificate_url, '_blank')
+                          window.open(`${overallCertificate.certificate_url}?v=${certificateVersion}`, '_blank')
                         }
                       }}
                     >
                       <img
-                        src={overallCertificate.certificate_url}
+                        src={`${overallCertificate.certificate_url}?v=${certificateVersion}`}
                         alt="Overall reward certificate"
                       />
                       <button

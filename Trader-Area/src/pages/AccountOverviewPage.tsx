@@ -98,6 +98,8 @@ const AccountOverviewPage: React.FC = () => {
   }
 
   const hasPendingWithdrawal = Boolean(accountData.has_pending_withdrawal)
+  const normalizedBreachReason = accountData.breached_reason?.toLowerCase() ?? ''
+  const isFraudBreach = normalizedBreachReason.includes('fraud')
   const accountCurrency = resolveCurrencyCode(accountData)
   const pendingWithdrawalAmount = accountData.pending_withdrawal_amount ?? 0
   return (
@@ -203,7 +205,7 @@ const AccountOverviewPage: React.FC = () => {
         </div>
 
         {/* Trading Objective Section */}
-        {!hasPendingWithdrawal && (
+        {!hasPendingWithdrawal && !isFraudBreach && (
           <div className="trading-objective-section">
             <div className="trading-objective-header">
               <span className="trading-objective-title">Trading Objective</span>
@@ -292,6 +294,31 @@ const AccountOverviewPage: React.FC = () => {
                 })}
             </div>
             <div className="objective-progress-bar"></div>
+          </div>
+        )}
+
+        {/* Fraud Breach Section */}
+        {!hasPendingWithdrawal && isFraudBreach && (
+          <div className="trading-objective-section fraud-breach-section">
+            <div className="trading-objective-header fraud-breach-header">
+              <span className="trading-objective-title">Account Breached</span>
+            </div>
+            <div className="objective-card breached fraud-breach-card">
+              <div className="objective-header">
+                <div className="objective-icon breached fraud-breach-icon">
+                  <i className="fas fa-shield-alt"></i>
+                </div>
+                <div className="objective-title">
+                  Account Manipulation Detected
+                </div>
+                <div className="objective-status breached">
+                  <i className="fas fa-times-circle"></i>
+                </div>
+              </div>
+              <div className="objective-description">
+                Your account has been breached for balance manipulation activity. Please contact support if this is unexpected.
+              </div>
+            </div>
           </div>
         )}
       </div>

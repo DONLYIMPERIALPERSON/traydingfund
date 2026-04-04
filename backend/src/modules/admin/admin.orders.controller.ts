@@ -306,20 +306,6 @@ export const approveCryptoOrder = async (req: Request, res: Response, next: Next
             broker: assigned.brokerName,
             platform: 'ctrader',
           })
-          try {
-            await sendUnifiedEmail({
-              to: user.email,
-              subject: 'Your MACHEFUNDED account is ready',
-              title: 'Account Approved',
-              subtitle: 'Your challenge is now active',
-              content: `Congratulations! Your ${updated.accountSize} ${updated.challengeType ?? 'challenge'} account is live. You can now log in and start trading.`,
-              buttonText: 'Go to Dashboard',
-              infoBox: `Account Size: ${updated.accountSize}<br>Challenge: ${updated.challengeType ?? 'Two-Step'}<br>Phase: ${updated.phase ?? 'Phase 1'}<br>Account Number: ${assigned.accountNumber}`,
-              ...(certificateAttachments ? { attachments: certificateAttachments } : {}),
-            })
-          } catch (error) {
-            console.error('Failed to send onboarding email', error)
-          }
         }
       } else {
         await prisma.order.update({

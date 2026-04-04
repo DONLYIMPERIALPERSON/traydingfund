@@ -4,6 +4,7 @@ export type TradePayload = {
   open_time?: string
   close_time?: string
   profit?: number
+  dealType?: string
 }
 
 export type PositionPayload = {

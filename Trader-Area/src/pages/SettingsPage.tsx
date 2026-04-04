@@ -6,6 +6,7 @@ import '../styles/DesktopSettingsPage.css'
 import {
   fetchProfile,
   updateCertificateNameSetting,
+  updateOverallRewardCurrency,
   fetchBankList,
   fetchBankAccountProfile,
   resolveKycAccountName,
@@ -20,6 +21,8 @@ import {
 const SettingsPage: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(true)
   const [useNickNameForCertificates, setUseNickNameForCertificates] = useState(false)
+  const [overallRewardCurrency, setOverallRewardCurrency] = useState<'USD' | 'NGN'>('USD')
+  const [savingRewardCurrency, setSavingRewardCurrency] = useState(false)
   const [banks, setBanks] = useState<BankListItem[]>([])
   const [bankCode, setBankCode] = useState('')
   const [bankAccountNumber, setBankAccountNumber] = useState('')
@@ -66,6 +69,7 @@ const SettingsPage: React.FC = () => {
           fetchCryptoPayoutProfile(),
         ])
         setUseNickNameForCertificates(profile.use_nickname_for_certificates || false)
+        setOverallRewardCurrency((profile.overall_reward_currency?.toUpperCase() === 'NGN' ? 'NGN' : 'USD'))
         setBanks(banksRes.banks ?? [])
         setBankProfile(bankProfileRes)
         setCryptoProfile(cryptoProfileRes)
@@ -112,6 +116,19 @@ const SettingsPage: React.FC = () => {
       console.error('Failed to update certificate name setting:', error)
       // Revert the UI change on error
       setUseNickNameForCertificates(useNickNameForCertificates)
+    }
+  }
+
+  const handleOverallRewardCurrencyChange = async (currency: 'USD' | 'NGN') => {
+    if (currency === overallRewardCurrency) return
+    try {
+      setSavingRewardCurrency(true)
+      await updateOverallRewardCurrency(currency)
+      setOverallRewardCurrency(currency)
+    } catch (error) {
+      console.error('Failed to update overall reward currency:', error)
+    } finally {
+      setSavingRewardCurrency(false)
     }
   }
 
@@ -274,6 +291,36 @@ const SettingsPage: React.FC = () => {
                   <i className={`fas ${useNickNameForCertificates ? 'fa-user' : 'fa-id-card'} toggle-icon`}></i>
                 </div>
               </button>
+            </div>
+
+            <div className="theme-toggle">
+              <div className="theme-left">
+                <i className="fas fa-money-bill-wave theme-icon"></i>
+                <div className="theme-text">
+                  <h3 className="theme-title">Overall Reward Currency</h3>
+                  <p className="theme-subtitle">
+                    {overallRewardCurrency === 'NGN' ? 'Show in NGN' : 'Show in USD'}
+                  </p>
+                </div>
+              </div>
+              <div className="settings-currency-toggle">
+                <button
+                  type="button"
+                  className={`settings-currency-option ${overallRewardCurrency === 'USD' ? 'active' : ''}`}
+                  onClick={() => handleOverallRewardCurrencyChange('USD')}
+                  disabled={savingRewardCurrency}
+                >
+                  USD
+                </button>
+                <button
+                  type="button"
+                  className={`settings-currency-option ${overallRewardCurrency === 'NGN' ? 'active' : ''}`}
+                  onClick={() => handleOverallRewardCurrencyChange('NGN')}
+                  disabled={savingRewardCurrency}
+                >
+                  NGN
+                </button>
+              </div>
             </div>
           </div>
 

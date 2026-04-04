@@ -30,6 +30,8 @@ export const env = {
   cryptoTrxAddress: process.env.CRYPTO_TRX_ADDRESS ?? '',
   ctraderEngineSecret: process.env.CTRADER_ENGINE_SECRET ?? '',
   accessEngineApiKey: process.env.ACCESS_ENGINE_API_KEY ?? '',
+  financeEngineBaseUrl: process.env.FINANCE_ENGINE_BASE_URL ?? '',
+  financeEngineApiKey: process.env.FINANCE_ENGINE_API_KEY ?? '',
   r2AccountId: process.env.R2_ACCOUNT_ID ?? '',
   r2AccessKeyId: process.env.R2_ACCESS_KEY_ID ?? '',
   r2SecretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? '',

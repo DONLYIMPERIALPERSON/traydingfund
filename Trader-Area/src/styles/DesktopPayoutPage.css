@@ -170,6 +170,49 @@
   gap: 16px;
 }
 
+.reward-certificate-actions {
+  margin-left: auto;
+}
+
+.reward-certificate-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.reward-certificate-refresh i {
+  font-size: 12px;
+}
+
+.reward-certificate-refresh:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.reward-certificate-refresh:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.reward-certificate-error {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 12px;
+}
+
 .reward-certificate-preview {
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.2);

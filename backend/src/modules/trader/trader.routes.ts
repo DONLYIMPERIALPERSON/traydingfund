@@ -37,6 +37,7 @@ const updateProfileSchema = z.object({
   last_name: z.string().min(1).optional(),
   nick_name: z.string().min(1).nullable().optional(),
   use_nickname_for_certificates: z.boolean().optional(),
+  overall_reward_currency: z.enum(['USD', 'NGN']).optional(),
 }).refine(
   (data) => Boolean(data.first_name) === Boolean(data.last_name),
   { message: 'first_name and last_name are required together' }

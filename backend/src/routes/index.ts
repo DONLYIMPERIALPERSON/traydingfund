@@ -10,6 +10,7 @@ import { payoutRouter } from '../modules/payouts/payouts.routes'
 import { supportRouter } from '../modules/support/support.routes'
 import { couponRouter } from '../modules/coupons/coupon.routes'
 import { planRouter } from '../modules/plans/plan.routes'
+import { financeRouter } from '../modules/finance/finance.routes'
 
 export const router = Router()
 
@@ -20,6 +21,7 @@ router.get('/v1/status', (_req, res) => {
 router.use('/v1/auth', authRouter)
 router.use('/v1/trader', traderRouter)
 router.use('/v1/admin', adminRouter)
+router.use('/v1/finance', financeRouter)
 router.use('/v1/trading-objectives', tradingObjectivesRouter)
 router.use('/v1/admin/fx-rates', fxRatesRouter)
 router.use('/v1/ctrader', ctraderRouter)

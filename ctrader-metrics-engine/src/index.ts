@@ -246,6 +246,7 @@ const run = async () => {
             if (!seen.has(key)) {
               seen.add(key)
               closedTradeKeys.set(accountNumber, seen)
+              const dealType = deal?.dealType != null ? String(deal.dealType) : undefined
               const trades = pendingClosedTrades.get(accountNumber) ?? []
               trades.push({
                 ticket: deal?.dealId != null ? String(deal.dealId) : undefined,
@@ -253,10 +254,33 @@ const run = async () => {
                 open_time: new Date(openTimeMs).toISOString(),
                 close_time: new Date(closeTimeMs).toISOString(),
                 profit: deal?.grossProfit != null ? Number(deal.grossProfit) : deal?.profit != null ? Number(deal.profit) : undefined,
+                dealType,
               })
               pendingClosedTrades.set(accountNumber, trades)
             }
           }
+        }
+        if (executionEvent.depositWithdraw) {
+          const deposit = executionEvent.depositWithdraw as any
+          const operationTypeRaw = deposit?.operationType ?? deposit?.dealType
+          const operationType = operationTypeRaw != null ? String(operationTypeRaw) : 'BALANCE'
+          const dealType = operationType.toUpperCase().includes('WITHDRAW')
+            ? 'WITHDRAW'
+            : operationType.toUpperCase().includes('DEPOSIT')
+              ? 'DEPOSIT'
+              : 'BALANCE'
+          const tradeKey = deposit?.dealId != null
+            ? String(deposit.dealId)
+            : `${accountNumber}:${Date.now()}`
+          const trades = pendingClosedTrades.get(accountNumber) ?? []
+          trades.push({
+            ticket: tradeKey,
+            open_time: new Date().toISOString(),
+            close_time: new Date().toISOString(),
+            profit: deposit?.amount != null ? Number(deposit.amount) : deposit?.delta != null ? Number(deposit.delta) : undefined,
+            dealType,
+          })
+          pendingClosedTrades.set(accountNumber, trades)
         }
         scheduleBalanceRefresh(accountNumber, { attempts: 2, delayMs: 250, jitterMs: 100, reason: 'execution' })
       },

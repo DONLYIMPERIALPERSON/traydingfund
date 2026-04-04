@@ -28,6 +28,8 @@ const mapAccountStatus = (status: string) => {
   if (normalized === 'failed') return 'Failed'
   if (normalized === 'funded') return 'Funded'
   if (normalized === 'withdrawn') return 'Withdrawn'
+  if (normalized === 'awaiting_reset') return 'Awaiting Reset'
+  if (normalized === 'withdraw_requested') return 'Withdrawal Requested'
   if (normalized === 'assigned_pending_access') return 'Active'
   if (normalized === 'assigned') return 'Assigned'
   if (normalized === 'ready') return 'Ready'
@@ -36,7 +38,11 @@ const mapAccountStatus = (status: string) => {
 
 const isActiveStatus = (status: string) => {
   const normalized = status.toLowerCase()
-  return normalized === 'active' || normalized === 'assigned' || normalized === 'funded' || normalized === 'assigned_pending_access'
+  return normalized === 'active'
+    || normalized === 'assigned'
+    || normalized === 'funded'
+    || normalized === 'assigned_pending_access'
+    || normalized === 'awaiting_reset'
 }
 
 const normalizeChallengeType = (value?: string | null) => {
@@ -117,6 +123,7 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
       payout_crypto_last_name: dbUser.payoutCryptoLastName,
       payout_verified_at: dbUser.payoutVerifiedAt,
       use_nickname_for_certificates: (dbUser as { useNicknameForCertificates?: boolean }).useNicknameForCertificates ?? false,
+      overall_reward_currency: dbUser.overallRewardCurrency ?? 'USD',
     }
 
     await setCached(cacheKey, payload, 30)
@@ -129,14 +136,19 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
 export const updateProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureUser(req)
-    const { first_name, last_name, nick_name, use_nickname_for_certificates } = req.body as {
+    const { first_name, last_name, nick_name, use_nickname_for_certificates, overall_reward_currency } = req.body as {
       first_name?: string
       last_name?: string
       nick_name?: string | null
       use_nickname_for_certificates?: boolean
+      overall_reward_currency?: string
     }
 
-    if (!first_name && !last_name && typeof nick_name === 'undefined' && typeof use_nickname_for_certificates === 'undefined') {
+    if (!first_name
+      && !last_name
+      && typeof nick_name === 'undefined'
+      && typeof use_nickname_for_certificates === 'undefined'
+      && typeof overall_reward_currency === 'undefined') {
       throw new ApiError('first_name/last_name, nick_name, or use_nickname_for_certificates is required', 400)
     }
 
@@ -144,7 +156,12 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
       throw new ApiError('first_name and last_name are required together', 400)
     }
 
-    const data: { fullName?: string; nickName?: string | null; useNicknameForCertificates?: boolean } = {}
+    const data: {
+      fullName?: string
+      nickName?: string | null
+      useNicknameForCertificates?: boolean
+      overallRewardCurrency?: string
+    } = {}
     if (first_name && last_name) {
       data.fullName = `${first_name.trim()} ${last_name.trim()}`.trim()
     }
@@ -154,6 +171,9 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
     }
     if (typeof use_nickname_for_certificates !== 'undefined') {
       data.useNicknameForCertificates = Boolean(use_nickname_for_certificates)
+    }
+    if (typeof overall_reward_currency !== 'undefined') {
+      data.overallRewardCurrency = overall_reward_currency.toUpperCase()
     }
 
     const updated = await prisma.user.update({
@@ -185,6 +205,7 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
       payout_crypto_last_name: updated.payoutCryptoLastName,
       payout_verified_at: updated.payoutVerifiedAt,
       use_nickname_for_certificates: (updated as { useNicknameForCertificates?: boolean }).useNicknameForCertificates ?? false,
+      overall_reward_currency: updated.overallRewardCurrency ?? 'USD',
     }
 
     await clearCacheByPrefix(buildCacheKey(['trader', 'me', user.id]))
@@ -300,6 +321,7 @@ export const getChallengeAccountDetail = async (
       | 'stageElapsedHours'
       | 'scalpingViolationsCount'
       | 'durationViolationsCount'
+      | 'processedTradeIds'
       | 'capturedAt'
     >
 
@@ -330,7 +352,8 @@ export const getChallengeAccountDetail = async (
       stageElapsedHours: 0,
       scalpingViolationsCount: 0,
       durationViolationsCount: 0,
-      capturedAt: new Date(),
+       processedTradeIds: [],
+       capturedAt: new Date(),
     }
 
     const initialBalance = objectiveFields.initialBalance ?? metrics.balance
@@ -345,7 +368,8 @@ export const getChallengeAccountDetail = async (
       ? (metrics.highestBalance ?? initialBalance) - objectiveFields.maxDdAmount
       : metrics.breachBalance
     const dailyDrawdownBalance = objectiveFields.dailyDdAmount != null
-      ? (metrics.highestBalance ?? initialBalance) - objectiveFields.dailyDdAmount
+      ? (((account.metrics as { dailyHighBalance?: number | null } | null)?.dailyHighBalance ?? metrics.highestBalance ?? initialBalance)
+        - objectiveFields.dailyDdAmount)
       : metrics.breachBalance
     const minTradeDurationMinutes = objectiveFields.minTradeDurationMinutes ?? 0
     const durationViolationsCount = metrics.durationViolationsCount ?? 0
@@ -439,6 +463,9 @@ export const getChallengeAccountDetail = async (
         stage_elapsed_hours: metrics.stageElapsedHours,
         scalping_violations_count: metrics.scalpingViolationsCount,
         duration_violations_count: durationViolationsCount,
+        processed_trade_ids: Array.isArray((account.metrics as any)?.processedTradeIds)
+          ? (account.metrics as any).processedTradeIds
+          : metrics.processedTradeIds ?? [],
       },
       objectives,
       credentials: {

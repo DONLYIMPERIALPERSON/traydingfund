@@ -1,0 +1,20 @@
+export type FinanceEventType = 'PHASE_PASS' | 'WITHDRAW_REQUEST' | 'WITHDRAWAL' | 'ADJUST_BALANCE'
+
+export type FinanceEventPayload = {
+  type: FinanceEventType
+  account: string
+  profit?: number
+  targetBalance?: number
+  amount?: number
+  reason?: string
+  currentPhase?: string
+  nextPhase?: string
+  challengeType?: string
+  ownerEmail?: string
+  resetCommand?: string
+}
+
+export type BackendResponse = {
+  status: string
+  message?: string
+}

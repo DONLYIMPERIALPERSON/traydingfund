@@ -484,6 +484,62 @@
   border-radius: 10px;
 }
 
+/* Fraud breach overrides (force styling even if other rules conflict) */
+.fraud-breach-section {
+  background: linear-gradient(135deg, rgba(255, 86, 86, 0.25), rgba(255, 86, 86, 0.05)) !important;
+  border: 1px solid rgba(255, 86, 86, 0.35) !important;
+  box-shadow: 0 20px 40px rgba(255, 86, 86, 0.18) !important;
+}
+
+.fraud-breach-card {
+  background: #140c0c !important;
+  border: 1px solid rgba(255, 86, 86, 0.5) !important;
+  border-radius: 16px !important;
+  padding: 22px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+
+.fraud-breach-card .objective-title {
+  color: #ffe6e6 !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+}
+
+.fraud-breach-card .objective-description {
+  color: rgba(255, 255, 255, 0.85) !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+}
+
+.fraud-breach-icon {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(255, 86, 86, 0.2) !important;
+  color: #ffb1b1 !important;
+}
+
+.fraud-breach-card .objective-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+}
+
+.fraud-breach-card .objective-title {
+  flex: 1 !important;
+}
+
+.fraud-breach-card .objective-status.breached {
+  color: #ff8a8a !important;
+  font-size: 20px !important;
+}
+
 @media (max-width: 1024px) {
   .account-overview-content {
     margin-left: 0;

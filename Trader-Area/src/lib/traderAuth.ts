@@ -11,6 +11,7 @@ export type AuthMeResponse = {
   last_name?: string | null
   nick_name?: string | null
   use_nickname_for_certificates?: boolean
+  overall_reward_currency?: string
   role: string
   status: string
   kyc_status?: string | null
@@ -139,6 +140,7 @@ export type UserChallengeMetrics = {
   today_trades_count: number
   today_lots_total: number
   min_trading_days_required: number
+  processed_trade_ids?: string[]
   min_trading_days_met: boolean
   stage_elapsed_hours: number
   scalping_violations_count: number
@@ -339,7 +341,7 @@ export async function fetchProfile(): Promise<AuthMeResponse> {
   }
 }
 
-export async function updateProfile(payload: { first_name?: string; last_name?: string; nick_name?: string | null; use_nickname_for_certificates?: boolean }): Promise<AuthMeResponse> {
+export async function updateProfile(payload: { first_name?: string; last_name?: string; nick_name?: string | null; use_nickname_for_certificates?: boolean; overall_reward_currency?: string }): Promise<AuthMeResponse> {
   const response = await apiFetch<AuthMeResponse>('/trader/me', {
     method: 'PATCH',
     body: JSON.stringify(payload),
@@ -355,6 +357,15 @@ export async function updateCertificateNameSetting(use_nickname: boolean): Promi
   })
   persistAuthUser(response)
   return { use_nickname_for_certificates: response.use_nickname_for_certificates ?? false }
+}
+
+export async function updateOverallRewardCurrency(currency: 'USD' | 'NGN'): Promise<{ overall_reward_currency: string }> {
+  const response = await apiFetch<AuthMeResponse>('/trader/me', {
+    method: 'PATCH',
+    body: JSON.stringify({ overall_reward_currency: currency }),
+  })
+  persistAuthUser(response)
+  return { overall_reward_currency: response.overall_reward_currency ?? 'USD' }
 }
 
 export async function fetchBankList(): Promise<{ banks: BankListItem[] }> {

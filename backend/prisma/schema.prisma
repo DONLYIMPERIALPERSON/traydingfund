@@ -30,6 +30,7 @@ model User {
   payoutSafeHavenPayload Json?
   payoutVerifiedAt   DateTime?
   payoutUpdatedAt    DateTime?
+  overallRewardCurrency String @default("USD")
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -42,6 +43,7 @@ model User {
   affiliateCommissions AffiliateCommission[] @relation("AffiliateCommissions")
   affiliatePayouts   AffiliatePayout[] @relation("AffiliatePayouts")
   certificates       Certificate[]
+  emailLogs          EmailLog[]
   supportTickets     SupportTicket[]
   couponRedemptions  CouponRedemption[]
   challengePlans     ChallengePlan[]
@@ -200,6 +202,7 @@ model CTraderAccount {
   metrics       CTraderAccountMetric?
   payouts       Payout[]
   adjustments   AccountAdjustment[]
+  emailLogs     EmailLog[]
 }
 
 model CTraderAccountMetric {
@@ -233,6 +236,11 @@ model CTraderAccountMetric {
   breachReason            String?
   lastBalance             Float     @default(0)
   lastEquity              Float     @default(0)
+  expectedBalanceChange   Boolean   @default(false)
+  expectedChangeExpiresAt DateTime?
+  expectedBalanceOperationType String?
+  expectedBalanceOperationExpiresAt DateTime?
+  expectedBalanceOperationAmount Float?
   capturedAt              DateTime @default(now())
 
   accountId               Int      @unique
@@ -422,6 +430,21 @@ model Certificate {
   userId            Int
   user              User     @relation(fields: [userId], references: [id])
 
+  @@index([userId])
+  @@index([type])
+}
+
+model EmailLog {
+  id        Int      @id @default(autoincrement())
+  accountId Int?
+  userId    Int?
+  type      String
+  sentAt    DateTime @default(now())
+
+  account   CTraderAccount? @relation(fields: [accountId], references: [id])
+  user      User?           @relation(fields: [userId], references: [id])
+
+  @@index([accountId])
   @@index([userId])
   @@index([type])
 }
