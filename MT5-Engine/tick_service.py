@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Query
 
 BASE_DIR = Path(__file__).resolve().parent
-TICK_DIR = BASE_DIR / "tick-data"
+TICK_DIR = Path("C:/tick-data")
 
 app = FastAPI()
 
@@ -73,12 +73,16 @@ async def submit_ticks(payload: dict):
     _ensure_dirs(symbol)
 
     for tick in ticks:
-        if "time" in tick and "time_msc" not in tick:
-            tick["time_msc"] = tick["time"]
+        if "time_msc" not in tick:
+            if "time" in tick:
+                tick["time_msc"] = tick["time"]
+            else:
+                continue
 
     grouped: dict[str, list[dict]] = {}
     for tick in ticks:
         if "time_msc" not in tick:
+            print("Skipping tick, no time_msc:", tick)
             continue
         day_key = _day_key_from_ms(int(tick["time_msc"]))
         grouped.setdefault(day_key, []).append(tick)
@@ -105,18 +109,23 @@ async def get_ticks(
     if end < start:
         raise HTTPException(status_code=400, detail="end must be >= start")
 
-    day_key = _day_key_from_ms(start)
-    ticks = _load_ticks(symbol, day_key)
+    result = []
+    start_dt = datetime.fromtimestamp(start / 1000, tz=timezone.utc)
+    end_dt = datetime.fromtimestamp(end / 1000, tz=timezone.utc)
 
-    result = [
-        {
-            "time": int(t["time_msc"]),
-            "bid": t.get("bid"),
-            "ask": t.get("ask"),
-        }
-        for t in ticks
-        if start <= int(t.get("time_msc", 0)) <= end
-    ]
+    current = start_dt
+    while current <= end_dt:
+        day_key = current.strftime("%Y-%m-%d")
+        ticks = _load_ticks(symbol, day_key)
+        for t in ticks:
+            t_ms = int(t.get("time_msc", 0))
+            if start <= t_ms <= end:
+                result.append({
+                    "time": t_ms,
+                    "bid": t.get("bid"),
+                    "ask": t.get("ask"),
+                })
+        current += timedelta(days=1)
 
     return result
 

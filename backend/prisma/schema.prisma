@@ -169,6 +169,7 @@ model ChallengeAccount {
 model CTraderAccount {
   id            Int      @id @default(autoincrement())
   challengeId   String   @unique
+  platform      String   @default("ctrader")
   accountSize   String
   currency      String   @default("USD")
   phase         String
@@ -188,6 +189,9 @@ model CTraderAccount {
   accessStatus  String?  @default("pending")
   brokerName    String
   accountNumber String
+  mt5Login      String?
+  mt5Server     String?
+  mt5Password   String?
   assignedAt    DateTime?
   accessGrantedAt DateTime?
   startedAt     DateTime?
@@ -196,6 +200,8 @@ model CTraderAccount {
   lastRefreshRequestedAt DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  @@index([platform, status, accountSize, currency])
 
   userId        Int?
   user          User?    @relation(fields: [userId], references: [id])
@@ -234,6 +240,9 @@ model CTraderAccountMetric {
   totalTrades             Int       @default(0)
   shortDurationViolation  Boolean   @default(false)
   breachReason            String?
+  minEquity               Float?
+  engineId                String?
+  latencyMs               Float?
   lastBalance             Float     @default(0)
   lastEquity              Float     @default(0)
   expectedBalanceChange   Boolean   @default(false)
@@ -439,6 +448,7 @@ model EmailLog {
   accountId Int?
   userId    Int?
   type      String
+  metadata  Json?
   sentAt    DateTime @default(now())
 
   account   CTraderAccount? @relation(fields: [accountId], references: [id])

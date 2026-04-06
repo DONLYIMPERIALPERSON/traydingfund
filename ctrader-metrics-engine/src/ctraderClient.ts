@@ -772,12 +772,22 @@ export const startCTraderStream = async (
           state.moneyDigits = moneyDigits
           const balanceRaw = toNumber(trader.balance)
           state.balanceRaw = balanceRaw ?? state.balanceRaw
-          state.balance = Number(snapshot.balance.toFixed(2))
+          state.balance = snapshot.balance
           if (typeof state.lastPnlRaw === 'number' && Number.isFinite(state.lastPnlRaw) && typeof state.balanceRaw === 'number') {
             const equityRaw = state.balanceRaw + state.lastPnlRaw
             const equity = equityRaw / Math.pow(10, moneyDigits)
-            state.equity = Number(equity.toFixed(moneyDigits))
-            state.unrealizedPnl = Number((state.equity - state.balance).toFixed(moneyDigits))
+            state.equity = equity
+            state.unrealizedPnl = state.equity - state.balance
+          }
+          if (Number.isFinite(snapshot.equity)) {
+            console.log('[ctrader] Equity snapshot debug', {
+              accountNumber: snapshot.accountNumber,
+              snapshotBalance: snapshot.balance,
+              snapshotEquity: snapshot.equity,
+              computedEquity: state.equity,
+              unrealizedPnl: state.unrealizedPnl,
+              moneyDigits,
+            })
           }
           handlers.onBalanceUpdate?.(snapshot.accountNumber, state.balance)
           handlers.onPositionsUpdate?.(snapshot.accountNumber, state)
@@ -890,12 +900,20 @@ export const startCTraderStream = async (
           if (typeof balanceRaw === 'number' && Number.isFinite(balanceRaw)) {
             const equityRaw = balanceRaw + totalRaw
             const equity = equityRaw / Math.pow(10, moneyDigits)
-            state.equity = Number(equity.toFixed(moneyDigits))
+            state.equity = equity
           } else {
             // Wait until balanceRaw is available before setting equity.
             return
           }
-          state.unrealizedPnl = Number((state.equity - state.balance).toFixed(moneyDigits))
+          state.unrealizedPnl = state.equity - state.balance
+          console.log('[ctrader] PnL debug', {
+            accountNumber,
+            balance: state.balance,
+            totalPnl: total,
+            equity: state.equity,
+            unrealizedPnl: state.unrealizedPnl,
+            moneyDigits,
+          })
           handlers.onPositionsUpdate?.(accountNumber, state)
         }
         break

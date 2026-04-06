@@ -146,7 +146,7 @@ const AdminSidebar = ({ activePage, onNavigate, onLogout, isLoggingOut, allowedP
               type="button"
               onClick={() => onNavigate('mt5')}
             >
-              cTrader
+              Accounts Pool
             </button>
           )}
           {hasAccess('tradingRules') && (

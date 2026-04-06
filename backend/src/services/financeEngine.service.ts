@@ -5,6 +5,7 @@ export type FinanceEventType = 'PHASE_PASS' | 'WITHDRAW_REQUEST' | 'WITHDRAWAL' 
 export type FinanceEventPayload = {
   type: FinanceEventType
   account: string
+  platform?: string
   profit?: number
   targetBalance?: number
   amount?: number

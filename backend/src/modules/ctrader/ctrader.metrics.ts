@@ -10,10 +10,12 @@ import { createPassedChallengeCertificate } from '../../services/certificate.ser
 import { fetchRemoteAttachment, sendUnifiedEmail } from '../../services/email.service'
 import { sendEmailOnce } from '../../services/emailLog.service'
 import { buildCacheKey, clearCacheByPrefix } from '../../common/cache'
+import supportedSymbolsConfig from '../../config/supportedSymbols.json'
 
 type TradePayload = {
   ticket?: string
   position_id?: string
+  symbol?: string
   open_time?: string
   close_time?: string
   profit?: number
@@ -33,11 +35,15 @@ type PositionPayload = {
 
 type MetricsPayload = {
   account_number?: string
+  platform?: string
   balance?: number
   equity?: number
+  min_equity?: number
   trades?: TradePayload[]
   positions?: PositionPayload[]
   timestamp?: string
+  engine_id?: string
+  latency_ms?: number
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -59,14 +65,30 @@ const calculateTradeDurationMinutes = (trade: TradePayload) => {
 
 export const upsertCTraderMetrics = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    console.log('=== MT5 METRICS REQUEST ===')
+    console.log('Headers:', req.headers)
+    console.log('Body:', req.body)
+
     const secret = req.header('X-ENGINE-SECRET')
-    if (!secret || secret !== env.ctraderEngineSecret) {
-      throw new ApiError('Unauthorized engine request', 401)
+    const allowedSecrets = [env.ctraderEngineSecret, env.mt5EngineSecret].filter(Boolean)
+    if (!secret || !allowedSecrets.includes(secret)) {
+      console.log('❌ AUTH FAILED')
+      console.log('Expected:', allowedSecrets)
+      console.log('Received:', secret)
+      return res.status(401).json({
+        message: 'Unauthorized engine request',
+        expected: allowedSecrets,
+        received: secret,
+      })
     }
 
     const payload = req.body as MetricsPayload
     if (!payload.account_number || payload.balance == null || payload.equity == null) {
       throw new ApiError('account_number, balance, and equity are required', 400)
+    }
+
+    if (!payload.platform) {
+      throw new ApiError('platform is required', 400)
     }
 
     const account = await prisma.cTraderAccount.findFirst({
@@ -76,6 +98,27 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
 
     if (!account) {
       throw new ApiError('Account not found', 404)
+    }
+
+    const normalizedPayloadPlatform = String(payload.platform).toLowerCase()
+    const normalizedAccountPlatform = String(account.platform ?? 'ctrader').toLowerCase()
+    if (normalizedPayloadPlatform !== normalizedAccountPlatform) {
+      throw new ApiError('Platform mismatch for account metrics', 409)
+    }
+
+    if (payload.timestamp) {
+      const sentAt = new Date(payload.timestamp)
+      if (Number.isFinite(sentAt.getTime())) {
+        const latencyMs = Date.now() - sentAt.getTime()
+        if (latencyMs >= 0) {
+          console.info('[metrics] ingest latency', {
+            accountNumber: payload.account_number,
+            platform: normalizedPayloadPlatform,
+            latencyMs: payload.latency_ms ?? latencyMs,
+            engineId: payload.engine_id ?? null,
+          })
+        }
+      }
     }
 
     const accountData = account as any
@@ -123,8 +166,13 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
 
     const equity = payload.equity
     const balance = payload.balance
+    const reportedMinEquity = Number.isFinite(payload.min_equity) ? Number(payload.min_equity) : null
+    const priorMinEquity = (metrics as any)?.minEquity ?? null
+    const minEquity = reportedMinEquity != null
+      ? (priorMinEquity != null ? Math.min(priorMinEquity, reportedMinEquity) : reportedMinEquity)
+      : (priorMinEquity ?? equity)
 
-    const highestBalance = Math.max(metrics?.highestBalance ?? accountData.initialBalance ?? balance, balance)
+    const highestBalance = Math.max(metrics?.highestBalance ?? accountData.initialBalance ?? equity, equity)
     const breachBalance = accountData.maxDdAmount != null
       ? highestBalance - accountData.maxDdAmount
       : (metrics?.breachBalance ?? balance)
@@ -137,8 +185,8 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       && (!dailyStartAt || toUtcDateKey(dailyStartAt) !== toUtcDateKey(now))
     const dailyHighBalance = dailyDdEnabled
       ? (isNewDay
-        ? balance
-        : Math.max((metrics as any)?.dailyHighBalance ?? balance, balance))
+        ? equity
+        : Math.max((metrics as any)?.dailyHighBalance ?? equity, equity))
       : 0
     const dailyBreachBalance = dailyDdEnabled
       ? dailyHighBalance - accountData.dailyDdAmount
@@ -161,7 +209,13 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         }
         return event
       })
-    const closedTrades = tradeEvents.filter((trade) => trade.open_time && trade.close_time)
+    const normalizedTradeEvents = tradeEvents.map((trade) => ({
+      ...trade,
+      symbol: trade.symbol ?? (trade as { symbol?: string }).symbol,
+      profit: trade.profit ?? (trade as { amount?: number }).amount,
+      dealType: trade.dealType ?? (trade as { deal_type?: string }).deal_type,
+    }))
+    const closedTrades = normalizedTradeEvents.filter((trade) => trade.open_time && trade.close_time)
     const totalTrades = ((metrics as any)?.totalTrades ?? 0) + closedTrades.length
     const priorProcessedTrades = Array.isArray((metrics as any)?.processedTradeIds)
       ? (metrics as any).processedTradeIds
@@ -185,6 +239,13 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     }).length
     const durationViolationsCount = priorViolations + newViolations
     const shortDurationViolation = durationViolationsCount >= MAX_DURATION_VIOLATIONS
+    const supportedSymbols = new Set(
+      (supportedSymbolsConfig.supported_symbols ?? []).map((symbol) => String(symbol).toUpperCase())
+    )
+    const unsupportedTrade = normalizedTradeEvents.find((trade) => {
+      const symbol = trade.symbol ? String(trade.symbol).toUpperCase() : ''
+      return symbol && !supportedSymbols.has(symbol)
+    })
     const firstTradeAt = (metrics as any)?.firstTradeAt
       ?? tradeEvents.map((trade) => parseDate(trade.open_time)).find(Boolean)
       ?? accountData.startedAt
@@ -238,18 +299,28 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     const awaitingReset = account.status?.toLowerCase() === 'awaiting_reset'
     const resetGuardActive = !breachReason && (awaitingReset || resetExpectationActive)
 
+    console.info('[metrics] drawdown inputs', {
+      accountNumber: account.accountNumber,
+      minEquity,
+      reportedMinEquity,
+      breachBalance,
+      dailyBreachBalance: dailyDdEnabled ? dailyBreachBalance : null,
+    })
+
     if (breachReason) {
       // keep breached status locked once triggered
     } else if (resetGuardActive) {
       // Skip DD/fraud checks during a reset window to avoid false breaches.
-    } else if (equity < breachBalance) {
+    } else if (unsupportedTrade) {
+      breachReason = 'UNSUPPORTED_SYMBOL'
+    } else if (minEquity < breachBalance) {
       breachReason = 'MAX_DRAWDOWN'
-    } else if (dailyDdEnabled && equity < dailyBreachBalance) {
+    } else if (dailyDdEnabled && minEquity < dailyBreachBalance) {
       breachReason = 'DAILY_DRAWDOWN'
     } else if (shortDurationViolation) {
       breachReason = 'MIN_TRADE_DURATION'
     } else {
-      const fraudTypes = new Set(['DEPOSIT', 'WITHDRAWAL', 'WITHDRAW'])
+      const fraudTypes = new Set(['DEPOSIT', 'WITHDRAWAL', 'WITHDRAW', 'CREDIT', 'BALANCE'])
       const tradeDealTypes = trades
         .map((trade) => (trade as any)?.dealType)
         .filter(Boolean) as string[]
@@ -268,7 +339,14 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
           && expiresAt.getTime() >= now.getTime()
         )
         if (!hasValidExpectation) {
-          breachReason = 'FRAUD_BALANCE_MANIPULATION'
+          if (normalizedPayloadPlatform === 'mt5') {
+            console.warn('[mt5] Balance operation without expectation', {
+              accountNumber: account.accountNumber,
+              dealType: fraudDealType,
+            })
+          } else {
+            breachReason = 'FRAUD_BALANCE_MANIPULATION'
+          }
         } else if (expectedOperationAmount != null && Number.isFinite(expectedOperationAmount)) {
           const matchedTrade = trades.find((trade) => (
             String((trade as any)?.dealType ?? '').toUpperCase() === String(fraudDealType).toUpperCase()
@@ -277,7 +355,16 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
           const amountDiff = Math.abs(Math.abs(rawAmount) - Math.abs(expectedOperationAmount))
           const tolerance = Math.max(1, Math.abs(expectedOperationAmount) * 0.02)
           if (amountDiff > tolerance) {
-            breachReason = 'FRAUD_AMOUNT_MISMATCH'
+            if (normalizedPayloadPlatform === 'mt5') {
+              console.warn('[mt5] Balance operation amount mismatch', {
+                accountNumber: account.accountNumber,
+                dealType: fraudDealType,
+                expectedOperationAmount,
+                rawAmount,
+              })
+            } else {
+              breachReason = 'FRAUD_AMOUNT_MISMATCH'
+            }
           } else {
             await prisma.cTraderAccountMetric.update({
               where: { accountId: account.id },
@@ -321,6 +408,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
 
     const normalizedChallengeType = String(accountData.challengeType ?? '').toLowerCase()
     const normalizedPhase = String(accountData.phase ?? '').toLowerCase()
+    const isMultiPhase = ['two_step', 'ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)
     const isInstantFunded = normalizedChallengeType === 'instant_funded'
     const breached = breachReason != null
     const wasBreached = account.status?.toLowerCase() === 'breached'
@@ -391,8 +479,11 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         totalTrades,
         shortDurationViolation,
         breachReason,
+        minEquity,
         lastBalance: balance,
         lastEquity: equity,
+        engineId: payload.engine_id ?? (metrics as any)?.engineId ?? null,
+        latencyMs: payload.latency_ms ?? (metrics as any)?.latencyMs ?? null,
         expectedBalanceChange: (metrics as any)?.expectedBalanceChange ?? false,
         expectedChangeExpiresAt: (metrics as any)?.expectedChangeExpiresAt ?? null,
         expectedBalanceOperationType: (metrics as any)?.expectedBalanceOperationType ?? null,
@@ -420,8 +511,11 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         totalTrades,
         shortDurationViolation,
         breachReason,
+        minEquity,
         lastBalance: balance,
         lastEquity: equity,
+        engineId: payload.engine_id ?? (metrics as any)?.engineId ?? null,
+        latencyMs: payload.latency_ms ?? (metrics as any)?.latencyMs ?? null,
         expectedBalanceChange: (metrics as any)?.expectedBalanceChange ?? false,
         expectedChangeExpiresAt: (metrics as any)?.expectedChangeExpiresAt ?? null,
         expectedBalanceOperationType: (metrics as any)?.expectedBalanceOperationType ?? null,
@@ -482,7 +576,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     }
 
     const normalizedPhaseKey = String(accountData.phase ?? '').toLowerCase()
-    const nextPhaseKey = normalizedChallengeType === 'two_step'
+    const nextPhaseKey = isMultiPhase
       ? (normalizedPhaseKey === 'phase_1' ? 'phase_2' : normalizedPhaseKey === 'phase_2' ? 'funded' : normalizedPhaseKey)
       : (normalizedPhaseKey === 'phase_1' ? 'funded' : normalizedPhaseKey)
     const shouldIssueCertificate = nextPhaseKey === 'funded'
@@ -543,6 +637,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         await notifyFinanceEngine({
           type: 'PHASE_PASS',
           account: String(account.accountNumber),
+          platform: normalizedPayloadPlatform,
           profit,
           targetBalance: accountData.initialBalance ?? balance,
           currentPhase: accountData.phase,
@@ -568,12 +663,25 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       account_number: account.accountNumber,
       balance,
       equity,
+      min_equity: minEquity,
+      breach_threshold: breachBalance,
       breach_reason: breachReason,
       status: breached ? 'breached' : passed ? 'awaiting_reset' : 'active',
       next_stage_assigned: nextStageAssigned,
       next_stage_challenge_id: nextStageChallengeId,
     })
   } catch (err) {
-    next(err as Error)
+    console.log('❌ METRICS ERROR:', err)
+    console.log('Payload:', req.body)
+    console.error('[metrics] ingest error', {
+      accountNumber: (req.body as MetricsPayload | undefined)?.account_number,
+      platform: (req.body as MetricsPayload | undefined)?.platform,
+      payloadKeys: req.body ? Object.keys(req.body) : [],
+    })
+    console.error(err)
+    return res.status(500).json({
+      message: 'Internal error',
+      error: err instanceof Error ? err.message : String(err),
+    })
   }
 }

@@ -104,6 +104,7 @@ export type UserChallengeAccountListItem = {
   display_status: string
   is_active: boolean
   mt5_account: string | null
+  platform?: string
   has_pending_withdrawal?: boolean
   started_at: string | null
   breached_at: string | null
@@ -162,6 +163,7 @@ export type UserChallengeAccountDetailResponse = {
   account_size: string
   currency?: string
   challenge_type?: string
+  platform?: string
   initial_balance?: number
   phase: string
   objective_status: string
@@ -534,6 +536,7 @@ export async function initPalmPayBankTransfer(payload: {
   coupon_code?: string | null
   challenge_type: string
   phase: string
+  platform: string
 }): Promise<PaymentOrderResponse> {
   return apiFetch<PaymentOrderResponse>('/trader/orders/bank-transfer', {
     method: 'POST',
@@ -549,6 +552,7 @@ export async function initCryptoOrder(payload: {
   coupon_code?: string | null
   challenge_type: string
   phase: string
+  platform: string
 }): Promise<PaymentOrderResponse> {
   return apiFetch<PaymentOrderResponse>('/trader/orders/crypto', {
     method: 'POST',
@@ -563,6 +567,7 @@ export async function initFreeOrder(payload: {
   coupon_code?: string | null
   challenge_type: string
   phase: string
+  platform: string
 }): Promise<PaymentOrderResponse> {
   return apiFetch<PaymentOrderResponse>('/trader/orders/free', {
     method: 'POST',

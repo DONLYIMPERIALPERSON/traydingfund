@@ -154,6 +154,14 @@ export default function Rules() {
                         ))}
                     </div>
                 </div>
+                <div className="mt-8 text-center">
+                    <a
+                        href="/supported-markets"
+                        className="inline-flex items-center justify-center rounded-full border border-[#ffd700] px-5 py-2 text-sm font-semibold text-[#ffd700] transition hover:bg-[#ffd700] hover:text-black"
+                    >
+                        🔗 View full supported markets list
+                    </a>
+                </div>
             </div>
         </section>
     );

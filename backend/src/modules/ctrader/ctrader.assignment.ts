@@ -43,6 +43,7 @@ export const assignReadyAccountFromPool = async ({
   accountSize,
   baseChallengeId,
   currency,
+  platform,
 }: {
   userId: number
   challengeType: string
@@ -50,9 +51,11 @@ export const assignReadyAccountFromPool = async ({
   accountSize: string
   baseChallengeId?: string
   currency?: string
+  platform?: string
 }) => {
   const normalizedAccountSize = normalizeAccountSize(accountSize)
   const resolvedCurrency = resolveChallengeCurrency(challengeType, currency ?? null)
+  const resolvedPlatform = String(platform ?? 'ctrader').toLowerCase()
   const objectiveFields = await buildObjectiveFields({
     accountSize,
     challengeType,
@@ -60,13 +63,21 @@ export const assignReadyAccountFromPool = async ({
   })
 
   return prisma.$transaction(async (tx) => {
-    const readyAccounts = await tx.$queryRaw<{ id: number }[]>`
-      SELECT id
+    const readyAccounts = await tx.$queryRaw<{ id: number; accountNumber: string; mt5Login: string | null }[]>`
+      SELECT id, "accountNumber", "mt5Login"
       FROM "CTraderAccount"
       WHERE lower(status) = 'ready'
         AND "userId" IS NULL
         AND lower("currency") = lower(${resolvedCurrency})
+        AND lower("platform") = lower(${resolvedPlatform})
         AND regexp_replace(lower("accountSize"), '[^0-9]', '', 'g') = ${normalizedAccountSize.replace(/\D/g, '')}
+        AND (
+          lower(${resolvedPlatform}) <> 'mt5'
+          OR (
+            "mt5Server" IS NOT NULL
+            AND "mt5Password" IS NOT NULL
+          )
+        )
       ORDER BY "createdAt" ASC
       LIMIT 1
       FOR UPDATE
@@ -98,6 +109,10 @@ export const assignReadyAccountFromPool = async ({
       accessStatus: 'pending',
       assignedAt: new Date(),
     } as Prisma.CTraderAccountUncheckedUpdateInput
+
+    if (resolvedPlatform === 'mt5') {
+      updateData.mt5Login = account.mt5Login ?? account.accountNumber
+    }
 
     const updated = await tx.cTraderAccount.update({
       where: { id: account.id },

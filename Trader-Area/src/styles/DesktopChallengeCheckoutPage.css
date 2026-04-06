@@ -114,6 +114,52 @@
   color: #333;
 }
 
+.platform-selection {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  padding: 20px 24px;
+}
+
+.platform-label {
+  display: block;
+  font-size: 14px;
+  color: #0f172a;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.platform-options {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.platform-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.platform-option input {
+  accent-color: #0b9fb8;
+}
+
+.platform-option.active {
+  border-color: #0b9fb8;
+  box-shadow: 0 0 0 2px rgba(11, 159, 184, 0.15);
+  background: #ecfeff;
+}
+
 .desktop-checkout-methods {
   display: flex;
   flex-direction: column;

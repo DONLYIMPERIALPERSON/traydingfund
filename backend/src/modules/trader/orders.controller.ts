@@ -5,8 +5,8 @@ import { env } from '../../config/env'
 import { ApiError } from '../../common/errors'
 import { createVirtualAccount } from '../../services/safehaven.service'
 import { getFxRatesConfig } from '../fxRates/fxRates.service'
-import { requestAccountAccess } from '../../services/accessEngine.service'
 import { pushActiveAccountRemove } from '../../services/ctraderEngine.service'
+import { requestAccountAccess } from '../../services/accessEngine.service'
 import { assignReadyAccountFromPool } from '../ctrader/ctrader.assignment'
 import { createOnboardingCertificate } from '../../services/certificate.service'
 import { buildObjectiveFields } from '../ctrader/ctrader.objectives'
@@ -31,13 +31,14 @@ const resolveCryptoAddress = (currency: keyof typeof CRYPTO_ADDRESSES) => {
 
 const assignReadyAccount = async (
   userId: number,
-  payload: { challengeType: string; phase: string; accountSize: string; currency?: string },
+  payload: { challengeType: string; phase: string; accountSize: string; currency?: string; platform?: string },
 ) => assignReadyAccountFromPool({
   userId,
   challengeType: payload.challengeType,
   phase: payload.phase,
   accountSize: payload.accountSize,
   currency: payload.currency ?? 'USD',
+  platform: payload.platform ?? 'ctrader',
 })
 
 const maybeBurnAccount = async (accountId: number) => {
@@ -290,14 +291,23 @@ const handleCompletedOrder = async (order: Order) => {
         phase: order.phase ?? 'phase_1',
         accountSize: normalizedAccountSize ? `$${normalizedAccountSize}` : order.accountSize,
         currency: order.currency ?? 'USD',
+        platform: (order.metadata as { platform?: string } | null)?.platform ?? 'ctrader',
       })
 
-      if (assigned) {
-        await prisma.order.update({
-          where: { id: order.id },
-          data: { assignmentStatus: 'assigned' },
-        })
+    if (assigned) {
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { assignmentStatus: 'assigned' },
+      })
 
+      const resolvedPlatform = (order.metadata as { platform?: string } | null)?.platform ?? 'ctrader'
+
+      if (resolvedPlatform.toLowerCase() === 'mt5') {
+        await prisma.cTraderAccount.update({
+          where: { id: assigned.id },
+          data: { status: 'active', accessStatus: 'granted', accessGrantedAt: new Date() },
+        })
+      } else {
         try {
           await requestAccountAccess({
             user_email: user?.email ?? '',
@@ -307,7 +317,10 @@ const handleCompletedOrder = async (order: Order) => {
             account_size: assigned.accountSize ?? order.accountSize ?? undefined,
             account_number: assigned.accountNumber,
             broker: assigned.brokerName,
-            platform: 'ctrader',
+            platform: resolvedPlatform,
+            mt5_login: assigned.mt5Login ?? undefined,
+            mt5_server: assigned.mt5Server ?? undefined,
+            mt5_password: assigned.mt5Password ?? undefined,
           })
         } catch (error) {
           console.error('Failed to request access-engine account grant', {
@@ -317,7 +330,8 @@ const handleCompletedOrder = async (order: Order) => {
             error,
           })
         }
-      } else {
+      }
+    } else {
         await prisma.order.update({
           where: { id: order.id },
           data: { assignmentStatus: 'pending_assign' },
@@ -523,13 +537,14 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
   try {
     const user = ensureUser(req)
     const idempotencyKey = getIdempotencyKey(req)
-    const { plan_id, account_size, amount_kobo, coupon_code, challenge_type, phase } = req.body as {
+    const { plan_id, account_size, amount_kobo, coupon_code, challenge_type, phase, platform } = req.body as {
       plan_id?: string
       account_size?: string
       amount_kobo?: number
       coupon_code?: string | null
       challenge_type?: string
       phase?: string
+      platform?: string
     }
     const rawAffiliateId = req.header('x-affiliate-id')
     const affiliateId = rawAffiliateId
@@ -538,6 +553,10 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
 
     if (!plan_id || !account_size || !amount_kobo || !challenge_type || !phase) {
       throw new ApiError('plan_id, account_size, amount_kobo, challenge_type, and phase are required', 400)
+    }
+    const normalizedPlatform = String(platform ?? 'ctrader').toLowerCase()
+    if (!['ctrader', 'mt5'].includes(normalizedPlatform)) {
+      throw new ApiError('platform must be ctrader or mt5', 400)
     }
 
     if (idempotencyKey) {
@@ -631,6 +650,7 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
         safehavenSessionId: virtualAccount.sessionId ?? null,
         metadata: {
           safehaven: virtualAccount,
+          platform: normalizedPlatform,
         },
         userId: user.id,
         affiliateId: affiliateId && !Number.isNaN(affiliateId) && affiliateId !== user.id ? affiliateId : null,
@@ -656,13 +676,14 @@ export const createFreeOrder = async (req: AuthRequest, res: Response, next: Nex
   try {
     const user = ensureUser(req)
     const idempotencyKey = getIdempotencyKey(req)
-    const { plan_id, account_size, amount_kobo, coupon_code, challenge_type, phase } = req.body as {
+    const { plan_id, account_size, amount_kobo, coupon_code, challenge_type, phase, platform } = req.body as {
       plan_id?: string
       account_size?: string
       amount_kobo?: number
       coupon_code?: string | null
       challenge_type?: string
       phase?: string
+      platform?: string
     }
     const rawAffiliateId = req.header('x-affiliate-id')
     const affiliateId = rawAffiliateId
@@ -671,6 +692,10 @@ export const createFreeOrder = async (req: AuthRequest, res: Response, next: Nex
 
     if (!plan_id || !account_size || !amount_kobo || !challenge_type || !phase) {
       throw new ApiError('plan_id, account_size, amount_kobo, challenge_type, and phase are required', 400)
+    }
+    const normalizedPlatform = String(platform ?? 'ctrader').toLowerCase()
+    if (!['ctrader', 'mt5'].includes(normalizedPlatform)) {
+      throw new ApiError('platform must be ctrader or mt5', 400)
     }
 
     const couponResult = await applyCouponToOrder({
@@ -716,6 +741,7 @@ export const createFreeOrder = async (req: AuthRequest, res: Response, next: Nex
         couponCode: couponResult.couponCode,
         paymentMethod: 'coupon',
         paymentProvider: 'internal',
+        metadata: { platform: normalizedPlatform },
         paidAt: new Date(),
         userId: user.id,
         affiliateId: affiliateId && !Number.isNaN(affiliateId) && affiliateId !== user.id ? affiliateId : null,
@@ -744,7 +770,7 @@ export const createCryptoOrder = async (req: AuthRequest, res: Response, next: N
   try {
     const user = ensureUser(req)
     const idempotencyKey = getIdempotencyKey(req)
-    const { plan_id, account_size, amount_kobo, crypto_currency, challenge_type, phase, coupon_code } = req.body as {
+    const { plan_id, account_size, amount_kobo, crypto_currency, challenge_type, phase, coupon_code, platform } = req.body as {
       plan_id?: string
       account_size?: string
       amount_kobo?: number
@@ -752,6 +778,7 @@ export const createCryptoOrder = async (req: AuthRequest, res: Response, next: N
       challenge_type?: string
       phase?: string
       coupon_code?: string | null
+      platform?: string
     }
     const rawAffiliateId = req.header('x-affiliate-id')
     const affiliateId = rawAffiliateId
@@ -760,6 +787,10 @@ export const createCryptoOrder = async (req: AuthRequest, res: Response, next: N
 
     if (!plan_id || !account_size || !amount_kobo || !crypto_currency || !challenge_type || !phase) {
       throw new ApiError('plan_id, account_size, amount_kobo, crypto_currency, challenge_type, and phase are required', 400)
+    }
+    const normalizedPlatform = String(platform ?? 'ctrader').toLowerCase()
+    if (!['ctrader', 'mt5'].includes(normalizedPlatform)) {
+      throw new ApiError('platform must be ctrader or mt5', 400)
     }
 
     const normalizedCurrency = crypto_currency.toUpperCase() as keyof typeof CRYPTO_ADDRESSES
@@ -810,6 +841,7 @@ export const createCryptoOrder = async (req: AuthRequest, res: Response, next: N
         couponCode: couponResult.couponCode,
         paymentMethod: 'crypto',
         paymentProvider: 'manual',
+        metadata: { platform: normalizedPlatform },
         cryptoCurrency: normalizedCurrency,
         cryptoAddress: address,
         userId: user.id,

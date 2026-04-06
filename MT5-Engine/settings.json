@@ -1,9 +1,9 @@
 {
-  "BACKEND_BASE_URL": "http://localhost:4000/api/v1",
+  "BACKEND_BASE_URL": "https://f1bb-102-88-114-192.ngrok-free.app/api/v1",
   "ENGINE_SECRET": "dev-mt5-secret",
   "BROKER_SERVER_NAME": "Exness-MT5Trial9",
   "MT5_TERMINALS": [
-    "C:/Path/To/terminal64.exe"
+    "C:/MT5-CLONE/terminal64.exe"
   ],
   "POLL_INTERVAL_SECONDS": 10,
   "ACCOUNT_CHECK_INTERVAL_SECONDS": 300,

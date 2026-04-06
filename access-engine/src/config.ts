@@ -24,4 +24,5 @@ export const config = {
     .filter(Boolean),
   telegramCommandPrefix: process.env.TELEGRAM_COMMAND_PREFIX ?? '/access_granted',
   telegramWebhookPath: process.env.TELEGRAM_WEBHOOK_PATH ?? '/telegram/webhook',
+  sendMt5Credentials: String(process.env.SEND_MT5_CREDENTIALS ?? 'false').toLowerCase() === 'true',
 }

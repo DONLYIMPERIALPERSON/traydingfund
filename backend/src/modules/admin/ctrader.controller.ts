@@ -3,6 +3,7 @@ import { prisma } from '../../config/prisma'
 import { ApiError } from '../../common/errors'
 import { Prisma } from '@prisma/client'
 import { requestAccountAccess } from '../../services/accessEngine.service'
+import { recordCredentialView } from '../../services/emailLog.service'
 import { assignReadyAccountFromPool, buildBaseChallengeId, normalizeChallengeBase, resolveChallengeCurrency } from '../ctrader/ctrader.assignment'
 
 type UploadAccountPayload = {
@@ -11,6 +12,10 @@ type UploadAccountPayload = {
   account_size: string
   status?: string
   currency?: string
+  platform?: string
+  mt5_login?: string
+  mt5_server?: string
+  mt5_password?: string
 }
 
 type AccountSummary = {
@@ -18,6 +23,18 @@ type AccountSummary = {
   ready: number
   assigned: number
   disabled: number
+  ctrader: {
+    total: number
+    ready: number
+    assigned: number
+    disabled: number
+  }
+  mt5: {
+    total: number
+    ready: number
+    assigned: number
+    disabled: number
+  }
 }
 
 type ListCTraderQuery = {
@@ -46,17 +63,33 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
       throw new ApiError('accounts array is required', 400)
     }
 
-    const normalized = accounts.map((account) => ({
-      accountNumber: String(account.account_number ?? '').trim(),
-      brokerName: String(account.broker ?? '').trim(),
-      accountSize: normalizeAccountSize(String(account.account_size ?? '').trim()),
-      status: String(account.status ?? 'Ready').trim(),
-      currency: String(account.currency ?? 'USD').trim().toUpperCase(),
-    }))
+    const normalized = accounts.map((account) => {
+      const accountNumber = String(account.account_number ?? '').trim()
+      const platform = String(account.platform ?? 'ctrader').trim().toLowerCase()
+      return {
+        accountNumber,
+        brokerName: String(account.broker ?? '').trim(),
+        accountSize: normalizeAccountSize(String(account.account_size ?? '').trim()),
+        status: String(account.status ?? 'Ready').trim(),
+        currency: String(account.currency ?? 'USD').trim().toUpperCase(),
+        platform,
+        mt5Login: platform === 'mt5'
+          ? (account.mt5_login ? String(account.mt5_login).trim() : accountNumber || null)
+          : (account.mt5_login ? String(account.mt5_login).trim() : null),
+        mt5Server: account.mt5_server ? String(account.mt5_server).trim() : null,
+        mt5Password: account.mt5_password ? String(account.mt5_password).trim() : null,
+      }
+    })
 
     normalized.forEach((account, index) => {
       if (!account.accountNumber || !account.brokerName || !account.accountSize) {
         throw new ApiError(`Invalid account payload at index ${index}`, 400)
+      }
+      if (!['ctrader', 'mt5'].includes(account.platform)) {
+        throw new ApiError(`Invalid platform at index ${index}`, 400)
+      }
+      if (account.platform === 'mt5' && (!account.mt5Server || !account.mt5Password)) {
+        throw new ApiError(`MT5 server and password are required at index ${index}`, 400)
       }
     })
 
@@ -69,8 +102,12 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
           phase: 'Ready',
           status: account.status,
           currency: account.currency,
+          platform: account.platform,
           brokerName: account.brokerName,
           accountNumber: account.accountNumber,
+          mt5Login: account.mt5Login,
+          mt5Server: account.mt5Server,
+          mt5Password: account.mt5Password,
           userId: null as number | null,
         },
       ])
@@ -98,7 +135,7 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
     }
 
     const pendingOrders = await prisma.order.findMany({
-      where: { assignmentStatus: 'pending_assign', status: 'pending' },
+      where: { assignmentStatus: 'pending_assign', status: { in: ['pending', 'completed'] } },
       orderBy: { createdAt: 'asc' },
       include: { user: true },
     })
@@ -111,6 +148,7 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
         accountSize: order.accountSize,
         currency: order.currency ?? 'USD',
         baseChallengeId: buildBaseChallengeId(order.id),
+        platform: (order.metadata as { platform?: string } | null)?.platform ?? 'ctrader',
       })
 
       if (!assigned) break
@@ -128,7 +166,10 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
         account_size: assigned.accountSize ?? order.accountSize ?? undefined,
         account_number: assigned.accountNumber,
         broker: assigned.brokerName,
-        platform: 'ctrader',
+        platform: (order.metadata as { platform?: string } | null)?.platform ?? 'ctrader',
+        mt5_login: assigned.mt5Login ?? undefined,
+        mt5_server: assigned.mt5Server ?? undefined,
+        mt5_password: assigned.mt5Password ?? undefined,
       })
     }
 
@@ -225,7 +266,10 @@ export const forceAssignNextStage = async (req: Request, res: Response, next: Ne
       account_size: assignedAccount.accountSize ?? resolvedAccount.accountSize ?? undefined,
       account_number: assignedAccount.accountNumber,
       broker: assignedAccount.brokerName,
-      platform: 'ctrader',
+      platform: assignedAccount.platform ?? 'ctrader',
+      mt5_login: assignedAccount.mt5Login ?? undefined,
+      mt5_server: assignedAccount.mt5Server ?? undefined,
+      mt5_password: assignedAccount.mt5Password ?? undefined,
     })
 
     res.json({
@@ -262,13 +306,18 @@ export const deleteReadyCTraderAccount = async (req: Request, res: Response, nex
 
 export const listCTraderAccounts = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { status } = req.query as ListCTraderQuery
+    const { status, platform } = req.query as ListCTraderQuery & { platform?: string }
     const normalizedStatus = status?.toLowerCase()
-    const where: Prisma.CTraderAccountWhereInput = normalizedStatus === 'awaiting-next-stage'
+    const baseWhere: Prisma.CTraderAccountWhereInput = normalizedStatus === 'awaiting-next-stage'
       ? { status: { equals: 'awaiting_reset', mode: Prisma.QueryMode.insensitive } }
       : status
         ? { status: { equals: status, mode: Prisma.QueryMode.insensitive } }
         : {}
+    const normalizedPlatform = platform?.toLowerCase()
+    const where: Prisma.CTraderAccountWhereInput = {
+      ...baseWhere,
+      ...(normalizedPlatform ? { platform: { equals: normalizedPlatform, mode: Prisma.QueryMode.insensitive } } : {}),
+    }
     const accounts = await prisma.cTraderAccount.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -291,6 +340,10 @@ export const listCTraderAccounts = async (req: Request, res: Response, next: Nex
       assignment_mode: account.userId ? 'automatic' : null,
       assigned_by_admin_name: null,
       access_status: (account as { accessStatus?: string | null }).accessStatus ?? null,
+      platform: account.platform ?? 'ctrader',
+      mt5_login: account.mt5Login ?? null,
+      mt5_server: account.mt5Server ?? null,
+      mt5_password: account.mt5Password ?? null,
       created_at: account.createdAt.toISOString(),
       updated_at: account.updatedAt.toISOString(),
     })) })
@@ -299,22 +352,112 @@ export const listCTraderAccounts = async (req: Request, res: Response, next: Nex
   }
 }
 
+export const logCTraderCredentialView = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { account_id, account_number, platform, scope } = req.body as {
+      account_id?: number
+      account_number?: string
+      platform?: string
+      scope?: string
+    }
+    const normalizedPlatform = String(platform ?? '').toLowerCase()
+    if (normalizedPlatform !== 'mt5') {
+      throw new ApiError('Only MT5 credential views are logged', 400)
+    }
+    const account = account_id
+      ? await prisma.cTraderAccount.findUnique({ where: { id: Number(account_id) }, select: { id: true } })
+      : account_number
+        ? await prisma.cTraderAccount.findFirst({ where: { accountNumber: String(account_number) }, select: { id: true } })
+        : null
+    if (!account) {
+      throw new ApiError('Account not found', 404)
+    }
+
+    const adminEmail = (req as any).user?.email ?? null
+    await recordCredentialView({
+      accountId: account.id,
+      userId: null,
+      metadata: {
+        scope: scope ?? 'admin',
+        platform: normalizedPlatform,
+        action: 'view_credentials',
+        admin_email: adminEmail,
+      },
+    })
+
+    res.json({ status: 'logged' })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
 export const getCTraderSummary = async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const ready = await prisma.cTraderAccount.count({
-      where: { status: { equals: 'ready', mode: 'insensitive' } },
-    })
-    const total = ready
-    const assigned = await prisma.cTraderAccount.count({ where: { userId: { not: null } } })
-    const disabled = await prisma.cTraderAccount.count({
-      where: { status: { equals: 'disabled', mode: 'insensitive' } },
-    })
+    const [
+      total,
+      ready,
+      assigned,
+      disabled,
+      ctraderTotal,
+      ctraderReady,
+      ctraderAssigned,
+      ctraderDisabled,
+      mt5Total,
+      mt5Ready,
+      mt5Assigned,
+      mt5Disabled,
+    ] = await Promise.all([
+      prisma.cTraderAccount.count(),
+      prisma.cTraderAccount.count({
+        where: { status: { equals: 'ready', mode: 'insensitive' } },
+      }),
+      prisma.cTraderAccount.count({ where: { userId: { not: null } } }),
+      prisma.cTraderAccount.count({
+        where: { status: { equals: 'disabled', mode: 'insensitive' } },
+      }),
+      prisma.cTraderAccount.count({
+        where: { platform: { equals: 'ctrader', mode: 'insensitive' } },
+      }),
+      prisma.cTraderAccount.count({
+        where: { status: { equals: 'ready', mode: 'insensitive' }, platform: { equals: 'ctrader', mode: 'insensitive' } },
+      }),
+      prisma.cTraderAccount.count({
+        where: { userId: { not: null }, platform: { equals: 'ctrader', mode: 'insensitive' } },
+      }),
+      prisma.cTraderAccount.count({
+        where: { status: { equals: 'disabled', mode: 'insensitive' }, platform: { equals: 'ctrader', mode: 'insensitive' } },
+      }),
+      prisma.cTraderAccount.count({
+        where: { platform: { equals: 'mt5', mode: 'insensitive' } },
+      }),
+      prisma.cTraderAccount.count({
+        where: { status: { equals: 'ready', mode: 'insensitive' }, platform: { equals: 'mt5', mode: 'insensitive' } },
+      }),
+      prisma.cTraderAccount.count({
+        where: { userId: { not: null }, platform: { equals: 'mt5', mode: 'insensitive' } },
+      }),
+      prisma.cTraderAccount.count({
+        where: { status: { equals: 'disabled', mode: 'insensitive' }, platform: { equals: 'mt5', mode: 'insensitive' } },
+      }),
+    ])
 
     const summary: AccountSummary = {
       total,
       ready,
       assigned,
       disabled,
+      ctrader: {
+        total: ctraderTotal,
+        ready: ctraderReady,
+        assigned: ctraderAssigned,
+        disabled: ctraderDisabled,
+      },
+      mt5: {
+        total: mt5Total,
+        ready: mt5Ready,
+        assigned: mt5Assigned,
+        disabled: mt5Disabled,
+      },
     }
 
     res.json(summary)
@@ -326,14 +469,15 @@ export const getCTraderSummary = async (_req: Request, res: Response, next: Next
 export const downloadCTraderTemplate = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const template = [
-      'account_number,broker,account_size,currency,status',
-      '100001,ICMarkets,"$2,000",USD,Ready',
-      '100002,ICMarkets,"$10,000",USD,Ready',
-      '200001,ICMarkets,"₦200,000",NGN,Ready',
+      'account_number,broker,account_size,currency,status,platform,mt5_server,mt5_password',
+      '100001,ICMarkets,"$2,000",USD,Ready,ctrader,,',
+      '100002,ICMarkets,"$10,000",USD,Ready,ctrader,,',
+      '200001,ICMarkets,"₦200,000",NGN,Ready,ctrader,,',
+      '300001,ICMarkets,"$10,000",USD,Ready,mt5,ICMarkets-Live,secret',
     ].join('\n')
 
     res.setHeader('Content-Type', 'text/plain; charset=utf-8')
-    res.setHeader('Content-Disposition', 'attachment; filename="ctrader_accounts_template.csv"')
+    res.setHeader('Content-Disposition', 'attachment; filename="accounts_pool_template.csv"')
     res.send(template)
   } catch (err) {
     next(err as Error)

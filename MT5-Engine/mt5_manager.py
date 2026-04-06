@@ -1,9 +1,10 @@
 import json
 import os
+import queue
 import subprocess
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List
 
 import requests
@@ -25,6 +26,13 @@ LOOKBACK_MINUTES = int(settings.get("LOOKBACK_MINUTES", 60))
 TIMER_SECONDS = int(settings.get("TIMER_SECONDS", 2))
 ACCOUNT_CHECK_INTERVAL_SECONDS = int(settings.get("ACCOUNT_CHECK_INTERVAL_SECONDS", 300))
 ACTIVE_ACCOUNTS_CACHE_FILE = os.path.join(BASE_FOLDER, "active_accounts.json")
+COMMON_FILES_DIR = os.path.join(
+    os.environ.get("APPDATA", ""),
+    "MetaQuotes",
+    "Terminal",
+    "Common",
+    "Files",
+)
 
 
 def fetch_active_mt5_accounts() -> List[Dict[str, str]]:
@@ -45,13 +53,15 @@ def build_config_file(account: Dict[str, str], mt5_path: str, job_id: str) -> st
     config_file = os.path.join(CONFIG_FOLDER, f"config_{account_number}_{job_id}.ini")
     with open(config_file, "w") as f:
         f.write("[Common]\n")
+        f.write("EnableAutoTrading=1\n")
         f.write(f"Login={login}\n")
         f.write(f"Password={password}\n")
         f.write(f"Server={server}\n")
         f.write("[StartUp]\n")
         f.write("Expert=MT5MetricsEA\n")
-        f.write("Symbol=EURUSD\n")
+        f.write("Symbol=EURUSDm\n")
         f.write("Period=H1\n")
+        f.write("Template=metrics.tpl\n")
         f.write("[Experts]\n")
         f.write("AllowDllImports=true\n")
         f.write("AllowWebRequest=true\n")
@@ -74,7 +84,7 @@ def run_mt5_job(account: Dict[str, str], mt5_path: str) -> Dict[str, str]:
     startupinfo.wShowWindow = 6  # SW_MINIMIZE
 
     process = subprocess.Popen(
-        [mt5_path, f"/config:{config_file}"],
+        [mt5_path, "/portable", f"/config:{config_file}"],
         startupinfo=startupinfo
     )
 
@@ -107,9 +117,36 @@ def run_mt5_job(account: Dict[str, str], mt5_path: str) -> Dict[str, str]:
     }
 
 
-def run_mt5_job_and_stamp(account: Dict[str, str], mt5_path: str, index: int, cache: List[Dict[str, str]]) -> None:
+def send_metrics_from_file(account_number: str) -> None:
+    filename = f"metrics_{account_number}.json"
+    file_path = os.path.join(COMMON_FILES_DIR, filename)
+
+    if not os.path.exists(file_path):
+        return
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as file:
+            payload = json.load(file)
+    except Exception as exc:
+        print(f"[mt5-manager] Failed reading metrics file {filename}: {exc}")
+        return
+
+    try:
+        headers = {"X-ENGINE-SECRET": ENGINE_SECRET}
+        url = f"{BACKEND_BASE_URL}/mt5/metrics"
+        response = requests.post(url, json=payload, headers=headers, timeout=15)
+        print(f"[mt5-manager] Sent metrics for {account_number} -> {response.status_code}")
+        if response.status_code == 200:
+            os.remove(file_path)
+    except Exception as exc:
+        print(f"[mt5-manager] Error sending metrics for {account_number}: {exc}")
+
+
+def run_mt5_job_and_stamp(account: Dict[str, str], mt5_path: str, index: int, cache: List[Dict[str, str]], lock: threading.Lock) -> None:
     run_mt5_job(account, mt5_path)
-    cache[index] = stamp_last_checked(account)
+    send_metrics_from_file(str(account.get("accountNumber")))
+    with lock:
+        cache[index] = stamp_last_checked(account)
 
 
 def load_active_cache() -> List[Dict[str, str]]:
@@ -137,14 +174,20 @@ def merge_active_accounts(
     current_accounts: List[Dict[str, str]],
     latest_accounts: List[Dict[str, str]],
 ) -> List[Dict[str, str]]:
-    latest_by_number = {
-        str(account.get("accountNumber")): {
+    latest_by_number: Dict[str, Dict[str, str]] = {}
+    for account in latest_accounts:
+        number = str(account.get("accountNumber"))
+        if not number:
+            continue
+        existing = next(
+            (a for a in current_accounts if str(a.get("accountNumber")) == number),
+            {},
+        )
+        latest_by_number[number] = {
             **account,
-            "last_checked_at": account.get("last_checked_at"),
+            "last_checked_at": existing.get("last_checked_at"),
         }
-        for account in latest_accounts
-        if account.get("accountNumber")
-    }
+
     latest_order = [
         str(account.get("accountNumber"))
         for account in latest_accounts
@@ -179,8 +222,38 @@ def should_check_account(account: Dict[str, str]) -> bool:
         last_checked = datetime.fromisoformat(timestamp)
     except Exception:
         return True
-    elapsed_seconds = (datetime.utcnow() - last_checked).total_seconds()
+    elapsed_seconds = (datetime.now(timezone.utc) - last_checked).total_seconds()
     return elapsed_seconds >= ACCOUNT_CHECK_INTERVAL_SECONDS
+
+
+def build_job_queue(active_cache: List[Dict[str, str]]) -> queue.Queue:
+    job_queue: queue.Queue = queue.Queue()
+    for index, account in enumerate(active_cache):
+        if not account.get("accountNumber"):
+            continue
+        if not should_check_account(account):
+            continue
+        job_queue.put({"index": index, "account": account})
+    return job_queue
+
+
+def worker_loop(
+    worker_id: int,
+    mt5_path: str,
+    job_queue: queue.Queue,
+    cache: List[Dict[str, str]],
+    lock: threading.Lock,
+) -> None:
+    while True:
+        try:
+            job = job_queue.get_nowait()
+        except queue.Empty:
+            break
+
+        try:
+            run_mt5_job_and_stamp(job["account"], mt5_path, job["index"], cache, lock)
+        finally:
+            job_queue.task_done()
 
 
 def run_loop() -> None:
@@ -197,34 +270,23 @@ def run_loop() -> None:
 
             save_active_cache(active_cache)
 
-            # Execute checks in parallel batches (one per terminal)
-            pending_jobs: List[Dict[str, str]] = []
-            for index, account in enumerate(active_cache):
-                if not account.get("accountNumber"):
-                    continue
-                if not should_check_account(account):
-                    continue
-                pending_jobs.append({"index": index, "account": account})
+            job_queue = build_job_queue(active_cache)
+            lock = threading.Lock()
 
-            while pending_jobs:
-                batch = pending_jobs[: len(MT5_TERMINALS)]
-                pending_jobs = pending_jobs[len(MT5_TERMINALS):]
+            threads: List[threading.Thread] = []
+            for offset, mt5_path in enumerate(MT5_TERMINALS):
+                thread = threading.Thread(
+                    target=worker_loop,
+                    args=(offset, mt5_path, job_queue, active_cache, lock),
+                    daemon=True,
+                )
+                threads.append(thread)
+                thread.start()
 
-                threads: List[threading.Thread] = []
-                for offset, job in enumerate(batch):
-                    mt5_path = MT5_TERMINALS[(terminal_index + offset) % len(MT5_TERMINALS)]
-                    thread = threading.Thread(
-                        target=run_mt5_job_and_stamp,
-                        args=(job["account"], mt5_path, job["index"], active_cache),
-                        daemon=True,
-                    )
-                    threads.append(thread)
-                    thread.start()
+            for thread in threads:
+                thread.join()
 
-                terminal_index = (terminal_index + len(batch)) % max(len(MT5_TERMINALS), 1)
-
-                for thread in threads:
-                    thread.join()
+            terminal_index = (terminal_index + len(MT5_TERMINALS)) % max(len(MT5_TERMINALS), 1)
 
             save_active_cache(active_cache)
 

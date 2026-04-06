@@ -68,6 +68,7 @@ export const buildMetricsPayload = (params: {
   timestamp?: string
 }): MetricsPayload => ({
   account_number: params.accountNumber,
+  platform: 'ctrader',
   balance: params.balance,
   equity: params.equity,
   trades: params.trades,

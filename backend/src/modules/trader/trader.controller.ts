@@ -11,6 +11,7 @@ import {
 import { listUserCertificates } from '../../services/certificate.service'
 import { requestAccountAccess } from '../../services/accessEngine.service'
 import { buildCacheKey, getCached, setCached, clearCacheByPrefix } from '../../common/cache'
+import { recordCredentialView } from '../../services/emailLog.service'
 
 type AuthRequest = Request & { user?: { id: number; email: string } }
 
@@ -248,6 +249,7 @@ export const listChallengeAccounts = async (req: AuthRequest, res: Response, nex
         display_status: displayStatus,
         is_active: isActiveStatus(account.status),
         mt5_account: account.accountNumber,
+        platform: account.platform ?? 'ctrader',
         has_pending_withdrawal: hasPendingWithdrawal,
         started_at: account.startedAt?.toISOString() ?? null,
         breached_at: account.breachedAt?.toISOString() ?? null,
@@ -426,11 +428,39 @@ export const getChallengeAccountDetail = async (
 
     const pendingPayout = account.payouts?.[0] ?? null
 
+    const platform = String(account.platform ?? 'ctrader').toLowerCase()
+    const credentials = platform === 'mt5'
+      ? {
+        server: account.mt5Server ?? account.brokerName,
+        account_number: account.mt5Login ?? account.accountNumber,
+        password: account.mt5Password ?? 'Contact support',
+        investor_password: null,
+      }
+      : {
+        server: account.brokerName,
+        account_number: account.accountNumber,
+        password: 'Contact support',
+        investor_password: 'Contact support',
+      }
+
+    if (platform === 'mt5' && account.userId) {
+      await recordCredentialView({
+        accountId: account.id,
+        userId: account.userId ?? null,
+        metadata: {
+          scope: 'trader',
+          platform,
+          action: 'view_credentials',
+        },
+      })
+    }
+
     res.json({
       challenge_id: account.challengeId,
       account_size: account.accountSize,
       currency: account.currency,
       challenge_type: normalizedChallengeType,
+      platform: account.platform ?? 'ctrader',
       initial_balance: resolvedInitialBalance,
       phase: account.phase,
       objective_status: account.status.toLowerCase(),
@@ -468,12 +498,7 @@ export const getChallengeAccountDetail = async (
           : metrics.processedTradeIds ?? [],
       },
       objectives,
-      credentials: {
-        server: account.brokerName,
-        account_number: account.accountNumber,
-        password: 'Contact support',
-        investor_password: 'Contact support',
-      },
+      credentials,
       funded_profit_raw: null,
       funded_profit_capped: null,
       funded_profit_cap_amount: null,
@@ -505,7 +530,6 @@ export const requestChallengeRefresh = async (req: AuthRequest, res: Response, n
       where: { id: account.id },
       data: { lastRefreshRequestedAt: now } as unknown as Record<string, unknown>,
     })
-
     try {
       await requestAccountAccess({
         user_email: user.email,
@@ -515,7 +539,10 @@ export const requestChallengeRefresh = async (req: AuthRequest, res: Response, n
         account_size: account.accountSize ?? undefined,
         account_number: account.accountNumber,
         broker: account.brokerName,
-        platform: 'ctrader',
+        platform: account.platform ?? 'ctrader',
+        mt5_login: account.mt5Login ?? undefined,
+        mt5_server: account.mt5Server ?? undefined,
+        mt5_password: account.mt5Password ?? undefined,
       })
     } catch (error) {
       console.error('Failed to request account refresh', error)

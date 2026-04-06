@@ -14,7 +14,7 @@ const ACTIVE_ACCOUNTS_FILE = path.resolve(__dirname, '../data/active-accounts.js
 const ACCOUNT_REFRESH_INTERVAL_MS = config.accountRefreshSeconds * 1000
 const PNL_POLL_INTERVAL_MS = config.ctrader.pnlPollIntervalMs
 const PNL_REQUESTS_PER_TICK = config.ctrader.pnlRequestsPerTick
-const HIGH_PNL_INTERVAL_MS = 5000
+const HIGH_PNL_INTERVAL_MS = 1000
 const MEDIUM_PNL_INTERVAL_MS = 30000
 const LOW_PNL_INTERVAL_MS = 60000
 

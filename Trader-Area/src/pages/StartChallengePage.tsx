@@ -31,9 +31,11 @@ const DesktopStartChallengePage: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const accountData = location.state as AccountData | undefined
+  const [pageLoading, setPageLoading] = useState(true)
 
   const [agreements, setAgreements] = useState({ terms: false })
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('bank-transfer')
+  const [selectedPlatform, setSelectedPlatform] = useState<'ctrader' | 'mt5'>('ctrader')
   const [selectedCrypto, setSelectedCrypto] = useState('USDT')
   const [selectedNetwork, setSelectedNetwork] = useState<'ERC20' | 'TRC20' | 'SOL'>('ERC20')
   const [promoCode, setPromoCode] = useState('')
@@ -74,6 +76,12 @@ const DesktopStartChallengePage: React.FC = () => {
   }
 
   React.useEffect(() => {
+    setPageLoading(true)
+    const timeout = window.setTimeout(() => setPageLoading(false), 200)
+    return () => window.clearTimeout(timeout)
+  }, [])
+
+  React.useEffect(() => {
     if ((isNgnAccount || isFreeCheckout) && selectedPaymentMethod === 'crypto') {
       setSelectedPaymentMethod('bank-transfer')
     }
@@ -95,7 +103,7 @@ const DesktopStartChallengePage: React.FC = () => {
   }
 
   const handleContinue = () => {
-    if (!selectedPaymentMethod || !agreements.terms || !accountData) return
+    if (!selectedPaymentMethod || !agreements.terms || !accountData || pageLoading) return
     const planId = inferPlanId(accountData)
     if (!planId) {
       setPaymentStatus('Unable to determine account size for payment')
@@ -115,6 +123,7 @@ const DesktopStartChallengePage: React.FC = () => {
         coupon_code: couponPreview?.code ?? (promoCode.trim() || null),
         challenge_type: (accountData as any).challenge_type,
         phase: (accountData as any).phase,
+        platform: selectedPlatform,
       })
         .then(() => {
           setPaymentStatus('Challenge activated! Redirecting...')
@@ -146,6 +155,7 @@ const DesktopStartChallengePage: React.FC = () => {
         crypto_currency: 'USDT',
         challenge_type: (accountData as any).challenge_type,
         phase: (accountData as any).phase,
+        platform: selectedPlatform,
       })
         .then((order) => {
           setCurrentOrder(order)
@@ -171,6 +181,7 @@ const DesktopStartChallengePage: React.FC = () => {
       coupon_code: couponPreview?.code ?? (promoCode.trim() || null),
       challenge_type: (accountData as any).challenge_type,
       phase: (accountData as any).phase,
+      platform: selectedPlatform,
     })
       .then((order) => {
         setCurrentOrder(order)
@@ -295,7 +306,11 @@ const DesktopStartChallengePage: React.FC = () => {
           <p>Complete checkout to start your selected account challenge.</p>
         </div>
 
-        {!accountData ? (
+        {pageLoading ? (
+          <div className="desktop-checkout-empty">
+            Loading account details...
+          </div>
+        ) : !accountData ? (
           <div className="desktop-checkout-empty">
             No account selected. Please go back and choose an account type.
           </div>
@@ -308,7 +323,32 @@ const DesktopStartChallengePage: React.FC = () => {
                   <div className="desktop-summary-row"><span>Account Balance</span><strong>{accountData.size}</strong></div>
                   <div className="desktop-summary-row"><span>Leverage</span><strong>1:100</strong></div>
                   <div className="desktop-summary-row"><span>Trading Account Currency</span><strong>USD</strong></div>
-                  <div className="desktop-summary-row"><span>Platform</span><strong>cTrader</strong></div>
+                  <div className="desktop-summary-row"><span>Platform</span><strong>{selectedPlatform === 'ctrader' ? 'cTrader' : 'MT5'}</strong></div>
+                </div>
+                <div className="platform-selection">
+                  <label className="platform-label">Select Platform</label>
+                  <div className="platform-options">
+                    <label className={`platform-option ${selectedPlatform === 'ctrader' ? 'active' : ''}`}>
+                      <input
+                        type="radio"
+                        name="platform"
+                        value="ctrader"
+                        checked={selectedPlatform === 'ctrader'}
+                        onChange={() => setSelectedPlatform('ctrader')}
+                      />
+                      <span>cTrader</span>
+                    </label>
+                    <label className={`platform-option ${selectedPlatform === 'mt5' ? 'active' : ''}`}>
+                      <input
+                        type="radio"
+                        name="platform"
+                        value="mt5"
+                        checked={selectedPlatform === 'mt5'}
+                        onChange={() => setSelectedPlatform('mt5')}
+                      />
+                      <span>MT5</span>
+                    </label>
+                  </div>
                 </div>
 
                 <div className="desktop-checkout-panel">
@@ -319,7 +359,7 @@ const DesktopStartChallengePage: React.FC = () => {
                       onChange={(e) => setPromoCode(e.target.value)}
                       placeholder="Enter discount code"
                     />
-                    <button type="button" onClick={() => void applyCoupon()} disabled={couponLoading}>
+                    <button type="button" onClick={() => void applyCoupon()} disabled={couponLoading || pageLoading}>
                       {couponLoading ? 'Applying...' : 'Apply'}
                     </button>
                   </div>
@@ -371,6 +411,7 @@ const DesktopStartChallengePage: React.FC = () => {
                             value="bank-transfer"
                             checked={selectedPaymentMethod === 'bank-transfer'}
                             onChange={() => setSelectedPaymentMethod('bank-transfer')}
+                            disabled={pageLoading}
                           />
                           <span>NGN Bank Transfer</span>
                         </label>
@@ -382,6 +423,7 @@ const DesktopStartChallengePage: React.FC = () => {
                               value="crypto"
                               checked={selectedPaymentMethod === 'crypto'}
                               onChange={() => setSelectedPaymentMethod('crypto')}
+                              disabled={pageLoading}
                             />
                             <span>Crypto</span>
                           </label>
@@ -396,7 +438,8 @@ const DesktopStartChallengePage: React.FC = () => {
                                 key={network}
                                 type="button"
                                 className={selectedNetwork === network ? 'active' : ''}
-                                onClick={() => setSelectedNetwork(network)}
+                            onClick={() => setSelectedNetwork(network)}
+                            disabled={pageLoading}
                               >
                                 {network}
                               </button>
@@ -409,16 +452,27 @@ const DesktopStartChallengePage: React.FC = () => {
                   )}
 
                   <label className="desktop-check-row" style={{marginTop: '16px', marginBottom: '16px'}}>
-                    <input type="checkbox" checked={agreements.terms} onChange={() => handleAgreementChange('terms')} />
+                    <input
+                      type="checkbox"
+                      checked={agreements.terms}
+                      onChange={() => handleAgreementChange('terms')}
+                      disabled={pageLoading}
+                    />
                     I agree to the <a href="https://machefunded.com/rules" target="_blank" rel="noopener noreferrer" style={{color: 'black', fontWeight: 'bold'}}>Rules and Conditions</a>
                   </label>
 
                   <button
                     className="desktop-checkout-continue"
                     onClick={handleContinue}
-                    disabled={!agreements.terms || paymentLoading}
+                    disabled={!agreements.terms || paymentLoading || pageLoading}
                   >
-                    {paymentLoading ? 'Processing...' : isFreeCheckout ? 'Activate Free Challenge' : 'Proceed to Payment'}
+                    {pageLoading
+                      ? 'Loading...'
+                      : paymentLoading
+                        ? 'Processing...'
+                        : isFreeCheckout
+                          ? 'Activate Free Challenge'
+                          : 'Proceed to Payment'}
                   </button>
                   {paymentStatus && <p className="desktop-coupon-success">{paymentStatus}</p>}
                 </div>

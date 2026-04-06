@@ -23,6 +23,7 @@ const parseCommand = (text?: string | null) => {
 const formatEventMessage = (payload: {
   type: string
   account: string
+  platform?: string
   profit?: number
   targetBalance?: number
   amount?: number
@@ -32,10 +33,12 @@ const formatEventMessage = (payload: {
   ownerEmail?: string
   resetCommand?: string
 }) => {
+  const platformLine = payload.platform ? `Platform: ${payload.platform}` : null
   if (payload.type === 'PHASE_PASS') {
     const lines = [
       '✅ Phase passed',
       `Account: ${payload.account}`,
+      platformLine,
       `Profit to deduct: ${payload.profit ?? 0}`,
       `Target Balance: ${payload.targetBalance ?? ''}`,
       payload.currentPhase ? `Current Phase: ${payload.currentPhase}` : null,
@@ -48,13 +51,28 @@ const formatEventMessage = (payload: {
     return lines.join('\n')
   }
   if (payload.type === 'WITHDRAW_REQUEST') {
-    return `💸 Withdrawal requested\nAccount: ${payload.account}\nAmount: ${payload.amount ?? payload.profit ?? 0}`
+    return [
+      '💸 Withdrawal requested',
+      `Account: ${payload.account}`,
+      platformLine,
+      `Amount: ${payload.amount ?? payload.profit ?? 0}`,
+    ].filter(Boolean).join('\n')
   }
   if (payload.type === 'WITHDRAWAL') {
-    return `💸 Withdrawal completed\nAccount: ${payload.account}\nAmount: ${payload.amount ?? payload.profit ?? 0}`
+    return [
+      '💸 Withdrawal completed',
+      `Account: ${payload.account}`,
+      platformLine,
+      `Amount: ${payload.amount ?? payload.profit ?? 0}`,
+    ].filter(Boolean).join('\n')
   }
   if (payload.type === 'ADJUST_BALANCE') {
-    return `🧮 Balance adjustment\nAccount: ${payload.account}\nAmount: ${payload.amount ?? payload.profit ?? payload.targetBalance ?? ''}`
+    return [
+      '🧮 Balance adjustment',
+      `Account: ${payload.account}`,
+      platformLine,
+      `Amount: ${payload.amount ?? payload.profit ?? payload.targetBalance ?? ''}`,
+    ].filter(Boolean).join('\n')
   }
   return `Finance event: ${payload.type}`
 }
@@ -70,6 +88,7 @@ export const registerWebhook = async (bot: TelegramBot) => {
 export const sendFinanceEventMessage = async (bot: TelegramBot, payload: {
   type: string
   account: string
+  platform?: string
   profit?: number
   targetBalance?: number
   amount?: number

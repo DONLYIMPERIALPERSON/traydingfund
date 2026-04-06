@@ -54,6 +54,7 @@ const bankTransferOrderSchema = z.object({
   coupon_code: z.string().min(1).nullable().optional(),
   challenge_type: z.string().min(1),
   phase: z.string().min(1),
+  platform: z.enum(['ctrader', 'mt5']).optional(),
   affiliate_id: z.coerce.number().int().positive().optional(),
 })
 
@@ -64,6 +65,7 @@ const freeOrderSchema = z.object({
   coupon_code: z.string().min(1).nullable().optional(),
   challenge_type: z.string().min(1),
   phase: z.string().min(1),
+  platform: z.enum(['ctrader', 'mt5']).optional(),
   affiliate_id: z.coerce.number().int().positive().optional(),
 })
 
@@ -75,6 +77,7 @@ const cryptoOrderSchema = z.object({
   challenge_type: z.string().min(1),
   phase: z.string().min(1),
   coupon_code: z.string().min(1).nullable().optional(),
+  platform: z.enum(['ctrader', 'mt5']).optional(),
   affiliate_id: z.coerce.number().int().positive().optional(),
 })
 

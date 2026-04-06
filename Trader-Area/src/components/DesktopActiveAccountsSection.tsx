@@ -66,6 +66,7 @@ const DesktopActiveAccountsSection: React.FC<DesktopActiveAccountsSectionProps> 
                 startDate={account.started_at ? new Date(account.started_at).toLocaleDateString() : '-'}
                 amount={account.account_size}
                 currency={account.currency}
+                platform={account.platform}
                 status={(account.display_status as 'Active' | 'Ready' | 'Passed' | 'Failed')}
                 hasPendingWithdrawal={account.has_pending_withdrawal}
               />

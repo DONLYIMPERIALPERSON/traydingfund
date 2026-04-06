@@ -1,0 +1,27 @@
+{
+  "supported_symbols": [
+    "EURUSD",
+    "GBPUSD",
+    "AUDUSD",
+    "NZDUSD",
+    "USDJPY",
+    "USDCAD",
+    "USDCHF",
+    "EURGBP",
+    "EURJPY",
+    "GBPJPY",
+    "AUDJPY",
+    "NZDJPY",
+    "XAUUSD",
+    "XAGUSD",
+    "US30",
+    "US500",
+    "USTEC",
+    "UK100",
+    "DE30",
+    "BTCUSD",
+    "ETHUSD",
+    "USOIL",
+    "UKOIL"
+  ]
+}

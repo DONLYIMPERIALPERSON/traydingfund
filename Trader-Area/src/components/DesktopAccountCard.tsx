@@ -9,12 +9,13 @@ interface AccountProps {
   startDate: string;
   amount: string;
   currency?: string;
+  platform?: string;
   status: 'Active' | 'Ready' | 'Passed' | 'Failed';
   passedStage?: string | null;
   hasPendingWithdrawal?: boolean | undefined;
 }
 
-const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType, phase, accountNumber, startDate, amount, currency, status, passedStage, hasPendingWithdrawal }) => {
+const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType, phase, accountNumber, startDate, amount, currency, platform, status, passedStage, hasPendingWithdrawal }) => {
   const navigate = useNavigate()
 
   const formatChallengeType = (value?: string) => {
@@ -72,6 +73,13 @@ const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType
       return amount
     }
   }
+
+  const normalizedPlatform = platform?.toLowerCase()
+  const platformLabel = normalizedPlatform === 'mt5'
+    ? 'MT5'
+    : platform
+      ? platform.replace(/\b\w/g, (char) => char.toUpperCase())
+      : 'cTrader'
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -191,7 +199,7 @@ const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType
               fontWeight: '700',
               color: '#f8fafc'
             }}>
-              {formatAccountSize()}
+              {formatAccountSize()} - {platformLabel}
             </div>
             <div style={{
               fontSize: '14px',

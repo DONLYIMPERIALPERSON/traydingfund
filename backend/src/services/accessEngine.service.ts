@@ -5,6 +5,9 @@ type GrantAccessPayload = {
   account_number: string
   broker: string
   platform: string
+  mt5_login?: string
+  mt5_server?: string
+  mt5_password?: string
   user_name?: string | undefined
   account_type?: string | undefined
   account_phase?: string | undefined

@@ -35,6 +35,7 @@ export type ChallengeAccountListItem = {
   phase?: string | null
   mt5_account?: string | null
   mt5_server?: string | null
+  platform?: string | null
   objective_status?: string | null
   current_pnl?: string | null
   profit?: string | null
@@ -70,6 +71,10 @@ export type MT5Account = {
   assignment_mode?: string | null
   assigned_by_admin_name?: string | null
   access_status?: string | null
+  platform?: string | null
+  mt5_login?: string | null
+  mt5_server?: string | null
+  mt5_password?: string | null
 }
 
 export type Order = {
@@ -433,14 +438,20 @@ export const clearPersistedAdminUser = () => {
 export const fetchDashboardStats = async () =>
   apiFetch<any>('/admin/dashboard')
 
-export const fetchActiveChallengeAccounts = async () =>
-  apiFetch<{ accounts: ChallengeAccountListItem[] }>('/admin/challenges/active')
+export const fetchActiveChallengeAccounts = async (platform?: string) =>
+  apiFetch<{ accounts: ChallengeAccountListItem[] }>(
+    platform ? `/admin/challenges/active?platform=${encodeURIComponent(platform)}` : '/admin/challenges/active'
+  )
 
-export const fetchFundedChallengeAccounts = async () =>
-  apiFetch<{ accounts: ChallengeAccountListItem[] }>('/admin/challenges/funded')
+export const fetchFundedChallengeAccounts = async (platform?: string) =>
+  apiFetch<{ accounts: ChallengeAccountListItem[] }>(
+    platform ? `/admin/challenges/funded?platform=${encodeURIComponent(platform)}` : '/admin/challenges/funded'
+  )
 
-export const fetchProfitableFundedAccounts = async () =>
-  apiFetch<{ accounts: ChallengeAccountListItem[] }>('/admin/challenges/funded/top')
+export const fetchProfitableFundedAccounts = async (platform?: string) =>
+  apiFetch<{ accounts: ChallengeAccountListItem[] }>(
+    platform ? `/admin/challenges/funded/top?platform=${encodeURIComponent(platform)}` : '/admin/challenges/funded/top'
+  )
 
 export const fetchBreachedChallengeAccounts = async () =>
   apiFetch<{ accounts: ChallengeBreachListItem[] }>('/admin/challenges/breaches')
@@ -599,25 +610,39 @@ export const deleteAdminCoupon = async (couponId: number) =>
     method: 'DELETE',
   })
 
-export const fetchMT5Accounts = async (status?: string) =>
-  apiFetch<{ accounts: MT5Account[] }>(
-    status ? `/admin/ctrader/accounts?status=${encodeURIComponent(status)}` : '/admin/ctrader/accounts',
+export const fetchMT5Accounts = async (status?: string, platform?: string) => {
+  const params = new URLSearchParams()
+  if (status) {
+    params.set('status', status)
+  }
+  if (platform) {
+    params.set('platform', platform)
+  }
+  const suffix = params.toString()
+  return apiFetch<{ accounts: MT5Account[] }>(
+    suffix ? `/admin/ctrader/accounts?${suffix}` : '/admin/ctrader/accounts',
   )
+}
 
-export const fetchAssignedMT5Accounts = async () =>
-  apiFetch<{ accounts: MT5Account[] }>(
-    '/admin/ctrader/accounts',
-  )
+export const fetchAssignedMT5Accounts = async (platform?: string) => {
+  const suffix = platform ? `?platform=${encodeURIComponent(platform)}` : ''
+  return apiFetch<{ accounts: MT5Account[] }>(`/admin/ctrader/accounts${suffix}`)
+}
 
 export const fetchMT5Summary = async () =>
-  apiFetch<{ total: number; ready: number; assigned: number; disabled: number }>(
+  apiFetch<{ total: number; ready: number; assigned: number; disabled: number; ctrader: { total: number; ready: number; assigned: number; disabled: number }; mt5: { total: number; ready: number; assigned: number; disabled: number } }>(
     '/admin/ctrader/summary',
   )
 
-export const fetchAwaitingNextStageAccounts = async () =>
-  apiFetch<{ accounts: MT5Account[] }>(
-    '/admin/ctrader/accounts?status=awaiting-next-stage',
+export const fetchAwaitingNextStageAccounts = async (platform?: string) => {
+  const params = new URLSearchParams({ status: 'awaiting-next-stage' })
+  if (platform) {
+    params.set('platform', platform)
+  }
+  return apiFetch<{ accounts: MT5Account[] }>(
+    `/admin/ctrader/accounts?${params.toString()}`,
   )
+}
 
 export const forceAssignNextStage = async (accountId: number) =>
   apiFetch<{ message: string; assigned_challenge_id: string; assigned_account_number: string }>(
@@ -642,6 +667,17 @@ export const assignMT5Account = async (
 
 export const downloadMT5Template = async () =>
   apiFetchText('/admin/ctrader/accounts/template')
+
+export const logCTraderCredentialView = async (payload: {
+  account_id?: number
+  account_number?: string
+  platform: string
+  scope?: string
+}) =>
+  apiFetch<{ status: string }>('/admin/ctrader/accounts/credential-views', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 
 const parseCsvLine = (line: string): string[] => {
   const result: string[] = []
@@ -673,7 +709,17 @@ const parseCsvLine = (line: string): string[] => {
   return result
 }
 
-const parseUploadLines = (content: string): Array<{ account_number: string; broker: string; account_size: string; currency?: string; status?: string }> => {
+const parseUploadLines = (content: string): Array<{
+  account_number: string
+  broker: string
+  account_size: string
+  currency?: string
+  status?: string
+  platform?: string
+  mt5_login?: string
+  mt5_server?: string
+  mt5_password?: string
+}> => {
   const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
   if (!lines.length) return []
 
@@ -696,6 +742,10 @@ const parseUploadLines = (content: string): Array<{ account_number: string; brok
   const sizeIndex = getHeaderIndex(['accountsize', 'account_size', 'size'])
   const currencyIndex = getHeaderIndex(['currency'])
   const statusIndex = getHeaderIndex(['status'])
+  const platformIndex = getHeaderIndex(['platform'])
+  const mt5LoginIndex = getHeaderIndex(['mt5login', 'mt5_login', 'login'])
+  const mt5ServerIndex = getHeaderIndex(['mt5server', 'mt5_server', 'server'])
+  const mt5PasswordIndex = getHeaderIndex(['mt5password', 'mt5_password', 'password'])
 
   const dataLines = hasHeader ? lines.slice(1) : lines
   return dataLines.map((line) => {
@@ -711,18 +761,49 @@ const parseUploadLines = (content: string): Array<{ account_number: string; brok
       const accountSizeParts = parts.slice(sizeStart, sizeEnd).filter((part) => part.length > 0)
       const currencyValue = safeIndex(currencyIndex) !== undefined ? parts[currencyIndex] : undefined
       const statusValue = safeIndex(statusIndex) !== undefined ? parts[statusIndex] : undefined
+      const platformValue = safeIndex(platformIndex) !== undefined ? parts[platformIndex] : undefined
+      const mt5LoginValue = safeIndex(mt5LoginIndex) !== undefined ? parts[mt5LoginIndex] : undefined
+      const mt5ServerValue = safeIndex(mt5ServerIndex) !== undefined ? parts[mt5ServerIndex] : undefined
+      const mt5PasswordValue = safeIndex(mt5PasswordIndex) !== undefined ? parts[mt5PasswordIndex] : undefined
 
+      const accountNumber = parts[accountIndex] ?? ''
+      const platform = (platformValue || '').toLowerCase()
+      const resolvedLogin = platform === 'mt5'
+        ? (mt5LoginValue || accountNumber)
+        : mt5LoginValue
       return {
-        account_number: parts[accountIndex] ?? '',
+        account_number: accountNumber,
         broker: parts[brokerIndex] ?? '',
         account_size: accountSizeParts.join(delimiter).trim(),
         currency: currencyValue || undefined,
         status: statusValue || 'Ready',
+        platform: platformValue || undefined,
+        mt5_login: resolvedLogin || undefined,
+        mt5_server: mt5ServerValue || undefined,
+        mt5_password: mt5PasswordValue || undefined,
       }
     }
 
     const accountNumber = parts[0] ?? ''
     const broker = parts[1] ?? ''
+
+    if (parts.length >= 9) {
+      const platform = (parts[5] || '').toLowerCase()
+      const resolvedLogin = platform === 'mt5'
+        ? (parts[6] || accountNumber)
+        : parts[6]
+      return {
+        account_number: accountNumber,
+        broker,
+        account_size: parts[2] ?? '',
+        currency: parts[3] || undefined,
+        status: parts[4] || 'Ready',
+        platform: parts[5] || undefined,
+        mt5_login: resolvedLogin || undefined,
+        mt5_server: parts[7] || undefined,
+        mt5_password: parts[8] || undefined,
+      }
+    }
 
     let status = 'Ready'
     let currency: string | undefined

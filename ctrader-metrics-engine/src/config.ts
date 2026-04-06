@@ -43,7 +43,7 @@ export const config = {
   backendMetricsPath: optional('BACKEND_METRICS_PATH', '/api/v1/ctrader/metrics'),
   backendActiveAccountsPath: optional('BACKEND_ACTIVE_ACCOUNTS_PATH', '/api/v1/ctrader/active-accounts'),
   backendEngineSecret: must('BACKEND_ENGINE_SECRET'),
-  metricsPublishIntervalMs: Number(optional('METRICS_PUBLISH_INTERVAL_MS', '1000')),
+  metricsPublishIntervalMs: Number(optional('METRICS_PUBLISH_INTERVAL_MS', '500')),
   enginePort: Number(optional('ENGINE_PORT', '7005')),
   accountRefreshSeconds: Number(optional('ACCOUNT_REFRESH_SECONDS', '60')),
   ctrader: {

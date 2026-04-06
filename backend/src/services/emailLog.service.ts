@@ -4,18 +4,20 @@ type EmailLogPayload = {
   type: string
   accountId?: number | null
   userId?: number | null
+  metadata?: Record<string, unknown> | null
 }
 
 type ShouldSendEmailPayload = EmailLogPayload & {
   send: () => Promise<void>
 }
 
-export const recordEmailLog = async ({ type, accountId, userId }: EmailLogPayload) => {
+export const recordEmailLog = async ({ type, accountId, userId, metadata }: EmailLogPayload) => {
   await prisma.emailLog.create({
     data: {
       type,
       accountId: accountId ?? null,
       userId: userId ?? null,
+      metadata: metadata ?? undefined,
     },
   })
 }
@@ -44,3 +46,18 @@ export const sendEmailOnce = async ({ type, accountId, userId, send }: ShouldSen
   await recordEmailLog({ type, accountId: normalizedAccountId, userId: normalizedUserId })
   return true
 }
+
+export const recordCredentialView = async ({
+  accountId,
+  userId,
+  metadata,
+}: {
+  accountId?: number | null
+  userId?: number | null
+  metadata?: Record<string, unknown> | null
+}) => recordEmailLog({
+  type: 'CREDENTIAL_VIEW',
+  accountId: accountId ?? null,
+  userId: userId ?? null,
+  metadata: metadata ?? undefined,
+})

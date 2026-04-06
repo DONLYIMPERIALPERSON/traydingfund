@@ -20,12 +20,18 @@ const AccountOverviewPage: React.FC = () => {
     return currency ? currency.toUpperCase() : 'USD'
   }
 
-  const formatCurrency = (value: number, currencyCode: string) => new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currencyCode,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)
+  const formatCurrency = (value: number, currencyCode: string) => {
+    const normalized = currencyCode.toUpperCase()
+    if (normalized === 'NGN') {
+      return `₦${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    }
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: normalized,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value)
+  }
 
   const formatSignedCurrency = (value: number, currencyCode: string) => {
     const formatted = formatCurrency(Math.abs(value), currencyCode)

@@ -121,11 +121,23 @@ export const notifyBackendAccessGranted = async ({
 }
 
 export const formatAccessRequestMessage = (payload: AccessGrantRequest) => {
+  const includeMt5Credentials = config.sendMt5Credentials
+    && payload.platform?.toLowerCase() === 'mt5'
+
   const details = [
     payload.user_name ? `Name: ${payload.user_name}` : null,
     payload.account_type ? `Account Type: ${payload.account_type}` : null,
     payload.account_phase ? `Phase: ${payload.account_phase}` : null,
     payload.account_size ? `Size: ${payload.account_size}` : null,
+    includeMt5Credentials && payload.mt5_login
+      ? `MT5 Login: ${payload.mt5_login}`
+      : null,
+    includeMt5Credentials && payload.mt5_server
+      ? `MT5 Server: ${payload.mt5_server}`
+      : null,
+    includeMt5Credentials && payload.mt5_password
+      ? `MT5 Password: ${payload.mt5_password}`
+      : null,
   ].filter(Boolean)
 
   return [

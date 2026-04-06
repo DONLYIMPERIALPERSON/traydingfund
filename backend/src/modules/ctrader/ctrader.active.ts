@@ -9,7 +9,8 @@ const ACTIVE_STATUSES = ['active', 'assigned', 'assigned_pending_access', 'funde
 export const listActiveCTraderAccounts = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const secret = req.header('X-ENGINE-SECRET')
-    if (!secret || secret !== env.ctraderEngineSecret) {
+    const allowedSecrets = [env.ctraderEngineSecret, env.mt5EngineSecret].filter(Boolean)
+    if (!secret || !allowedSecrets.includes(secret)) {
       throw new ApiError('Unauthorized engine request', 401)
     }
 
@@ -21,10 +22,14 @@ export const listActiveCTraderAccounts = async (req: Request, res: Response, nex
 
     const payload = accounts.map((account) => ({
       accountNumber: account.accountNumber,
+      platform: account.platform ?? 'ctrader',
       balance: account.metrics?.balance ?? account.initialBalance ?? 0,
       status: account.status,
       phase: account.phase,
       challengeType: account.challengeType,
+      mt5Login: account.mt5Login ?? account.accountNumber,
+      mt5Password: account.mt5Password,
+      mt5Server: account.mt5Server ?? account.brokerName,
     }))
 
     if (req.query?.push_engine === 'true') {

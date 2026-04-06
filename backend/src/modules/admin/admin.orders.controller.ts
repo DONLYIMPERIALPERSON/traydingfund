@@ -14,6 +14,11 @@ const AFFILIATE_COMMISSION_PERCENT = 10
 const formatCurrency = (amountKobo: number) =>
   `$${(amountKobo / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 
+const buildEmailSubject = (base: string) => {
+  const suffix = Math.random().toString(36).slice(2, 7).toUpperCase()
+  return `${base} #${suffix}`
+}
+
 const toUsdKobo = (amountKobo: number, currency?: string | null, rate?: number) => {
   if (currency?.toUpperCase() === 'NGN') {
     const divider = rate && rate > 0 ? rate : 1300
@@ -161,7 +166,7 @@ export const listPendingAssignments = async (_req: Request, res: Response, next:
     const usdNgnRate = fxConfig.rules?.usd_ngn_rate ?? 1300
     type OrderWithUser = Prisma.OrderGetPayload<{ include: { user: true } }>
     const orders = await prisma.order.findMany({
-      where: { assignmentStatus: 'pending_assign', status: 'pending' },
+      where: { assignmentStatus: 'pending_assign', status: { in: ['pending', 'completed'] } },
       include: { user: true },
       orderBy: { createdAt: 'asc' },
     }) as OrderWithUser[]
@@ -281,12 +286,14 @@ export const approveCryptoOrder = async (req: Request, res: Response, next: Next
     }
 
     if (updated.assignmentStatus !== 'assigned') {
+      const platform = (updated.metadata as { platform?: string } | null)?.platform ?? 'ctrader'
       const assigned = await assignReadyAccountFromPool({
         userId: updated.userId,
         challengeType,
         phase,
         accountSize: updated.accountSize,
         currency: updated.currency ?? 'USD',
+        platform,
       })
 
       if (assigned) {
@@ -295,7 +302,12 @@ export const approveCryptoOrder = async (req: Request, res: Response, next: Next
           data: { assignmentStatus: 'assigned' },
         })
 
-        if (user?.email) {
+        if (platform.toLowerCase() === 'mt5') {
+          await prisma.cTraderAccount.update({
+            where: { id: assigned.id },
+            data: { status: 'active', accessStatus: 'granted', accessGrantedAt: new Date() },
+          })
+        } else if (user?.email) {
           await requestAccountAccess({
             user_email: user.email,
             user_name: user.fullName ?? undefined,
@@ -304,7 +316,10 @@ export const approveCryptoOrder = async (req: Request, res: Response, next: Next
             account_size: assigned.accountSize ?? updated.accountSize ?? undefined,
             account_number: assigned.accountNumber,
             broker: assigned.brokerName,
-            platform: 'ctrader',
+            platform,
+            mt5_login: assigned.mt5Login ?? undefined,
+            mt5_server: assigned.mt5Server ?? undefined,
+            mt5_password: assigned.mt5Password ?? undefined,
           })
         }
       } else {

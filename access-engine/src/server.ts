@@ -9,7 +9,13 @@ app.use(express.json())
 const bot = createTelegramBot()
 
 const isValidAccessRequest = (payload: Partial<AccessGrantRequest>): payload is AccessGrantRequest => {
-  return Boolean(payload.user_email && payload.account_number && payload.broker && payload.platform)
+  if (!(payload.user_email && payload.account_number && payload.broker && payload.platform)) {
+    return false
+  }
+  if (String(payload.platform).toLowerCase() === 'mt5') {
+    return Boolean(payload.mt5_login && payload.mt5_server && payload.mt5_password)
+  }
+  return true
 }
 
 app.post('/access-engine/grant', async (req: Request, res: Response) => {
@@ -21,7 +27,7 @@ app.post('/access-engine/grant', async (req: Request, res: Response) => {
 
   const payload = req.body as Partial<AccessGrantRequest>
   if (!isValidAccessRequest(payload)) {
-    res.status(400).json({ message: 'user_email, account_number, broker, platform are required' })
+    res.status(400).json({ message: 'user_email, account_number, broker, platform (and MT5 credentials when platform=mt5) are required' })
     return
   }
 

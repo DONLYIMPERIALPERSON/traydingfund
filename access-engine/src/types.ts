@@ -3,6 +3,9 @@ export type AccessGrantRequest = {
   account_number: string
   broker: string
   platform: string
+  mt5_login?: string
+  mt5_server?: string
+  mt5_password?: string
   user_name?: string
   account_type?: string
   account_phase?: string

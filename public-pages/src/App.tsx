@@ -7,6 +7,7 @@ import ContactPage from './pages/ContactPage';
 import FAQPage from './pages/FAQPage';
 import StorePage from './pages/StorePage';
 import MacheMinutePage from './pages/MacheMinutePage';
+import SupportedMarketsPage from './pages/SupportedMarketsPage';
 import Footer from './components/Footer';
 
 function App() {
@@ -47,6 +48,7 @@ function App() {
 				<Route path="/rules" element={<RulesPage />} />
 				<Route path="/contact" element={<ContactPage />} />
 				<Route path="/faq" element={<FAQPage />} />
+				<Route path="/supported-markets" element={<SupportedMarketsPage />} />
 				<Route path="/store" element={<StorePage />} />
 				<Route path="/themacheminute" element={<MacheMinutePage />} />
 				<Route path="/ref/:code" element={<Navigate to="/" replace />} />

@@ -130,9 +130,12 @@ const mapAccountPhaseLabel = (phase?: string | null) => {
 
 export const listActiveChallengeAccounts = async (_req: Request, res: Response, next: NextFunction) => {
   try {
+    const { platform } = _req.query as { platform?: string }
+    const normalizedPlatform = platform?.toLowerCase()
     const accounts = await prisma.cTraderAccount.findMany({
       where: {
         status: { in: ['active', 'assigned', 'assigned_pending_access', 'awaiting_reset', 'withdraw_requested'] },
+        ...(normalizedPlatform ? { platform: { equals: normalizedPlatform, mode: 'insensitive' } } : {}),
       },
       orderBy: { createdAt: 'desc' },
       include: { user: true, metrics: true },
@@ -151,6 +154,7 @@ export const listActiveChallengeAccounts = async (_req: Request, res: Response, 
           phase: mapAccountPhaseLabel(account.phase),
           mt5_account: account.accountNumber,
           mt5_server: account.brokerName,
+          platform: account.platform ?? 'ctrader',
           objective_status: account.status,
           current_pnl: pnl ? `${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toLocaleString('en-US')}` : '+$0',
         }
@@ -165,12 +169,15 @@ const formatPnl = (pnl: number) => `${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toLo
 
 export const listFundedChallengeAccounts = async (_req: Request, res: Response, next: NextFunction) => {
   try {
+    const { platform } = _req.query as { platform?: string }
+    const normalizedPlatform = platform?.toLowerCase()
     const accounts = await prisma.cTraderAccount.findMany({
       where: {
         OR: [
           { status: { equals: 'funded', mode: 'insensitive' } },
           { phase: { contains: 'funded', mode: 'insensitive' } },
         ],
+        ...(normalizedPlatform ? { platform: { equals: normalizedPlatform, mode: 'insensitive' } } : {}),
       },
       orderBy: { createdAt: 'desc' },
       include: { user: true, metrics: true },
@@ -189,6 +196,7 @@ export const listFundedChallengeAccounts = async (_req: Request, res: Response, 
           phase: mapAccountPhaseLabel(account.phase ?? 'funded'),
           mt5_account: account.accountNumber,
           mt5_server: account.brokerName,
+          platform: account.platform ?? 'ctrader',
           objective_status: account.status,
           current_pnl: formatPnl(pnl),
           profit: formatPnl(pnl),
@@ -202,12 +210,15 @@ export const listFundedChallengeAccounts = async (_req: Request, res: Response, 
 
 export const listTopFundedTraders = async (_req: Request, res: Response, next: NextFunction) => {
   try {
+    const { platform } = _req.query as { platform?: string }
+    const normalizedPlatform = platform?.toLowerCase()
     const accounts = await prisma.cTraderAccount.findMany({
       where: {
         OR: [
           { status: { equals: 'funded', mode: 'insensitive' } },
           { phase: { contains: 'funded', mode: 'insensitive' } },
         ],
+        ...(normalizedPlatform ? { platform: { equals: normalizedPlatform, mode: 'insensitive' } } : {}),
       },
       orderBy: { createdAt: 'desc' },
       include: { user: true, metrics: true },
@@ -232,6 +243,7 @@ export const listTopFundedTraders = async (_req: Request, res: Response, next: N
         phase: mapAccountPhaseLabel(account.phase ?? 'funded'),
         mt5_account: account.accountNumber,
         mt5_server: account.brokerName,
+        platform: account.platform ?? 'ctrader',
         objective_status: account.status,
         current_pnl: formatPnl(pnl),
         profit: formatPnl(pnl),

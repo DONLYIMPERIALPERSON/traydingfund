@@ -10,6 +10,7 @@ import {
   fetchPendingAssignments,
   forceAssignNextStage,
   deleteMT5Account,
+  logCTraderCredentialView,
   type MT5Account,
   type Order,
   uploadMT5AccountsTxt,
@@ -45,11 +46,19 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
   const [assignedAccounts, setAssignedAccounts] = useState<MT5Account[]>([])
   const [awaitingNextStageAccounts, setAwaitingNextStageAccounts] = useState<MT5Account[]>([])
   const [pendingAssignments, setPendingAssignments] = useState<Order[]>([])
-  const [summary, setSummary] = useState({ total: 0, ready: 0, assigned: 0, disabled: 0 })
+  const [summary, setSummary] = useState({
+    total: 0,
+    ready: 0,
+    assigned: 0,
+    disabled: 0,
+    ctrader: { total: 0, ready: 0, assigned: 0, disabled: 0 },
+    mt5: { total: 0, ready: 0, assigned: 0, disabled: 0 },
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [readySearch, setReadySearch] = useState('')
   const [assignedSearch, setAssignedSearch] = useState('')
+  const [platformFilter, setPlatformFilter] = useState<'all' | 'ctrader' | 'mt5'>('all')
   const [readySizeFilter, setReadySizeFilter] = useState('')
   const [assignedSizeFilter, setAssignedSizeFilter] = useState('')
   const [awaitingSizeFilter, setAwaitingSizeFilter] = useState('')
@@ -67,6 +76,8 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
   const [uploading, setUploading] = useState(false)
   const [loadingChallengeId, setLoadingChallengeId] = useState(false)
   const [useCustomChallengeId, setUseCustomChallengeId] = useState(false)
+  const [credentialAccount, setCredentialAccount] = useState<MT5Account | null>(null)
+  const [credentialError, setCredentialError] = useState('')
 
   const loadNextManualChallengeId = async () => {
     setLoadingChallengeId(true)
@@ -108,52 +119,79 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
     void loadData()
   }, [])
 
-  const accountSizeCounts = useMemo(() => {
-    return readyAccounts.reduce<Record<string, number>>((acc, account) => {
+  const accountSizeBreakdown = useMemo(() => {
+    return readyAccounts.reduce<Record<string, { total: number; ctrader: number; mt5: number }>>((acc, account) => {
       if ((account.currency ?? 'USD').toUpperCase() === 'NGN') {
         return acc
       }
       const normalized = normalizeAccountSize(account.account_size)
-      acc[normalized] = (acc[normalized] ?? 0) + 1
+      const platform = (account.platform ?? 'ctrader').toLowerCase()
+      const existing = acc[normalized] ?? { total: 0, ctrader: 0, mt5: 0 }
+      const updated = {
+        total: existing.total + 1,
+        ctrader: existing.ctrader + (platform === 'ctrader' ? 1 : 0),
+        mt5: existing.mt5 + (platform === 'mt5' ? 1 : 0),
+      }
+      acc[normalized] = updated
       return acc
     }, {})
   }, [readyAccounts])
 
-  const ngnSizeCounts = useMemo(() => {
-    return readyAccounts.reduce<Record<string, number>>((acc, account) => {
+  const ngnSizeBreakdown = useMemo(() => {
+    return readyAccounts.reduce<Record<string, { total: number; ctrader: number; mt5: number }>>((acc, account) => {
       if ((account.currency ?? 'USD').toUpperCase() !== 'NGN') {
         return acc
       }
       const normalized = account.account_size.replace(/\s*Account$/i, '').trim()
-      acc[normalized] = (acc[normalized] ?? 0) + 1
+      const platform = (account.platform ?? 'ctrader').toLowerCase()
+      const existing = acc[normalized] ?? { total: 0, ctrader: 0, mt5: 0 }
+      const updated = {
+        total: existing.total + 1,
+        ctrader: existing.ctrader + (platform === 'ctrader' ? 1 : 0),
+        mt5: existing.mt5 + (platform === 'mt5' ? 1 : 0),
+      }
+      acc[normalized] = updated
       return acc
     }, {})
   }, [readyAccounts])
 
+  const accountSizeCounts = useMemo(
+    () => Object.fromEntries(Object.entries(accountSizeBreakdown).map(([size, stats]) => [size, stats.total])),
+    [accountSizeBreakdown],
+  )
+
+  const ngnSizeCounts = useMemo(
+    () => Object.fromEntries(Object.entries(ngnSizeBreakdown).map(([size, stats]) => [size, stats.total])),
+    [ngnSizeBreakdown],
+  )
+
   const filteredReadyAccounts = useMemo(() => {
     const query = readySearch.trim().toLowerCase()
     return readyAccounts.filter((account) => {
+      const matchesPlatform = platformFilter === 'all' || (account.platform ?? 'ctrader') === platformFilter
       const matchesQuery = !query || account.account_number.toLowerCase().includes(query)
       const matchesSize = !readySizeFilter || account.account_size === readySizeFilter
-      return matchesQuery && matchesSize
+      return matchesPlatform && matchesQuery && matchesSize
     })
-  }, [readyAccounts, readySearch, readySizeFilter])
+  }, [readyAccounts, readySearch, readySizeFilter, platformFilter])
 
   const filteredAssignedAccounts = useMemo(() => {
     const query = assignedSearch.trim().toLowerCase()
     return assignedAccounts.filter((account) => {
       if (account.status?.toLowerCase() === 'ready') return false
+      const matchesPlatform = platformFilter === 'all' || (account.platform ?? 'ctrader') === platformFilter
       const matchesQuery = !query || account.account_number.toLowerCase().includes(query)
       const matchesSize = !assignedSizeFilter || account.account_size === assignedSizeFilter
-      return matchesQuery && matchesSize
+      return matchesPlatform && matchesQuery && matchesSize
     })
-  }, [assignedAccounts, assignedSearch, assignedSizeFilter])
+  }, [assignedAccounts, assignedSearch, assignedSizeFilter, platformFilter])
 
   const filteredAwaitingNextStageAccounts = useMemo(() => {
     return awaitingNextStageAccounts.filter((account) => {
-      return !awaitingSizeFilter || account.account_size === awaitingSizeFilter
+      const matchesPlatform = platformFilter === 'all' || (account.platform ?? 'ctrader') === platformFilter
+      return matchesPlatform && (!awaitingSizeFilter || account.account_size === awaitingSizeFilter)
     })
-  }, [awaitingNextStageAccounts, awaitingSizeFilter])
+  }, [awaitingNextStageAccounts, awaitingSizeFilter, platformFilter])
 
 
   const filteredPendingAssignments = useMemo(() => {
@@ -247,7 +285,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = url
-      anchor.download = 'ctrader_accounts_template.txt'
+      anchor.download = 'accounts_pool_template.txt'
       document.body.appendChild(anchor)
       anchor.click()
       document.body.removeChild(anchor)
@@ -297,12 +335,28 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
     }
   }
 
+  const handleViewCredentials = async (account: MT5Account) => {
+    setCredentialError('')
+    setCredentialAccount(account)
+    if ((account.platform ?? 'ctrader').toLowerCase() !== 'mt5') return
+    try {
+      await logCTraderCredentialView({
+        account_id: account.id,
+        account_number: account.account_number,
+        platform: 'mt5',
+        scope: 'admin',
+      })
+    } catch (err) {
+      setCredentialError(err instanceof Error ? err.message : 'Failed to log credential view')
+    }
+  }
+
   return (
     <section className="admin-page-stack">
       <div className="admin-dashboard-card" style={{ display: 'grid', gap: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <div>
-            <h2>cTrader</h2>
+            <h2>Accounts Pool</h2>
             <p style={{ margin: 0, color: '#fff' }}>Ready inventory and stage-assigned account tracking</p>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -365,18 +419,30 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
             <p style={{ margin: 0, color: '#9ca3af', fontSize: 12 }}>Active Sizes (Ready)</p>
             <p style={{ margin: '6px 0 0', color: '#fff', fontWeight: 800, fontSize: 20 }}>{activeSizes}</p>
           </div>
+          <div style={{ border: '1px solid rgba(14,116,144,0.45)', borderRadius: 12, padding: 12, background: 'rgba(14,116,144,0.16)' }}>
+            <p style={{ margin: 0, color: '#bae6fd', fontSize: 12 }}>cTrader Ready</p>
+            <p style={{ margin: '6px 0 0', color: '#fff', fontWeight: 800, fontSize: 20 }}>{summary.ctrader.ready}</p>
+          </div>
+          <div style={{ border: '1px solid rgba(59,130,246,0.45)', borderRadius: 12, padding: 12, background: 'rgba(59,130,246,0.16)' }}>
+            <p style={{ margin: 0, color: '#bfdbfe', fontSize: 12 }}>MT5 Ready</p>
+            <p style={{ margin: '6px 0 0', color: '#fff', fontWeight: 800, fontSize: 20 }}>{summary.mt5.ready}</p>
+          </div>
         </div>
 
         <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
-          {publicAccountSizes.map((size) => {
-            const count = accountSizeCounts[size.value] ?? 0
-            return (
-              <div key={size.value} style={{ border: '1px solid #2a2f3a', borderRadius: 12, padding: 12, background: count > 0 ? 'rgba(245,158,11,0.08)' : '#11151d' }}>
-                <p style={{ margin: 0, color: '#d1d5db', fontSize: 12 }}>{size.label}</p>
-                <p style={{ margin: '6px 0 0', color: '#fff', fontWeight: 800, fontSize: 18 }}>{count}</p>
-              </div>
-            )
-          })}
+            {publicAccountSizes.map((size) => {
+              const count = accountSizeCounts[size.value] ?? 0
+              const breakdown = accountSizeBreakdown[size.value] ?? { ctrader: 0, mt5: 0 }
+              return (
+                <div key={size.value} style={{ border: '1px solid #2a2f3a', borderRadius: 12, padding: 12, background: count > 0 ? 'rgba(245,158,11,0.08)' : '#11151d' }}>
+                  <p style={{ margin: 0, color: '#d1d5db', fontSize: 12 }}>{size.label}</p>
+                  <p style={{ margin: '6px 0 0', color: '#fff', fontWeight: 800, fontSize: 18 }}>{count}</p>
+                  <p style={{ margin: '6px 0 0', color: '#fff', fontSize: 11 }}>
+                    cTrader: {breakdown.ctrader} · MT5: {breakdown.mt5}
+                  </p>
+                </div>
+              )
+            })}
         </div>
 
         <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
@@ -385,12 +451,18 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
               No NGN inventory yet
             </div>
           ) : (
-            Object.entries(ngnSizeCounts).map(([sizeLabel, count]) => (
-              <div key={`ngn-${sizeLabel}`} style={{ border: '1px solid rgba(16,185,129,0.35)', borderRadius: 12, padding: 12, background: 'rgba(16,185,129,0.08)' }}>
-                <p style={{ margin: 0, color: '#a7f3d0', fontSize: 12 }}>{sizeLabel} (NGN)</p>
-                <p style={{ margin: '6px 0 0', color: '#ecfdf3', fontWeight: 800, fontSize: 18 }}>{count}</p>
-              </div>
-            ))
+            Object.entries(ngnSizeCounts).map(([sizeLabel, count]) => {
+              const breakdown = ngnSizeBreakdown[sizeLabel] ?? { ctrader: 0, mt5: 0 }
+              return (
+                <div key={`ngn-${sizeLabel}`} style={{ border: '1px solid rgba(16,185,129,0.35)', borderRadius: 12, padding: 12, background: 'rgba(16,185,129,0.08)' }}>
+                  <p style={{ margin: 0, color: '#a7f3d0', fontSize: 12 }}>{sizeLabel} (NGN)</p>
+                  <p style={{ margin: '6px 0 0', color: '#ecfdf3', fontWeight: 800, fontSize: 18 }}>{count}</p>
+                  <p style={{ margin: '6px 0 0', color: '#fff', fontSize: 11 }}>
+                    cTrader: {breakdown.ctrader} · MT5: {breakdown.mt5}
+                  </p>
+                </div>
+              )
+            })
           )}
         </div>
       </div>
@@ -398,7 +470,24 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
       <div className="admin-table-card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px 6px', gap: 12, flexWrap: 'wrap' }}>
           <h3 style={{ color: '#fff', margin: 0 }}>cTrader Accounts</h3>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <select
+              value={platformFilter}
+              onChange={(event) => setPlatformFilter(event.target.value as 'all' | 'ctrader' | 'mt5')}
+              style={{
+                borderRadius: 10,
+                border: '1px solid #2a2f3a',
+                background: '#0f131b',
+                color: '#e5e7eb',
+                padding: '7px 10px',
+                fontWeight: 700,
+                fontSize: 12,
+              }}
+            >
+              <option value="all">All Platforms</option>
+              <option value="ctrader">cTrader</option>
+              <option value="mt5">MT5</option>
+            </select>
             <button
               type="button"
               onClick={() => setActiveTab('ready')}
@@ -599,7 +688,9 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
                 <th>Broker</th>
                 <th>Account Size</th>
                 <th>Currency</th>
+                <th>Platform</th>
                 <th>Status</th>
+                {(isSuperAdmin || canAssignMt5) && <th>Credentials</th>}
                 {(isSuperAdmin || canAssignMt5) && <th>Action</th>}
                 {isSuperAdmin && <th>Delete</th>}
               </tr>
@@ -611,6 +702,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
                   <td>{account.server}</td>
                   <td>{formatAccountSize(account.account_size, account.currency)}</td>
                   <td>{account.currency ?? '-'}</td>
+                  <td>{(account.platform ?? 'ctrader').toUpperCase()}</td>
                   <td>
                     <span
                       style={{
@@ -626,6 +718,27 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
                       {account.status}
                     </span>
                   </td>
+                  {(isSuperAdmin || canAssignMt5) && (
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => void handleViewCredentials(account)}
+                        disabled={(account.platform ?? 'ctrader').toLowerCase() !== 'mt5'}
+                        style={{
+                          border: '1px solid rgba(59,130,246,0.5)',
+                          background: (account.platform ?? 'ctrader').toLowerCase() === 'mt5' ? 'rgba(59,130,246,0.12)' : 'transparent',
+                          color: (account.platform ?? 'ctrader').toLowerCase() === 'mt5' ? '#bfdbfe' : '#6b7280',
+                          borderRadius: 10,
+                          padding: '7px 10px',
+                          fontWeight: 700,
+                          fontSize: 12,
+                          cursor: (account.platform ?? 'ctrader').toLowerCase() === 'mt5' ? 'pointer' : 'not-allowed',
+                        }}
+                      >
+                        View
+                      </button>
+                    </td>
+                  )}
                   {(isSuperAdmin || canAssignMt5) && (
                     <td>
                       <button
@@ -690,9 +803,13 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
                 <th>Account Number</th>
                 <th>Broker</th>
                 <th>Currency</th>
+                <th>Platform</th>
                 <th>cTrader ID</th>
+                <th>MT5 Login</th>
+                <th>MT5 Server</th>
                 <th>User Email</th>
                 <th>Access Status</th>
+                {(isSuperAdmin || canAssignMt5) && <th>Credentials</th>}
                 {(isSuperAdmin || canAssignMt5) && <th>Action</th>}
               </tr>
             </thead>
@@ -707,9 +824,33 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
                   <td>{account.account_number}</td>
                   <td>{account.server}</td>
                   <td>{account.currency ?? '-'}</td>
+                  <td>{(account.platform ?? 'ctrader').toUpperCase()}</td>
                   <td>{account.account_number}</td>
+                  <td>{account.mt5_login ?? '-'}</td>
+                  <td>{account.mt5_server ?? '-'}</td>
                   <td>{account.assigned_user_email ?? '-'}</td>
                   <td>{account.access_status ?? '-'}</td>
+                  {(isSuperAdmin || canAssignMt5) && (
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => void handleViewCredentials(account)}
+                        disabled={(account.platform ?? 'ctrader').toLowerCase() !== 'mt5'}
+                        style={{
+                          border: '1px solid rgba(59,130,246,0.5)',
+                          background: (account.platform ?? 'ctrader').toLowerCase() === 'mt5' ? 'rgba(59,130,246,0.12)' : 'transparent',
+                          color: (account.platform ?? 'ctrader').toLowerCase() === 'mt5' ? '#bfdbfe' : '#6b7280',
+                          borderRadius: 10,
+                          padding: '7px 10px',
+                          fontWeight: 700,
+                          fontSize: 12,
+                          cursor: (account.platform ?? 'ctrader').toLowerCase() === 'mt5' ? 'pointer' : 'not-allowed',
+                        }}
+                      >
+                        View
+                      </button>
+                    </td>
+                  )}
                   {(isSuperAdmin || canAssignMt5) && (
                     <td>
                       <button
@@ -746,6 +887,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
                 <th>User</th>
                 <th>Account Size</th>
                 <th>Currency</th>
+                <th>Platform</th>
                 <th>Current Stage</th>
                 <th>Account Number</th>
                 <th>Status</th>
@@ -758,7 +900,8 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
                   <td>{account.challenge_id ?? '-'}</td>
                   <td>{account.assigned_user_id ?? '-'}</td>
                   <td>{formatAccountSize(account.account_size, account.currency)}</td>
-                  <td>{formatAccountSize(account.account_size, account.currency)}</td>
+                  <td>{account.currency ?? '-'}</td>
+                  <td>{(account.platform ?? 'ctrader').toUpperCase()}</td>
                   <td>{account.phase ?? '-'}</td>
                   <td>{account.account_number}</td>
                   <td>
@@ -1016,6 +1159,81 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
               >
                 {savingAssignment ? 'Assigning...' : 'Confirm Assign'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {credentialAccount && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'grid',
+            placeItems: 'center',
+            zIndex: 70,
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              width: 'min(100%, 480px)',
+              borderRadius: 14,
+              border: '1px solid rgba(255,255,255,0.15)',
+              background: '#0f131b',
+              padding: 16,
+              color: '#fff',
+              display: 'grid',
+              gap: 10,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+              <h3 style={{ margin: 0 }}>MT5 Credentials</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setCredentialAccount(null)
+                  setCredentialError('')
+                }}
+                style={{
+                  border: '1px solid #374151',
+                  background: 'transparent',
+                  color: '#d1d5db',
+                  borderRadius: 8,
+                  padding: '4px 8px',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                }}
+              >
+                Close
+              </button>
+            </div>
+            <p style={{ margin: 0, color: '#9ca3af', fontSize: 13 }}>
+              Account {credentialAccount.account_number} · {(credentialAccount.platform ?? 'ctrader').toUpperCase()}
+            </p>
+            {credentialError && (
+              <p style={{ margin: 0, color: '#fca5a5', fontSize: 12 }}>{credentialError}</p>
+            )}
+            <div style={{ display: 'grid', gap: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                <span style={{ color: '#9ca3af', fontSize: 12 }}>Login</span>
+                <span style={{ fontFamily: 'monospace', fontSize: 13 }}>
+                  {credentialAccount.mt5_login ?? credentialAccount.account_number}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                <span style={{ color: '#9ca3af', fontSize: 12 }}>Server</span>
+                <span style={{ fontFamily: 'monospace', fontSize: 13 }}>
+                  {credentialAccount.mt5_server ?? '-'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                <span style={{ color: '#9ca3af', fontSize: 12 }}>Password</span>
+                <span style={{ fontFamily: 'monospace', fontSize: 13 }}>
+                  {credentialAccount.mt5_password ?? '-'}
+                </span>
+              </div>
             </div>
           </div>
         </div>

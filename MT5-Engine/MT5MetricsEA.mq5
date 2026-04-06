@@ -8,13 +8,15 @@
 // =========================================================
 
 // 1. Config
-#define SERVICE_URL "http://127.0.0.1:8200"
-#define BACKEND_URL "http://127.0.0.1:9000/metrics"
-#define WEB_TIMEOUT 5000
+#define SERVICE_URL "http://15.237.52.163:8200"
+#define BACKEND_URL "https://f1bb-102-88-114-192.ngrok-free.app/api/v1/mt5/metrics"
+#define WEB_TIMEOUT 10000
+#define METRICS_FILENAME_PREFIX "metrics_"
+#define DD_STATE_FILENAME_PREFIX "dd_state_"
 
 input int LOOKBACK_MINUTES = 60;
 input int TIMER_SECONDS = 2;
-input string ENGINE_SECRET = "";
+input string ENGINE_SECRET = "dev-mt5-secret";
 input int CHECKPOINT_OVERLAP_MS = 5000;
 
 // 2. Structs
@@ -37,11 +39,55 @@ struct Tick
 
 struct TradeEvent
 {
+   string ticket;
    string position_id;
+   string symbol;
    string open_time;
    string close_time;
-   double amount;
+   double profit;
    string deal_type;
+};
+
+struct SymbolTick
+{
+   string symbol;
+   int lastProcessedTick;
+   Tick ticks[];
+};
+
+struct ActivePosition
+{
+   ulong pos_id;
+   string symbol;
+   double volume;
+   long open_time;
+   double open_price;
+   ENUM_DEAL_TYPE type;
+   double price;
+   double commission;
+   double swap;
+   double pnl;
+};
+
+struct Deal
+{
+   ulong deal_id;
+   ulong pos_id;
+   string symbol;
+   long deal_time_msc;
+   ENUM_DEAL_ENTRY entry;
+   ENUM_DEAL_TYPE type;
+   double volume;
+   double price;
+   double profit;
+   double commission;
+   double swap;
+};
+
+struct DepositInfo
+{
+   long time_msc;
+   double amount;
 };
 
 // 3. Data Fetch (MT5)
@@ -118,6 +164,104 @@ void SaveCheckpoint(long ts)
    GlobalVariableSet(key, (double)ts);
 }
 
+double ExtractJsonNumber(const string json, const string key, double default_value)
+{
+   string pattern = "\"" + key + "\"";
+   int pos = StringFind(json, pattern);
+   if(pos < 0)
+      return default_value;
+
+   int colon = StringFind(json, ":", pos + StringLen(pattern));
+   if(colon < 0)
+      return default_value;
+
+   int start = colon + 1;
+   int len = StringLen(json);
+   while(start < len && (json[start] == ' ' || json[start] == '"'))
+      start++;
+
+   int end = start;
+   while(end < len && (CharIsDigitEx((char)json[end]) || json[end] == '.' || json[end] == '-'))
+      end++;
+
+   if(end <= start)
+      return default_value;
+
+   return StringToDouble(StringSubstr(json, start, end - start));
+}
+
+long ExtractJsonLong(const string json, const string key, long default_value)
+{
+   return (long)ExtractJsonNumber(json, key, (double)default_value);
+}
+
+bool LoadDDState(double &highest_balance, double &lowest_equity, long &last_checked)
+{
+   string filename = DD_STATE_FILENAME_PREFIX + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) + ".json";
+   int handle = FileOpen(filename, FILE_READ | FILE_TXT | FILE_COMMON | FILE_ANSI);
+   if(handle == INVALID_HANDLE)
+      return false;
+
+   string content = "";
+   while(!FileIsEnding(handle))
+   {
+      content += FileReadString(handle);
+   }
+   FileClose(handle);
+
+   if(StringLen(content) == 0)
+      return false;
+
+   highest_balance = ExtractJsonNumber(content, "highest_balance", 0.0);
+   lowest_equity = ExtractJsonNumber(content, "lowest_equity", 0.0);
+   last_checked = ExtractJsonLong(content, "last_checked", 0);
+   return (highest_balance > 0 || lowest_equity > 0 || last_checked > 0);
+}
+
+void SaveDDState(double highest_balance, double lowest_equity, long last_checked)
+{
+   string filename = DD_STATE_FILENAME_PREFIX + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) + ".json";
+   int handle = FileOpen(filename, FILE_WRITE | FILE_TXT | FILE_COMMON | FILE_ANSI);
+   if(handle == INVALID_HANDLE)
+   {
+      Print("Failed to write DD state file. Error: ", GetLastError());
+      return;
+   }
+
+   string json = "{";
+   json += "\"highest_balance\":" + DoubleToString(highest_balance, 2) + ",";
+   json += "\"lowest_equity\":" + DoubleToString(lowest_equity, 2) + ",";
+   json += "\"last_checked\":" + IntegerToString((long)last_checked);
+   json += "}";
+
+   FileWriteString(handle, json);
+   FileClose(handle);
+}
+
+bool FindLastDeposit(DepositInfo &deposit)
+{
+   deposit.time_msc = 0;
+   deposit.amount = 0;
+
+   if(!HistorySelect(0, TimeCurrent() + 5 * 24 * 60 * 60))
+      return false;
+
+   for(int i=HistoryDealsTotal() - 1; i>=0; i--)
+   {
+      ulong ticket = HistoryDealGetTicket(i);
+      if(ticket == 0) continue;
+      ENUM_DEAL_TYPE type = (ENUM_DEAL_TYPE)HistoryDealGetInteger(ticket, DEAL_TYPE);
+      if(type == DEAL_TYPE_BALANCE || type == DEAL_TYPE_CREDIT)
+      {
+         deposit.time_msc = (long)HistoryDealGetInteger(ticket, DEAL_TIME_MSC);
+         deposit.amount = HistoryDealGetDouble(ticket, DEAL_PROFIT);
+         return true;
+      }
+   }
+
+   return false;
+}
+
 // 4.5 Trade History (for min duration rules)
 string ToISOString(datetime value)
 {
@@ -164,10 +308,12 @@ void GetRecentClosedTrades(TradeEvent &trades[], long start, long end)
 
       int idx = ArraySize(trades);
       ArrayResize(trades, idx+1);
+      trades[idx].ticket = IntegerToString((long)ticket);
       trades[idx].position_id = is_trade ? IntegerToString((long)positionId) : IntegerToString((long)ticket);
+      trades[idx].symbol = HistoryDealGetString(ticket, DEAL_SYMBOL);
       trades[idx].open_time = openTime > 0 ? ToISOString(openTime) : "";
       trades[idx].close_time = ToISOString(closeTime);
-      trades[idx].amount = dealAmount;
+      trades[idx].profit = dealAmount;
       if(is_balance)
       {
          if(type == DEAL_TYPE_BALANCE) trades[idx].deal_type = "BALANCE";
@@ -209,7 +355,7 @@ bool FetchTicksFromService(string symbol, const long start_ms, const long end_ms
       Sleep(200);
    }
 
-   Print("Tick fetch failed for ", symbol, " -> fallback to M1");
+   // Fallback to M1 rates if tick service fails.
 
    MqlRates rates[];
    int bars = (int)((end_ms - start_ms) / 60000) + 1;
@@ -236,72 +382,354 @@ bool FetchTicksFromService(string symbol, const long start_ms, const long end_ms
 }
 
 // 5. Calculations
-double ComputeMinEquity(const Position &positions[], const string &symbols[], long start, long end, double current_equity)
+int FindSymbolTick(SymbolTick &symbols[], string symbol)
 {
-   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
-   double min_equity = MathMin(balance, current_equity);
-
-   long timeline[];
-   ArrayResize(timeline, 0);
-
-   Tick symbolTicks[];
-   int count=0;
-
-   for(int s=0; s<ArraySize(symbols); s++)
+   for(int i=0; i<ArraySize(symbols); i++)
    {
-      if(!FetchTicksFromService(symbols[s], start, end, symbolTicks, count))
+      if(symbols[i].symbol == symbol)
+         return i;
+   }
+   return -1;
+}
+
+void AddToSymbolTicks(SymbolTick &symbols[], string symbol)
+{
+   if(FindSymbolTick(symbols, symbol) != -1)
+      return;
+
+   int idx = ArraySize(symbols);
+   ArrayResize(symbols, idx + 1);
+   symbols[idx].symbol = symbol;
+   symbols[idx].lastProcessedTick = 0;
+   ArrayResize(symbols[idx].ticks, 0);
+}
+
+double CalcPnL_Approx(string symbol, double lots, double open_price, double price_at_time, bool is_buy)
+{
+   double tick_size  = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_SIZE);
+   double tick_value = SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_VALUE);
+   double diff = is_buy ? (price_at_time - open_price) : (open_price - price_at_time);
+   double ticks = diff / tick_size;
+   return ticks * tick_value * lots;
+}
+
+double GetPriceForTime(ENUM_DEAL_TYPE type, SymbolTick &symbol_tick, long time, long pos_open_time, double pos_open_price)
+{
+   int total = ArraySize(symbol_tick.ticks);
+   for(int i = symbol_tick.lastProcessedTick; i < total; i++)
+   {
+      if(symbol_tick.ticks[i].time_msc > time)
+      {
+         if(i > 0)
+         {
+            if(symbol_tick.ticks[i].time_msc < pos_open_time)
+            {
+               symbol_tick.lastProcessedTick = i - 1;
+               return pos_open_price;
+            }
+
+            symbol_tick.lastProcessedTick = i - 1;
+            return (type == DEAL_TYPE_BUY) ? symbol_tick.ticks[i-1].bid : symbol_tick.ticks[i-1].ask;
+         }
+         return pos_open_price;
+      }
+   }
+
+   if(total == 0)
+      return pos_open_price;
+
+   symbol_tick.lastProcessedTick = total - 1;
+   return (type == DEAL_TYPE_BUY) ? symbol_tick.ticks[total-1].bid : symbol_tick.ticks[total-1].ask;
+}
+
+double GetPNL(ActivePosition &positions[], SymbolTick &symbols[], long time)
+{
+   double pnl = 0;
+   for(int i=0; i<ArraySize(positions); i++)
+   {
+      int sidx = FindSymbolTick(symbols, positions[i].symbol);
+      if(sidx == -1 || ArraySize(symbols[sidx].ticks) == 0)
          continue;
 
-      int old = ArraySize(timeline);
-      ArrayResize(timeline, old + count);
+      positions[i].price = GetPriceForTime(positions[i].type, symbols[sidx], time, positions[i].open_time, positions[i].open_price);
+      positions[i].pnl = CalcPnL_Approx(
+         positions[i].symbol,
+         positions[i].volume,
+         positions[i].open_price,
+         positions[i].price,
+         positions[i].type == DEAL_TYPE_BUY
+      ) + positions[i].commission + positions[i].swap;
+      pnl += positions[i].pnl;
+   }
+   return pnl;
+}
 
-      for(int i=0; i<count; i++)
-         timeline[old + i] = symbolTicks[i].time_msc;
+void UpdateActivePositions(ActivePosition &positions[], const Deal &deal)
+{
+   if(deal.entry == DEAL_ENTRY_IN)
+   {
+      int idx = ArraySize(positions);
+      ArrayResize(positions, idx + 1);
+      positions[idx].pos_id = deal.pos_id;
+      positions[idx].symbol = deal.symbol;
+      positions[idx].volume = deal.volume;
+      positions[idx].open_time = deal.deal_time_msc;
+      positions[idx].open_price = deal.price;
+      positions[idx].type = deal.type;
+      positions[idx].commission = deal.commission;
+      positions[idx].swap = deal.swap;
+      positions[idx].pnl = 0;
+      positions[idx].price = deal.price;
+      return;
+   }
+
+   for(int i=0; i<ArraySize(positions); i++)
+   {
+      if(positions[i].pos_id != deal.pos_id)
+         continue;
+
+      if(deal.volume >= positions[i].volume)
+      {
+         ArrayRemove(positions, i, 1);
+      }
+      else
+      {
+         positions[i].volume -= deal.volume;
+         positions[i].commission -= deal.commission;
+         positions[i].swap -= deal.swap;
+      }
+      return;
+   }
+}
+
+void SortDealsByTime(Deal &deals[])
+{
+   int n = ArraySize(deals);
+   for(int i=0; i<n-1; i++)
+   {
+      for(int j=i+1; j<n; j++)
+      {
+         if(deals[j].deal_time_msc < deals[i].deal_time_msc)
+         {
+            Deal tmp = deals[i];
+            deals[i] = deals[j];
+            deals[j] = tmp;
+         }
+      }
+   }
+}
+
+void BuildTimeline(SymbolTick &symbols[], Deal &deals[], long &timeline[])
+{
+   ArrayResize(timeline, 0);
+
+   for(int i=0; i<ArraySize(symbols); i++)
+   {
+      int n = ArraySize(symbols[i].ticks);
+      if(n == 0) continue;
+      int old = ArraySize(timeline);
+      ArrayResize(timeline, old + n);
+      for(int k=0; k<n; k++)
+         timeline[old + k] = symbols[i].ticks[k].time_msc;
+   }
+
+   int deals_n = ArraySize(deals);
+   if(deals_n > 0)
+   {
+      int old = ArraySize(timeline);
+      ArrayResize(timeline, old + deals_n);
+      for(int d=0; d<deals_n; d++)
+         timeline[old + d] = deals[d].deal_time_msc;
    }
 
    if(ArraySize(timeline) == 0)
-      return min_equity;
+      return;
 
    ArraySort(timeline);
 
-   for(int t=0; t<ArraySize(timeline); t++)
+   int w = 1;
+   for(int r=1; r<ArraySize(timeline); r++)
    {
-      long time = timeline[t];
-      double pnl = 0;
+      if(timeline[r] != timeline[r-1])
+         timeline[w++] = timeline[r];
+   }
+   ArrayResize(timeline, w);
+}
 
-      for(int p=0; p<ArraySize(positions); p++)
-      {
-         string sym = positions[p].symbol;
+double CalculateMinEquityTimeline(
+   const Position &current_positions[],
+   long start_ms,
+   long end_ms,
+   double current_balance,
+   double &io_highest_balance,
+   double &io_lowest_equity,
+   bool use_state,
+   bool use_deposit_baseline,
+   double deposit_amount
+)
+{
+   Deal deals[];
+   ArrayResize(deals, 0);
 
-         Tick ticks[];
-         int cnt=0;
-
-         if(!FetchTicksFromService(sym, time-1000, time, ticks, cnt))
-            continue;
-
-         if(cnt == 0) continue;
-
-         Tick last = ticks[cnt-1];
-
-         double price = (positions[p].type==POSITION_TYPE_BUY) ? last.bid : last.ask;
-
-         double diff = (positions[p].type==POSITION_TYPE_BUY)
-                     ? price - positions[p].open_price
-                     : positions[p].open_price - price;
-
-         double tick_size  = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_SIZE);
-         double tick_value = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_VALUE);
-
-         pnl += (diff / tick_size) * tick_value * positions[p].volume;
-      }
-
-      double equity = balance + pnl;
-      if(equity < 0) equity = 0;
-      if(equity < min_equity)
-         min_equity = equity;
+   if(!HistorySelect((datetime)(start_ms/1000), (datetime)(end_ms/1000)))
+   {
+      double fallback_equity = AccountInfoDouble(ACCOUNT_EQUITY);
+      if(!use_state || io_highest_balance <= 0)
+         io_highest_balance = MathMax(current_balance, fallback_equity);
+      if(!use_state || io_lowest_equity <= 0)
+         io_lowest_equity = MathMin(current_balance, fallback_equity);
+      return io_lowest_equity;
    }
 
-   return min_equity;
+   for(int i=0; i<HistoryDealsTotal(); i++)
+   {
+      ulong ticket = HistoryDealGetTicket(i);
+      if(ticket == 0) continue;
+
+      long deal_time_msc = (long)HistoryDealGetInteger(ticket, DEAL_TIME_MSC);
+      if(deal_time_msc < start_ms || deal_time_msc > end_ms)
+         continue;
+
+      ENUM_DEAL_TYPE type = (ENUM_DEAL_TYPE)HistoryDealGetInteger(ticket, DEAL_TYPE);
+      ENUM_DEAL_ENTRY entry = (ENUM_DEAL_ENTRY)HistoryDealGetInteger(ticket, DEAL_ENTRY);
+      bool is_trade = (type == DEAL_TYPE_BUY || type == DEAL_TYPE_SELL);
+      bool is_balance = (type == DEAL_TYPE_BALANCE || type == DEAL_TYPE_CREDIT || type == DEAL_TYPE_CHARGE || type == DEAL_TYPE_CORRECTION);
+      if(!is_trade && !is_balance) continue;
+      if(use_deposit_baseline && is_balance) continue;
+
+      int idx = ArraySize(deals);
+      ArrayResize(deals, idx + 1);
+      deals[idx].deal_id = ticket;
+      deals[idx].pos_id = (ulong)HistoryDealGetInteger(ticket, DEAL_POSITION_ID);
+      deals[idx].symbol = HistoryDealGetString(ticket, DEAL_SYMBOL);
+      deals[idx].deal_time_msc = deal_time_msc;
+      deals[idx].entry = entry;
+      deals[idx].type = type;
+      deals[idx].volume = HistoryDealGetDouble(ticket, DEAL_VOLUME);
+      deals[idx].price = HistoryDealGetDouble(ticket, DEAL_PRICE);
+      deals[idx].profit = HistoryDealGetDouble(ticket, DEAL_PROFIT);
+      deals[idx].commission = HistoryDealGetDouble(ticket, DEAL_COMMISSION);
+      deals[idx].swap = HistoryDealGetDouble(ticket, DEAL_SWAP);
+   }
+
+   SortDealsByTime(deals);
+
+   double start_balance = use_deposit_baseline ? deposit_amount : current_balance;
+
+   SymbolTick symbols[];
+   ArrayResize(symbols, 0);
+   for(int i=0; i<ArraySize(current_positions); i++)
+   {
+      AddToSymbolTicks(symbols, current_positions[i].symbol);
+   }
+   for(int i=0; i<ArraySize(deals); i++)
+   {
+      if(deals[i].symbol != "")
+         AddToSymbolTicks(symbols, deals[i].symbol);
+   }
+
+   for(int i=0; i<ArraySize(symbols); i++)
+   {
+      int cnt = 0;
+      FetchTicksFromService(symbols[i].symbol, start_ms, end_ms, symbols[i].ticks, cnt);
+      symbols[i].lastProcessedTick = 0;
+   }
+
+   long timeline[];
+   BuildTimeline(symbols, deals, timeline);
+
+   if(ArraySize(timeline) == 0)
+   {
+      double fallback_equity = AccountInfoDouble(ACCOUNT_EQUITY);
+      if(!use_state || io_highest_balance <= 0)
+         io_highest_balance = MathMax(start_balance, fallback_equity);
+      if(!use_state || io_lowest_equity <= 0)
+         io_lowest_equity = MathMin(start_balance, fallback_equity);
+      return io_lowest_equity;
+   }
+
+   ActivePosition positions[];
+   ArrayResize(positions, 0);
+   long history_start = start_ms - (long)LOOKBACK_MINUTES * 60 * 1000;
+   if(history_start < 0)
+      history_start = 0;
+
+   if(HistorySelect((datetime)(history_start/1000), (datetime)(start_ms/1000)))
+   {
+      for(int i=0; i<HistoryDealsTotal(); i++)
+      {
+         ulong ticket = HistoryDealGetTicket(i);
+         if(ticket == 0) continue;
+         long deal_time_msc = (long)HistoryDealGetInteger(ticket, DEAL_TIME_MSC);
+         if(deal_time_msc >= start_ms)
+            continue;
+
+         ENUM_DEAL_TYPE type = (ENUM_DEAL_TYPE)HistoryDealGetInteger(ticket, DEAL_TYPE);
+         ENUM_DEAL_ENTRY entry = (ENUM_DEAL_ENTRY)HistoryDealGetInteger(ticket, DEAL_ENTRY);
+         bool is_trade = (type == DEAL_TYPE_BUY || type == DEAL_TYPE_SELL);
+         bool is_balance = (type == DEAL_TYPE_BALANCE || type == DEAL_TYPE_CREDIT || type == DEAL_TYPE_CHARGE || type == DEAL_TYPE_CORRECTION);
+
+         if(is_balance)
+            continue;
+
+         if(!is_trade)
+            continue;
+
+         Deal predeal;
+         predeal.deal_id = ticket;
+         predeal.pos_id = (ulong)HistoryDealGetInteger(ticket, DEAL_POSITION_ID);
+         predeal.symbol = HistoryDealGetString(ticket, DEAL_SYMBOL);
+         predeal.deal_time_msc = deal_time_msc;
+         predeal.entry = entry;
+         predeal.type = type;
+         predeal.volume = HistoryDealGetDouble(ticket, DEAL_VOLUME);
+         predeal.price = HistoryDealGetDouble(ticket, DEAL_PRICE);
+         predeal.profit = HistoryDealGetDouble(ticket, DEAL_PROFIT);
+         predeal.commission = HistoryDealGetDouble(ticket, DEAL_COMMISSION);
+         predeal.swap = HistoryDealGetDouble(ticket, DEAL_SWAP);
+
+         UpdateActivePositions(positions, predeal);
+
+         if(entry == DEAL_ENTRY_OUT || entry == DEAL_ENTRY_OUT_BY)
+            start_balance += predeal.profit + predeal.commission + predeal.swap;
+      }
+   }
+
+   double balance = start_balance;
+   double highest_balance = (!use_state || io_highest_balance <= 0) ? balance : io_highest_balance;
+   double lowest_equity = (!use_state || io_lowest_equity <= 0) ? balance : io_lowest_equity;
+   int deal_index = 0;
+
+   for(int t=0; t<ArraySize(timeline); t++)
+   {
+      long now = timeline[t];
+      while(deal_index < ArraySize(deals) && deals[deal_index].deal_time_msc <= now)
+      {
+         if(deals[deal_index].type == DEAL_TYPE_BUY || deals[deal_index].type == DEAL_TYPE_SELL)
+         {
+            UpdateActivePositions(positions, deals[deal_index]);
+            if(deals[deal_index].entry == DEAL_ENTRY_OUT || deals[deal_index].entry == DEAL_ENTRY_OUT_BY)
+               balance += deals[deal_index].profit + deals[deal_index].commission + deals[deal_index].swap;
+         }
+         else
+         {
+            balance += deals[deal_index].profit;
+         }
+         deal_index++;
+      }
+
+      double pnl = GetPNL(positions, symbols, now);
+      double equity = balance + pnl;
+      if(balance > highest_balance)
+         highest_balance = balance;
+      if(equity < lowest_equity)
+         lowest_equity = equity;
+      // Equity timeline debug removed for production.
+   }
+
+   io_highest_balance = highest_balance;
+   io_lowest_equity = lowest_equity;
+   return lowest_equity;
 }
 
 double ComputeDD(double highest_balance, double min_equity)
@@ -314,16 +742,23 @@ double ComputeDD(double highest_balance, double min_equity)
 string BuildTradesJSON(const TradeEvent &trades[])
 {
    string json = "\"trades\":[";
+   int written = 0;
    for(int i=0; i<ArraySize(trades); i++)
    {
-      if(i > 0) json += ",";
+      if(trades[i].deal_type != "TRADE")
+         continue;
+
+      if(written > 0) json += ",";
       json += "{";
+      json += "\"ticket\":\"" + trades[i].ticket + "\",";
       json += "\"position_id\":\"" + trades[i].position_id + "\",";
+      json += "\"symbol\":\"" + trades[i].symbol + "\",";
       json += "\"open_time\":\"" + trades[i].open_time + "\",";
       json += "\"close_time\":\"" + trades[i].close_time + "\",";
-      json += "\"amount\":" + DoubleToString(trades[i].amount, 2) + ",";
-      json += "\"deal_type\":\"" + trades[i].deal_type + "\"";
+      json += "\"profit\":" + DoubleToString(trades[i].profit, 2) + ",";
+      json += "\"dealType\":\"" + trades[i].deal_type + "\"";
       json += "}";
+      written++;
    }
    json += "]";
    return json;
@@ -336,9 +771,9 @@ string BuildJSON(const Position &positions[], const TradeEvent &trades[], double
    json += "\"platform\":\"mt5\",";
    json += "\"balance\":" + DoubleToString(balance,2) + ",";
    json += "\"equity\":" + DoubleToString(equity,2) + ",";
-   json += "\"min_equity\":" + DoubleToString(min_equity,2);
-   json += "," + BuildTradesJSON(trades);
-   json += ",\"timestamp\":\"" + TimeToString(TimeCurrent(), TIME_DATE|TIME_SECONDS) + "\"";
+   json += "\"min_equity\":" + DoubleToString(min_equity,2) + ",";
+   json += BuildTradesJSON(trades) + ",";
+   json += "\"timestamp\":\"" + TimeToString(TimeCurrent(), TIME_DATE|TIME_SECONDS) + "\"";
    json += "}";
    return json;
 }
@@ -354,13 +789,33 @@ bool SendMetrics(string json)
    if (StringLen(ENGINE_SECRET) > 0)
       headers += "X-ENGINE-SECRET: " + ENGINE_SECRET + "\r\n";
 
-   int res = WebRequest("POST", BACKEND_URL, headers, WEB_TIMEOUT, data, response, headers);
+   string response_headers;
+
+   int res = WebRequest("POST", BACKEND_URL, headers, WEB_TIMEOUT, data, response, response_headers);
+   // HTTP response logs removed for production.
    if(res == -1)
    {
       PrintFormat("WebRequest error %d (GetLastError=%d)", res, GetLastError());
       return false;
    }
    return true;
+}
+
+void SaveMetricsToFile(const string json)
+{
+   string filename = METRICS_FILENAME_PREFIX + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) + ".json";
+   int handle = FileOpen(filename, FILE_WRITE | FILE_TXT | FILE_COMMON | FILE_ANSI);
+
+   if(handle != INVALID_HANDLE)
+   {
+      FileWrite(handle, json);
+      FileClose(handle);
+      // Metrics file saved.
+   }
+   else
+   {
+      Print("Failed to write metrics file. Error: ", GetLastError());
+   }
 }
 
 // 8. Main Flow
@@ -382,34 +837,66 @@ void OnTimer()
 
    double balance = AccountInfoDouble(ACCOUNT_BALANCE);
    double equity  = AccountInfoDouble(ACCOUNT_EQUITY);
-
-   string symbols[];
-   CollectSymbolsUnique(positions, symbols);
+   bool terminal_connected = TerminalInfoInteger(TERMINAL_CONNECTED);
+   bool trade_allowed = AccountInfoInteger(ACCOUNT_TRADE_ALLOWED);
+   if(!terminal_connected || !trade_allowed || balance <= 0.0 || equity <= 0.0)
+   {
+      PrintFormat(
+         "MT5 not ready (connected=%d, trade_allowed=%d, balance=%.2f, equity=%.2f). Skipping metrics.",
+         terminal_connected, trade_allowed, balance, equity
+      );
+      return;
+   }
 
    long now = (long)TimeCurrent() * 1000;
    long start = GetLastCheckpoint();
+   double persisted_highest = 0.0;
+   double persisted_lowest = 0.0;
+   long persisted_last_checked = 0;
+   bool has_state = LoadDDState(persisted_highest, persisted_lowest, persisted_last_checked);
+   if(has_state && persisted_last_checked > 0)
+      start = persisted_last_checked;
 
    long max_window = (long)LOOKBACK_MINUTES * 60 * 1000;
-   if(now - start > max_window)
+   if(!has_state && now - start > max_window)
       start = now - max_window;
 
    start -= CHECKPOINT_OVERLAP_MS;
 
+   DepositInfo deposit;
+   bool has_deposit = FindLastDeposit(deposit);
+   if(has_deposit && deposit.time_msc > 0)
+   {
+      start = deposit.time_msc;
+      has_state = false;
+      persisted_highest = 0.0;
+      persisted_lowest = 0.0;
+   }
+
    TradeEvent trades[];
    GetRecentClosedTrades(trades, start, now);
 
-   double min_equity = ComputeMinEquity(positions, symbols, start, now, equity);
-   double highest_balance = MathMax(balance, equity);
+   double highest_balance = has_state ? persisted_highest : MathMax(balance, equity);
+   double lowest_equity = has_state ? persisted_lowest : 0.0;
+   double min_equity = CalculateMinEquityTimeline(
+      positions,
+      start,
+      now,
+      balance,
+      highest_balance,
+      lowest_equity,
+      has_state,
+      has_deposit,
+      has_deposit ? deposit.amount : balance
+   );
    double dd_percent = ComputeDD(highest_balance, min_equity);
 
    string json = BuildJSON(positions, trades, balance, equity, min_equity);
 
-   Print("DD% (lookback): "+DoubleToString(dd_percent, 2));
    Print("Payload: "+json);
-
-   if(SendMetrics(json))
-      SaveCheckpoint(now);
-
+   SaveMetricsToFile(json);
+   SaveCheckpoint(now);
+   SaveDDState(highest_balance, min_equity, now);
    ExpertRemove();
    TerminalClose(0);
 }

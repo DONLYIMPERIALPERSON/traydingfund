@@ -633,6 +633,7 @@ export const approvePayoutRequest = async (req: AuthRequest, res: Response, next
       const payload = {
         type: 'WITHDRAW_REQUEST' as const,
         account: String(payoutAccount?.accountNumber ?? ''),
+        platform: payoutAccount?.platform ?? 'ctrader',
         amount: updated.amountKobo / 100,
         ...(payoutAccount?.accountNumber
           ? { resetCommand: `/withdraw_done${payoutAccount.accountNumber}` }

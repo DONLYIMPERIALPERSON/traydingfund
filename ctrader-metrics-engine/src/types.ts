@@ -20,6 +20,7 @@ export type PositionPayload = {
 
 export type MetricsPayload = {
   account_number: string
+  platform?: string
   balance: number
   equity: number
   trades?: TradePayload[]
