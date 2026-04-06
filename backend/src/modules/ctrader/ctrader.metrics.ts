@@ -295,6 +295,20 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
           expectedBalanceOperationType: null,
           expectedBalanceOperationExpiresAt: null,
           expectedBalanceOperationAmount: null,
+          minEquity: balance,
+          highestBalance: balance,
+          breachBalance: balance,
+          dailyStartAt: dailyDdEnabled ? now : null,
+          dailyHighBalance: dailyDdEnabled ? balance : 0,
+          dailyBreachBalance: dailyDdEnabled
+            ? balance - (accountData.dailyDdAmount ?? 0)
+            : 0,
+          shortDurationViolation: false,
+          durationViolationsCount: 0,
+          processedTradeIds: [],
+          totalTrades: 0,
+          firstTradeAt: null,
+          stageElapsedHours: 0,
         },
       })
       if (metrics) {
@@ -303,6 +317,20 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         ;(metrics as any).expectedBalanceOperationType = null
         ;(metrics as any).expectedBalanceOperationExpiresAt = null
         ;(metrics as any).expectedBalanceOperationAmount = null
+        ;(metrics as any).minEquity = balance
+        ;(metrics as any).highestBalance = balance
+        ;(metrics as any).breachBalance = balance
+        ;(metrics as any).dailyStartAt = dailyDdEnabled ? now : null
+        ;(metrics as any).dailyHighBalance = dailyDdEnabled ? balance : 0
+        ;(metrics as any).dailyBreachBalance = dailyDdEnabled
+          ? balance - (accountData.dailyDdAmount ?? 0)
+          : 0
+        ;(metrics as any).shortDurationViolation = false
+        ;(metrics as any).durationViolationsCount = 0
+        ;(metrics as any).processedTradeIds = []
+        ;(metrics as any).totalTrades = 0
+        ;(metrics as any).firstTradeAt = null
+        ;(metrics as any).stageElapsedHours = 0
       }
     }
 
