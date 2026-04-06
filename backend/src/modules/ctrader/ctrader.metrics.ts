@@ -54,6 +54,11 @@ const toUtcDateKey = (value: Date) => value.toISOString().slice(0, 10)
 
 const parseDate = (value?: string) => (value ? new Date(value) : null)
 
+const normalizeSymbol = (symbol: string) => symbol
+  .replace(/m$/i, '')
+  .replace(/_x\d+$/i, '')
+  .replace(/\..*$/, '')
+
 const calculateTradeDurationMinutes = (trade: TradePayload) => {
   const opened = parseDate(trade.open_time)
   const closed = parseDate(trade.close_time)
@@ -248,8 +253,9 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       (supportedSymbolsConfig.supported_symbols ?? []).map((symbol) => String(symbol).toUpperCase())
     )
     const unsupportedTrade = normalizedTradeEvents.find((trade) => {
-      const symbol = trade.symbol ? String(trade.symbol).toUpperCase() : ''
-      return symbol && !supportedSymbols.has(symbol)
+      const rawSymbol = trade.symbol ? String(trade.symbol) : ''
+      const normalizedSymbol = rawSymbol ? normalizeSymbol(rawSymbol).toUpperCase() : ''
+      return normalizedSymbol && !supportedSymbols.has(normalizedSymbol)
     })
     const firstTradeAt = (metrics as any)?.firstTradeAt
       ?? tradeEvents.map((trade) => parseDate(trade.open_time)).find(Boolean)
