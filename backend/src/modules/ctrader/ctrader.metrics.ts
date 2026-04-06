@@ -148,26 +148,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
 
     const now = new Date()
     const metrics = metricsData
-    if (metrics?.expectedBalanceChange && metrics.expectedChangeExpiresAt) {
-      const expiresAt = new Date(metrics.expectedChangeExpiresAt)
-      if (Number.isFinite(expiresAt.getTime()) && now.getTime() > expiresAt.getTime()) {
-        await prisma.cTraderAccountMetric.update({
-          where: { accountId: account.id },
-          data: {
-            expectedBalanceChange: false,
-            expectedChangeExpiresAt: null,
-            expectedBalanceOperationType: null,
-            expectedBalanceOperationExpiresAt: null,
-            expectedBalanceOperationAmount: null,
-          },
-        })
-        metrics.expectedBalanceChange = false
-        metrics.expectedChangeExpiresAt = null
-        ;(metrics as any).expectedBalanceOperationType = null
-        ;(metrics as any).expectedBalanceOperationExpiresAt = null
-        ;(metrics as any).expectedBalanceOperationAmount = null
-      }
-    }
+    // Keep reset expectations until explicitly cleared by reset completion.
 
     const equity = payload.equity
     const balance = payload.balance
@@ -273,13 +254,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       ? accountData.initialBalance + accountData.profitTargetAmount
       : (metrics?.profitTargetBalance ?? balance)
 
-    const resetExpectationExpiresAt = (metrics as any)?.expectedBalanceOperationExpiresAt
-      ? new Date((metrics as any).expectedBalanceOperationExpiresAt)
-      : null
     const resetExpectationActive = (metrics as any)?.expectedBalanceOperationType === 'PHASE_RESET'
-      && resetExpectationExpiresAt
-      && Number.isFinite(resetExpectationExpiresAt.getTime())
-      && resetExpectationExpiresAt.getTime() >= now.getTime()
     const resetExpectedAmount = (metrics as any)?.expectedBalanceOperationAmount as number | null | undefined
     const resetAmountMatches = resetExpectationActive
       && resetExpectedAmount != null
@@ -369,13 +344,9 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         const expectedOperationType = (metrics as any)?.expectedBalanceOperationType as string | null | undefined
         const expectedOperationExpiresAt = (metrics as any)?.expectedBalanceOperationExpiresAt as Date | string | null | undefined
         const expectedOperationAmount = (metrics as any)?.expectedBalanceOperationAmount as number | null | undefined
-        const expiresAt = expectedOperationExpiresAt ? new Date(expectedOperationExpiresAt) : null
         const hasValidExpectation = Boolean(
           (metrics as any)?.expectedBalanceChange
           && expectedOperationType
-          && expiresAt
-          && Number.isFinite(expiresAt.getTime())
-          && expiresAt.getTime() >= now.getTime()
         )
         if (!hasValidExpectation) {
           if (normalizedPayloadPlatform === 'mt5') {
@@ -452,6 +423,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     const breached = breachReason != null
     const wasBreached = account.status?.toLowerCase() === 'breached'
     const wasPassed = account.status?.toLowerCase() === 'awaiting_reset'
+    const resetExpectationActive = (metrics as any)?.expectedBalanceOperationType === 'PHASE_RESET'
     const isFundedPhase = normalizedPhase === 'funded'
     const passed = !breached
       && !isInstantFunded
@@ -659,10 +631,10 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       }
     }
 
-    if (passed && accountData.userId) {
+    if (passed && accountData.userId && !resetExpectationActive) {
       const profitBase = accountData.initialBalance ?? 0
       const profit = Math.max(0, balance - profitBase)
-      const expectedOperationExpiresAt = new Date(Date.now() + 5 * 60 * 1000)
+      const expectedOperationExpiresAt = null
       const resetBalance = accountData.initialBalance ?? Math.max(0, balance - profit)
       try {
         await prisma.cTraderAccountMetric.updateMany({
