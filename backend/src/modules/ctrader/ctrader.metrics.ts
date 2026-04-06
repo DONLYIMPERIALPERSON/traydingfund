@@ -452,8 +452,10 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     const breached = breachReason != null
     const wasBreached = account.status?.toLowerCase() === 'breached'
     const wasPassed = account.status?.toLowerCase() === 'awaiting_reset'
+    const isFundedPhase = normalizedPhase === 'funded'
     const passed = !breached
       && !isInstantFunded
+      && !isFundedPhase
       && profitTargetBalance != null
       && equity >= profitTargetBalance
       && minTradingDaysMet
