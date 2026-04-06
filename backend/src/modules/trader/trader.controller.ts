@@ -533,16 +533,16 @@ export const requestChallengeRefresh = async (req: AuthRequest, res: Response, n
     try {
       await requestAccountAccess({
         user_email: user.email,
-        user_name: account.user?.fullName ?? undefined,
-        account_type: account.challengeType ?? undefined,
-        account_phase: account.phase ?? undefined,
-        account_size: account.accountSize ?? undefined,
         account_number: account.accountNumber,
         broker: account.brokerName,
         platform: account.platform ?? 'ctrader',
-        mt5_login: account.mt5Login ?? undefined,
-        mt5_server: account.mt5Server ?? undefined,
-        mt5_password: account.mt5Password ?? undefined,
+        ...(account.user?.fullName ? { user_name: account.user.fullName } : {}),
+        ...(account.challengeType ? { account_type: account.challengeType } : {}),
+        ...(account.phase ? { account_phase: account.phase } : {}),
+        ...(account.accountSize ? { account_size: account.accountSize } : {}),
+        ...(account.mt5Login ? { mt5_login: account.mt5Login } : {}),
+        ...(account.mt5Server ? { mt5_server: account.mt5Server } : {}),
+        ...(account.mt5Password ? { mt5_password: account.mt5Password } : {}),
       })
     } catch (error) {
       console.error('Failed to request account refresh', error)

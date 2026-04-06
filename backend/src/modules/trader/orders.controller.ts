@@ -309,18 +309,19 @@ const handleCompletedOrder = async (order: Order) => {
         })
       } else {
         try {
+          const accessAccountSize = assigned.accountSize ?? order.accountSize
           await requestAccountAccess({
             user_email: user?.email ?? '',
-            user_name: user?.fullName ?? undefined,
-            account_type: order.challengeType ?? undefined,
-            account_phase: order.phase ?? undefined,
-            account_size: assigned.accountSize ?? order.accountSize ?? undefined,
             account_number: assigned.accountNumber,
             broker: assigned.brokerName,
             platform: resolvedPlatform,
-            mt5_login: assigned.mt5Login ?? undefined,
-            mt5_server: assigned.mt5Server ?? undefined,
-            mt5_password: assigned.mt5Password ?? undefined,
+            ...(user?.fullName ? { user_name: user.fullName } : {}),
+            ...(order.challengeType ? { account_type: order.challengeType } : {}),
+            ...(order.phase ? { account_phase: order.phase } : {}),
+            ...(accessAccountSize ? { account_size: accessAccountSize } : {}),
+            ...(assigned.mt5Login ? { mt5_login: assigned.mt5Login } : {}),
+            ...(assigned.mt5Server ? { mt5_server: assigned.mt5Server } : {}),
+            ...(assigned.mt5Password ? { mt5_password: assigned.mt5Password } : {}),
           })
         } catch (error) {
           console.error('Failed to request access-engine account grant', {

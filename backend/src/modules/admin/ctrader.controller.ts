@@ -158,18 +158,19 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
         data: { assignmentStatus: 'assigned' },
       })
 
+      const accessAccountSize = assigned.accountSize ?? order.accountSize
       await requestAccountAccess({
         user_email: order.user.email,
-        user_name: order.user.fullName ?? undefined,
-        account_type: order.challengeType ?? undefined,
-        account_phase: order.phase ?? undefined,
-        account_size: assigned.accountSize ?? order.accountSize ?? undefined,
         account_number: assigned.accountNumber,
         broker: assigned.brokerName,
         platform: (order.metadata as { platform?: string } | null)?.platform ?? 'ctrader',
-        mt5_login: assigned.mt5Login ?? undefined,
-        mt5_server: assigned.mt5Server ?? undefined,
-        mt5_password: assigned.mt5Password ?? undefined,
+        ...(order.user.fullName ? { user_name: order.user.fullName } : {}),
+        ...(order.challengeType ? { account_type: order.challengeType } : {}),
+        ...(order.phase ? { account_phase: order.phase } : {}),
+        ...(accessAccountSize ? { account_size: accessAccountSize } : {}),
+        ...(assigned.mt5Login ? { mt5_login: assigned.mt5Login } : {}),
+        ...(assigned.mt5Server ? { mt5_server: assigned.mt5Server } : {}),
+        ...(assigned.mt5Password ? { mt5_password: assigned.mt5Password } : {}),
       })
     }
 
@@ -247,7 +248,8 @@ export const forceAssignNextStage = async (req: Request, res: Response, next: Ne
     })
 
     const resolvedUser = resolvedAccount.user
-    if (!resolvedUser?.email) {
+    const resolvedUserEmail = resolvedUser?.email ?? null
+    if (!resolvedUserEmail) {
       res.json({
         message: 'Next stage assigned',
         assigned_challenge_id: assignedAccount.challengeId,
@@ -256,21 +258,38 @@ export const forceAssignNextStage = async (req: Request, res: Response, next: Ne
       return
     }
 
-    const email = resolvedUser!.email
-    const fullName = resolvedUser!.fullName ?? undefined
-    await requestAccountAccess({
-      user_email: email,
-      user_name: fullName,
-      account_type: resolvedAccount.challengeType ?? undefined,
-      account_phase: resolvedNextPhase ?? undefined,
-      account_size: assignedAccount.accountSize ?? resolvedAccount.accountSize ?? undefined,
+    const email = resolvedUserEmail
+    const resolvedUserFullName = resolvedUser?.fullName ?? undefined
+    const accessAccountSize = assignedAccount.accountSize ?? resolvedAccount.accountSize
+    const accessPayload: Parameters<typeof requestAccountAccess>[0] = {
+      user_email: email!,
       account_number: assignedAccount.accountNumber,
       broker: assignedAccount.brokerName,
       platform: assignedAccount.platform ?? 'ctrader',
-      mt5_login: assignedAccount.mt5Login ?? undefined,
-      mt5_server: assignedAccount.mt5Server ?? undefined,
-      mt5_password: assignedAccount.mt5Password ?? undefined,
-    })
+      ...(resolvedUserFullName ? { user_name: resolvedUserFullName } : {}),
+      ...(accessAccountSize ? { account_size: accessAccountSize } : {}),
+    }
+    const accountType = resolvedAccount.challengeType ?? undefined
+    if (accountType) {
+      accessPayload.account_type = accountType
+    }
+    const accountPhase = resolvedNextPhase ?? undefined
+    if (accountPhase) {
+      accessPayload.account_phase = accountPhase
+    }
+    const mt5Login = assignedAccount.mt5Login
+    if (mt5Login !== null) {
+      accessPayload.mt5_login = mt5Login as string
+    }
+    const mt5Server = assignedAccount.mt5Server
+    if (mt5Server !== null) {
+      accessPayload.mt5_server = mt5Server as string
+    }
+    const mt5Password = assignedAccount.mt5Password
+    if (mt5Password !== null) {
+      accessPayload.mt5_password = mt5Password as string
+    }
+    await requestAccountAccess(accessPayload)
 
     res.json({
       message: 'Next stage assigned',

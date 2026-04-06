@@ -209,12 +209,17 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         }
         return event
       })
-    const normalizedTradeEvents = tradeEvents.map((trade) => ({
-      ...trade,
-      symbol: trade.symbol ?? (trade as { symbol?: string }).symbol,
-      profit: trade.profit ?? (trade as { amount?: number }).amount,
-      dealType: trade.dealType ?? (trade as { deal_type?: string }).deal_type,
-    }))
+    const normalizedTradeEvents = tradeEvents.map((trade) => {
+      const normalizedSymbol = trade.symbol ?? (trade as { symbol?: string }).symbol
+      const normalizedProfit = trade.profit ?? (trade as { amount?: number }).amount
+      const normalizedDealType = trade.dealType ?? (trade as { deal_type?: string }).deal_type
+      return {
+        ...trade,
+        ...(normalizedSymbol ? { symbol: normalizedSymbol } : {}),
+        ...(typeof normalizedProfit === 'number' ? { profit: normalizedProfit } : {}),
+        ...(normalizedDealType ? { dealType: normalizedDealType } : {}),
+      }
+    })
     const closedTrades = normalizedTradeEvents.filter((trade) => trade.open_time && trade.close_time)
     const totalTrades = ((metrics as any)?.totalTrades ?? 0) + closedTrades.length
     const priorProcessedTrades = Array.isArray((metrics as any)?.processedTradeIds)

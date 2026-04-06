@@ -1,10 +1,11 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../config/prisma'
 
 type EmailLogPayload = {
   type: string
   accountId?: number | null
   userId?: number | null
-  metadata?: Record<string, unknown> | null
+  metadata?: Prisma.InputJsonValue | null
 }
 
 type ShouldSendEmailPayload = EmailLogPayload & {
@@ -12,14 +13,13 @@ type ShouldSendEmailPayload = EmailLogPayload & {
 }
 
 export const recordEmailLog = async ({ type, accountId, userId, metadata }: EmailLogPayload) => {
-  await prisma.emailLog.create({
-    data: {
-      type,
-      accountId: accountId ?? null,
-      userId: userId ?? null,
-      metadata: metadata ?? undefined,
-    },
-  })
+  const data: Prisma.EmailLogUncheckedCreateInput = {
+    type,
+    accountId: accountId ?? null,
+    userId: userId ?? null,
+    ...(metadata != null ? { metadata } : {}),
+  }
+  await prisma.emailLog.create({ data })
 }
 
 export const hasRecentEmailLog = async ({ type, accountId, userId }: EmailLogPayload) => {
@@ -54,10 +54,10 @@ export const recordCredentialView = async ({
 }: {
   accountId?: number | null
   userId?: number | null
-  metadata?: Record<string, unknown> | null
+  metadata?: Prisma.InputJsonValue | null
 }) => recordEmailLog({
   type: 'CREDENTIAL_VIEW',
   accountId: accountId ?? null,
   userId: userId ?? null,
-  metadata: metadata ?? undefined,
+  ...(metadata != null ? { metadata } : {}),
 })

@@ -308,18 +308,19 @@ export const approveCryptoOrder = async (req: Request, res: Response, next: Next
             data: { status: 'active', accessStatus: 'granted', accessGrantedAt: new Date() },
           })
         } else if (user?.email) {
+          const accessAccountSize = assigned.accountSize ?? updated.accountSize
           await requestAccountAccess({
             user_email: user.email,
-            user_name: user.fullName ?? undefined,
-            account_type: updated.challengeType ?? undefined,
-            account_phase: updated.phase ?? undefined,
-            account_size: assigned.accountSize ?? updated.accountSize ?? undefined,
             account_number: assigned.accountNumber,
             broker: assigned.brokerName,
             platform,
-            mt5_login: assigned.mt5Login ?? undefined,
-            mt5_server: assigned.mt5Server ?? undefined,
-            mt5_password: assigned.mt5Password ?? undefined,
+            ...(user.fullName ? { user_name: user.fullName } : {}),
+            ...(updated.challengeType ? { account_type: updated.challengeType } : {}),
+            ...(updated.phase ? { account_phase: updated.phase } : {}),
+            ...(accessAccountSize ? { account_size: accessAccountSize } : {}),
+            ...(assigned.mt5Login ? { mt5_login: assigned.mt5Login } : {}),
+            ...(assigned.mt5Server ? { mt5_server: assigned.mt5Server } : {}),
+            ...(assigned.mt5Password ? { mt5_password: assigned.mt5Password } : {}),
           })
         }
       } else {
