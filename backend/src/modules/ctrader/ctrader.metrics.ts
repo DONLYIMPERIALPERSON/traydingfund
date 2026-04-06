@@ -423,7 +423,6 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     const breached = breachReason != null
     const wasBreached = account.status?.toLowerCase() === 'breached'
     const wasPassed = account.status?.toLowerCase() === 'awaiting_reset'
-    const resetExpectationActive = (metrics as any)?.expectedBalanceOperationType === 'PHASE_RESET'
     const isFundedPhase = normalizedPhase === 'funded'
     const passed = !breached
       && !isInstantFunded
