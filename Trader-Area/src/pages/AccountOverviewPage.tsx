@@ -322,7 +322,8 @@ const AccountOverviewPage: React.FC = () => {
                               {objective.note && <span className="objective-info">{objective.note}</span>}
                               {targetBalance != null && (
                                 <span className="objective-subinfo">
-                                  Target balance {formatCurrency(targetBalance, accountCurrency)}
+                                  {key === 'profit_target' ? 'Target balance' : 'Target equity'}{' '}
+                                  {formatCurrency(targetBalance, accountCurrency)}
                                 </span>
                               )}
                             </>
