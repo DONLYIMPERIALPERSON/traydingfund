@@ -881,7 +881,7 @@ void OnTimer()
    TradeEvent trades[];
    GetRecentClosedTrades(trades, start, now);
 
-   double highest_balance = has_state ? persisted_highest : MathMax(balance, equity);
+   double highest_balance = has_state ? persisted_highest : balance;
    double lowest_equity = has_state ? persisted_lowest : 0.0;
    double min_equity = CalculateMinEquityTimeline(
       positions,
@@ -894,6 +894,8 @@ void OnTimer()
       has_withdrawal,
       balance
    );
+   if(min_equity > balance)
+      min_equity = balance;
    double dd_percent = ComputeDD(highest_balance, min_equity);
 
    string json = BuildJSON(positions, trades, balance, equity, min_equity);

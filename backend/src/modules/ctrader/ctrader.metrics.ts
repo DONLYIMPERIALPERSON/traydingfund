@@ -157,6 +157,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     const minEquity = reportedMinEquity != null
       ? (priorMinEquity != null ? Math.min(priorMinEquity, reportedMinEquity) : reportedMinEquity)
       : (priorMinEquity ?? equity)
+    const effectiveMinEquity = minEquity >= balance ? balance : minEquity
 
     const highestBalance = Math.max(metrics?.highestBalance ?? accountData.initialBalance ?? equity, equity)
     const breachBalance = accountData.maxDdAmount != null
@@ -315,7 +316,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
 
     console.info('[metrics] drawdown inputs', {
       accountNumber: account.accountNumber,
-      minEquity,
+      minEquity: effectiveMinEquity,
       reportedMinEquity,
       breachBalance,
       dailyBreachBalance: dailyDdEnabled ? dailyBreachBalance : null,
@@ -327,9 +328,9 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       // Skip DD/fraud checks during a reset window to avoid false breaches.
     } else if (unsupportedTrade) {
       breachReason = 'UNSUPPORTED_SYMBOL'
-    } else if (minEquity < breachBalance) {
+    } else if (effectiveMinEquity < breachBalance) {
       breachReason = 'MAX_DRAWDOWN'
-    } else if (dailyDdEnabled && minEquity < dailyBreachBalance) {
+    } else if (dailyDdEnabled && effectiveMinEquity < dailyBreachBalance) {
       breachReason = 'DAILY_DRAWDOWN'
     } else if (shortDurationViolation) {
       breachReason = 'MIN_TRADE_DURATION'
@@ -491,7 +492,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         totalTrades,
         shortDurationViolation,
         breachReason,
-        minEquity,
+        minEquity: effectiveMinEquity,
         lastBalance: balance,
         lastEquity: equity,
         engineId: payload.engine_id ?? (metrics as any)?.engineId ?? null,
@@ -523,7 +524,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         totalTrades,
         shortDurationViolation,
         breachReason,
-        minEquity,
+        minEquity: effectiveMinEquity,
         lastBalance: balance,
         lastEquity: equity,
         engineId: payload.engine_id ?? (metrics as any)?.engineId ?? null,
@@ -675,7 +676,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       account_number: account.accountNumber,
       balance,
       equity,
-      min_equity: minEquity,
+      min_equity: effectiveMinEquity,
       breach_threshold: breachBalance,
       breach_reason: breachReason,
       status: breached ? 'breached' : passed ? 'awaiting_reset' : 'active',
