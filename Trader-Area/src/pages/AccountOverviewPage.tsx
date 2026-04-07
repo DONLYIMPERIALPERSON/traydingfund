@@ -262,6 +262,19 @@ const AccountOverviewPage: React.FC = () => {
                   }
                   const iconConfig = iconMap[key] ?? { icon: 'clipboard-list', className: 'trading-days' }
 
+                  const targetBalance = (() => {
+                    if (key === 'profit_target') {
+                      return accountData.metrics.profit_target_balance
+                    }
+                    if (key === 'max_drawdown') {
+                      return accountData.metrics.breach_balance
+                    }
+                    if (key === 'max_daily_drawdown') {
+                      return accountData.metrics.daily_breach_balance
+                    }
+                    return null
+                  })()
+
                   return (
                     <div key={key} className="objective-item">
                       <div className="objective-content">
@@ -305,7 +318,14 @@ const AccountOverviewPage: React.FC = () => {
                               })()}
                             </span>
                           ) : (
-                            objective.note && <span className="objective-info">{objective.note}</span>
+                            <>
+                              {objective.note && <span className="objective-info">{objective.note}</span>}
+                              {targetBalance != null && (
+                                <span className="objective-subinfo">
+                                  Target balance {formatCurrency(targetBalance, accountCurrency)}
+                                </span>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>

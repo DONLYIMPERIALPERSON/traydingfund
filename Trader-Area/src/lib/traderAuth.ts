@@ -132,6 +132,7 @@ export type UserChallengeMetrics = {
   max_permitted_loss_left: number
   highest_balance: number
   breach_balance: number
+  daily_breach_balance?: number
   profit_target_balance: number
   win_rate: number
   closed_trades_count: number

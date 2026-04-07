@@ -310,6 +310,7 @@ export const getChallengeAccountDetail = async (
       | 'maxPermittedLossLeft'
       | 'highestBalance'
       | 'breachBalance'
+      | 'dailyBreachBalance'
       | 'profitTargetBalance'
       | 'winRate'
       | 'closedTradesCount'
@@ -481,6 +482,8 @@ export const getChallengeAccountDetail = async (
         max_permitted_loss_left: metrics.maxPermittedLossLeft,
         highest_balance: metrics.highestBalance,
         breach_balance: metrics.breachBalance,
+        daily_breach_balance: (account.metrics as { dailyBreachBalance?: number | null } | null)?.dailyBreachBalance
+          ?? dailyDrawdownBalance,
         profit_target_balance: metrics.profitTargetBalance,
         win_rate: metrics.winRate,
         closed_trades_count: metrics.closedTradesCount,

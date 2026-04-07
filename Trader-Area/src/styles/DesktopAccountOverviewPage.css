@@ -460,6 +460,12 @@
   font-weight: 400;
 }
 
+.objective-subinfo {
+  font-size: 12px;
+  color: #666 !important;
+  font-weight: 500;
+}
+
 .objective-status {
   font-size: 20px;
 }
