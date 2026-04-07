@@ -783,29 +783,7 @@ string BuildJSON(const Position &positions[], const TradeEvent &trades[], double
    return json;
 }
 
-// 7. Sender
-bool SendMetrics(string json)
-{
-   char data[];
-   StringToCharArray(json, data);
-
-   char response[];
-   string headers = "Content-Type: application/json\r\n";
-   if (StringLen(ENGINE_SECRET) > 0)
-      headers += "X-ENGINE-SECRET: " + ENGINE_SECRET + "\r\n";
-
-   string response_headers;
-
-   int res = WebRequest("POST", BACKEND_URL, headers, WEB_TIMEOUT, data, response, response_headers);
-   // HTTP response logs removed for production.
-   if(res == -1)
-   {
-      PrintFormat("WebRequest error %d (GetLastError=%d)", res, GetLastError());
-      return false;
-   }
-   return true;
-}
-
+// 7. Storage
 void SaveMetricsToFile(const string json)
 {
    string filename = METRICS_FILENAME_PREFIX + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) + ".json";
@@ -813,13 +791,15 @@ void SaveMetricsToFile(const string json)
 
    if(handle != INVALID_HANDLE)
    {
-      FileWrite(handle, json);
+      Print("Writing metrics file: ", filename);
+      Print("Payload length: ", StringLen(json));
+      FileWriteString(handle, json);
       FileClose(handle);
       // Metrics file saved.
    }
    else
    {
-      Print("Failed to write metrics file. Error: ", GetLastError());
+      Print("Failed to write metrics file. Error: ", GetLastError(), " Filename: ", filename);
    }
 }
 
@@ -896,14 +876,21 @@ void OnTimer()
    );
    double dd_percent = ComputeDD(highest_balance, min_equity);
 
-   string json = BuildJSON(positions, trades, balance, equity, min_equity);
+   string common_path = TerminalInfoString(TERMINAL_COMMONDATA_PATH);
+   Print("Common Files Path: ", common_path, "\\Files");
+   Print("=== TEST RESULT ===");
+   Print("Balance: ", balance);
+   Print("Equity: ", equity);
+   Print("Min Equity: ", min_equity);
+   Print("Highest Balance: ", highest_balance);
+   Print("====================");
 
-   Print("Payload: "+json);
+   string json = BuildJSON(positions, trades, balance, equity, min_equity);
    SaveMetricsToFile(json);
    SaveCheckpoint(now);
    SaveDDState(highest_balance, min_equity, now);
-   ExpertRemove();
-   TerminalClose(0);
+   // keep running for testing
+   return;
 }
 
 // 9. Helpers: JSON Tick Parser (fast)
