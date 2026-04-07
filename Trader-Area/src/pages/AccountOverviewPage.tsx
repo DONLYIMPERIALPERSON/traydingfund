@@ -37,6 +37,23 @@ const AccountOverviewPage: React.FC = () => {
     const formatted = formatCurrency(Math.abs(value), currencyCode)
     return `${value >= 0 ? '+' : '-'}${formatted}`
   }
+
+  const formatRelativeUpdate = (timestamp?: string | null) => {
+    if (!timestamp) return 'Unknown'
+    const parsed = new Date(timestamp)
+    if (Number.isNaN(parsed.getTime())) return 'Unknown'
+    const diffMs = Date.now() - parsed.getTime()
+    if (diffMs < 0) return 'Just now'
+    const diffSeconds = Math.floor(diffMs / 1000)
+    if (diffSeconds < 30) return 'Just now'
+    if (diffSeconds < 60) return `${diffSeconds}s ago`
+    const diffMinutes = Math.floor(diffSeconds / 60)
+    if (diffMinutes < 60) return `${diffMinutes} min${diffMinutes === 1 ? '' : 's'} ago`
+    const diffHours = Math.floor(diffMinutes / 60)
+    if (diffHours < 24) return `${diffHours} hr${diffHours === 1 ? '' : 's'} ago`
+    const diffDays = Math.floor(diffHours / 24)
+    return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
+  }
   const parseAccountSize = (value: string) => {
     const normalized = value
       .toLowerCase()
@@ -108,6 +125,7 @@ const AccountOverviewPage: React.FC = () => {
   const isFraudBreach = normalizedBreachReason.includes('fraud')
   const accountCurrency = resolveCurrencyCode(accountData)
   const pendingWithdrawalAmount = accountData.pending_withdrawal_amount ?? 0
+  const lastUpdatedLabel = formatRelativeUpdate(accountData.last_feed_at ?? accountData.last_refresh_requested_at)
   return (
     <div className="account-overview-page">
       <DesktopHeader />
@@ -136,7 +154,7 @@ const AccountOverviewPage: React.FC = () => {
         <div className="balance-overview-section">
           <div className="balance-overview-header">
             <span className="balance-overview-title">Balance Overview</span>
-            <span className="connection-status">Live</span>
+            <span className="connection-status">Last updated: {lastUpdatedLabel}</span>
           </div>
           {hasPendingWithdrawal ? (
             <div className="pending-withdrawal-warning">
