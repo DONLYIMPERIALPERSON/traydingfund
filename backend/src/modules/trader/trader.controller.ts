@@ -369,9 +369,10 @@ export const getChallengeAccountDetail = async (
     const maxDrawdownBalance = objectiveFields.maxDdAmount != null
       ? (metrics.highestBalance ?? initialBalance) - objectiveFields.maxDdAmount
       : metrics.breachBalance
+    const dailyStartBalance = (account.metrics as { dailyHighBalance?: number | null } | null)?.dailyHighBalance
+      ?? initialBalance
     const dailyDrawdownBalance = objectiveFields.dailyDdAmount != null
-      ? (((account.metrics as { dailyHighBalance?: number | null } | null)?.dailyHighBalance ?? metrics.highestBalance ?? initialBalance)
-        - objectiveFields.dailyDdAmount)
+      ? dailyStartBalance - objectiveFields.dailyDdAmount
       : metrics.breachBalance
     const minTradeDurationMinutes = objectiveFields.minTradeDurationMinutes ?? 0
     const durationViolationsCount = metrics.durationViolationsCount ?? 0
