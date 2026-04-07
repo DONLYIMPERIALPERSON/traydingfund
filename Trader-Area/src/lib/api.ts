@@ -60,7 +60,16 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
       },
     })
 
-  let response = await performFetch(token)
+  let response: Response
+  try {
+    response = await performFetch(token)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+    if (message.toLowerCase().includes('failed to fetch')) {
+      throw new Error('Network error. Please check your connection and try again.')
+    }
+    throw new Error(message || 'Network error. Please try again.')
+  }
   let responseText: string | undefined
 
   if (!response.ok) {
@@ -79,11 +88,22 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
   if (!response.ok) {
     const text = responseText ?? await response.text()
-    if (text.toLowerCase().includes('exp') && text.toLowerCase().includes('timestamp')) {
+    const normalizedText = text.trim()
+    if (normalizedText.toLowerCase().includes('exp') && normalizedText.toLowerCase().includes('timestamp')) {
       await handleExpiredSession()
       throw new Error('Session expired. Please log in again.')
     }
-    throw new Error(text || 'Request failed')
+    if (response.status === 413 || normalizedText.toLowerCase().includes('request entity too large')) {
+      throw new Error('Upload failed: file too large. Please reduce the file size and try again.')
+    }
+    let message = normalizedText || `Request failed (${response.status})`
+    try {
+      const parsed = JSON.parse(normalizedText) as { message?: string; error?: string; detail?: string }
+      message = parsed.message || parsed.error || parsed.detail || message
+    } catch {
+      // keep message fallback
+    }
+    throw new Error(message)
   }
 
   return response.json() as Promise<T>
