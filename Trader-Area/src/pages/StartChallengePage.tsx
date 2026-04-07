@@ -35,7 +35,7 @@ const DesktopStartChallengePage: React.FC = () => {
 
   const [agreements, setAgreements] = useState({ terms: false })
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('bank-transfer')
-  const [selectedPlatform, setSelectedPlatform] = useState<'ctrader' | 'mt5'>('ctrader')
+  const [selectedPlatform, setSelectedPlatform] = useState<'ctrader' | 'mt5'>('mt5')
   const [selectedCrypto, setSelectedCrypto] = useState('USDT')
   const [selectedNetwork, setSelectedNetwork] = useState<'ERC20' | 'TRC20' | 'SOL'>('ERC20')
   const [promoCode, setPromoCode] = useState('')
@@ -335,8 +335,9 @@ const DesktopStartChallengePage: React.FC = () => {
                         value="ctrader"
                         checked={selectedPlatform === 'ctrader'}
                         onChange={() => setSelectedPlatform('ctrader')}
+                        disabled
                       />
-                      <span>cTrader</span>
+                      <span>cTrader (Unavailable)</span>
                     </label>
                     <label className={`platform-option ${selectedPlatform === 'mt5' ? 'active' : ''}`}>
                       <input
