@@ -342,6 +342,7 @@ export const getChallengeAccountDetail = async (
       maxPermittedLossLeft: baseBalance,
       highestBalance: baseBalance,
       breachBalance: baseBalance,
+      dailyBreachBalance: baseBalance,
       profitTargetBalance: baseBalance,
       winRate: 0,
       closedTradesCount: 0,
