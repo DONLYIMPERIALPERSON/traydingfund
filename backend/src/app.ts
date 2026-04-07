@@ -32,8 +32,8 @@ export const createApp = () => {
       legacyHeaders: false,
     })
   )
-  app.use(express.json({ limit: '25mb' }))
-  app.use(express.urlencoded({ limit: '25mb', extended: true }))
+  app.use(express.json({ limit: '50mb' }))
+  app.use(express.urlencoded({ limit: '50mb', extended: true }))
   app.use(morgan(env.nodeEnv === 'development' ? 'dev' : 'combined'))
 
   app.get('/health', (_req, res) => {
