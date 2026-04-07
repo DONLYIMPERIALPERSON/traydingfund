@@ -172,8 +172,8 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       && (!dailyStartAt || toUtcDateKey(dailyStartAt) !== toUtcDateKey(now))
     const dailyHighBalance = dailyDdEnabled
       ? (isNewDay
-        ? equity
-        : Math.max((metrics as any)?.dailyHighBalance ?? equity, equity))
+        ? balance
+        : Math.max((metrics as any)?.dailyHighBalance ?? balance, balance))
       : 0
     const dailyBreachBalance = dailyDdEnabled
       ? dailyHighBalance - accountData.dailyDdAmount
