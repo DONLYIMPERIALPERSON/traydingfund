@@ -66,7 +66,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   } catch (error) {
     const message = error instanceof Error ? error.message : ''
     if (message.toLowerCase().includes('failed to fetch')) {
-      throw new Error('Network error. Please check your connection and try again.')
+      throw new Error('Upload failed or connection blocked. If you see a 413 error, the file is too large for the server/proxy. Please reduce the file size and try again.')
     }
     throw new Error(message || 'Network error. Please try again.')
   }
