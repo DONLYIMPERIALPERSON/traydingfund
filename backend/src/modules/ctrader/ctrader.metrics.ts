@@ -578,7 +578,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
               subtitle: 'We detected a rule violation on your account',
               content: 'Your account has been marked as breached due to a rule violation. Please review the reason below and contact support if you need help.',
               buttonText: 'Go to Dashboard',
-              infoBox: `Account Number: ${account.accountNumber}<br>Reason: ${breachReason ?? 'Rule violation'}<br>Balance: ${balance}<br>Equity: ${equity}`,
+              infoBox: `Account Number: ${account.accountNumber}<br>Reason: ${breachReason ?? 'Rule violation'}<br>Balance: ${balance}<br>${breachReason === 'DAILY_DRAWDOWN' ? `Min Equity: ${minEquity}` : `Equity: ${equity}`}`,
             })
           },
         })
