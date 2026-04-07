@@ -23,6 +23,10 @@ const resetAccountMetrics = async (accountId: number, newBalance: number, phase:
     phase,
   })
   const now = new Date()
+  const maxDdAmount = objectiveFields.maxDdAmount ?? 0
+  const dailyDdAmount = objectiveFields.dailyDdAmount ?? 0
+  const breachBalance = newBalance - maxDdAmount
+  const dailyBreachBalance = newBalance - dailyDdAmount
   await prisma.cTraderAccountMetric.upsert({
     where: { accountId },
     create: {
@@ -32,7 +36,7 @@ const resetAccountMetrics = async (accountId: number, newBalance: number, phase:
       unrealizedPnl: 0,
       maxPermittedLossLeft: newBalance,
       highestBalance: newBalance,
-      breachBalance: newBalance,
+      breachBalance,
       profitTargetBalance: newBalance,
       winRate: 0,
       closedTradesCount: 0,
@@ -49,7 +53,7 @@ const resetAccountMetrics = async (accountId: number, newBalance: number, phase:
       processedTradeIds: [],
       dailyStartAt: now,
       dailyHighBalance: newBalance,
-      dailyBreachBalance: newBalance,
+      dailyBreachBalance,
       firstTradeAt: null,
       totalTrades: 0,
       shortDurationViolation: false,
@@ -70,7 +74,7 @@ const resetAccountMetrics = async (accountId: number, newBalance: number, phase:
       unrealizedPnl: 0,
       maxPermittedLossLeft: newBalance,
       highestBalance: newBalance,
-      breachBalance: newBalance,
+      breachBalance,
       profitTargetBalance: newBalance,
       minTradingDaysRequired: objectiveFields.minTradingDaysRequired ?? 0,
       minTradingDaysMet: false,
@@ -79,7 +83,7 @@ const resetAccountMetrics = async (accountId: number, newBalance: number, phase:
       processedTradeIds: [],
       dailyStartAt: now,
       dailyHighBalance: newBalance,
-      dailyBreachBalance: newBalance,
+      dailyBreachBalance,
       firstTradeAt: null,
       totalTrades: 0,
       shortDurationViolation: false,
