@@ -330,7 +330,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       breachReason = 'UNSUPPORTED_SYMBOL'
     } else if (effectiveMinEquity < breachBalance) {
       breachReason = 'MAX_DRAWDOWN'
-    } else if (dailyDdEnabled && equity < dailyBreachBalance) {
+    } else if (dailyDdEnabled && (equity < dailyBreachBalance || effectiveMinEquity < dailyBreachBalance)) {
       breachReason = 'DAILY_DRAWDOWN'
     } else if (shortDurationViolation) {
       breachReason = 'MIN_TRADE_DURATION'

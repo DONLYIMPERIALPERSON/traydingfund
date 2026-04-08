@@ -164,6 +164,61 @@ void SaveCheckpoint(long ts)
    GlobalVariableSet(key, (double)ts);
 }
 
+double GetInitialBalanceFromHistory(double fallback_balance)
+{
+   if(!HistorySelect(0, TimeCurrent() + 5 * 24 * 60 * 60))
+      return fallback_balance;
+
+   int total = HistoryDealsTotal();
+   for(int i=0; i<total; i++)
+   {
+      ulong ticket = HistoryDealGetTicket(i);
+      if(ticket == 0) continue;
+      ENUM_DEAL_TYPE type = (ENUM_DEAL_TYPE)HistoryDealGetInteger(ticket, DEAL_TYPE);
+      if(type != DEAL_TYPE_BALANCE)
+         continue;
+      double profit = HistoryDealGetDouble(ticket, DEAL_PROFIT);
+      if(profit > 0)
+         return profit;
+   }
+
+   return fallback_balance;
+}
+
+double RewindBalanceFromDeals(long start_ms, long end_ms, double end_balance)
+{
+   if(!HistorySelect((datetime)(start_ms/1000), (datetime)(end_ms/1000)))
+      return end_balance;
+
+   double balance = end_balance;
+   int total = HistoryDealsTotal();
+   for(int i=0; i<total; i++)
+   {
+      ulong ticket = HistoryDealGetTicket(i);
+      if(ticket == 0) continue;
+      ENUM_DEAL_TYPE type = (ENUM_DEAL_TYPE)HistoryDealGetInteger(ticket, DEAL_TYPE);
+      bool is_trade = (type == DEAL_TYPE_BUY || type == DEAL_TYPE_SELL);
+      bool is_balance = (type == DEAL_TYPE_BALANCE || type == DEAL_TYPE_CREDIT || type == DEAL_TYPE_CHARGE || type == DEAL_TYPE_CORRECTION);
+      if(!is_trade && !is_balance) continue;
+
+      double delta = 0.0;
+      if(is_trade)
+      {
+         delta = HistoryDealGetDouble(ticket, DEAL_PROFIT)
+                 + HistoryDealGetDouble(ticket, DEAL_COMMISSION)
+                 + HistoryDealGetDouble(ticket, DEAL_SWAP);
+      }
+      else
+      {
+         delta = HistoryDealGetDouble(ticket, DEAL_PROFIT);
+      }
+
+      balance -= delta;
+   }
+
+   return balance;
+}
+
 double ExtractJsonNumber(const string json, const string key, double default_value)
 {
    string pattern = "\"" + key + "\"";
@@ -195,7 +250,7 @@ long ExtractJsonLong(const string json, const string key, long default_value)
    return (long)ExtractJsonNumber(json, key, (double)default_value);
 }
 
-bool LoadDDState(double &highest_balance, double &lowest_equity, long &last_checked)
+bool LoadDDState(double &highest_balance, double &lowest_equity, double &initial_balance, long &last_checked, double &last_balance)
 {
    string filename = DD_STATE_FILENAME_PREFIX + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) + ".json";
    int handle = FileOpen(filename, FILE_READ | FILE_TXT | FILE_COMMON | FILE_ANSI);
@@ -214,11 +269,13 @@ bool LoadDDState(double &highest_balance, double &lowest_equity, long &last_chec
 
    highest_balance = ExtractJsonNumber(content, "highest_balance", 0.0);
    lowest_equity = ExtractJsonNumber(content, "lowest_equity", 0.0);
+   initial_balance = ExtractJsonNumber(content, "initial_balance", 0.0);
    last_checked = ExtractJsonLong(content, "last_checked", 0);
-   return (highest_balance > 0 || lowest_equity > 0 || last_checked > 0);
+   last_balance = ExtractJsonNumber(content, "last_balance", 0.0);
+   return (highest_balance > 0 || lowest_equity > 0 || initial_balance > 0 || last_checked > 0 || last_balance > 0);
 }
 
-void SaveDDState(double highest_balance, double lowest_equity, long last_checked)
+void SaveDDState(double highest_balance, double lowest_equity, double initial_balance, long last_checked, double last_balance)
 {
    string filename = DD_STATE_FILENAME_PREFIX + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) + ".json";
    int handle = FileOpen(filename, FILE_WRITE | FILE_TXT | FILE_COMMON | FILE_ANSI);
@@ -231,7 +288,9 @@ void SaveDDState(double highest_balance, double lowest_equity, long last_checked
    string json = "{";
    json += "\"highest_balance\":" + DoubleToString(highest_balance, 2) + ",";
    json += "\"lowest_equity\":" + DoubleToString(lowest_equity, 2) + ",";
-   json += "\"last_checked\":" + IntegerToString((long)last_checked);
+   json += "\"initial_balance\":" + DoubleToString(initial_balance, 2) + ",";
+   json += "\"last_checked\":" + IntegerToString((long)last_checked) + ",";
+   json += "\"last_balance\":" + DoubleToString(last_balance, 2);
    json += "}";
 
    FileWriteString(handle, json);
@@ -562,9 +621,9 @@ double CalculateMinEquityTimeline(
    {
       double fallback_equity = AccountInfoDouble(ACCOUNT_EQUITY);
       if(!use_state || io_highest_balance <= 0)
-         io_highest_balance = MathMax(current_balance, fallback_equity);
+         io_highest_balance = baseline_balance;
       if(!use_state || io_lowest_equity <= 0)
-         io_lowest_equity = MathMin(current_balance, fallback_equity);
+         io_lowest_equity = MathMin(baseline_balance, fallback_equity);
       return io_lowest_equity;
    }
 
@@ -647,9 +706,9 @@ double CalculateMinEquityTimeline(
    {
       double fallback_equity = AccountInfoDouble(ACCOUNT_EQUITY);
       if(!use_state || io_highest_balance <= 0)
-         io_highest_balance = MathMax(start_balance, fallback_equity);
+         io_highest_balance = baseline_balance;
       if(!use_state || io_lowest_equity <= 0)
-         io_lowest_equity = MathMin(start_balance, fallback_equity);
+         io_lowest_equity = MathMin(baseline_balance, fallback_equity);
       return io_lowest_equity;
    }
 
@@ -701,8 +760,8 @@ double CalculateMinEquityTimeline(
    }
 
    double balance = start_balance;
-   double highest_balance = (!use_state || io_highest_balance <= 0) ? balance : io_highest_balance;
-   double lowest_equity = (!use_state || io_lowest_equity <= 0) ? balance : io_lowest_equity;
+   double highest_balance = (!use_state || io_highest_balance <= 0) ? baseline_balance : io_highest_balance;
+   double lowest_equity = (!use_state || io_lowest_equity <= 0) ? MathMin(baseline_balance, balance) : io_lowest_equity;
    int deal_index = 0;
 
    for(int t=0; t<ArraySize(timeline); t++)
@@ -834,45 +893,67 @@ void OnTimer()
    }
 
    long now = (long)TimeCurrent() * 1000;
-   long start = GetLastCheckpoint();
+   long start = 0;
+   const long retention_ms = 86400000;
    double persisted_highest = 0.0;
    double persisted_lowest = 0.0;
+   double persisted_initial = 0.0;
    long persisted_last_checked = 0;
-   bool has_state = LoadDDState(persisted_highest, persisted_lowest, persisted_last_checked);
+   double persisted_last_balance = 0.0;
+   bool has_state = LoadDDState(
+      persisted_highest,
+      persisted_lowest,
+      persisted_initial,
+      persisted_last_checked,
+      persisted_last_balance
+   );
+
+   double initial_balance = (has_state && persisted_initial > 0) ? persisted_initial : GetInitialBalanceFromHistory(balance);
+   double highest_balance = (has_state && persisted_highest > 0) ? persisted_highest : initial_balance;
+   double lowest_equity = (has_state && persisted_lowest > 0) ? persisted_lowest : MathMin(initial_balance, balance);
+
+   bool use_state = false;
+   double start_balance = balance;
+
    if(has_state && persisted_last_checked > 0)
-      start = persisted_last_checked;
-
-   long max_window = (long)LOOKBACK_MINUTES * 60 * 1000;
-   if(!has_state && now - start > max_window)
-      start = now - max_window;
-
-   start -= CHECKPOINT_OVERLAP_MS;
-
-   WithdrawalInfo withdrawal;
-   bool has_withdrawal = FindLastWithdrawal(withdrawal);
-   if(has_withdrawal && withdrawal.time_msc > 0)
    {
-      start = withdrawal.time_msc + 1;
-      has_state = false;
-      persisted_highest = 0.0;
-      persisted_lowest = 0.0;
+      if(now - persisted_last_checked <= retention_ms)
+      {
+         start = persisted_last_checked - CHECKPOINT_OVERLAP_MS;
+         if(start < 0) start = 0;
+         use_state = true;
+         double end_balance = (persisted_last_balance > 0) ? persisted_last_balance : balance;
+         start_balance = RewindBalanceFromDeals(start, persisted_last_checked, end_balance);
+      }
+      else
+      {
+         start = now - retention_ms;
+         if(start < 0) start = 0;
+         use_state = true;
+         start_balance = RewindBalanceFromDeals(start, now, balance);
+      }
+   }
+   else
+   {
+      start = now - retention_ms;
+      if(start < 0) start = 0;
+      use_state = false;
+      start_balance = RewindBalanceFromDeals(start, now, balance);
    }
 
    TradeEvent trades[];
    GetRecentClosedTrades(trades, start, now);
 
-   double highest_balance = has_state ? persisted_highest : balance;
-   double lowest_equity = has_state ? persisted_lowest : 0.0;
    double min_equity = CalculateMinEquityTimeline(
       positions,
       start,
       now,
-      balance,
+      start_balance,
       highest_balance,
       lowest_equity,
-      has_state,
-      has_withdrawal,
-      balance
+      use_state,
+      false,
+      initial_balance
    );
    if(min_equity > balance)
       min_equity = balance;
@@ -889,8 +970,7 @@ void OnTimer()
 
    string json = BuildJSON(positions, trades, balance, equity, min_equity);
    SaveMetricsToFile(json);
-   SaveCheckpoint(now);
-   SaveDDState(highest_balance, min_equity, now);
+   SaveDDState(highest_balance, min_equity, initial_balance, now, balance);
    // keep running for testing
    return;
 }
