@@ -223,8 +223,13 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     const reportedMinEquity = Number.isFinite(payload.min_equity) ? Number(payload.min_equity) : null
     const reportedMinEquityNote = payload.min_equity_note ? String(payload.min_equity_note) : null
     const priorMinEquity = (metrics as any)?.minEquity ?? null
-    const minEquity = reportedMinEquity != null
-      ? (priorMinEquity != null ? Math.min(priorMinEquity, reportedMinEquity) : reportedMinEquity)
+    const minEquityCandidate = reportedMinEquity != null && reportedMinEquity > 0
+      ? reportedMinEquity
+      : (isMt5Payload && reportedDailyLowEquity != null && reportedDailyLowEquity > 0
+        ? reportedDailyLowEquity
+        : null)
+    const minEquity = minEquityCandidate != null
+      ? (priorMinEquity != null ? Math.min(priorMinEquity, minEquityCandidate) : minEquityCandidate)
       : (priorMinEquity ?? equity)
     const effectiveMinEquity = minEquity >= balance ? balance : minEquity
     const guardedMinEquity = isMt5Payload && equity < balance && effectiveMinEquity >= balance
