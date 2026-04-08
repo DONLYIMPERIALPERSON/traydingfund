@@ -272,15 +272,17 @@
 
 .profit-loss-card {
   overflow: hidden;
+  min-height: 140px;
+  padding-top: 28px;
 }
 
 .profit-percent-tag {
   position: absolute;
-  top: 12px;
+  top: 14px;
   right: 12px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  padding: 4px 8px;
+  padding: 6px 12px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.06);
   color: #111;
