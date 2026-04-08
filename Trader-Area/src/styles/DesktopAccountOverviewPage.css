@@ -682,12 +682,15 @@
   .profit-loss-card {
     min-height: auto;
     padding-top: 20px;
+    overflow: visible;
   }
 
   .profit-percent-tag {
-    position: static;
-    align-self: flex-start;
-    margin-bottom: 8px;
+    position: absolute;
+    top: -16px;
+    right: 12px;
+    z-index: 2;
+    margin-bottom: 0;
   }
 
   .balance-card-header {
