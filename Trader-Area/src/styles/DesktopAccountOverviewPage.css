@@ -679,6 +679,17 @@
     text-align: left;
   }
 
+  .profit-loss-card {
+    min-height: auto;
+    padding-top: 20px;
+  }
+
+  .profit-percent-tag {
+    position: static;
+    align-self: flex-start;
+    margin-bottom: 8px;
+  }
+
   .balance-card-header {
     justify-content: flex-start;
   }
