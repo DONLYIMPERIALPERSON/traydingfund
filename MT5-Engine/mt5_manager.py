@@ -110,26 +110,6 @@ def run_mt5_job(account: Dict[str, str], mt5_path: str) -> Dict[str, str]:
         except Exception:
             pass
 
-    close_config = os.path.join(CONFIG_FOLDER, f"config_{account_number}_{job_id}_close.ini")
-    try:
-        with open(close_config, "w") as f:
-            f.write("[StartUp]\n")
-            f.write("Symbol=EURUSDm\n")
-            f.write("Period=H1\n")
-            f.write("AutoClose=1\n")
-        subprocess.Popen(
-            [mt5_path, "/portable", f"/config:{close_config}"],
-            startupinfo=startupinfo
-        )
-        time.sleep(3)
-    except Exception:
-        pass
-    if os.path.exists(close_config):
-        try:
-            os.remove(close_config)
-        except Exception:
-            pass
-
     return {
         "account": str(account_number),
         "status": "sent",
