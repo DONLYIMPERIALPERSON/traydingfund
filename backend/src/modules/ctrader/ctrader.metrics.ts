@@ -209,9 +209,12 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       ? (priorMinEquity != null ? Math.min(priorMinEquity, reportedMinEquity) : reportedMinEquity)
       : (priorMinEquity ?? equity)
     const effectiveMinEquity = minEquity >= balance ? balance : minEquity
+    const guardedMinEquity = isMt5Payload && equity < balance && effectiveMinEquity >= balance
+      ? equity
+      : effectiveMinEquity
     const effectiveEquityLow = isMt5Payload && reportedEquityLow != null
       ? reportedEquityLow
-      : effectiveMinEquity
+      : guardedMinEquity
 
     const highestBalance = isMt5Payload && reportedPeakBalance != null
       ? reportedPeakBalance
@@ -402,7 +405,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
 
     console.info('[metrics] drawdown inputs', {
       accountNumber: account.accountNumber,
-      minEquity: effectiveMinEquity,
+      minEquity: guardedMinEquity,
       reportedMinEquity,
       breachBalance,
       dailyBreachBalance: dailyDdEnabled ? dailyBreachBalance : null,
@@ -414,9 +417,9 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       // Skip DD/fraud checks during a reset window to avoid false breaches.
     } else if (unsupportedTrade) {
       breachReason = 'UNSUPPORTED_SYMBOL'
-    } else if ((isMt5Payload ? effectiveEquityLow : effectiveMinEquity) < breachBalance) {
+    } else if ((isMt5Payload ? effectiveEquityLow : guardedMinEquity) < breachBalance) {
       breachReason = 'MAX_DRAWDOWN'
-    } else if (dailyDdEnabled && (equity < dailyBreachBalance || (isMt5Payload ? effectiveEquityLow : effectiveMinEquity) < dailyBreachBalance)) {
+    } else if (dailyDdEnabled && (equity < dailyBreachBalance || (isMt5Payload ? effectiveEquityLow : guardedMinEquity) < dailyBreachBalance)) {
       breachReason = 'DAILY_DRAWDOWN'
     } else if (shortDurationViolation) {
       breachReason = 'MIN_TRADE_DURATION'
@@ -584,7 +587,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         tradingCycleSource: tradingCycleSource ?? null,
         shortDurationViolation,
         breachReason,
-        minEquity: effectiveMinEquity,
+        minEquity: guardedMinEquity,
         minEquityNote: reportedMinEquityNote,
         lastBalance: balance,
         lastEquity: equity,
@@ -623,7 +626,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         tradingCycleSource: tradingCycleSource ?? null,
         shortDurationViolation,
         breachReason,
-        minEquity: effectiveMinEquity,
+        minEquity: guardedMinEquity,
         minEquityNote: reportedMinEquityNote,
         lastBalance: balance,
         lastEquity: equity,
@@ -776,7 +779,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       account_number: account.accountNumber,
       balance,
       equity,
-      min_equity: effectiveMinEquity,
+      min_equity: guardedMinEquity,
       breach_threshold: breachBalance,
       breach_reason: breachReason,
       status: breached ? 'breached' : passed ? 'awaiting_reset' : 'active',
