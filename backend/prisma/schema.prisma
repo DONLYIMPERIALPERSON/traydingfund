@@ -247,6 +247,7 @@ model CTraderAccountMetric {
   shortDurationViolation  Boolean   @default(false)
   breachReason            String?
   minEquity               Float?
+  minEquityNote           String?
   engineId                String?
   latencyMs               Float?
   lastBalance             Float     @default(0)

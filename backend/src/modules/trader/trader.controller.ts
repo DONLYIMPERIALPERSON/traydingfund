@@ -505,6 +505,7 @@ export const getChallengeAccountDetail = async (
           ?? null,
         daily_dd_amount: objectiveFields.dailyDdAmount ?? null,
         min_equity: (account.metrics as { minEquity?: number | null } | null)?.minEquity ?? null,
+        min_equity_note: (account.metrics as { minEquityNote?: string | null } | null)?.minEquityNote ?? null,
         equity_low: (account.metrics as { minEquity?: number | null } | null)?.minEquity ?? null,
         daily_low_equity: metrics.dailyLowEquity ?? null,
         drawdown_percent: metrics.drawdownPercent ?? null,

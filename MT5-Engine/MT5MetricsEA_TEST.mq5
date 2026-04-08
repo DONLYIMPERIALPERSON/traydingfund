@@ -697,9 +697,11 @@ double CalculateMinEquityTimeline(
    long &out_daily_day_key,
    bool use_state,
    bool use_withdrawal_baseline,
-   double baseline_balance
+   double baseline_balance,
+   string &out_min_equity_note
 )
 {
+   out_min_equity_note = "";
    Deal deals[];
    ArrayResize(deals, 0);
    out_total_trades = 0;
@@ -711,6 +713,7 @@ double CalculateMinEquityTimeline(
 
    if(!HistorySelect((datetime)(start_ms/1000), (datetime)(end_ms/1000)))
    {
+      out_min_equity_note = "history_select_failed";
       double fallback_equity = AccountInfoDouble(ACCOUNT_EQUITY);
       if(!use_state || io_highest_balance <= 0)
          io_highest_balance = baseline_balance;
@@ -802,6 +805,7 @@ double CalculateMinEquityTimeline(
 
    if(ArraySize(timeline) == 0)
    {
+      out_min_equity_note = "timeline_empty";
       double fallback_equity = AccountInfoDouble(ACCOUNT_EQUITY);
       if(!use_state || io_highest_balance <= 0)
          io_highest_balance = baseline_balance;
@@ -950,6 +954,16 @@ double CalculateMinEquityTimeline(
       // Equity timeline debug removed for production.
    }
 
+   if(lowest_equity <= 0.0)
+   {
+      if(baseline_balance <= 0.0)
+         out_min_equity_note = "baseline_balance_zero";
+      else if(balance <= 0.0)
+         out_min_equity_note = "start_balance_zero";
+      else
+         out_min_equity_note = "lowest_equity_zero";
+   }
+
    io_highest_balance = highest_balance;
    io_lowest_equity = lowest_equity;
    out_daily_peak_balance = daily_peak_balance;
@@ -1002,6 +1016,7 @@ string BuildJSON(
    const string trading_cycle_start,
    const string trading_cycle_source,
    double min_equity,
+   const string min_equity_note,
    double peak_balance,
    double equity_low,
    double drawdown_percent,
@@ -1022,6 +1037,7 @@ string BuildJSON(
    json += "\"trading_cycle_start\":\"" + trading_cycle_start + "\",";
    json += "\"trading_cycle_source\":\"" + trading_cycle_source + "\",";
    json += "\"min_equity\":" + DoubleToString(min_equity,2) + ",";
+   json += "\"min_equity_note\":\"" + min_equity_note + "\",";
    json += "\"peak_balance\":" + DoubleToString(peak_balance,2) + ",";
    json += "\"equity_low\":" + DoubleToString(equity_low,2) + ",";
    json += "\"drawdown_percent\":" + DoubleToString(drawdown_percent,2) + ",";
@@ -1173,6 +1189,7 @@ void OnTimer()
     double daily_low_equity = balance;
     double daily_dd_percent = 0.0;
     long daily_day_key = 0;
+    string min_equity_note = "";
     double min_equity = CalculateMinEquityTimeline(
       positions,
       start,
@@ -1188,8 +1205,11 @@ void OnTimer()
        daily_day_key,
       use_state,
       false,
-      initial_balance
+      initial_balance,
+      min_equity_note
    );
+    if(min_equity <= 0.0 && min_equity_note == "")
+       min_equity_note = "min_equity_zero_unknown";
    if(min_equity > balance)
       min_equity = balance;
    double dd_percent = ComputeDD(highest_balance, min_equity);
@@ -1216,6 +1236,7 @@ void OnTimer()
       trading_cycle_start,
       trading_cycle_source,
       min_equity,
+       min_equity_note,
       highest_balance,
       lowest_equity,
       dd_percent,

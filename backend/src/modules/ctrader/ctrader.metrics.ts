@@ -40,6 +40,7 @@ type MetricsPayload = {
   equity?: number
   unrealized_pnl?: number
   min_equity?: number
+  min_equity_note?: string
   peak_balance?: number
   equity_low?: number
   drawdown_percent?: number
@@ -202,6 +203,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       ? String(payload.trading_cycle_source)
       : null
     const reportedMinEquity = Number.isFinite(payload.min_equity) ? Number(payload.min_equity) : null
+    const reportedMinEquityNote = payload.min_equity_note ? String(payload.min_equity_note) : null
     const priorMinEquity = (metrics as any)?.minEquity ?? null
     const minEquity = reportedMinEquity != null
       ? (priorMinEquity != null ? Math.min(priorMinEquity, reportedMinEquity) : reportedMinEquity)
@@ -583,6 +585,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         shortDurationViolation,
         breachReason,
         minEquity: effectiveMinEquity,
+        minEquityNote: reportedMinEquityNote,
         lastBalance: balance,
         lastEquity: equity,
         engineId: payload.engine_id ?? (metrics as any)?.engineId ?? null,
@@ -621,6 +624,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         shortDurationViolation,
         breachReason,
         minEquity: effectiveMinEquity,
+        minEquityNote: reportedMinEquityNote,
         lastBalance: balance,
         lastEquity: equity,
         engineId: payload.engine_id ?? (metrics as any)?.engineId ?? null,
