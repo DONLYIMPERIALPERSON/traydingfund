@@ -1,4 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
+import fs from 'fs'
+import path from 'path'
 import { prisma } from '../../config/prisma'
 import { Prisma } from '@prisma/client'
 import { env } from '../../config/env'
@@ -87,6 +89,23 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     console.log('Headers:', req.headers)
     console.log('Body:', req.body)
 
+    const payload = req.body as MetricsPayload
+    if (payload?.platform && String(payload.platform).toLowerCase() === 'mt5') {
+      try {
+        const logDir = path.join(process.cwd(), 'outputs', 'mt5-payloads')
+        const logPath = path.join(logDir, 'mt5-metrics.jsonl')
+        fs.mkdirSync(logDir, { recursive: true })
+        const entry = {
+          receivedAt: new Date().toISOString(),
+          headers: req.headers,
+          payload,
+        }
+        fs.appendFileSync(logPath, `${JSON.stringify(entry)}\n`, 'utf8')
+      } catch (error) {
+        console.warn('[metrics] Failed to log MT5 payload', error)
+      }
+    }
+
     const secret = req.header('X-ENGINE-SECRET')
     const allowedSecrets = [env.ctraderEngineSecret, env.mt5EngineSecret].filter(Boolean)
     if (!secret || !allowedSecrets.includes(secret)) {
@@ -100,7 +119,6 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       })
     }
 
-    const payload = req.body as MetricsPayload
     if (!payload.account_number || payload.balance == null || payload.equity == null) {
       throw new ApiError('account_number, balance, and equity are required', 400)
     }
