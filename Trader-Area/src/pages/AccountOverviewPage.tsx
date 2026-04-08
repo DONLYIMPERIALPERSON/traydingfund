@@ -54,6 +54,17 @@ const AccountOverviewPage: React.FC = () => {
     const diffDays = Math.floor(diffHours / 24)
     return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
   }
+
+  const formatCycleDate = (value?: string | null) => {
+    if (!value) return 'N/A'
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return 'N/A'
+    return parsed.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+    })
+  }
   const parseAccountSize = (value: string) => {
     const normalized = value
       .toLowerCase()
@@ -233,7 +244,7 @@ const AccountOverviewPage: React.FC = () => {
                 <div className="balance-value">{accountData.metrics.trading_days_count ?? 0}</div>
                 <div className="balance-card-subtext">
                   <span className="balance-card-subtitle">Trading Cycle</span>
-                  <span>Start Date: {accountData.metrics.trading_cycle_start ?? 'N/A'}</span>
+                  <span>Start Date: {formatCycleDate(accountData.metrics.trading_cycle_start)}</span>
                   <span>End Date: Unlimited</span>
                 </div>
               </div>
