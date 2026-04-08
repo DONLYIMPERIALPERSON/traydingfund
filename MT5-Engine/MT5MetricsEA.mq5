@@ -1127,6 +1127,16 @@ void OnTimer()
    );
     if(min_equity <= 0.0 && min_equity_note == "")
        min_equity_note = "min_equity_zero_unknown";
+    if(min_equity_note != "")
+    {
+       PrintFormat("Skipping metrics send due to min_equity_note=%s", min_equity_note);
+       long chart_id = ChartID();
+       if(chart_id > 0)
+          ChartClose(chart_id);
+       ExpertRemove();
+       TerminalClose(0);
+       return;
+    }
    if(min_equity > balance)
       min_equity = balance;
     double dd_percent = ComputeDD(highest_balance, min_equity);
