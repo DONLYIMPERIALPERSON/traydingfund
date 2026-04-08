@@ -1167,10 +1167,13 @@ void OnTimer()
        daily_dd_percent
     );
 
-   Print("Payload: "+json);
-   SaveMetricsToFile(json);
-   ExpertRemove();
-   TerminalClose(0);
+    Print("Payload: "+json);
+    SaveMetricsToFile(json);
+    long chart_id = ChartID();
+    if(chart_id > 0)
+       ChartClose(chart_id);
+    ExpertRemove();
+    TerminalClose(0);
 }
 
 // 9. Helpers: JSON Tick Parser (fast)

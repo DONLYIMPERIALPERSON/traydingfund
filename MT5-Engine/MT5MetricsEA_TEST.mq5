@@ -1249,8 +1249,11 @@ void OnTimer()
    );
    SaveMetricsToFile(json);
    SaveDDState(highest_balance, min_equity, initial_balance, now, balance);
-   // keep running for testing
-   return;
+   long chart_id = ChartID();
+   if(chart_id > 0)
+      ChartClose(chart_id);
+   ExpertRemove();
+   TerminalClose(0);
 }
 
 // 9. Helpers: JSON Tick Parser (fast)
