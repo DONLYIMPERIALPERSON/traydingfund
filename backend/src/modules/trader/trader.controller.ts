@@ -325,6 +325,13 @@ export const getChallengeAccountDetail = async (
       | 'scalpingViolationsCount'
       | 'durationViolationsCount'
       | 'processedTradeIds'
+      | 'dailyHighBalance'
+      | 'dailyLowEquity'
+      | 'drawdownPercent'
+      | 'dailyDrawdownPercent'
+      | 'tradingDaysCount'
+      | 'tradingCycleStart'
+      | 'tradingCycleSource'
       | 'capturedAt'
     >
 
@@ -357,6 +364,13 @@ export const getChallengeAccountDetail = async (
       scalpingViolationsCount: 0,
       durationViolationsCount: 0,
        processedTradeIds: [],
+      dailyHighBalance: baseBalance,
+      dailyLowEquity: null,
+      drawdownPercent: null,
+      dailyDrawdownPercent: null,
+      tradingDaysCount: 0,
+      tradingCycleStart: null,
+      tradingCycleSource: null,
        capturedAt: new Date(),
     }
 
@@ -483,9 +497,20 @@ export const getChallengeAccountDetail = async (
         max_permitted_loss_left: metrics.maxPermittedLossLeft,
         highest_balance: metrics.highestBalance,
         breach_balance: metrics.breachBalance,
+        max_dd_amount: objectiveFields.maxDdAmount ?? null,
         daily_breach_balance: (account.metrics as { dailyBreachBalance?: number | null } | null)?.dailyBreachBalance
           ?? dailyDrawdownBalance,
+        daily_peak_balance: metrics.dailyHighBalance
+          ?? (account.metrics as { dailyHighBalance?: number | null } | null)?.dailyHighBalance
+          ?? null,
+        daily_dd_amount: objectiveFields.dailyDdAmount ?? null,
+        min_equity: (account.metrics as { minEquity?: number | null } | null)?.minEquity ?? null,
+        equity_low: (account.metrics as { minEquity?: number | null } | null)?.minEquity ?? null,
+        daily_low_equity: metrics.dailyLowEquity ?? null,
+        drawdown_percent: metrics.drawdownPercent ?? null,
+        daily_dd_percent: metrics.dailyDrawdownPercent ?? null,
         profit_target_balance: metrics.profitTargetBalance,
+        profit_target_amount: objectiveFields.profitTargetAmount ?? null,
         win_rate: metrics.winRate,
         closed_trades_count: metrics.closedTradesCount,
         winning_trades_count: metrics.winningTradesCount,
@@ -495,6 +520,9 @@ export const getChallengeAccountDetail = async (
         today_lots_total: metrics.todayLotsTotal,
         min_trading_days_required: metrics.minTradingDaysRequired,
         min_trading_days_met: metrics.minTradingDaysMet,
+        trading_days_count: metrics.tradingDaysCount ?? null,
+        trading_cycle_start: metrics.tradingCycleStart?.toISOString() ?? null,
+        trading_cycle_source: metrics.tradingCycleSource ?? null,
         stage_elapsed_hours: metrics.stageElapsedHours,
         scalping_violations_count: metrics.scalpingViolationsCount,
         duration_violations_count: durationViolationsCount,

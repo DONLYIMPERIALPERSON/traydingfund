@@ -267,6 +267,34 @@
   background: linear-gradient(135deg, rgba(255,215,0,0.1) 0%, rgba(255,215,0,0.05) 100%);
   border-radius: 8px;
   border: 1px solid rgba(255,215,0,0.2);
+  position: relative;
+}
+
+.profit-loss-card {
+  overflow: hidden;
+}
+
+.profit-percent-tag {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.06);
+  color: #111;
+  letter-spacing: 0.3px;
+}
+
+.profit-percent-tag.positive {
+  background: rgba(40, 167, 69, 0.16);
+  color: #1e7e34;
+}
+
+.profit-percent-tag.negative {
+  background: rgba(220, 53, 69, 0.16);
+  color: #b02a37;
 }
 
 .balance-card:first-child {
@@ -309,6 +337,25 @@
 
 .today-profit .balance-card-header {
   color: #000;
+  font-weight: 600;
+}
+
+.balance-card-subtext {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: none;
+  letter-spacing: 0.2px;
+}
+
+.balance-card-subtitle {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #9ca3af;
   font-weight: 600;
 }
 
@@ -458,6 +505,13 @@
   font-size: 14px;
   color: #000 !important;
   font-weight: 400;
+}
+
+.objective-metric-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
 }
 
 .objective-subinfo {

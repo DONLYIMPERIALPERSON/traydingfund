@@ -236,8 +236,14 @@ model CTraderAccountMetric {
   dailyStartAt            DateTime?
   dailyHighBalance        Float     @default(0)
   dailyBreachBalance       Float     @default(0)
+  dailyLowEquity          Float?
+  drawdownPercent         Float?
+  dailyDrawdownPercent    Float?
   firstTradeAt            DateTime?
   totalTrades             Int       @default(0)
+  tradingDaysCount        Int?
+  tradingCycleStart       DateTime?
+  tradingCycleSource      String?
   shortDurationViolation  Boolean   @default(false)
   breachReason            String?
   minEquity               Float?

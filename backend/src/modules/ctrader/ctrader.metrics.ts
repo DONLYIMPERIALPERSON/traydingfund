@@ -38,7 +38,19 @@ type MetricsPayload = {
   platform?: string
   balance?: number
   equity?: number
+  unrealized_pnl?: number
   min_equity?: number
+  peak_balance?: number
+  equity_low?: number
+  drawdown_percent?: number
+  total_trades?: number
+  short_trades_count?: number
+  trading_days_count?: number
+  daily_peak_balance?: number
+  daily_low_equity?: number
+  daily_dd_percent?: number
+  trading_cycle_start?: string
+  trading_cycle_source?: string
   trades?: TradePayload[]
   positions?: PositionPayload[]
   timestamp?: string
@@ -107,6 +119,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
 
     const normalizedPayloadPlatform = String(payload.platform).toLowerCase()
     const normalizedAccountPlatform = String(account.platform ?? 'ctrader').toLowerCase()
+    const isMt5Payload = normalizedPayloadPlatform === 'mt5'
     if (normalizedPayloadPlatform !== normalizedAccountPlatform) {
       throw new ApiError('Platform mismatch for account metrics', 409)
     }
@@ -152,14 +165,55 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
 
     const equity = payload.equity
     const balance = payload.balance
+    const reportedUnrealizedPnl = Number.isFinite(payload.unrealized_pnl)
+      ? Number(payload.unrealized_pnl)
+      : null
+    const reportedPeakBalance = Number.isFinite(payload.peak_balance)
+      ? Number(payload.peak_balance)
+      : null
+    const reportedEquityLow = Number.isFinite(payload.equity_low)
+      ? Number(payload.equity_low)
+      : null
+    const reportedDrawdownPercent = Number.isFinite(payload.drawdown_percent)
+      ? Number(payload.drawdown_percent)
+      : null
+    const reportedTotalTrades = Number.isFinite(payload.total_trades)
+      ? Number(payload.total_trades)
+      : null
+    const reportedShortTradesCount = Number.isFinite(payload.short_trades_count)
+      ? Number(payload.short_trades_count)
+      : null
+    const reportedTradingDaysCount = Number.isFinite(payload.trading_days_count)
+      ? Number(payload.trading_days_count)
+      : null
+    const reportedDailyPeakBalance = Number.isFinite(payload.daily_peak_balance)
+      ? Number(payload.daily_peak_balance)
+      : null
+    const reportedDailyLowEquity = Number.isFinite(payload.daily_low_equity)
+      ? Number(payload.daily_low_equity)
+      : null
+    const reportedDailyDrawdownPercent = Number.isFinite(payload.daily_dd_percent)
+      ? Number(payload.daily_dd_percent)
+      : null
+    const tradingCycleStart = payload.trading_cycle_start
+      ? new Date(payload.trading_cycle_start)
+      : null
+    const tradingCycleSource = payload.trading_cycle_source
+      ? String(payload.trading_cycle_source)
+      : null
     const reportedMinEquity = Number.isFinite(payload.min_equity) ? Number(payload.min_equity) : null
     const priorMinEquity = (metrics as any)?.minEquity ?? null
     const minEquity = reportedMinEquity != null
       ? (priorMinEquity != null ? Math.min(priorMinEquity, reportedMinEquity) : reportedMinEquity)
       : (priorMinEquity ?? equity)
     const effectiveMinEquity = minEquity >= balance ? balance : minEquity
+    const effectiveEquityLow = isMt5Payload && reportedEquityLow != null
+      ? reportedEquityLow
+      : effectiveMinEquity
 
-    const highestBalance = Math.max(metrics?.highestBalance ?? accountData.initialBalance ?? balance, balance)
+    const highestBalance = isMt5Payload && reportedPeakBalance != null
+      ? reportedPeakBalance
+      : Math.max(metrics?.highestBalance ?? accountData.initialBalance ?? balance, balance)
     const breachBalance = accountData.maxDdAmount != null
       ? highestBalance - accountData.maxDdAmount
       : (metrics?.breachBalance ?? balance)
@@ -171,9 +225,11 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     const isNewDay = dailyDdEnabled
       && (!dailyStartAt || toUtcDateKey(dailyStartAt) !== toUtcDateKey(now))
     const dailyStartBalance = dailyDdEnabled
-      ? (isNewDay
-        ? balance
-        : ((metrics as any)?.dailyHighBalance ?? balance))
+      ? (isMt5Payload
+        ? (reportedDailyPeakBalance ?? balance)
+        : (isNewDay
+          ? balance
+          : ((metrics as any)?.dailyHighBalance ?? balance)))
       : 0
     const dailyBreachBalance = dailyDdEnabled
       ? dailyStartBalance - accountData.dailyDdAmount
@@ -208,7 +264,9 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       }
     })
     const closedTrades = normalizedTradeEvents.filter((trade) => trade.open_time && trade.close_time)
-    const totalTrades = ((metrics as any)?.totalTrades ?? 0) + closedTrades.length
+    const totalTrades = isMt5Payload && reportedTotalTrades != null
+      ? reportedTotalTrades
+      : ((metrics as any)?.totalTrades ?? 0) + closedTrades.length
     const priorProcessedTrades = Array.isArray((metrics as any)?.processedTradeIds)
       ? (metrics as any).processedTradeIds
       : []
@@ -229,7 +287,9 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       const duration = calculateTradeDurationMinutes(trade)
       return duration != null && duration * 60 < minDurationSeconds
     }).length
-    const durationViolationsCount = priorViolations + newViolations
+    const durationViolationsCount = isMt5Payload
+      ? Math.max(0, reportedShortTradesCount ?? 0)
+      : priorViolations + newViolations
     const shortDurationViolation = durationViolationsCount >= MAX_DURATION_VIOLATIONS
     const supportedSymbols = new Set(
       (supportedSymbolsConfig.supported_symbols ?? []).map((symbol) => String(symbol).toUpperCase())
@@ -239,17 +299,35 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       const normalizedSymbol = rawSymbol ? normalizeSymbol(rawSymbol).toUpperCase() : ''
       return normalizedSymbol && !supportedSymbols.has(normalizedSymbol)
     })
-    const firstTradeAt = (metrics as any)?.firstTradeAt
-      ?? tradeEvents.map((trade) => parseDate(trade.open_time)).find(Boolean)
-      ?? accountData.startedAt
-      ?? accountData.assignedAt
-      ?? null
-    const stageElapsedHours = firstTradeAt
-      ? Math.max(0, (now.getTime() - new Date(firstTradeAt).getTime()) / (60 * 60 * 1000))
-      : (metrics?.stageElapsedHours ?? 0)
-    const minTradingDaysMet = !!firstTradeAt
-      && accountData.minTradingDaysRequired != null
-      && now.getTime() >= firstTradeAt.getTime() + DAY_MS * accountData.minTradingDaysRequired
+    const firstTradeAt = isMt5Payload
+      ? (tradingCycleStart ?? (metrics as any)?.firstTradeAt ?? null)
+      : ((metrics as any)?.firstTradeAt
+        ?? tradeEvents.map((trade) => parseDate(trade.open_time)).find(Boolean)
+        ?? accountData.startedAt
+        ?? accountData.assignedAt
+        ?? null)
+    const stageElapsedHours = isMt5Payload
+      ? (reportedTradingDaysCount != null ? reportedTradingDaysCount * 24 : (metrics?.stageElapsedHours ?? 0))
+      : (firstTradeAt
+        ? Math.max(0, (now.getTime() - new Date(firstTradeAt).getTime()) / (60 * 60 * 1000))
+        : (metrics?.stageElapsedHours ?? 0))
+    const minTradingDaysMet = isMt5Payload
+      ? (accountData.minTradingDaysRequired != null
+        && reportedTradingDaysCount != null
+        && reportedTradingDaysCount >= accountData.minTradingDaysRequired)
+      : (!!firstTradeAt
+        && accountData.minTradingDaysRequired != null
+        && now.getTime() >= firstTradeAt.getTime() + DAY_MS * accountData.minTradingDaysRequired)
+
+    const derivedUnrealizedPnl = reportedUnrealizedPnl != null
+      ? reportedUnrealizedPnl
+      : equity - balance
+    const derivedDrawdownPercent = isMt5Payload
+      ? reportedDrawdownPercent
+      : (highestBalance > 0 ? ((highestBalance - effectiveEquityLow) / highestBalance) * 100 : null)
+    const derivedDailyDrawdownPercent = isMt5Payload
+      ? reportedDailyDrawdownPercent
+      : (dailyStartBalance > 0 ? ((dailyStartBalance - effectiveEquityLow) / dailyStartBalance) * 100 : null)
 
     const profitTargetBalance = accountData.profitTargetAmount != null && accountData.initialBalance != null
       ? accountData.initialBalance + accountData.profitTargetAmount
@@ -279,10 +357,16 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
           dailyBreachBalance: dailyDdEnabled
             ? balance - (accountData.dailyDdAmount ?? 0)
             : 0,
+          dailyLowEquity: null,
+          drawdownPercent: null,
+          dailyDrawdownPercent: null,
           shortDurationViolation: false,
           durationViolationsCount: 0,
           processedTradeIds: [],
           totalTrades: 0,
+          tradingDaysCount: 0,
+          tradingCycleStart: null,
+          tradingCycleSource: null,
           firstTradeAt: null,
           stageElapsedHours: 0,
         },
@@ -328,9 +412,9 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       // Skip DD/fraud checks during a reset window to avoid false breaches.
     } else if (unsupportedTrade) {
       breachReason = 'UNSUPPORTED_SYMBOL'
-    } else if (effectiveMinEquity < breachBalance) {
+    } else if ((isMt5Payload ? effectiveEquityLow : effectiveMinEquity) < breachBalance) {
       breachReason = 'MAX_DRAWDOWN'
-    } else if (dailyDdEnabled && (equity < dailyBreachBalance || effectiveMinEquity < dailyBreachBalance)) {
+    } else if (dailyDdEnabled && (equity < dailyBreachBalance || (isMt5Payload ? effectiveEquityLow : effectiveMinEquity) < dailyBreachBalance)) {
       breachReason = 'DAILY_DRAWDOWN'
     } else if (shortDurationViolation) {
       breachReason = 'MIN_TRADE_DURATION'
@@ -467,7 +551,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         accountId: account.id,
         balance,
         equity,
-        unrealizedPnl: equity - balance,
+        unrealizedPnl: derivedUnrealizedPnl,
         maxPermittedLossLeft: breachBalance - equity,
         highestBalance,
         breachBalance,
@@ -488,8 +572,14 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         dailyStartAt: dailyDdEnabled ? (isNewDay ? now : dailyStartAt) : null,
         dailyHighBalance: dailyDdEnabled ? dailyStartBalance : 0,
         dailyBreachBalance: dailyDdEnabled ? dailyBreachBalance : 0,
+        dailyLowEquity: isMt5Payload ? reportedDailyLowEquity : null,
+        drawdownPercent: derivedDrawdownPercent,
+        dailyDrawdownPercent: derivedDailyDrawdownPercent,
         firstTradeAt,
         totalTrades,
+        tradingDaysCount: reportedTradingDaysCount ?? null,
+        tradingCycleStart: tradingCycleStart ?? null,
+        tradingCycleSource: tradingCycleSource ?? null,
         shortDurationViolation,
         breachReason,
         minEquity: effectiveMinEquity,
@@ -507,7 +597,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       update: {
         balance,
         equity,
-        unrealizedPnl: equity - balance,
+        unrealizedPnl: derivedUnrealizedPnl,
         maxPermittedLossLeft: breachBalance - equity,
         highestBalance,
         breachBalance,
@@ -520,8 +610,14 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         dailyStartAt: dailyDdEnabled ? (isNewDay ? now : dailyStartAt) : null,
         dailyHighBalance: dailyDdEnabled ? dailyStartBalance : 0,
         dailyBreachBalance: dailyDdEnabled ? dailyBreachBalance : 0,
+        dailyLowEquity: isMt5Payload ? reportedDailyLowEquity : null,
+        drawdownPercent: derivedDrawdownPercent,
+        dailyDrawdownPercent: derivedDailyDrawdownPercent,
         firstTradeAt,
         totalTrades,
+        tradingDaysCount: reportedTradingDaysCount ?? null,
+        tradingCycleStart: tradingCycleStart ?? null,
+        tradingCycleSource: tradingCycleSource ?? null,
         shortDurationViolation,
         breachReason,
         minEquity: effectiveMinEquity,

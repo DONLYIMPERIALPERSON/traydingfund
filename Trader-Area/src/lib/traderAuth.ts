@@ -133,7 +133,14 @@ export type UserChallengeMetrics = {
   highest_balance: number
   breach_balance: number
   daily_breach_balance?: number
+  daily_peak_balance?: number | null
+  daily_low_equity?: number | null
+  drawdown_percent?: number | null
+  daily_dd_percent?: number | null
+  max_dd_amount?: number | null
+  daily_dd_amount?: number | null
   profit_target_balance: number
+  profit_target_amount?: number | null
   win_rate: number
   closed_trades_count: number
   winning_trades_count: number
@@ -146,6 +153,12 @@ export type UserChallengeMetrics = {
   min_trading_days_met: boolean
   stage_elapsed_hours: number
   scalping_violations_count: number
+  trading_days_count?: number | null
+  trading_cycle_start?: string | null
+  trading_cycle_source?: string | null
+  equity_low?: number | null
+  min_equity?: number | null
+  duration_violations_count?: number
 }
 
 export type UserChallengeCredentials = {

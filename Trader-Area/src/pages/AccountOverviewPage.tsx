@@ -178,12 +178,28 @@ const AccountOverviewPage: React.FC = () => {
                 </div>
                 <div className="balance-value">{formatCurrency(accountData.metrics.balance, accountCurrency)}</div>
               </div>
-              <div className="balance-card">
-                <div className="balance-card-header">
-                  <i className="fas fa-chart-line"></i>
-                  Equity
-                </div>
-                <div className="balance-value">{formatCurrency(accountData.metrics.equity, accountCurrency)}</div>
+              <div className="balance-card profit-loss-card">
+                {(() => {
+                  const initialBalance = accountData.initial_balance ?? parseAccountSize(accountData.account_size)
+                  const profitValue = accountData.metrics.balance - initialBalance
+                  const profitPercent = initialBalance > 0
+                    ? (profitValue / initialBalance) * 100
+                    : 0
+                  return (
+                    <>
+                      <span className={`profit-percent-tag ${profitValue >= 0 ? 'positive' : 'negative'}`}>
+                        {profitValue >= 0 ? '+' : ''}{profitPercent.toFixed(2)}%
+                      </span>
+                      <div className="balance-card-header">
+                        <i className="fas fa-chart-line"></i>
+                        Profit/Loss
+                      </div>
+                      <div className={`balance-value ${profitValue >= 0 ? 'positive' : 'negative'}`}>
+                        {formatSignedCurrency(profitValue, accountCurrency)}
+                      </div>
+                    </>
+                  )
+                })()}
               </div>
               <div className="balance-card">
                 <div className="balance-card-header">
@@ -207,22 +223,19 @@ const AccountOverviewPage: React.FC = () => {
               )}
               <div className="balance-card today-profit">
                 <div className="balance-card-header">
-                  Profit
+                  Trading Days
                   <i
                     className="fas fa-info-circle"
                     style={{ marginLeft: '6px', fontSize: '12px', opacity: 0.8 }}
-                    title="Current profit compared to the account starting balance."
+                    title="Number of trading days recorded for this cycle."
                   ></i>
                 </div>
-                {(() => {
-                  const initialBalance = accountData.initial_balance ?? parseAccountSize(accountData.account_size)
-                  const profitValue = accountData.metrics.balance - initialBalance
-                  return (
-                    <div className={`balance-value ${profitValue >= 0 ? 'positive' : 'negative'}`}>
-                      {formatSignedCurrency(profitValue, accountCurrency)}
-                    </div>
-                  )
-                })()}
+                <div className="balance-value">{accountData.metrics.trading_days_count ?? 0}</div>
+                <div className="balance-card-subtext">
+                  <span className="balance-card-subtitle">Trading Cycle</span>
+                  <span>Start Date: {accountData.metrics.trading_cycle_start ?? 'N/A'}</span>
+                  <span>End Date: Unlimited</span>
+                </div>
               </div>
             </div>
           )}
@@ -319,12 +332,66 @@ const AccountOverviewPage: React.FC = () => {
                             </span>
                           ) : (
                             <>
-                              {objective.note && <span className="objective-info">{objective.note}</span>}
-                              {targetBalance != null && (
-                                <span className="objective-subinfo">
-                                  {key === 'profit_target' ? 'Target balance' : 'Target equity'}{' '}
-                                  {formatCurrency(targetBalance, accountCurrency)}
-                                </span>
+                              {key === 'profit_target' ? (() => {
+                                const profitTargetAmount = accountData.metrics.profit_target_amount
+                                const initialBalanceValue = accountData.initial_balance
+                                  ?? parseAccountSize(accountData.account_size)
+                                const target = profitTargetAmount != null
+                                  ? profitTargetAmount
+                                  : Math.max(0, (targetBalance ?? initialBalanceValue) - initialBalanceValue)
+                                const current = Math.max(0, accountData.metrics.balance - initialBalanceValue)
+                                const remaining = Math.max(0, target - current)
+                                return (
+                                  <div className="objective-metric-group">
+                                    <span className="objective-info">Target: {formatCurrency(target, accountCurrency)}</span>
+                                    <span className="objective-info">Current: {formatCurrency(current, accountCurrency)}</span>
+                                    <span className="objective-info">Remaining: {formatCurrency(remaining, accountCurrency)}</span>
+                                  </div>
+                                )
+                              })() : key === 'max_drawdown' ? (() => {
+                                const maxLossLimit = accountData.metrics.max_dd_amount
+                                  ?? ((accountData.metrics.highest_balance ?? 0)
+                                    - (accountData.metrics.breach_balance ?? 0))
+                                const maxLossTillNow = Math.max(
+                                  0,
+                                  (accountData.metrics.highest_balance ?? 0) - accountData.metrics.equity
+                                )
+                                const maxPermittedLoss = Math.max(0, maxLossLimit - maxLossTillNow)
+                                return (
+                                  <div className="objective-metric-group">
+                                    <span className="objective-info">Max Loss Limit: {formatCurrency(maxLossLimit, accountCurrency)}</span>
+                                    <span className="objective-info">Max Loss till now: {formatCurrency(maxLossTillNow, accountCurrency)}</span>
+                                    <span className="objective-info">Max Permitted Loss: {formatCurrency(maxPermittedLoss, accountCurrency)}</span>
+                                  </div>
+                                )
+                              })() : key === 'max_daily_drawdown' ? (() => {
+                                const maxDailyLimit = accountData.metrics.daily_dd_amount
+                                  ?? ((accountData.metrics.daily_peak_balance ?? 0)
+                                    - (accountData.metrics.daily_breach_balance ?? 0))
+                                const dailyLossBase = accountData.metrics.daily_low_equity
+                                  ?? accountData.metrics.equity
+                                const maxDailyLossTillNow = Math.max(
+                                  0,
+                                  (accountData.metrics.daily_peak_balance ?? 0) - dailyLossBase
+                                )
+                                const todayPermittedLoss = Math.max(0, maxDailyLimit - maxDailyLossTillNow)
+                                return (
+                                  <div className="objective-metric-group">
+                                    <span className="objective-info">Max Daily Limit: {formatCurrency(maxDailyLimit, accountCurrency)}</span>
+                                    <span className="objective-info">Max Loss till now: {formatCurrency(maxDailyLossTillNow, accountCurrency)}</span>
+                                    <span className="objective-info">Today's Permitted Loss: {formatCurrency(todayPermittedLoss, accountCurrency)}</span>
+                                  </div>
+                                )
+                              })() : (
+                                <>
+                                  {objective.note && <span className="objective-info">{objective.note}</span>}
+                                  {targetBalance != null && (
+                                    <span className="objective-subinfo">
+                                      {key === 'profit_target' ? 'Target balance' : 'Target equity'}{' '}
+                                      {formatCurrency(targetBalance, accountCurrency)}
+                                    </span>
+                                  )}
+                                </>
                               )}
                             </>
                           )}

@@ -12,7 +12,6 @@
 #define BACKEND_URL "https://f1bb-102-88-114-192.ngrok-free.app/api/v1/mt5/metrics"
 #define WEB_TIMEOUT 10000
 #define METRICS_FILENAME_PREFIX "metrics_"
-#define DD_STATE_FILENAME_PREFIX "dd_state_"
 
 input int LOOKBACK_MINUTES = 60;
 input int TIMER_SECONDS = 2;
@@ -185,6 +184,27 @@ double GetInitialBalanceFromHistory(double fallback_balance)
    return fallback_balance;
 }
 
+long GetInitialDepositTime()
+{
+   if(!HistorySelect(0, TimeCurrent() + 5 * 24 * 60 * 60))
+      return 0;
+
+   int total = HistoryDealsTotal();
+   for(int i=0; i<total; i++)
+   {
+      ulong ticket = HistoryDealGetTicket(i);
+      if(ticket == 0) continue;
+      ENUM_DEAL_TYPE type = (ENUM_DEAL_TYPE)HistoryDealGetInteger(ticket, DEAL_TYPE);
+      if(type != DEAL_TYPE_BALANCE)
+         continue;
+      double profit = HistoryDealGetDouble(ticket, DEAL_PROFIT);
+      if(profit > 0)
+         return (long)HistoryDealGetInteger(ticket, DEAL_TIME_MSC);
+   }
+
+   return 0;
+}
+
 double RewindBalanceFromDeals(long start_ms, long end_ms, double end_balance)
 {
    if(!HistorySelect((datetime)(start_ms/1000), (datetime)(end_ms/1000)))
@@ -219,83 +239,6 @@ double RewindBalanceFromDeals(long start_ms, long end_ms, double end_balance)
    return balance;
 }
 
-double ExtractJsonNumber(const string json, const string key, double default_value)
-{
-   string pattern = "\"" + key + "\"";
-   int pos = StringFind(json, pattern);
-   if(pos < 0)
-      return default_value;
-
-   int colon = StringFind(json, ":", pos + StringLen(pattern));
-   if(colon < 0)
-      return default_value;
-
-   int start = colon + 1;
-   int len = StringLen(json);
-   while(start < len && (json[start] == ' ' || json[start] == '"'))
-      start++;
-
-   int end = start;
-   while(end < len && (CharIsDigitEx((char)json[end]) || json[end] == '.' || json[end] == '-'))
-      end++;
-
-   if(end <= start)
-      return default_value;
-
-   return StringToDouble(StringSubstr(json, start, end - start));
-}
-
-long ExtractJsonLong(const string json, const string key, long default_value)
-{
-   return (long)ExtractJsonNumber(json, key, (double)default_value);
-}
-
-bool LoadDDState(double &highest_balance, double &lowest_equity, double &initial_balance, long &last_checked, double &last_balance)
-{
-   string filename = DD_STATE_FILENAME_PREFIX + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) + ".json";
-   int handle = FileOpen(filename, FILE_READ | FILE_TXT | FILE_COMMON | FILE_ANSI);
-   if(handle == INVALID_HANDLE)
-      return false;
-
-   string content = "";
-   while(!FileIsEnding(handle))
-   {
-      content += FileReadString(handle);
-   }
-   FileClose(handle);
-
-   if(StringLen(content) == 0)
-      return false;
-
-   highest_balance = ExtractJsonNumber(content, "highest_balance", 0.0);
-   lowest_equity = ExtractJsonNumber(content, "lowest_equity", 0.0);
-   initial_balance = ExtractJsonNumber(content, "initial_balance", 0.0);
-   last_checked = ExtractJsonLong(content, "last_checked", 0);
-   last_balance = ExtractJsonNumber(content, "last_balance", 0.0);
-   return (highest_balance > 0 || lowest_equity > 0 || initial_balance > 0 || last_checked > 0 || last_balance > 0);
-}
-
-void SaveDDState(double highest_balance, double lowest_equity, double initial_balance, long last_checked, double last_balance)
-{
-   string filename = DD_STATE_FILENAME_PREFIX + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) + ".json";
-   int handle = FileOpen(filename, FILE_WRITE | FILE_TXT | FILE_COMMON | FILE_ANSI);
-   if(handle == INVALID_HANDLE)
-   {
-      Print("Failed to write DD state file. Error: ", GetLastError());
-      return;
-   }
-
-   string json = "{";
-   json += "\"highest_balance\":" + DoubleToString(highest_balance, 2) + ",";
-   json += "\"lowest_equity\":" + DoubleToString(lowest_equity, 2) + ",";
-   json += "\"initial_balance\":" + DoubleToString(initial_balance, 2) + ",";
-   json += "\"last_checked\":" + IntegerToString((long)last_checked) + ",";
-   json += "\"last_balance\":" + DoubleToString(last_balance, 2);
-   json += "}";
-
-   FileWriteString(handle, json);
-   FileClose(handle);
-}
 
 bool FindLastWithdrawal(WithdrawalInfo &withdrawal)
 {
@@ -602,6 +545,65 @@ void BuildTimeline(SymbolTick &symbols[], Deal &deals[], long &timeline[])
    ArrayResize(timeline, w);
 }
 
+int FindPositionIndex(const long &pos_ids[], long pos_id)
+{
+   for(int i=0; i<ArraySize(pos_ids); i++)
+   {
+      if(pos_ids[i] == pos_id)
+         return i;
+   }
+   return -1;
+}
+
+long GetDayKey(long ms)
+{
+   datetime t = (datetime)(ms/1000);
+   MqlDateTime dt;
+   TimeToStruct(t, dt);
+   return dt.year * 10000 + dt.mon * 100 + dt.day;
+}
+
+int CountTradingDays(long start_ms, long end_ms)
+{
+   if(start_ms <= 0 || end_ms <= 0 || end_ms < start_ms)
+      return 0;
+
+   if(!HistorySelect((datetime)(start_ms/1000), (datetime)(end_ms/1000)))
+      return 0;
+
+   long day_keys[];
+   ArrayResize(day_keys, 0);
+
+   int total = HistoryDealsTotal();
+   for(int i=0; i<total; i++)
+   {
+      ulong ticket = HistoryDealGetTicket(i);
+      if(ticket == 0) continue;
+      ENUM_DEAL_TYPE type = (ENUM_DEAL_TYPE)HistoryDealGetInteger(ticket, DEAL_TYPE);
+      ENUM_DEAL_ENTRY entry = (ENUM_DEAL_ENTRY)HistoryDealGetInteger(ticket, DEAL_ENTRY);
+      if(type != DEAL_TYPE_BUY && type != DEAL_TYPE_SELL) continue;
+      if(entry != DEAL_ENTRY_OUT && entry != DEAL_ENTRY_OUT_BY) continue;
+
+      long deal_time_msc = (long)HistoryDealGetInteger(ticket, DEAL_TIME_MSC);
+      if(deal_time_msc < start_ms || deal_time_msc > end_ms) continue;
+
+      long key = GetDayKey(deal_time_msc);
+      bool exists = false;
+      for(int d=0; d<ArraySize(day_keys); d++)
+      {
+         if(day_keys[d] == key) { exists = true; break; }
+      }
+      if(!exists)
+      {
+         int n = ArraySize(day_keys);
+         ArrayResize(day_keys, n + 1);
+         day_keys[n] = key;
+      }
+   }
+
+   return ArraySize(day_keys);
+}
+
 double CalculateMinEquityTimeline(
    const Position &current_positions[],
    long start_ms,
@@ -609,6 +611,12 @@ double CalculateMinEquityTimeline(
    double current_balance,
    double &io_highest_balance,
    double &io_lowest_equity,
+   int &out_total_trades,
+   int &out_short_trades,
+   double &out_daily_peak_balance,
+   double &out_daily_low_equity,
+   double &out_daily_dd_percent,
+   long &out_daily_day_key,
    bool use_state,
    bool use_withdrawal_baseline,
    double baseline_balance
@@ -616,6 +624,12 @@ double CalculateMinEquityTimeline(
 {
    Deal deals[];
    ArrayResize(deals, 0);
+   out_total_trades = 0;
+   out_short_trades = 0;
+   out_daily_peak_balance = current_balance;
+   out_daily_low_equity = current_balance;
+   out_daily_dd_percent = 0.0;
+   out_daily_day_key = 0;
 
    if(!HistorySelect((datetime)(start_ms/1000), (datetime)(end_ms/1000)))
    {
@@ -624,6 +638,12 @@ double CalculateMinEquityTimeline(
          io_highest_balance = baseline_balance;
       if(!use_state || io_lowest_equity <= 0)
          io_lowest_equity = MathMin(baseline_balance, fallback_equity);
+      out_daily_peak_balance = io_highest_balance;
+      out_daily_low_equity = io_lowest_equity;
+      out_daily_dd_percent = (baseline_balance > 0)
+         ? ((out_daily_peak_balance - out_daily_low_equity) / baseline_balance) * 100.0
+         : 0.0;
+      out_daily_day_key = GetDayKey(end_ms);
       return io_lowest_equity;
    }
 
@@ -709,11 +729,21 @@ double CalculateMinEquityTimeline(
          io_highest_balance = baseline_balance;
       if(!use_state || io_lowest_equity <= 0)
          io_lowest_equity = MathMin(baseline_balance, fallback_equity);
+      out_daily_peak_balance = io_highest_balance;
+      out_daily_low_equity = io_lowest_equity;
+      out_daily_dd_percent = (baseline_balance > 0)
+         ? ((out_daily_peak_balance - out_daily_low_equity) / baseline_balance) * 100.0
+         : 0.0;
+      out_daily_day_key = GetDayKey(end_ms);
       return io_lowest_equity;
    }
 
    ActivePosition positions[];
    ArrayResize(positions, 0);
+   long pos_ids[];
+   long pos_open_times[];
+   ArrayResize(pos_ids, 0);
+   ArrayResize(pos_open_times, 0);
    long history_start = start_ms - (long)LOOKBACK_MINUTES * 60 * 1000;
    if(history_start < 0)
       history_start = 0;
@@ -753,6 +783,18 @@ double CalculateMinEquityTimeline(
          predeal.swap = HistoryDealGetDouble(ticket, DEAL_SWAP);
 
          UpdateActivePositions(positions, predeal);
+         if(entry == DEAL_ENTRY_IN)
+         {
+            int idx = FindPositionIndex(pos_ids, (long)predeal.pos_id);
+            if(idx == -1)
+            {
+               int n = ArraySize(pos_ids);
+               ArrayResize(pos_ids, n + 1);
+               ArrayResize(pos_open_times, n + 1);
+               pos_ids[n] = (long)predeal.pos_id;
+               pos_open_times[n] = predeal.deal_time_msc;
+            }
+         }
 
          if(entry == DEAL_ENTRY_OUT || entry == DEAL_ENTRY_OUT_BY)
             start_balance += predeal.profit + predeal.commission + predeal.swap;
@@ -762,6 +804,9 @@ double CalculateMinEquityTimeline(
    double balance = start_balance;
    double highest_balance = (!use_state || io_highest_balance <= 0) ? baseline_balance : io_highest_balance;
    double lowest_equity = (!use_state || io_lowest_equity <= 0) ? MathMin(baseline_balance, balance) : io_lowest_equity;
+   long daily_day_key = 0;
+   double daily_peak_balance = balance;
+   double daily_low_equity = balance;
    int deal_index = 0;
 
    for(int t=0; t<ArraySize(timeline); t++)
@@ -772,8 +817,33 @@ double CalculateMinEquityTimeline(
          if(deals[deal_index].type == DEAL_TYPE_BUY || deals[deal_index].type == DEAL_TYPE_SELL)
          {
             UpdateActivePositions(positions, deals[deal_index]);
+            if(deals[deal_index].entry == DEAL_ENTRY_IN)
+            {
+               int idx = FindPositionIndex(pos_ids, (long)deals[deal_index].pos_id);
+               if(idx == -1)
+               {
+                  int n = ArraySize(pos_ids);
+                  ArrayResize(pos_ids, n + 1);
+                  ArrayResize(pos_open_times, n + 1);
+                  pos_ids[n] = (long)deals[deal_index].pos_id;
+                  pos_open_times[n] = deals[deal_index].deal_time_msc;
+               }
+            }
             if(deals[deal_index].entry == DEAL_ENTRY_OUT || deals[deal_index].entry == DEAL_ENTRY_OUT_BY)
+            {
+               out_total_trades++;
+               int idx = FindPositionIndex(pos_ids, (long)deals[deal_index].pos_id);
+               if(idx != -1)
+               {
+                  long opened_at = pos_open_times[idx];
+                  long duration_ms = deals[deal_index].deal_time_msc - opened_at;
+                  if(duration_ms > 0 && duration_ms < 180000)
+                     out_short_trades++;
+                  ArrayRemove(pos_ids, idx, 1);
+                  ArrayRemove(pos_open_times, idx, 1);
+               }
                balance += deals[deal_index].profit + deals[deal_index].commission + deals[deal_index].swap;
+            }
          }
          else
          {
@@ -784,6 +854,17 @@ double CalculateMinEquityTimeline(
 
       double pnl = GetPNL(positions, symbols, now);
       double equity = balance + pnl;
+      long day_key = GetDayKey(now);
+      if(daily_day_key == 0 || day_key != daily_day_key)
+      {
+         daily_day_key = day_key;
+         daily_peak_balance = balance;
+         daily_low_equity = equity;
+      }
+      if(balance > daily_peak_balance)
+         daily_peak_balance = balance;
+      if(equity < daily_low_equity)
+         daily_low_equity = equity;
       if(balance > highest_balance)
          highest_balance = balance;
       if(equity < lowest_equity)
@@ -793,6 +874,12 @@ double CalculateMinEquityTimeline(
 
    io_highest_balance = highest_balance;
    io_lowest_equity = lowest_equity;
+   out_daily_peak_balance = daily_peak_balance;
+   out_daily_low_equity = daily_low_equity;
+   out_daily_dd_percent = (baseline_balance > 0)
+      ? ((daily_peak_balance - daily_low_equity) / baseline_balance) * 100.0
+      : 0.0;
+   out_daily_day_key = daily_day_key;
    return lowest_equity;
 }
 
@@ -828,14 +915,44 @@ string BuildTradesJSON(const TradeEvent &trades[])
    return json;
 }
 
-string BuildJSON(const Position &positions[], const TradeEvent &trades[], double balance, double equity, double min_equity)
+string BuildJSON(
+   const Position &positions[],
+   const TradeEvent &trades[],
+   double balance,
+   double equity,
+   double unrealized_pnl,
+   const string trading_cycle_start,
+   const string trading_cycle_source,
+   double min_equity,
+   double peak_balance,
+   double equity_low,
+   double drawdown_percent,
+   int total_trades,
+   int short_trades_count,
+   int trading_days_count,
+   double daily_peak_balance,
+   double daily_low_equity,
+   double daily_dd_percent
+)
 {
    string json = "{";
    json += "\"account_number\":\"" + IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN)) + "\",";
    json += "\"platform\":\"mt5\",";
    json += "\"balance\":" + DoubleToString(balance,2) + ",";
    json += "\"equity\":" + DoubleToString(equity,2) + ",";
+   json += "\"unrealized_pnl\":" + DoubleToString(unrealized_pnl,2) + ",";
+   json += "\"trading_cycle_start\":\"" + trading_cycle_start + "\",";
+   json += "\"trading_cycle_source\":\"" + trading_cycle_source + "\",";
    json += "\"min_equity\":" + DoubleToString(min_equity,2) + ",";
+   json += "\"peak_balance\":" + DoubleToString(peak_balance,2) + ",";
+   json += "\"equity_low\":" + DoubleToString(equity_low,2) + ",";
+   json += "\"drawdown_percent\":" + DoubleToString(drawdown_percent,2) + ",";
+   json += "\"total_trades\":" + IntegerToString(total_trades) + ",";
+   json += "\"short_trades_count\":" + IntegerToString(short_trades_count) + ",";
+   json += "\"trading_days_count\":" + IntegerToString(trading_days_count) + ",";
+   json += "\"daily_peak_balance\":" + DoubleToString(daily_peak_balance,2) + ",";
+   json += "\"daily_low_equity\":" + DoubleToString(daily_low_equity,2) + ",";
+   json += "\"daily_dd_percent\":" + DoubleToString(daily_dd_percent,2) + ",";
    json += BuildTradesJSON(trades) + ",";
    json += "\"timestamp\":\"" + TimeToString(TimeCurrent(), TIME_DATE|TIME_SECONDS) + "\"";
    json += "}";
@@ -914,76 +1031,123 @@ void OnTimer()
 
    long now = (long)TimeCurrent() * 1000;
    long start = 0;
-   const long retention_ms = 86400000;
-   double persisted_highest = 0.0;
-   double persisted_lowest = 0.0;
-   double persisted_initial = 0.0;
-   long persisted_last_checked = 0;
-   double persisted_last_balance = 0.0;
-   bool has_state = LoadDDState(
-      persisted_highest,
-      persisted_lowest,
-      persisted_initial,
-      persisted_last_checked,
-      persisted_last_balance
-   );
 
-   double initial_balance = (has_state && persisted_initial > 0) ? persisted_initial : GetInitialBalanceFromHistory(balance);
-   double highest_balance = (has_state && persisted_highest > 0) ? persisted_highest : initial_balance;
-   double lowest_equity = (has_state && persisted_lowest > 0) ? persisted_lowest : MathMin(initial_balance, balance);
-
+   double initial_balance = GetInitialBalanceFromHistory(balance);
+   double highest_balance = initial_balance;
+   double lowest_equity = MathMin(initial_balance, balance);
    bool use_state = false;
    double start_balance = balance;
 
-   if(has_state && persisted_last_checked > 0)
+   WithdrawalInfo last_withdrawal;
+   bool has_withdrawal = FindLastWithdrawal(last_withdrawal);
+   if(has_withdrawal && last_withdrawal.time_msc > 0)
    {
-      if(now - persisted_last_checked <= retention_ms)
+      double withdrawal_balance = RewindBalanceFromDeals(last_withdrawal.time_msc, now, balance);
+      initial_balance = withdrawal_balance;
+      highest_balance = withdrawal_balance;
+      lowest_equity = MathMin(withdrawal_balance, balance);
+      use_state = false;
+      start = last_withdrawal.time_msc;
+      start_balance = withdrawal_balance;
+   }
+
+   if(!has_withdrawal)
+   {
+      long deposit_start = GetInitialDepositTime();
+      if(deposit_start > 0)
       {
-         start = persisted_last_checked - CHECKPOINT_OVERLAP_MS;
-         if(start < 0) start = 0;
-         use_state = true;
-         double end_balance = (persisted_last_balance > 0) ? persisted_last_balance : balance;
-         start_balance = RewindBalanceFromDeals(start, persisted_last_checked, end_balance);
+         start = deposit_start;
       }
       else
       {
-         start = now - retention_ms;
-         if(start < 0) start = 0;
-         use_state = true;
-         start_balance = RewindBalanceFromDeals(start, now, balance);
+         start = now - (long)LOOKBACK_MINUTES * 60 * 1000;
       }
-   }
-   else
-   {
-      start = now - retention_ms;
       if(start < 0) start = 0;
-      use_state = false;
       start_balance = RewindBalanceFromDeals(start, now, balance);
    }
 
    TradeEvent trades[];
    GetRecentClosedTrades(trades, start, now);
 
-   double min_equity = CalculateMinEquityTimeline(
+    long trading_days_start = 0;
+    string trading_cycle_source = "deposit";
+    if(has_withdrawal && last_withdrawal.time_msc > 0)
+    {
+       trading_days_start = last_withdrawal.time_msc;
+       trading_cycle_source = "withdrawal";
+    }
+    else
+    {
+       trading_days_start = GetInitialDepositTime();
+    }
+    if(trading_days_start <= 0)
+       trading_days_start = start;
+    int trading_days_count = CountTradingDays(trading_days_start, now);
+
+    int total_trades = 0;
+    int short_trades_count = 0;
+    double daily_peak_balance = balance;
+    double daily_low_equity = balance;
+    double daily_dd_percent = 0.0;
+    long daily_day_key = 0;
+    double min_equity = CalculateMinEquityTimeline(
       positions,
       start,
       now,
       start_balance,
       highest_balance,
       lowest_equity,
+       total_trades,
+       short_trades_count,
+       daily_peak_balance,
+       daily_low_equity,
+       daily_dd_percent,
+       daily_day_key,
       use_state,
       false,
       initial_balance
    );
    if(min_equity > balance)
       min_equity = balance;
-   double dd_percent = ComputeDD(highest_balance, min_equity);
+    double dd_percent = ComputeDD(highest_balance, min_equity);
 
-   string json = BuildJSON(positions, trades, balance, equity, min_equity);
+    if(has_withdrawal && last_withdrawal.time_msc > 0 && total_trades == 0)
+    {
+       min_equity = balance;
+       highest_balance = balance;
+       lowest_equity = balance;
+       daily_peak_balance = balance;
+       daily_low_equity = balance;
+       daily_dd_percent = 0.0;
+       dd_percent = 0.0;
+    }
+
+    double unrealized_pnl = equity - balance;
+    string trading_cycle_start = (trading_days_start > 0)
+       ? TimeToString((datetime)(trading_days_start/1000), TIME_DATE|TIME_SECONDS)
+       : "";
+    string json = BuildJSON(
+       positions,
+       trades,
+       balance,
+       equity,
+       unrealized_pnl,
+       trading_cycle_start,
+       trading_cycle_source,
+       min_equity,
+       highest_balance,
+       lowest_equity,
+       dd_percent,
+       total_trades,
+       short_trades_count,
+       trading_days_count,
+       daily_peak_balance,
+       daily_low_equity,
+       daily_dd_percent
+    );
 
    Print("Payload: "+json);
    SaveMetricsToFile(json);
-   SaveDDState(highest_balance, min_equity, initial_balance, now, balance);
    ExpertRemove();
    TerminalClose(0);
 }

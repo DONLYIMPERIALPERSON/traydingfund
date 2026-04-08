@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -6,7 +7,6 @@ from fastapi import FastAPI, HTTPException, Query
 
 BASE_DIR = Path(__file__).resolve().parent
 TICK_DIR = Path("C:/tick-data")
-TICK_RETENTION_DAYS = 30
 
 app = FastAPI()
 
@@ -95,7 +95,7 @@ async def submit_ticks(payload: dict):
         _save_ticks(symbol, day_key, combined)
         total_added += len(day_ticks)
 
-    _purge_old_days(days_to_keep=TICK_RETENTION_DAYS)
+    _purge_old_days(days_to_keep=1)
 
     return {"status": "ok", "symbol": symbol, "added": total_added}
 
