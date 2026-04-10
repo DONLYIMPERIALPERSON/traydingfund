@@ -11,12 +11,10 @@ const AccountOverviewPage: React.FC = () => {
   const [accountData, setAccountData] = useState<UserChallengeAccountDetailResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [showBreachModal, setShowBreachModal] = useState(false)
 
   const resolveCurrencyCode = (account: UserChallengeAccountDetailResponse) => {
     const currency = account.currency
-      ?? account.account_currency
-      ?? account.plan_currency
-      ?? account.challenge_currency
     return currency ? currency.toUpperCase() : 'USD'
   }
 
@@ -133,6 +131,8 @@ const AccountOverviewPage: React.FC = () => {
 
   const hasPendingWithdrawal = Boolean(accountData.has_pending_withdrawal)
   const normalizedBreachReason = accountData.breached_reason?.toLowerCase() ?? ''
+  const breachDetails = accountData.metrics.breach_event
+  const tradeViolations = accountData.metrics.trade_duration_violations ?? []
   const isFraudBreach = normalizedBreachReason.includes('fraud')
   const accountCurrency = resolveCurrencyCode(accountData)
   const pendingWithdrawalAmount = accountData.pending_withdrawal_amount ?? 0
@@ -158,7 +158,25 @@ const AccountOverviewPage: React.FC = () => {
               <p>Detailed metrics and performance data for your trading account</p>
             </div>
           </div>
-          <div className="page-header-right"></div>
+          <div className="page-header-right">
+            {accountData.objective_status === 'breached' && (
+              <div className="breach-alert-card">
+                <div className="breach-alert-icon">
+                  <i className="fas fa-exclamation-triangle"></i>
+                </div>
+                <div className="breach-alert-text">
+                  <span className="breach-alert-title">Your account has been breached</span>
+                  <span className="breach-alert-subtitle">See why this happened</span>
+                </div>
+                <button
+                  className="breach-alert-button"
+                  onClick={() => setShowBreachModal(true)}
+                >
+                  View Details
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Balance Overview Section */}
@@ -398,8 +416,7 @@ const AccountOverviewPage: React.FC = () => {
                                   {objective.note && <span className="objective-info">{objective.note}</span>}
                                   {targetBalance != null && (
                                     <span className="objective-subinfo">
-                                      {key === 'profit_target' ? 'Target balance' : 'Target equity'}{' '}
-                                      {formatCurrency(targetBalance, accountCurrency)}
+                                      Target balance {formatCurrency(targetBalance, accountCurrency)}
                                     </span>
                                   )}
                                 </>
@@ -448,6 +465,78 @@ const AccountOverviewPage: React.FC = () => {
 
       {/* Footer */}
       <DesktopFooter />
+
+      {showBreachModal && (
+        <div className="breach-modal-overlay" onClick={() => setShowBreachModal(false)}>
+          <div className="breach-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="breach-modal-header">
+              <h3>Breach Details</h3>
+              <button
+                className="breach-modal-close"
+                onClick={() => setShowBreachModal(false)}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div className="breach-modal-body">
+              <div className="breach-summary">
+                <div>
+                  <span className="breach-label">Reason</span>
+                  <span className="breach-value">{accountData.breached_reason ?? 'Unknown'}</span>
+                </div>
+                <div>
+                  <span className="breach-label">Equity Low</span>
+                  <span className="breach-value">
+                    {formatCurrency(accountData.metrics.min_equity ?? accountData.metrics.equity, accountCurrency)}
+                  </span>
+                </div>
+                <div>
+                  <span className="breach-label">Breach Balance</span>
+                  <span className="breach-value">
+                    {formatCurrency(accountData.metrics.breach_balance, accountCurrency)}
+                  </span>
+                </div>
+              </div>
+
+              {normalizedBreachReason === 'min_trade_duration' && tradeViolations.length > 0 && (
+                <div className="breach-trades">
+                  <h4>Trades that triggered violation</h4>
+                  <div className="breach-trades-grid">
+                    {tradeViolations.slice(0, 3).map((trade, index) => {
+                      const typed = trade as Record<string, unknown>
+                      return (
+                        <div className="breach-trade-card" key={`violation-${index}`}>
+                          <div><strong>Position ID:</strong> {String(typed.position_id ?? '-')}
+                          </div>
+                          <div><strong>Deal ID:</strong> {String(typed.deal_id ?? '-')}
+                          </div>
+                          <div><strong>Duration (min):</strong> {String(typed.duration_min ?? '-')}
+                          </div>
+                          <div><strong>Closed at:</strong> {String(typed.closed_time_ms ?? '-')}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {(normalizedBreachReason === 'max_drawdown' || normalizedBreachReason === 'daily_drawdown') && breachDetails && (
+                <div className="breach-trades">
+                  <h4>Drawdown Breach Snapshot</h4>
+                  <div className="breach-trade-card">
+                    {Object.entries(breachDetails as Record<string, unknown>).map(([key, value]) => (
+                      <div key={key}>
+                        <strong>{key.replace(/_/g, ' ')}:</strong> {String(value)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

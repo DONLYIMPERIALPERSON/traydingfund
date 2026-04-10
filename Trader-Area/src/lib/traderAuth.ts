@@ -159,6 +159,8 @@ export type UserChallengeMetrics = {
   equity_low?: number | null
   min_equity?: number | null
   duration_violations_count?: number
+  breach_event?: Record<string, unknown> | null
+  trade_duration_violations?: Record<string, unknown>[] | null
 }
 
 export type UserChallengeCredentials = {
