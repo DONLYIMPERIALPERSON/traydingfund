@@ -267,6 +267,10 @@ def _is_balance_symbol(deal: ClosedDealPayload) -> bool:
     return str(deal.symbol or "").upper() == "BALANCE"
 
 
+def _should_ignore_deal(deal: ClosedDealPayload) -> bool:
+    return _deal_is_deposit(deal) or _deal_is_withdrawal(deal) or _is_balance_symbol(deal)
+
+
 def _resolve_cycle_start(payload: EAPayload) -> tuple[Optional[str], Optional[str], Optional[int]]:
     withdrawals = [deal for deal in payload.closed_deals if _deal_is_withdrawal(deal)]
     if withdrawals:
@@ -398,12 +402,18 @@ def build_timeline(
             event_meta.update({"symbol": position.symbol, "position_id": position.position_id, "ticket": position.ticket})
         elif event_type == "deal":
             deal = event[2]
-            if _deal_is_deposit(deal) or _deal_is_withdrawal(deal):
+            ignored_deal = _should_ignore_deal(deal)
+            event_meta.update({
+                "symbol": deal.symbol,
+                "deal_type": deal.deal_type,
+                "entry": deal.entry,
+                "ignored": ignored_deal,
+            })
+            if ignored_deal:
                 if deal.time_ms != payload.anchor_time_ms:
                     balance = initial_balance
                     if balance > peak_balance:
                         peak_balance = balance
-                event_meta.update({"deal_type": deal.deal_type, "entry": deal.entry})
             elif deal.entry == 0:
                 position = PositionPayload(
                     ticket=deal.position_id,
@@ -417,7 +427,7 @@ def build_timeline(
                 key = position.position_id or position.ticket or f"{position.symbol}:{position.open_time_ms}"
                 open_positions[key] = position
                 open_time_map[key] = position.open_time_ms
-                event_meta.update({"symbol": deal.symbol, "position_id": deal.position_id, "deal_id": deal.deal_id, "entry": deal.entry})
+                event_meta.update({"position_id": deal.position_id, "deal_id": deal.deal_id})
             elif deal.entry == 1:
                 balance += _deal_net(deal)
                 if balance > peak_balance:
@@ -430,10 +440,8 @@ def build_timeline(
                     duration_min = (deal.time_ms - open_time) / 60000.0
                     event_meta["duration_min"] = duration_min
                 event_meta.update({
-                    "symbol": deal.symbol,
                     "position_id": deal.position_id,
                     "deal_id": deal.deal_id,
-                    "entry": deal.entry,
                     "profit": _deal_net(deal),
                 })
         elif event_type == "tick":
@@ -459,7 +467,7 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
     cycle_start, cycle_source, _cycle_start_ms = _resolve_cycle_start(payload)
     symbols = sorted(
         {pos.symbol for pos in payload.positions}
-        | {deal.symbol for deal in payload.closed_deals if not _is_balance_symbol(deal)}
+        | {deal.symbol for deal in payload.closed_deals if not _should_ignore_deal(deal)}
     )
     meta_map = _symbol_meta_map(payload)
 
@@ -487,7 +495,7 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
         event = snapshot.get("event", {})
         event_type = event.get("type")
 
-        if event_type == "deal" and event.get("deal_type") in {"WITHDRAWAL", "WITHDRAW", "DEPOSIT"}:
+        if event_type == "deal" and event.get("ignored"):
             peak_balance = replay.initial_balance
             daily_peak_balance = replay.initial_balance
             daily_low_equity = float("inf")
@@ -506,7 +514,7 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
             if balance_snapshot > daily_peak_balance:
                 daily_peak_balance = balance_snapshot
 
-        if event_type == "deal" and event.get("entry") == 1:
+        if event_type == "deal" and event.get("entry") == 1 and not event.get("ignored"):
             min_duration = replay.min_trade_duration_minutes or 0
             duration_min = event.get("duration_min")
             if min_duration and duration_min is not None and duration_min < min_duration:
