@@ -333,6 +333,8 @@ export const getChallengeAccountDetail = async (
       | 'tradingCycleStart'
       | 'tradingCycleSource'
       | 'capturedAt'
+      | 'breachEvent'
+      | 'tradeDurationViolations'
     >
 
     const objectiveFields = await buildObjectiveFields({
@@ -371,6 +373,8 @@ export const getChallengeAccountDetail = async (
       tradingDaysCount: 0,
       tradingCycleStart: null,
       tradingCycleSource: null,
+      breachEvent: null,
+      tradeDurationViolations: null,
        capturedAt: new Date(),
     }
 
@@ -382,22 +386,24 @@ export const getChallengeAccountDetail = async (
     const profitTargetBalance = objectiveFields.profitTargetAmount != null
       ? initialBalance + objectiveFields.profitTargetAmount
       : metrics.profitTargetBalance
-    const maxDrawdownBalance = objectiveFields.maxDdAmount != null
-      ? (metrics.highestBalance ?? initialBalance) - objectiveFields.maxDdAmount
-      : metrics.breachBalance
+    const maxDrawdownBalance = metrics.breachBalance
+      ?? (objectiveFields.maxDdAmount != null
+        ? (metrics.highestBalance ?? initialBalance) - objectiveFields.maxDdAmount
+        : initialBalance)
     const dailyStartBalance = (account.metrics as { dailyHighBalance?: number | null } | null)?.dailyHighBalance
       ?? initialBalance
-    const dailyDrawdownBalance = objectiveFields.dailyDdAmount != null
-      ? dailyStartBalance - objectiveFields.dailyDdAmount
-      : metrics.breachBalance
+    const dailyDrawdownBalance = metrics.dailyBreachBalance
+      ?? (objectiveFields.dailyDdAmount != null
+        ? dailyStartBalance - objectiveFields.dailyDdAmount
+        : initialBalance)
     const minTradeDurationMinutes = objectiveFields.minTradeDurationMinutes ?? 0
     const durationViolationsCount = metrics.durationViolationsCount ?? 0
     const minTradingDaysRequired = objectiveFields.minTradingDaysRequired ?? 0
     const stageElapsedHours = metrics.stageElapsedHours ?? 0
     const minTradingDaysMet = metrics.minTradingDaysMet || stageElapsedHours >= minTradingDaysRequired * 24
-    const profitRemaining = Math.max(0, profitTargetBalance - metrics.equity)
-    const maxDrawdownRemaining = Math.max(0, metrics.equity - maxDrawdownBalance)
-    const dailyDrawdownRemaining = Math.max(0, metrics.equity - dailyDrawdownBalance)
+    const profitRemaining = Math.max(0, profitTargetBalance - metrics.balance)
+    const maxDrawdownRemaining = Math.max(0, (metrics.minEquity ?? metrics.equity) - maxDrawdownBalance)
+    const dailyDrawdownRemaining = Math.max(0, (metrics.dailyLowEquity ?? metrics.equity) - dailyDrawdownBalance)
 
     const breachReason = (account.metrics as { breachReason?: string | null } | null)?.breachReason ?? null
     const normalizedBreachReason = breachReason?.toUpperCase() ?? null
@@ -408,14 +414,14 @@ export const getChallengeAccountDetail = async (
     const objectives = {
       profit_target: {
         label: 'Profit Target',
-        status: metrics.equity >= profitTargetBalance ? 'passed' : 'pending',
+        status: metrics.balance >= profitTargetBalance ? 'passed' : 'pending',
         note: profitTargetBalance
           ? `${formatAccountCurrency(profitRemaining)} left`
           : 'Pending',
       },
       max_drawdown: {
         label: 'Max Drawdown',
-        status: breachedByMaxDrawdown || metrics.equity < maxDrawdownBalance ? 'breached' : 'passed',
+        status: breachedByMaxDrawdown || (metrics.minEquity ?? metrics.equity) < maxDrawdownBalance ? 'breached' : 'passed',
         note: maxDrawdownBalance
           ? `${formatAccountCurrency(maxDrawdownRemaining)} loss remaining`
           : 'Pending',
@@ -423,7 +429,7 @@ export const getChallengeAccountDetail = async (
       ...(normalizedChallengeType === 'ngn_flexi' ? {} : {
         max_daily_drawdown: {
           label: 'Max Daily Drawdown',
-          status: breachedByDailyDrawdown || metrics.equity < dailyDrawdownBalance ? 'breached' : 'passed',
+          status: breachedByDailyDrawdown || (metrics.dailyLowEquity ?? metrics.equity) < dailyDrawdownBalance ? 'breached' : 'passed',
           note: dailyDrawdownBalance
             ? `${formatAccountCurrency(dailyDrawdownRemaining)} loss remaining`
             : 'Pending',
@@ -530,6 +536,8 @@ export const getChallengeAccountDetail = async (
         processed_trade_ids: Array.isArray((account.metrics as any)?.processedTradeIds)
           ? (account.metrics as any).processedTradeIds
           : metrics.processedTradeIds ?? [],
+        breach_event: (metrics as { breachEvent?: unknown }).breachEvent ?? null,
+        trade_duration_violations: (metrics as { tradeDurationViolations?: unknown }).tradeDurationViolations ?? null,
       },
       objectives,
       credentials,

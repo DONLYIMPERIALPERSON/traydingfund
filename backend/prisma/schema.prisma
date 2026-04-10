@@ -257,6 +257,8 @@ model CTraderAccountMetric {
   expectedBalanceOperationType String?
   expectedBalanceOperationExpiresAt DateTime?
   expectedBalanceOperationAmount Float?
+  breachEvent            Json?
+  tradeDurationViolations Json?
   capturedAt              DateTime @default(now())
 
   accountId               Int      @unique

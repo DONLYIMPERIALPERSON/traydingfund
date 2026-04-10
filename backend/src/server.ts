@@ -36,7 +36,7 @@ const start = async () => {
     app.listen(env.port, () => {
       console.log(`API running on http://localhost:${env.port}`)
     })
-    if (env.ctraderEngineWebhookUrl) {
+    if (env.ctraderEngineSyncEnabled && env.ctraderEngineWebhookUrl && env.ctraderEngineWebhookUrl !== 'disabled') {
       const intervalMs = Math.max(env.ctraderEngineSyncIntervalSeconds, 10) * 1000
       syncActiveAccounts()
       setInterval(syncActiveAccounts, intervalMs)

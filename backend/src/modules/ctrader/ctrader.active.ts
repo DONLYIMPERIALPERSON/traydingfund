@@ -15,22 +15,38 @@ export const listActiveCTraderAccounts = async (req: Request, res: Response, nex
     }
 
     const accounts = await prisma.cTraderAccount.findMany({
-      where: { status: { in: ACTIVE_STATUSES, mode: 'insensitive' } },
+      where: {
+        status: { in: ACTIVE_STATUSES, mode: 'insensitive' },
+        platform: { equals: 'mt5', mode: 'insensitive' },
+      },
       include: { metrics: { select: { balance: true } } },
       orderBy: { updatedAt: 'desc' },
     })
 
-    const payload = accounts.map((account) => ({
-      accountNumber: account.accountNumber,
-      platform: account.platform ?? 'ctrader',
-      balance: account.metrics?.balance ?? account.initialBalance ?? 0,
-      status: account.status,
-      phase: account.phase,
-      challengeType: account.challengeType,
-      mt5Login: account.mt5Login ?? account.accountNumber,
-      mt5Password: account.mt5Password,
-      mt5Server: account.mt5Server ?? account.brokerName,
-    }))
+    const payload = accounts.map((account) => {
+      const challengeType = String(account.challengeType ?? '')
+        .toLowerCase()
+        .replace(/-/g, '_')
+      const phase = String(account.phase ?? '')
+        .toLowerCase()
+        .replace(/-/g, '_')
+      const accountType = challengeType === 'instant_funded'
+        ? 'instant_funded'
+        : (challengeType && phase ? `${challengeType}_${phase}` : challengeType)
+      return {
+        accountNumber: account.accountNumber,
+        platform: account.platform ?? 'ctrader',
+        balance: account.metrics?.balance ?? account.initialBalance ?? 0,
+        status: account.status,
+        phase: account.phase,
+        challengeType: account.challengeType,
+        accountType,
+        accountSize: account.accountSize ?? account.initialBalance ?? null,
+        mt5Login: account.mt5Login ?? account.accountNumber,
+        mt5Password: account.mt5Password,
+        mt5Server: account.mt5Server ?? account.brokerName,
+      }
+    })
 
     if (req.query?.push_engine === 'true') {
       try {

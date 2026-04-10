@@ -22,6 +22,7 @@ export const env = {
   safehavenSettlementBankCode: process.env.SAFEHAVEN_SETTLEMENT_BANK_CODE ?? '',
   accessEngineBaseUrl: process.env.ACCESS_ENGINE_BASE_URL ?? 'https://access-engine.placeholder',
   ctraderEngineWebhookUrl: process.env.CTRADER_ENGINE_WEBHOOK_URL ?? '',
+  ctraderEngineSyncEnabled: String(process.env.CTRADER_ENGINE_SYNC_ENABLED ?? 'true').toLowerCase() === 'true',
   ctraderEngineSyncIntervalSeconds: Number(process.env.CTRADER_ENGINE_SYNC_INTERVAL_SECONDS ?? 60),
   safehavenSettlementAccountNumber: process.env.SAFEHAVEN_SETTLEMENT_ACCOUNT_NUMBER ?? '',
   cryptoBtcAddress: process.env.CRYPTO_BTC_ADDRESS ?? '',
