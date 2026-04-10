@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../config/prisma'
 import { env } from '../../config/env'
 import { ApiError } from '../../common/errors'
@@ -127,8 +128,8 @@ export const ingestMt5ReplayResult = async (req: Request, res: Response, next: N
         expectedBalanceOperationType: account.metrics?.expectedBalanceOperationType ?? null,
         expectedBalanceOperationExpiresAt: account.metrics?.expectedBalanceOperationExpiresAt ?? null,
         expectedBalanceOperationAmount: account.metrics?.expectedBalanceOperationAmount ?? null,
-        breachEvent: (metricsPayload as { breachEvent?: unknown }).breachEvent ?? null,
-        tradeDurationViolations: (metricsPayload as { tradeDurationViolations?: unknown }).tradeDurationViolations ?? null,
+        breachEvent: (metricsPayload as { breachEvent?: unknown }).breachEvent ?? Prisma.JsonNull,
+        tradeDurationViolations: (metricsPayload as { tradeDurationViolations?: unknown }).tradeDurationViolations ?? Prisma.JsonNull,
         capturedAt: metricsPayload.capturedAt,
         accountId: account.id,
       },
@@ -146,8 +147,8 @@ export const ingestMt5ReplayResult = async (req: Request, res: Response, next: N
         balance: metricsPayload.lastBalance,
         equity: metricsPayload.lastEquity,
         tradingDaysCount: metricsPayload.tradingDaysCount,
-        breachEvent: (metricsPayload as { breachEvent?: unknown }).breachEvent ?? null,
-        tradeDurationViolations: (metricsPayload as { tradeDurationViolations?: unknown }).tradeDurationViolations ?? null,
+        breachEvent: (metricsPayload as { breachEvent?: unknown }).breachEvent ?? Prisma.JsonNull,
+        tradeDurationViolations: (metricsPayload as { tradeDurationViolations?: unknown }).tradeDurationViolations ?? Prisma.JsonNull,
         capturedAt: metricsPayload.capturedAt,
       },
     })
@@ -165,7 +166,7 @@ export const ingestMt5ReplayResult = async (req: Request, res: Response, next: N
           await sendEmailOnce({
             type: 'ACCOUNT_BREACHED',
             accountId: account.id,
-            userId: account.userId ?? undefined,
+            userId: account.userId ?? null,
             send: async () => {
               await sendUnifiedEmail({
                 to: account.user!.email,

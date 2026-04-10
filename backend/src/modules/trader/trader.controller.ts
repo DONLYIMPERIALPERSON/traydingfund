@@ -335,6 +335,7 @@ export const getChallengeAccountDetail = async (
       | 'capturedAt'
       | 'breachEvent'
       | 'tradeDurationViolations'
+      | 'minEquity'
     >
 
     const objectiveFields = await buildObjectiveFields({
@@ -375,7 +376,8 @@ export const getChallengeAccountDetail = async (
       tradingCycleSource: null,
       breachEvent: null,
       tradeDurationViolations: null,
-       capturedAt: new Date(),
+      minEquity: baseBalance,
+      capturedAt: new Date(),
     }
 
     const initialBalance = objectiveFields.initialBalance ?? metrics.balance
