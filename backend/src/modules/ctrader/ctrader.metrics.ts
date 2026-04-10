@@ -288,9 +288,17 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         ...trade,
         ...(normalizedSymbol ? { symbol: normalizedSymbol } : {}),
         ...(typeof normalizedProfit === 'number' ? { profit: normalizedProfit } : {}),
-        ...(normalizedDealType ? { dealType: normalizedDealType } : {}),
+        ...(normalizedDealType ? { dealType: String(normalizedDealType) } : {}),
       }
     })
+    const ignoredDealTypes = new Set(['WITHDRAWAL', 'WITHDRAW', 'DEPOSIT', 'BALANCE'])
+    const resetDeal = isMt5Payload
+      ? normalizedTradeEvents.find((trade) => {
+          const dealType = trade.dealType ? String(trade.dealType).toUpperCase() : ''
+          const symbol = trade.symbol ? String(trade.symbol).toUpperCase() : ''
+          return ignoredDealTypes.has(dealType) || symbol === 'BALANCE'
+        })
+      : null
     const closedTrades = normalizedTradeEvents.filter((trade) => trade.open_time && trade.close_time)
     const totalTrades = isMt5Payload && reportedTotalTrades != null
       ? reportedTotalTrades
@@ -368,11 +376,11 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       && Number.isFinite(resetExpectedAmount)
       && Math.abs(balance - resetExpectedAmount) <= Math.max(1, Math.abs(resetExpectedAmount) * 0.02)
 
-    if (resetAmountMatches) {
+    if (resetAmountMatches || resetDeal) {
       await prisma.cTraderAccountMetric.update({
         where: { accountId: account.id },
         data: {
-          expectedBalanceChange: false,
+          expectedBalanceChange: resetAmountMatches ? false : (metrics as any)?.expectedBalanceChange ?? false,
           expectedChangeExpiresAt: null,
           expectedBalanceOperationType: null,
           expectedBalanceOperationExpiresAt: null,
