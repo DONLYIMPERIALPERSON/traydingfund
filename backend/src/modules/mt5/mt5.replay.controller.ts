@@ -230,10 +230,10 @@ export const ingestMt5ReplayResult = async (req: Request, res: Response, next: N
             platform: String(account.platform ?? 'mt5'),
             profit,
             targetBalance: account.initialBalance ?? metricsPayload.lastBalance ?? 0,
-            currentPhase: account.phase,
+            currentPhase: account.phase ?? undefined,
             nextPhase: nextPhaseKey,
-            challengeType: account.challengeType ?? undefined,
-            ownerEmail: account.user?.email ?? undefined,
+            ...(account.challengeType ? { challengeType: account.challengeType } : {}),
+            ...(account.user?.email ? { ownerEmail: account.user.email } : {}),
             resetCommand: `/reset_done ${account.accountNumber}`,
           })
         } catch (error) {
