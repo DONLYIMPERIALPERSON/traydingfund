@@ -81,6 +81,11 @@ export const ingestMt5ReplayResult = async (req: Request, res: Response, next: N
         ?? null,
     }
 
+    const durationViolationsCount = Array.isArray(metricsPayload.tradeDurationViolations)
+      ? metricsPayload.tradeDurationViolations.length
+      : account.metrics?.durationViolationsCount ?? 0
+    const shortDurationViolation = durationViolationsCount >= 3
+
     await prisma.cTraderAccountMetric.upsert({
       where: { accountId: account.id },
       create: {
@@ -102,7 +107,7 @@ export const ingestMt5ReplayResult = async (req: Request, res: Response, next: N
         minTradingDaysMet: account.metrics?.minTradingDaysMet ?? false,
         stageElapsedHours: account.metrics?.stageElapsedHours ?? 0,
         scalpingViolationsCount: account.metrics?.scalpingViolationsCount ?? 0,
-        durationViolationsCount: account.metrics?.durationViolationsCount ?? 0,
+        durationViolationsCount,
         processedTradeIds: account.metrics?.processedTradeIds ?? [],
         dailyStartAt: account.metrics?.dailyStartAt ?? null,
         dailyHighBalance: account.metrics?.dailyHighBalance ?? 0,
@@ -115,7 +120,7 @@ export const ingestMt5ReplayResult = async (req: Request, res: Response, next: N
         tradingDaysCount: metricsPayload.tradingDaysCount,
         tradingCycleStart: metricsPayload.tradingCycleStart,
         tradingCycleSource: metricsPayload.tradingCycleSource,
-        shortDurationViolation: account.metrics?.shortDurationViolation ?? false,
+        shortDurationViolation,
         breachReason: metricsPayload.breachReason,
         minEquity: metricsPayload.minEquity,
         minEquityNote: account.metrics?.minEquityNote ?? null,
@@ -149,6 +154,8 @@ export const ingestMt5ReplayResult = async (req: Request, res: Response, next: N
         tradingDaysCount: metricsPayload.tradingDaysCount,
         breachEvent: (metricsPayload as { breachEvent?: unknown }).breachEvent ?? Prisma.JsonNull,
         tradeDurationViolations: (metricsPayload as { tradeDurationViolations?: unknown }).tradeDurationViolations ?? Prisma.JsonNull,
+        durationViolationsCount,
+        shortDurationViolation,
         capturedAt: metricsPayload.capturedAt,
       },
     })
