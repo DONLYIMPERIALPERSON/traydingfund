@@ -5,6 +5,7 @@ import { env } from '../../config/env'
 import { ApiError } from '../../common/errors'
 import { sendUnifiedEmail } from '../../services/email.service'
 import { sendEmailOnce } from '../../services/emailLog.service'
+import { notifyFinanceEngine } from '../../services/financeEngine.service'
 
 type ReplayResultPayload = {
   account_number?: string
@@ -195,6 +196,50 @@ export const ingestMt5ReplayResult = async (req: Request, res: Response, next: N
         where: { id: account.id },
         data: { status: 'awaiting_reset', passedAt: now },
       })
+
+      const normalizedChallengeType = String(account.challengeType ?? '').toLowerCase()
+      const normalizedPhase = String(account.phase ?? '').toLowerCase()
+      const isMultiPhase = ['two_step', 'ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)
+      const isInstantFunded = normalizedChallengeType === 'instant_funded'
+      const isFundedPhase = normalizedPhase === 'funded'
+      const nextPhaseKey = isMultiPhase
+        ? (normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : normalizedPhase)
+        : (normalizedPhase === 'phase_1' ? 'funded' : normalizedPhase)
+
+      if (!isInstantFunded && !isFundedPhase && account.userId) {
+        const profitBase = account.initialBalance ?? 0
+        const profit = Math.max(0, (metricsPayload.lastBalance ?? 0) - profitBase)
+        const expectedOperationExpiresAt = null
+        const resetBalance = account.initialBalance ?? Math.max(0, (metricsPayload.lastBalance ?? 0) - profit)
+
+        await prisma.cTraderAccountMetric.updateMany({
+          where: { accountId: account.id },
+          data: {
+            expectedBalanceChange: true,
+            expectedChangeExpiresAt: expectedOperationExpiresAt,
+            expectedBalanceOperationType: 'PHASE_RESET',
+            expectedBalanceOperationExpiresAt: expectedOperationExpiresAt,
+            expectedBalanceOperationAmount: resetBalance,
+          },
+        })
+
+        try {
+          await notifyFinanceEngine({
+            type: 'PHASE_PASS',
+            account: String(account.accountNumber),
+            platform: String(account.platform ?? 'mt5'),
+            profit,
+            targetBalance: account.initialBalance ?? metricsPayload.lastBalance ?? 0,
+            currentPhase: account.phase,
+            nextPhase: nextPhaseKey,
+            challengeType: account.challengeType,
+            ownerEmail: account.user?.email ?? undefined,
+            resetCommand: `/reset_done ${account.accountNumber}`,
+          })
+        } catch (error) {
+          console.error('Failed to notify finance engine about replay pass', error)
+        }
+      }
     }
 
     res.json({ status: 'ok' })
