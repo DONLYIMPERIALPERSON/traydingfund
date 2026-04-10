@@ -232,7 +232,7 @@ export const ingestMt5ReplayResult = async (req: Request, res: Response, next: N
             targetBalance: account.initialBalance ?? metricsPayload.lastBalance ?? 0,
             currentPhase: account.phase,
             nextPhase: nextPhaseKey,
-            challengeType: account.challengeType,
+            challengeType: account.challengeType ?? undefined,
             ownerEmail: account.user?.email ?? undefined,
             resetCommand: `/reset_done ${account.accountNumber}`,
           })
