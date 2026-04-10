@@ -1,0 +1,743 @@
+from __future__ import annotations
+
+import json
+from datetime import datetime
+import os
+from pathlib import Path
+from typing import Dict, List, Optional
+from uuid import uuid4
+
+import requests
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Query
+from pydantic import BaseModel, Field
+
+load_dotenv()
+
+app = FastAPI(title="Replay Equity Curve", version="0.1.0")
+
+TICK_SERVICE_URL = os.environ.get("TICK_SERVICE_URL", "http://15.237.52.163:8201")
+BACKEND_BASE_URL = os.environ.get("BACKEND_BASE_URL", "")
+BACKEND_REPLAY_ENDPOINT = os.environ.get("BACKEND_REPLAY_ENDPOINT", "/v1/mt5/replay-result")
+BACKEND_ENGINE_SECRET = os.environ.get("BACKEND_ENGINE_SECRET", "")
+def notify_backend(result: ReplayResult) -> None:
+    if not BACKEND_BASE_URL:
+        return
+    payload = {
+        "account_number": result.account_number,
+        "breach_reason": result.breach_reason,
+        "breach_balance": result.breach_balance,
+        "daily_breach_balance": result.daily_breach_balance,
+        "min_equity": result.min_equity,
+        "daily_low_equity": result.daily_low_equity,
+        "drawdown_percent": result.drawdown_percent,
+        "daily_dd_percent": result.daily_dd_percent,
+        "trading_cycle_start": result.trading_cycle_start,
+        "trading_cycle_source": result.trading_cycle_source,
+        "profit": result.profit,
+        "balance": result.snapshot.get("balance") if result.snapshot else None,
+        "equity": result.snapshot.get("equity") if result.snapshot else None,
+        "trading_days_count": len(result.daily_pnl_summary or []),
+        "breach_event": result.breach_event,
+        "trade_duration_violations": result.trade_duration_violations,
+        "passed": result.passed,
+        "profit_target_balance": result.profit_target_balance,
+        "payload_received_at": result.payload_received_at,
+    }
+    headers = {}
+    if BACKEND_ENGINE_SECRET:
+        headers["X-ENGINE-SECRET"] = BACKEND_ENGINE_SECRET
+    try:
+        requests.post(
+            f"{BACKEND_BASE_URL.rstrip('/')}{BACKEND_REPLAY_ENDPOINT}",
+            json=payload,
+            headers=headers,
+            timeout=10,
+        )
+    except Exception as exc:
+        print(f"[replay] Failed notifying backend: {exc}")
+
+
+class PositionPayload(BaseModel):
+    ticket: Optional[str] = None
+    position_id: Optional[str] = None
+    symbol: str
+    volume: float
+    open_price: float
+    open_time_ms: int
+    type: int
+
+
+class ClosedDealPayload(BaseModel):
+    deal_id: str
+    position_id: Optional[str] = None
+    symbol: str
+    time_ms: int
+    entry: int
+    type: int
+    volume: float
+    price: float
+    profit: float
+    commission: float
+    swap: float
+    deal_type: Optional[str] = None
+
+
+class SymbolMetaPayload(BaseModel):
+    symbol: str
+    contract_size: float
+    tick_value: float
+    tick_size: float
+
+
+class EAPayload(BaseModel):
+    account_number: str
+    account_type: Optional[str] = None
+    account_size: Optional[float] = None
+    platform: str = "mt5"
+    current_balance: float
+    current_equity: float
+    trading_cycle_start: Optional[str] = None
+    trading_cycle_source: Optional[str] = None
+    anchor_time_ms: int
+    positions: List[PositionPayload] = Field(default_factory=list)
+    closed_deals: List[ClosedDealPayload] = Field(default_factory=list)
+    symbols: List[SymbolMetaPayload] = Field(default_factory=list)
+
+
+class ReplayInputPayload(BaseModel):
+    account_number: str
+    account_type: Optional[str] = None
+    account_size: Optional[float] = None
+    initial_balance: float
+    max_dd_amount: float
+    daily_dd_amount: Optional[float] = None
+    profit_target_amount: Optional[float] = None
+    min_trading_days_required: Optional[int] = None
+    min_trade_duration_minutes: Optional[int] = None
+
+
+class ReplaySession(BaseModel):
+    session_id: str
+    account_number: str
+    ea_payload: Optional[EAPayload]
+    replay_input: Optional[ReplayInputPayload]
+    created_at: str
+    updated_at: str
+
+
+class ReplayResult(BaseModel):
+    session_id: str
+    account_number: str
+    breach_reason: Optional[str]
+    breach_balance: float
+    daily_breach_balance: Optional[float]
+    min_equity: float
+    equity_low: float
+    peak_balance: float
+    drawdown_percent: Optional[float]
+    daily_dd_percent: Optional[float]
+    trading_cycle_start: Optional[str]
+    trading_cycle_source: Optional[str]
+    breach_event: Optional[dict] = None
+    trade_duration_violations: List[dict] = Field(default_factory=list)
+    daily_peak_balance: Optional[float] = None
+    daily_low_equity: Optional[float] = None
+    daily_pnl_summary: List[dict] = Field(default_factory=list)
+    profit: float = 0.0
+    snapshot: Optional[dict] = None
+    passed: bool = False
+    profit_target_balance: Optional[float] = None
+    payload_received_at: str
+
+
+SESSIONS: Dict[str, ReplaySession] = {}
+BASE_DIR = Path(__file__).resolve().parent
+OUTPUTS_DIR = BASE_DIR / "outputs"
+OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+
+ACCOUNT_RULES = {
+    "one_step_phase_1": {
+        "max_drawdown_pct": 11,
+        "daily_drawdown_pct": 5,
+        "profit_target_pct": 10,
+        "min_trade_duration_minutes": 3,
+        "min_trading_days": 1,
+    },
+    "one_step_funded": {
+        "max_drawdown_pct": 11,
+        "daily_drawdown_pct": 5,
+        "profit_target_pct": 0,
+        "min_trade_duration_minutes": 3,
+        "min_trading_days": 1,
+    },
+    "two_step_phase_1": {
+        "max_drawdown_pct": 11,
+        "daily_drawdown_pct": 5,
+        "profit_target_pct": 10,
+        "min_trade_duration_minutes": 3,
+        "min_trading_days": 1,
+    },
+    "two_step_phase_2": {
+        "max_drawdown_pct": 11,
+        "daily_drawdown_pct": 5,
+        "profit_target_pct": 5,
+        "min_trade_duration_minutes": 3,
+        "min_trading_days": 1,
+    },
+    "two_step_funded": {
+        "max_drawdown_pct": 11,
+        "daily_drawdown_pct": 5,
+        "profit_target_pct": 0,
+        "min_trade_duration_minutes": 3,
+        "min_trading_days": 1,
+    },
+    "instant_funded": {
+        "max_drawdown_pct": 5,
+        "daily_drawdown_pct": 2,
+        "profit_target_pct": 0,
+        "min_trade_duration_minutes": 3,
+        "min_trading_days": 5,
+    },
+    "ngn_standard_phase_1": {
+        "max_drawdown_pct": 11,
+        "daily_drawdown_pct": 5,
+        "profit_target_pct": 10,
+        "min_trade_duration_minutes": 3,
+        "min_trading_days": 1,
+    },
+    "ngn_standard_phase_2": {
+        "max_drawdown_pct": 11,
+        "daily_drawdown_pct": 5,
+        "profit_target_pct": 5,
+        "min_trade_duration_minutes": 3,
+        "min_trading_days": 1,
+    },
+    "ngn_standard_funded": {
+        "max_drawdown_pct": 11,
+        "daily_drawdown_pct": 5,
+        "profit_target_pct": 0,
+        "min_trade_duration_minutes": 3,
+        "min_trading_days": 1,
+    },
+    "ngn_flexi_phase_1": {
+        "max_drawdown_pct": 20,
+        "daily_drawdown_pct": 0,
+        "profit_target_pct": 10,
+        "min_trade_duration_minutes": 3,
+        "min_trading_days": 0,
+    },
+    "ngn_flexi_phase_2": {
+        "max_drawdown_pct": 20,
+        "daily_drawdown_pct": 0,
+        "profit_target_pct": 10,
+        "min_trade_duration_minutes": 3,
+        "min_trading_days": 0,
+    },
+    "ngn_flexi_funded": {
+        "max_drawdown_pct": 20,
+        "daily_drawdown_pct": 0,
+        "profit_target_pct": 0,
+        "min_trade_duration_minutes": 3,
+        "min_trading_days": 0,
+    },
+}
+
+
+def resolve_rules(payload: EAPayload) -> dict:
+    account_type = (payload.account_type or "").strip().lower()
+    if account_type and account_type in ACCOUNT_RULES:
+        return {"account_type": account_type, **ACCOUNT_RULES[account_type]}
+    raise HTTPException(status_code=400, detail="Unknown or missing account_type for replay rules")
+
+
+def now_iso() -> str:
+    return datetime.utcnow().isoformat() + "Z"
+
+
+def _deal_is_withdrawal(deal: ClosedDealPayload) -> bool:
+    return str(deal.deal_type or "").upper() in {"WITHDRAWAL", "WITHDRAW"}
+
+
+def _deal_is_deposit(deal: ClosedDealPayload) -> bool:
+    return str(deal.deal_type or "").upper() in {"DEPOSIT"}
+
+
+def _is_balance_symbol(deal: ClosedDealPayload) -> bool:
+    return str(deal.symbol or "").upper() == "BALANCE"
+
+
+def _resolve_cycle_start(payload: EAPayload) -> tuple[Optional[str], Optional[str], Optional[int]]:
+    withdrawals = [deal for deal in payload.closed_deals if _deal_is_withdrawal(deal)]
+    if withdrawals:
+        last_withdrawal = max(withdrawals, key=lambda d: d.time_ms)
+        return (
+            datetime.utcfromtimestamp(last_withdrawal.time_ms / 1000).isoformat() + "Z",
+            "withdrawal",
+            last_withdrawal.time_ms,
+        )
+    deposits = [deal for deal in payload.closed_deals if _deal_is_deposit(deal)]
+    if deposits:
+        first_deposit = min(deposits, key=lambda d: d.time_ms)
+        return (
+            datetime.utcfromtimestamp(first_deposit.time_ms / 1000).isoformat() + "Z",
+            "deposit",
+            first_deposit.time_ms,
+        )
+    return (payload.trading_cycle_start, payload.trading_cycle_source, payload.anchor_time_ms)
+
+
+def _symbol_meta_map(payload: EAPayload) -> Dict[str, SymbolMetaPayload]:
+    return {meta.symbol: meta for meta in payload.symbols}
+
+
+def _deal_net(deal: ClosedDealPayload) -> float:
+    return deal.profit + deal.commission + deal.swap
+
+
+def _deal_affects_balance(deal: ClosedDealPayload) -> bool:
+    return _deal_is_deposit(deal) or _deal_is_withdrawal(deal)
+
+
+def _pnl_from_ticks(
+    position: PositionPayload,
+    tick: dict,
+    meta: SymbolMetaPayload,
+) -> float:
+    price = tick.get("bid") if position.type == 0 else tick.get("ask")
+    if price is None:
+        return 0.0
+    price_diff = price - position.open_price if position.type == 0 else position.open_price - price
+    if meta.tick_size == 0:
+        return 0.0
+    ticks = price_diff / meta.tick_size
+    return ticks * meta.tick_value * position.volume
+
+
+def _ticks_for_symbols(symbols: List[str], start_ms: int, end_ms: int) -> Dict[str, List[dict]]:
+    ticks_by_symbol: Dict[str, List[dict]] = {}
+    for symbol in symbols:
+        try:
+            response = requests.get(
+                f"{TICK_SERVICE_URL}/get_ticks",
+                params={"symbol": symbol, "start": start_ms, "end": end_ms},
+                timeout=15,
+            )
+            response.raise_for_status()
+            ticks_by_symbol[symbol] = response.json()
+        except requests.RequestException:
+            ticks_by_symbol[symbol] = []
+    return ticks_by_symbol
+
+
+def replay_anchor_end_ms(payload: EAPayload) -> int:
+    latest = payload.anchor_time_ms
+    for deal in payload.closed_deals:
+        latest = max(latest, deal.time_ms)
+    for position in payload.positions:
+        latest = max(latest, position.open_time_ms)
+    return max(latest, int(datetime.utcnow().timestamp() * 1000))
+
+
+def build_timeline(
+    payload: EAPayload,
+    ticks_by_symbol: Dict[str, List[dict]],
+    meta_map: Dict[str, SymbolMetaPayload],
+    initial_balance: float,
+) -> List[dict]:
+    events: List[tuple] = []
+    for position in payload.positions:
+        events.append(("open", position.open_time_ms, position))
+    for deal in payload.closed_deals:
+        events.append(("deal", deal.time_ms, deal))
+    for symbol, ticks in ticks_by_symbol.items():
+        for tick in ticks:
+            time_ms = int(tick.get("time") or tick.get("time_msc") or 0)
+            if time_ms:
+                events.append(("tick", time_ms, symbol, tick))
+
+    order = {"open": 0, "deal": 1, "tick": 2}
+    events.sort(key=lambda item: (item[1], order.get(item[0], 9)))
+
+    open_positions: Dict[str, PositionPayload] = {}
+    open_time_map: Dict[str, int] = {}
+    for position in payload.positions:
+        if position.open_time_ms <= payload.anchor_time_ms:
+            key = position.position_id or position.ticket or f"{position.symbol}:{position.open_time_ms}"
+            open_positions[key] = position
+            open_time_map[key] = position.open_time_ms
+
+    balance = initial_balance
+    peak_balance = balance
+
+    last_ticks: Dict[str, dict] = {}
+    snapshots: List[dict] = []
+
+    def snapshot_at(time_ms: int, event: Optional[dict] = None) -> None:
+        equity = balance
+        for position in open_positions.values():
+            tick = last_ticks.get(position.symbol)
+            meta = meta_map.get(position.symbol)
+            if tick and meta:
+                equity += _pnl_from_ticks(position, tick, meta)
+        snapshots.append({"time_ms": time_ms, "equity": equity, "balance": balance, "event": event})
+
+    snapshot_at(payload.anchor_time_ms, {"type": "anchor"})
+
+    for event in events:
+        event_type = event[0]
+        time_ms = event[1]
+        if time_ms < payload.anchor_time_ms:
+            continue
+        event_meta: dict = {"type": event_type, "time_ms": time_ms}
+        if event_type == "open":
+            position = event[2]
+            key = position.position_id or position.ticket or f"{position.symbol}:{position.open_time_ms}"
+            open_positions[key] = position
+            open_time_map[key] = position.open_time_ms
+            event_meta.update({"symbol": position.symbol, "position_id": position.position_id, "ticket": position.ticket})
+        elif event_type == "deal":
+            deal = event[2]
+            if _deal_is_deposit(deal) or _deal_is_withdrawal(deal):
+                if deal.time_ms != payload.anchor_time_ms:
+                    balance = initial_balance
+                    if balance > peak_balance:
+                        peak_balance = balance
+                event_meta.update({"deal_type": deal.deal_type, "entry": deal.entry})
+            elif deal.entry == 0:
+                position = PositionPayload(
+                    ticket=deal.position_id,
+                    position_id=deal.position_id,
+                    symbol=deal.symbol,
+                    volume=deal.volume,
+                    open_price=deal.price,
+                    open_time_ms=deal.time_ms,
+                    type=deal.type,
+                )
+                key = position.position_id or position.ticket or f"{position.symbol}:{position.open_time_ms}"
+                open_positions[key] = position
+                open_time_map[key] = position.open_time_ms
+                event_meta.update({"symbol": deal.symbol, "position_id": deal.position_id, "deal_id": deal.deal_id, "entry": deal.entry})
+            elif deal.entry == 1:
+                balance += _deal_net(deal)
+                if balance > peak_balance:
+                    peak_balance = balance
+                key = deal.position_id or deal.deal_id
+                if key in open_positions:
+                    open_positions.pop(key, None)
+                open_time = open_time_map.pop(key, None)
+                if open_time is not None:
+                    duration_min = (deal.time_ms - open_time) / 60000.0
+                    event_meta["duration_min"] = duration_min
+                event_meta.update({
+                    "symbol": deal.symbol,
+                    "position_id": deal.position_id,
+                    "deal_id": deal.deal_id,
+                    "entry": deal.entry,
+                    "profit": _deal_net(deal),
+                })
+        elif event_type == "tick":
+            symbol = event[2]
+            tick = event[3]
+            last_ticks[symbol] = tick
+            event_meta.update({"symbol": symbol})
+
+        snapshot_at(time_ms, event_meta)
+
+    return snapshots
+
+
+def calculate_result(session: ReplaySession) -> ReplayResult:
+    if not session.ea_payload:
+        raise HTTPException(status_code=400, detail="EA payload not found for session")
+    if not session.replay_input:
+        raise HTTPException(status_code=400, detail="Replay input not found for session")
+
+    payload = session.ea_payload
+    replay = session.replay_input
+
+    cycle_start, cycle_source, _cycle_start_ms = _resolve_cycle_start(payload)
+    symbols = sorted(
+        {pos.symbol for pos in payload.positions}
+        | {deal.symbol for deal in payload.closed_deals if not _is_balance_symbol(deal)}
+    )
+    meta_map = _symbol_meta_map(payload)
+
+    ticks_by_symbol = _ticks_for_symbols(symbols, payload.anchor_time_ms, replay_anchor_end_ms(payload))
+
+    peak_balance = replay.initial_balance
+    daily_peak_balance = replay.initial_balance
+    daily_low_equity = float("inf")
+    daily_dd_percent = None
+    min_equity = float("inf")
+    breach_reason = None
+    breach_event: Optional[dict] = None
+    trade_duration_violations: List[dict] = []
+    passed = False
+    pass_event: Optional[dict] = None
+    realized_profit = 0.0
+
+    current_day = None
+    daily_pnl_map: Dict[str, float] = {}
+    timeline = build_timeline(payload, ticks_by_symbol, meta_map, replay.initial_balance)
+    for snapshot in timeline:
+        equity = snapshot["equity"]
+        ts = snapshot["time_ms"]
+        balance_snapshot = snapshot.get("balance", replay.initial_balance)
+        event = snapshot.get("event", {})
+        event_type = event.get("type")
+
+        if event_type == "deal" and event.get("deal_type") in {"WITHDRAWAL", "WITHDRAW", "DEPOSIT"}:
+            peak_balance = replay.initial_balance
+            daily_peak_balance = replay.initial_balance
+            daily_low_equity = float("inf")
+            min_equity = float("inf")
+
+        if balance_snapshot > peak_balance:
+            peak_balance = balance_snapshot
+
+        day_key = datetime.utcfromtimestamp(ts / 1000).date()
+        day_key_str = day_key.isoformat()
+        if current_day is None or day_key != current_day:
+            current_day = day_key
+            daily_peak_balance = balance_snapshot
+            daily_low_equity = float("inf")
+        else:
+            if balance_snapshot > daily_peak_balance:
+                daily_peak_balance = balance_snapshot
+
+        if event_type == "deal" and event.get("entry") == 1:
+            min_duration = replay.min_trade_duration_minutes or 0
+            duration_min = event.get("duration_min")
+            if min_duration and duration_min is not None and duration_min < min_duration:
+                trade_duration_violations.append(
+                    {
+                        "position_id": event.get("position_id"),
+                        "deal_id": event.get("deal_id"),
+                        "duration_min": duration_min,
+                        "closed_time_ms": ts,
+                    }
+                )
+                if len(trade_duration_violations) >= 3 and breach_reason is None:
+                    breach_reason = "MIN_TRADE_DURATION"
+                    breach_event = {"violations": trade_duration_violations[:3]}
+                    break
+            profit = event.get("profit")
+            if profit is None:
+                profit = 0.0
+            realized_profit += float(profit)
+            daily_pnl_map[day_key_str] = daily_pnl_map.get(day_key_str, 0.0) + float(profit)
+
+            if breach_reason is None and replay.profit_target_amount:
+                if realized_profit >= replay.profit_target_amount:
+                    passed = True
+                    pass_event = {
+                        "type": "profit_target_reached",
+                        "realized_profit": realized_profit,
+                        "balance": balance_snapshot,
+                        "time_ms": ts,
+                    }
+                    break
+
+        if event_type != "tick":
+            continue
+
+        if equity < daily_low_equity:
+            daily_low_equity = equity
+        if equity < min_equity:
+            min_equity = equity
+
+        breach_balance = peak_balance - replay.max_dd_amount
+        daily_breach_balance = None
+        if replay.daily_dd_amount is not None and replay.daily_dd_amount > 0:
+            daily_breach_balance = daily_peak_balance - replay.daily_dd_amount
+        if breach_reason is None:
+            if equity < breach_balance:
+                breach_reason = "MAX_DRAWDOWN"
+                breach_event = snapshot.get("event")
+                if breach_event is not None:
+                    breach_event["equity"] = equity
+                    breach_event["balance"] = balance_snapshot
+                break
+            if daily_breach_balance is not None and equity < daily_breach_balance:
+                breach_reason = "DAILY_DRAWDOWN"
+                breach_event = snapshot.get("event")
+                if breach_event is not None:
+                    breach_event["equity"] = equity
+                    breach_event["balance"] = balance_snapshot
+                break
+            # Profit target is only evaluated on realized PnL (closed deals), not floating equity.
+
+    breach_balance = peak_balance - replay.max_dd_amount
+    daily_breach_balance = None
+    if replay.daily_dd_amount is not None and replay.daily_dd_amount > 0:
+        daily_breach_balance = daily_peak_balance - replay.daily_dd_amount
+        if daily_peak_balance > 0 and daily_low_equity != float("inf"):
+            daily_dd_percent = ((daily_peak_balance - daily_low_equity) / daily_peak_balance) * 100
+
+    if min_equity == float("inf"):
+        min_equity = replay.initial_balance
+    if daily_low_equity == float("inf"):
+        daily_low_equity = min_equity
+
+    daily_pnl_summary = [
+        {"date": date_key, "pnl": pnl}
+        for date_key, pnl in sorted(daily_pnl_map.items())
+    ]
+
+    total_profit = sum(daily_pnl_map.values()) if daily_pnl_map else 0.0
+
+    drawdown_percent = ((peak_balance - min_equity) / peak_balance) * 100 if peak_balance > 0 else None
+
+    profit_target_balance = None
+    if replay.profit_target_amount is not None:
+        profit_target_balance = replay.initial_balance + replay.profit_target_amount
+
+    if breach_reason is None:
+        end_breach_balance = peak_balance - replay.max_dd_amount
+        if payload.current_equity < end_breach_balance:
+            breach_reason = "MAX_DRAWDOWN"
+            breach_event = {
+                "type": "final_snapshot",
+                "equity": payload.current_equity,
+                "balance": payload.current_balance,
+            }
+    if breach_reason is not None:
+        passed = False
+        pass_event = None
+
+    result = ReplayResult(
+        session_id=session.session_id,
+        account_number=session.account_number,
+        breach_reason=breach_reason,
+        breach_balance=breach_balance,
+        daily_breach_balance=daily_breach_balance,
+        min_equity=min_equity,
+        equity_low=min_equity,
+        peak_balance=peak_balance,
+        drawdown_percent=drawdown_percent,
+        daily_dd_percent=daily_dd_percent,
+        trading_cycle_start=cycle_start,
+        trading_cycle_source=cycle_source,
+        breach_event=(breach_event or pass_event),
+        trade_duration_violations=trade_duration_violations[:3],
+        daily_peak_balance=daily_peak_balance,
+        daily_low_equity=daily_low_equity,
+        daily_pnl_summary=daily_pnl_summary,
+        profit=total_profit,
+        snapshot={
+            "balance": payload.current_balance,
+            "equity": payload.current_equity,
+            "peak_balance": peak_balance,
+            "min_equity": min_equity,
+            "daily_peak_balance": daily_peak_balance,
+            "daily_low_equity": daily_low_equity,
+        },
+        passed=passed,
+        profit_target_balance=profit_target_balance,
+        payload_received_at=session.updated_at,
+    )
+    # Replay results are sent to backend; local JSON output disabled.
+    notify_backend(result)
+    return result
+
+
+@app.post("/replay/ea", response_model=ReplaySession)
+def submit_ea_payload(payload: EAPayload):
+    session_id = str(uuid4())
+    timestamp = now_iso()
+    rules = resolve_rules(payload)
+    base_balance = float(payload.account_size or rules.get("account_size", payload.current_balance))
+    max_dd_amount = base_balance * float(rules.get("max_drawdown_pct", 0)) / 100
+    daily_dd_amount = base_balance * float(rules.get("daily_drawdown_pct", 0)) / 100
+    profit_target_amount = base_balance * float(rules.get("profit_target_pct", 0)) / 100
+    replay_input = ReplayInputPayload(
+        account_number=payload.account_number,
+        account_type=payload.account_type,
+        account_size=payload.account_size,
+        initial_balance=base_balance,
+        max_dd_amount=max_dd_amount,
+        daily_dd_amount=daily_dd_amount,
+        profit_target_amount=profit_target_amount,
+        min_trading_days_required=int(rules.get("min_trading_days", 0) or 0),
+        min_trade_duration_minutes=int(rules.get("min_trade_duration_minutes", 0) or 0),
+    )
+    session = ReplaySession(
+        session_id=session_id,
+        account_number=payload.account_number,
+        ea_payload=payload,
+        replay_input=replay_input,
+        created_at=timestamp,
+        updated_at=timestamp,
+    )
+    SESSIONS[session_id] = session
+    # Payload logging disabled (use backend records instead).
+    calculate_result(session)
+    return session
+
+
+@app.post("/replay/input", response_model=ReplaySession)
+def submit_replay_input(payload: ReplayInputPayload):
+    matching = next((sess for sess in SESSIONS.values() if sess.account_number == payload.account_number), None)
+    timestamp = now_iso()
+    if not matching:
+        session_id = str(uuid4())
+        session = ReplaySession(
+            session_id=session_id,
+            account_number=payload.account_number,
+            ea_payload=None,
+            replay_input=payload,
+            created_at=timestamp,
+            updated_at=timestamp,
+        )
+        SESSIONS[session_id] = session
+        return session
+
+    session = ReplaySession(
+        session_id=matching.session_id,
+        account_number=matching.account_number,
+        ea_payload=matching.ea_payload,
+        replay_input=payload,
+        created_at=matching.created_at,
+        updated_at=timestamp,
+    )
+    SESSIONS[matching.session_id] = session
+    return session
+
+
+@app.get("/replay/result/{session_id}", response_model=ReplayResult)
+def get_replay_result(session_id: str):
+    session = SESSIONS.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return calculate_result(session)
+
+
+@app.get("/replay/sessions", response_model=List[ReplaySession])
+def list_sessions():
+    return list(SESSIONS.values())
+
+
+@app.get("/replay/ticks")
+def get_ticks(symbol: str, start: int = Query(...), end: int = Query(...)):
+    if end < start:
+        raise HTTPException(status_code=400, detail="end must be >= start")
+
+    def fetch_ticks(symbol_value: str):
+        response = requests.get(
+            f"{TICK_SERVICE_URL}/get_ticks",
+            params={"symbol": symbol_value, "start": start, "end": end},
+            timeout=20,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    try:
+        return fetch_ticks(symbol)
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=502, detail=f"Tick service error: {exc}") from exc
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
