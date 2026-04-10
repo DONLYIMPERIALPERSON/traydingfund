@@ -133,6 +133,8 @@ const AccountOverviewPage: React.FC = () => {
   const normalizedBreachReason = accountData.breached_reason?.toLowerCase() ?? ''
   const breachDetails = accountData.metrics.breach_event
   const tradeViolations = accountData.metrics.trade_duration_violations ?? []
+  const durationViolationsCount = accountData.metrics.duration_violations_count
+    ?? (Array.isArray(tradeViolations) ? tradeViolations.length : 0)
   const isFraudBreach = normalizedBreachReason.includes('fraud')
   const accountCurrency = resolveCurrencyCode(accountData)
   const pendingWithdrawalAmount = accountData.pending_withdrawal_amount ?? 0
@@ -294,6 +296,15 @@ const AccountOverviewPage: React.FC = () => {
                     status: 'pending',
                     note: 'Pending',
                   }
+                  const effectiveObjective = key === 'min_trade_duration'
+                    ? {
+                        ...objective,
+                        status: durationViolationsCount >= 3 ? 'breached' : objective.status,
+                        note: objective.note
+                          ? objective.note.replace(/\(\d+\/3\)/, `(${durationViolationsCount}/3)`)
+                          : `Pass • ${accountData.metrics.min_trade_duration_minutes ?? 0} min rule (${durationViolationsCount}/3)`,
+                      }
+                    : objective
 
                   const iconMap: Record<string, { icon: string; className: string }> = {
                     max_drawdown: { icon: 'circle-exclamation', className: 'max-loss' },
@@ -323,14 +334,14 @@ const AccountOverviewPage: React.FC = () => {
                         <i className={`fas fa-${iconConfig.icon} objective-icon ${iconConfig.className}`}></i>
                         <div className="objective-text-section">
                           <span className="objective-text">
-                            {key === 'min_trading_days' ? 'Min Trading Days' : objective.label}
+                            {key === 'min_trading_days' ? 'Min Trading Days' : effectiveObjective.label}
                           </span>
                           {key === 'min_trading_days' ? (
                             <span className="objective-info">
                               {(() => {
-                                if (objective.note) {
+                                if (effectiveObjective.note) {
                                   // Parse format like "11.50h / 24.00h"
-                                  const match = objective.note.match(/(\d+(?:\.\d+)?)h\s*\/\s*(\d+(?:\.\d+)?)h/)
+                                  const match = effectiveObjective.note.match(/(\d+(?:\.\d+)?)h\s*\/\s*(\d+(?:\.\d+)?)h/)
                                   if (match) {
                                     const elapsedHours = parseFloat(match[1] || '0')
                                     const totalHours = parseFloat(match[2] || '0')
@@ -356,7 +367,7 @@ const AccountOverviewPage: React.FC = () => {
                                     }
                                   }
                                 }
-                                return objective.note || '00:00 Hours'
+                                return effectiveObjective.note || '00:00 Hours'
                               })()}
                             </span>
                           ) : (
@@ -413,7 +424,7 @@ const AccountOverviewPage: React.FC = () => {
                                 )
                               })() : (
                                 <>
-                                  {objective.note && <span className="objective-info">{objective.note}</span>}
+                                  {effectiveObjective.note && <span className="objective-info">{effectiveObjective.note}</span>}
                                   {targetBalance != null && (
                                     <span className="objective-subinfo">
                                       Target balance {formatCurrency(targetBalance, accountCurrency)}
@@ -426,8 +437,8 @@ const AccountOverviewPage: React.FC = () => {
                         </div>
                       </div>
                       <i
-                        className={`fas fa-${objective.status === 'passed' ? 'check-circle' : objective.status === 'breached' ? 'times-circle' : 'far fa-circle'} objective-status ${objective.status === 'passed' ? 'completed' : objective.status === 'breached' ? 'breached' : 'pending'}`}
-                        style={objective.status === 'breached' ? { color: '#e74c3c' } : undefined}
+                        className={`fas fa-${effectiveObjective.status === 'passed' ? 'check-circle' : effectiveObjective.status === 'breached' ? 'times-circle' : 'far fa-circle'} objective-status ${effectiveObjective.status === 'passed' ? 'completed' : effectiveObjective.status === 'breached' ? 'breached' : 'pending'}`}
+                        style={effectiveObjective.status === 'breached' ? { color: '#e74c3c' } : undefined}
                       ></i>
                     </div>
                   )
@@ -506,7 +517,7 @@ const AccountOverviewPage: React.FC = () => {
                       const typed = trade as Record<string, unknown>
                       return (
                         <div className="breach-trade-card" key={`violation-${index}`}>
-                          <div><strong>Position ID:</strong> {String(typed.position_id ?? '-')}
+                          <div><strong>Pair:</strong> {String(typed.symbol ?? '-')}
                           </div>
                           <div><strong>Deal ID:</strong> {String(typed.deal_id ?? '-')}
                           </div>
