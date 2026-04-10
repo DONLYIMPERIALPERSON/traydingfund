@@ -133,8 +133,9 @@ const AccountOverviewPage: React.FC = () => {
   const normalizedBreachReason = accountData.breached_reason?.toLowerCase() ?? ''
   const breachDetails = accountData.metrics.breach_event
   const tradeViolations = accountData.metrics.trade_duration_violations ?? []
-  const durationViolationsCount = accountData.metrics.duration_violations_count
-    ?? (Array.isArray(tradeViolations) ? tradeViolations.length : 0)
+  const durationViolationsCount = (accountData.metrics.duration_violations_count ?? 0) > 0
+    ? accountData.metrics.duration_violations_count ?? 0
+    : (Array.isArray(tradeViolations) ? tradeViolations.length : 0)
   const isFraudBreach = normalizedBreachReason.includes('fraud')
   const accountCurrency = resolveCurrencyCode(accountData)
   const pendingWithdrawalAmount = accountData.pending_withdrawal_amount ?? 0

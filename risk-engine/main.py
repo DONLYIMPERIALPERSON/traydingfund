@@ -514,6 +514,7 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
                     {
                         "position_id": event.get("position_id"),
                         "deal_id": event.get("deal_id"),
+                        "symbol": event.get("symbol"),
                         "duration_min": duration_min,
                         "closed_time_ms": ts,
                     }
