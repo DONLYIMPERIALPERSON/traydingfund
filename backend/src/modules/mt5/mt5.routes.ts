@@ -2,7 +2,6 @@ import { Router } from 'express'
 import rateLimit from 'express-rate-limit'
 import { env } from '../../config/env'
 import { upsertCTraderMetrics } from '../ctrader/ctrader.metrics'
-import { ingestMt5ReplayResult } from './mt5.replay.controller'
 import { listActiveCTraderAccounts } from '../ctrader/ctrader.active'
 
 export const mt5Router = Router()
@@ -20,4 +19,3 @@ const metricsLimiter = rateLimit({
 
 mt5Router.get('/active-accounts', listActiveCTraderAccounts)
 mt5Router.post('/metrics', metricsLimiter, upsertCTraderMetrics)
-mt5Router.post('/replay-result', ingestMt5ReplayResult)

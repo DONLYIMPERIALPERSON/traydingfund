@@ -1,9 +1,9 @@
 import { Router } from 'express'
-import { getAdminMe, getDashboardStats, listActiveChallengeAccounts, listAdminUsers, listBreachedChallengeAccounts, listFundedChallengeAccounts, listTopFundedTraders } from './admin.controller'
+import { getAdminMe, getDashboardStats, listActiveChallengeAccounts, listAdminUsers, listBreachedChallengeAccounts, listFundedChallengeAccounts, listTopFundedTraders, lookupChallengeAccount } from './admin.controller'
 import { approveCryptoOrder, declineCryptoOrder, getOrderStats, listOrders, listPendingAssignments } from './admin.orders.controller'
 import { authenticate, requireRole } from '../../common/auth'
 import { createAllowlistEntry, deleteAllowlistEntry, listAllowlist, updateAllowlistEntry } from './admin.allowlist.controller'
-import { deleteReadyCTraderAccount, downloadCTraderTemplate, forceAssignNextStage, getCTraderSummary, listCTraderAccounts, logCTraderCredentialView, uploadCTraderAccounts } from './ctrader.controller'
+import { adminResetAccount, deleteReadyCTraderAccount, downloadCTraderTemplate, forceAssignNextStage, getCTraderSummary, listCTraderAccounts, logCTraderCredentialView, uploadCTraderAccounts } from './ctrader.controller'
 import { listAdminKycProfiles, listAdminKycRequests, reviewKycRequest } from '../kyc/kyc.admin.controller'
 import { createCouponAdmin, deleteCouponAdmin, listCouponsAdmin, updateCouponChallengeTypeAdmin, updateCouponPlanAdmin, updateCouponStatusAdmin } from '../coupons/coupon.controller'
 import {
@@ -20,6 +20,7 @@ adminRouter.get('/me', authenticate, requireRole(['admin', 'super_admin']), getA
 adminRouter.get('/dashboard', authenticate, requireRole(['admin', 'super_admin']), getDashboardStats)
 adminRouter.get('/users', authenticate, requireRole(['admin', 'super_admin']), listAdminUsers)
 adminRouter.get('/challenges/active', authenticate, requireRole(['admin', 'super_admin']), listActiveChallengeAccounts)
+adminRouter.get('/challenges/lookup', authenticate, requireRole(['admin', 'super_admin']), lookupChallengeAccount)
 adminRouter.get('/challenges/funded', authenticate, requireRole(['admin', 'super_admin']), listFundedChallengeAccounts)
 adminRouter.get('/challenges/funded/top', authenticate, requireRole(['admin', 'super_admin']), listTopFundedTraders)
 adminRouter.get('/challenges/breaches', authenticate, requireRole(['admin', 'super_admin']), listBreachedChallengeAccounts)
@@ -33,6 +34,7 @@ adminRouter.get('/ctrader/accounts/template', authenticate, requireRole(['admin'
 adminRouter.delete('/ctrader/accounts/:id', authenticate, requireRole(['admin', 'super_admin']), deleteReadyCTraderAccount)
 adminRouter.get('/ctrader/accounts', authenticate, requireRole(['admin', 'super_admin']), listCTraderAccounts)
 adminRouter.post('/ctrader/accounts/credential-views', authenticate, requireRole(['admin', 'super_admin']), logCTraderCredentialView)
+adminRouter.post('/ctrader/accounts/reset', authenticate, requireRole(['admin', 'super_admin']), adminResetAccount)
 adminRouter.post('/ctrader/accounts/force-next-stage', authenticate, requireRole(['admin', 'super_admin']), forceAssignNextStage)
 adminRouter.get('/ctrader/summary', authenticate, requireRole(['admin', 'super_admin']), getCTraderSummary)
 adminRouter.get('/allowlist', authenticate, requireRole(['super_admin']), listAllowlist)

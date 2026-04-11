@@ -1,150 +1,162 @@
 import json
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Request
 
-BASE_DIR = Path(__file__).resolve().parent
 TICK_DIR = Path("C:/tick-data")
-TICK_RETENTION_DAYS = 30
+CACHE_TTL_SECONDS = 3600
+
+cache_store: dict[str, tuple[float, list[dict]]] = {}
 
 app = FastAPI()
+read_app = FastAPI()
+
+# =========================
+# HELPERS
+# =========================
+def safe_symbol(symbol: str) -> str:
+    return "".join(ch for ch in symbol.upper() if ch.isalnum())
 
 
-def _safe_symbol(symbol: str) -> str:
-    return "".join(ch for ch in symbol.upper() if ch.isalnum() or ch in ("_", "-"))
+def day_key(ms: int) -> str:
+    return datetime.fromtimestamp(ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
 
 
-def _day_key_from_ms(ms: int) -> str:
-    dt = datetime.fromtimestamp(ms / 1000, tz=timezone.utc)
-    return dt.strftime("%Y-%m-%d")
+def file_path(symbol: str, day: str) -> Path:
+    return TICK_DIR / safe_symbol(symbol) / f"{day}.json"
 
 
-def _tick_file(symbol: str, day_key: str) -> Path:
-    safe_symbol = _safe_symbol(symbol)
-    return TICK_DIR / safe_symbol / f"{day_key}.json"
+def cache_key(symbol: str, day: str) -> str:
+    return f"ticks:{safe_symbol(symbol)}:{day}"
 
 
-def _ensure_dirs(symbol: str) -> None:
-    (TICK_DIR / _safe_symbol(symbol)).mkdir(parents=True, exist_ok=True)
-
-
-def _load_ticks(symbol: str, day_key: str) -> list[dict]:
-    path = _tick_file(symbol, day_key)
-    if not path.exists():
+def load(symbol: str, day: str):
+    f = file_path(symbol, day)
+    if not f.exists():
         return []
-    with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+    return json.loads(f.read_text())
 
 
-def _save_ticks(symbol: str, day_key: str, ticks: list[dict]) -> None:
-    path = _tick_file(symbol, day_key)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(ticks, f, separators=(",", ":"))
+def save(symbol: str, day: str, ticks):
+    f = file_path(symbol, day)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps(ticks, separators=(",", ":")))
 
 
-def _purge_old_days(days_to_keep: int = 1) -> None:
-    cutoff = datetime.now(tz=timezone.utc) - timedelta(days=days_to_keep)
+def cache_ticks(symbol: str, day: str, ticks: list[dict]) -> None:
+    cache_store[cache_key(symbol, day)] = (time.time() + CACHE_TTL_SECONDS, ticks)
+
+
+def load_cached(symbol: str, day: str) -> list[dict]:
+    cached = cache_store.get(cache_key(symbol, day))
+    if not cached:
+        return []
+    expires_at, ticks = cached
+    if expires_at < time.time():
+        cache_store.pop(cache_key(symbol, day), None)
+        return []
+    return ticks
+
+
+def purge_old():
+    cutoff = datetime.now(tz=timezone.utc) - timedelta(days=30)
+
     if not TICK_DIR.exists():
         return
-    for symbol_dir in TICK_DIR.iterdir():
-        if not symbol_dir.is_dir():
+
+    for sym in TICK_DIR.iterdir():
+        if not sym.is_dir():
             continue
-        for file in symbol_dir.glob("*.json"):
+
+        for file in sym.glob("*.json"):
             try:
-                day = datetime.strptime(file.stem, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-            except ValueError:
-                continue
-            if day < cutoff:
-                file.unlink(missing_ok=True)
+                d = datetime.strptime(file.stem, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                if d < cutoff:
+                    file.unlink()
+            except Exception:
+                pass
 
 
+# =========================
+# ENDPOINTS
+# =========================
 @app.post("/submit_ticks")
-async def submit_ticks(payload: dict):
+async def submit_ticks(request: Request):
+    raw = await request.body()
+
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
     symbol = payload.get("symbol")
     ticks = payload.get("ticks", [])
 
-    if not symbol:
-        raise HTTPException(status_code=400, detail="Missing symbol")
-    if not isinstance(ticks, list):
-        raise HTTPException(status_code=400, detail="Ticks must be a list")
+    if not symbol or not isinstance(ticks, list):
+        raise HTTPException(status_code=400, detail="Bad payload")
 
-    _ensure_dirs(symbol)
+    grouped = {}
 
-    for tick in ticks:
-        if "time_msc" not in tick:
-            if "time" in tick:
-                tick["time_msc"] = tick["time"]
-            else:
-                continue
-
-    grouped: dict[str, list[dict]] = {}
-    for tick in ticks:
-        if "time_msc" not in tick:
-            print("Skipping tick, no time_msc:", tick)
+    for t in ticks:
+        if "time" not in t:
             continue
-        day_key = _day_key_from_ms(int(tick["time_msc"]))
-        grouped.setdefault(day_key, []).append(tick)
 
-    total_added = 0
-    for day_key, day_ticks in grouped.items():
-        existing = _load_ticks(symbol, day_key)
-        combined = existing + day_ticks
-        combined.sort(key=lambda x: int(x.get("time_msc", 0)))
-        _save_ticks(symbol, day_key, combined)
-        total_added += len(day_ticks)
+        t_ms = int(t["time"])
+        d = day_key(t_ms)
 
-    _purge_old_days(days_to_keep=TICK_RETENTION_DAYS)
+        grouped.setdefault(d, []).append({
+            "time": t_ms,
+            "bid": float(t.get("bid")),
+            "ask": float(t.get("ask"))
+        })
 
-    return {"status": "ok", "symbol": symbol, "added": total_added}
+    for d, new_ticks in grouped.items():
+        cached_ticks = load_cached(symbol, d)
+        existing = cached_ticks if cached_ticks else load(symbol, d)
+
+        existing_map = {t["time"]: t for t in existing}
+
+        for nt in new_ticks:
+            existing_map[nt["time"]] = nt
+
+        combined = list(existing_map.values())
+        combined.sort(key=lambda x: x["time"])
+
+        save(symbol, d, combined)
+        cache_ticks(symbol, d, combined)
+
+    purge_old()
+
+    return {"status": "ok"}
 
 
-@app.get("/get_ticks")
-async def get_ticks(
-    symbol: str,
-    start: int = Query(..., description="Start time in ms"),
-    end: int = Query(..., description="End time in ms"),
-):
+@read_app.get("/get_ticks")
+async def get_ticks(symbol: str, start: int, end: int):
     if end < start:
-        raise HTTPException(status_code=400, detail="end must be >= start")
+        raise HTTPException(status_code=400)
 
     result = []
-    start_dt = datetime.fromtimestamp(start / 1000, tz=timezone.utc)
+
+    current = datetime.fromtimestamp(start / 1000, tz=timezone.utc)
     end_dt = datetime.fromtimestamp(end / 1000, tz=timezone.utc)
 
-    current = start_dt
     while current <= end_dt:
-        day_key = current.strftime("%Y-%m-%d")
-        ticks = _load_ticks(symbol, day_key)
+        d = current.strftime("%Y-%m-%d")
+        cached_ticks = load_cached(symbol, d)
+        ticks = cached_ticks if cached_ticks else load(symbol, d)
+        if not cached_ticks:
+            cache_ticks(symbol, d, ticks)
+
         for t in ticks:
-            t_ms = int(t.get("time_msc", 0))
-            if start <= t_ms <= end:
-                result.append({
-                    "time": t_ms,
-                    "bid": t.get("bid"),
-                    "ask": t.get("ask"),
-                })
+            if start <= t["time"] <= end:
+                result.append(t)
+
         current += timedelta(days=1)
 
     return result
-
-
-@app.post("/symbols/day")
-async def symbols_day(payload: dict):
-    date = payload.get("date")
-    symbols = payload.get("symbols", [])
-    if not date:
-        raise HTTPException(status_code=400, detail="Missing date")
-    if not isinstance(symbols, list):
-        raise HTTPException(status_code=400, detail="symbols must be a list")
-
-    path = TICK_DIR / "symbols"
-    path.mkdir(parents=True, exist_ok=True)
-    with (path / f"{date}.json").open("w", encoding="utf-8") as f:
-        json.dump({"date": date, "symbols": symbols}, f, separators=(",", ":"))
-
-    return {"status": "ok", "date": date, "count": len(symbols)}
 
 
 @app.get("/health")
@@ -152,7 +164,20 @@ async def health():
     return {"status": "ok"}
 
 
+@read_app.get("/health")
+async def read_health():
+    return {"status": "ok"}
+
+
+# =========================
+# RUN
+# =========================
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8200)
+    submit_server = threading.Thread(
+        target=lambda: uvicorn.run(app, host="0.0.0.0", port=8200),
+        daemon=True,
+    )
+    submit_server.start()
+    uvicorn.run(read_app, host="0.0.0.0", port=8201)

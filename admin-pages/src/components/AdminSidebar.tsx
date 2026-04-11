@@ -1,6 +1,6 @@
 import './AdminSidebar.css'
 
-type AdminPage = 'analysis' | 'users' | 'accounts' | 'fundedAccounts' | 'breaches' | 'orders' | 'payouts' | 'kycReview' | 'referrals' | 'userProfile' | 'financeAnalysis' | 'coupons' | 'supportTickets' | 'settings' | 'mt5' | 'sendAnnouncement' | 'salary' | 'tradingRules' | 'fxRates'
+type AdminPage = 'analysis' | 'users' | 'accounts' | 'adminChecking' | 'fundedAccounts' | 'breaches' | 'orders' | 'payouts' | 'kycReview' | 'referrals' | 'userProfile' | 'financeAnalysis' | 'coupons' | 'supportTickets' | 'settings' | 'mt5' | 'sendAnnouncement' | 'salary' | 'tradingRules' | 'fxRates'
 
 interface AdminSidebarProps {
   activePage: AdminPage
@@ -120,6 +120,15 @@ const AdminSidebar = ({ activePage, onNavigate, onLogout, isLoggingOut, allowedP
               onClick={() => onNavigate('accounts')}
             >
               Challenges
+            </button>
+          )}
+          {hasAccess('adminChecking') && (
+            <button
+              className={`admin-sidebar-subitem ${activePage === 'adminChecking' ? 'active' : ''}`}
+              type="button"
+              onClick={() => onNavigate('adminChecking')}
+            >
+              Admin Checking
             </button>
           )}
           {hasAccess('fundedAccounts') && (

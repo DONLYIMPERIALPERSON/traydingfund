@@ -26,6 +26,7 @@ export type AdminUsersListItem = {
 }
 
 export type ChallengeAccountListItem = {
+  id?: number
   challenge_id: string
   user_id?: number | null
   trader_name?: string | null
@@ -40,6 +41,29 @@ export type ChallengeAccountListItem = {
   current_pnl?: string | null
   profit?: string | null
   win_rate?: string | null
+}
+
+export type AdminLookupAccount = {
+  id: number
+  challenge_id: string
+  account_number: string
+  platform: string
+  status: string
+  phase: string
+  account_size: string
+  currency?: string | null
+  trader_name?: string | null
+  trader_email?: string | null
+  breach_reason?: string | null
+  breached_at?: string | null
+  last_feed_at?: string | null
+}
+
+export type AdminResetAccountResponse = {
+  status: 'pending' | 'completed'
+  message: string
+  account_id: number
+  account_number: string
 }
 
 export type ChallengeBreachListItem = {
@@ -441,6 +465,17 @@ export const fetchDashboardStats = async () =>
 export const fetchActiveChallengeAccounts = async (platform?: string) =>
   apiFetch<{ accounts: ChallengeAccountListItem[] }>(
     platform ? `/admin/challenges/active?platform=${encodeURIComponent(platform)}` : '/admin/challenges/active'
+  )
+
+export const adminResetAccount = async (payload: { account_id?: number; account_number?: string }) =>
+  apiFetch<AdminResetAccountResponse>('/admin/ctrader/accounts/reset', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+
+export const lookupChallengeAccount = async (accountNumber: string) =>
+  apiFetch<{ account: AdminLookupAccount }>(
+    `/admin/challenges/lookup?account_number=${encodeURIComponent(accountNumber)}`
   )
 
 export const fetchFundedChallengeAccounts = async (platform?: string) =>

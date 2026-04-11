@@ -3,7 +3,7 @@ import { env } from './config/env'
 import { prisma } from './config/prisma'
 import { pushActiveAccountFullSync } from './services/ctraderEngine.service'
 
-const ACTIVE_STATUSES = ['active', 'assigned', 'assigned_pending_access', 'funded', 'awaiting_reset', 'withdraw_requested']
+const ACTIVE_STATUSES = ['active', 'assigned', 'assigned_pending_access', 'funded', 'withdraw_requested']
 
 const syncActiveAccounts = async () => {
   if (!env.ctraderEngineWebhookUrl) {

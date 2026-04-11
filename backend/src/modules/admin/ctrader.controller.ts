@@ -3,6 +3,7 @@ import { prisma } from '../../config/prisma'
 import { ApiError } from '../../common/errors'
 import { Prisma } from '@prisma/client'
 import { requestAccountAccess } from '../../services/accessEngine.service'
+import { pushActiveAccountAdd } from '../../services/ctraderEngine.service'
 import { recordCredentialView } from '../../services/emailLog.service'
 import { assignReadyAccountFromPool, buildBaseChallengeId, normalizeChallengeBase, resolveChallengeCurrency } from '../ctrader/ctrader.assignment'
 
@@ -43,6 +44,11 @@ type ListCTraderQuery = {
 
 type ForceNextStagePayload = {
   account_id?: number
+}
+
+type AdminResetPayload = {
+  account_id?: number
+  account_number?: string
 }
 
 const normalizeAccountSize = (raw: string) => {
@@ -318,6 +324,60 @@ export const deleteReadyCTraderAccount = async (req: Request, res: Response, nex
 
     await prisma.cTraderAccount.delete({ where: { id: accountId } })
     res.json({ message: 'Ready account deleted', id: accountId })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const adminResetAccount = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { account_id, account_number } = req.body as AdminResetPayload
+    const accountId = account_id != null ? Number(account_id) : null
+    const accountNumber = account_number ? String(account_number).trim() : null
+    if (!accountId && !accountNumber) {
+      throw new ApiError('account_id or account_number is required', 400)
+    }
+
+    const account = await prisma.cTraderAccount.findFirst({
+      where: accountId ? { id: accountId } : { accountNumber: accountNumber ?? '' },
+      include: { metrics: true },
+    })
+
+    if (!account) {
+      throw new ApiError('Account not found', 404)
+    }
+
+    await prisma.$transaction([
+      prisma.cTraderAccount.update({
+        where: { id: account.id },
+        data: {
+          status: 'admin_checking',
+          breachedAt: null,
+          passedAt: null,
+        },
+      }),
+      prisma.cTraderAccountMetric.deleteMany({
+        where: { accountId: account.id },
+      }),
+    ])
+
+    try {
+      await pushActiveAccountAdd({
+        accountNumber: account.accountNumber,
+        phase: account.phase,
+        status: 'admin_checking',
+        challengeType: account.challengeType,
+      })
+    } catch (error) {
+      console.error('Failed to push active account for admin reset', error)
+    }
+
+    res.json({
+      status: 'pending',
+      message: 'Account reset initiated. Awaiting fresh metrics.',
+      account_id: account.id,
+      account_number: account.accountNumber,
+    })
   } catch (err) {
     next(err as Error)
   }

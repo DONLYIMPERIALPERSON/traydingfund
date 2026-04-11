@@ -31,6 +31,7 @@ const mapAccountStatus = (status: string) => {
   if (normalized === 'withdrawn') return 'Withdrawn'
   if (normalized === 'awaiting_reset') return 'Awaiting Reset'
   if (normalized === 'withdraw_requested') return 'Withdrawal Requested'
+  if (normalized === 'admin_checking') return 'Admin Checking'
   if (normalized === 'assigned_pending_access') return 'Active'
   if (normalized === 'assigned') return 'Assigned'
   if (normalized === 'ready') return 'Ready'
@@ -44,6 +45,7 @@ const isActiveStatus = (status: string) => {
     || normalized === 'funded'
     || normalized === 'assigned_pending_access'
     || normalized === 'awaiting_reset'
+    || normalized === 'admin_checking'
 }
 
 const normalizeChallengeType = (value?: string | null) => {
@@ -225,10 +227,11 @@ export const listChallengeAccounts = async (req: AuthRequest, res: Response, nex
       res.json(cached)
       return
     }
-    const accounts: (CTraderAccount & { payouts: { status: string }[] })[] = await prisma.cTraderAccount.findMany({
+    const accounts: (CTraderAccount & { payouts: { status: string }[]; metrics?: CTraderAccountMetric | null })[] = await prisma.cTraderAccount.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
       include: {
+        metrics: true,
         payouts: {
           where: { status: { in: ['pending_approval', 'processing'] } },
           select: { status: true },
@@ -239,6 +242,15 @@ export const listChallengeAccounts = async (req: AuthRequest, res: Response, nex
     const mapped = accounts.map((account) => {
       const displayStatus = mapAccountStatus(account.status)
       const hasPendingWithdrawal = account.payouts?.length > 0
+      const rawResetType = (account.metrics as { expectedBalanceOperationType?: string | null } | null)?.expectedBalanceOperationType
+        ?? null
+      const resetType = rawResetType === 'PHASE_RESET'
+        ? 'RESET_NEXT_PHASE'
+        : rawResetType === 'WITHDRAWAL'
+          ? 'RESET_WITHDRAWAL'
+          : rawResetType === 'MANUAL_ADJUSTMENT'
+            ? 'RESET_MANUAL_ADJUSTMENT'
+            : null
       return {
         challenge_id: account.challengeId,
         account_size: account.accountSize,
@@ -251,6 +263,7 @@ export const listChallengeAccounts = async (req: AuthRequest, res: Response, nex
         mt5_account: account.accountNumber,
         platform: account.platform ?? 'ctrader',
         has_pending_withdrawal: hasPendingWithdrawal,
+        reset_type: resetType,
         started_at: account.startedAt?.toISOString() ?? null,
         breached_at: account.breachedAt?.toISOString() ?? null,
         passed_at: account.passedAt?.toISOString() ?? null,
@@ -388,30 +401,35 @@ export const getChallengeAccountDetail = async (
     const profitTargetBalance = objectiveFields.profitTargetAmount != null
       ? initialBalance + objectiveFields.profitTargetAmount
       : metrics.profitTargetBalance
-    const maxDrawdownBalance = metrics.breachBalance
-      ?? (objectiveFields.maxDdAmount != null
-        ? (metrics.highestBalance ?? initialBalance) - objectiveFields.maxDdAmount
-        : initialBalance)
-    const dailyStartBalance = (account.metrics as { dailyHighBalance?: number | null } | null)?.dailyHighBalance
-      ?? initialBalance
-    const dailyDrawdownBalance = metrics.dailyBreachBalance
-      ?? (objectiveFields.dailyDdAmount != null
-        ? dailyStartBalance - objectiveFields.dailyDdAmount
-        : initialBalance)
+    const maxDrawdownBalance = metrics.breachBalance ?? initialBalance
+    const dailyDrawdownBalance = metrics.dailyBreachBalance ?? initialBalance
     const minTradeDurationMinutes = objectiveFields.minTradeDurationMinutes ?? 0
     const durationViolationsCount = metrics.durationViolationsCount ?? 0
     const minTradingDaysRequired = objectiveFields.minTradingDaysRequired ?? 0
     const stageElapsedHours = metrics.stageElapsedHours ?? 0
     const minTradingDaysMet = metrics.minTradingDaysMet || stageElapsedHours >= minTradingDaysRequired * 24
     const profitRemaining = Math.max(0, profitTargetBalance - metrics.balance)
-    const maxDrawdownRemaining = Math.max(0, (metrics.minEquity ?? metrics.equity) - maxDrawdownBalance)
-    const dailyDrawdownRemaining = Math.max(0, (metrics.dailyLowEquity ?? metrics.equity) - dailyDrawdownBalance)
+    const maxDrawdownRemaining = metrics.breachBalance != null
+      ? Math.max(0, (metrics.minEquity ?? metrics.equity) - maxDrawdownBalance)
+      : 0
+    const dailyDrawdownRemaining = metrics.dailyBreachBalance != null
+      ? Math.max(0, (metrics.dailyLowEquity ?? metrics.equity) - dailyDrawdownBalance)
+      : 0
 
     const breachReason = (account.metrics as { breachReason?: string | null } | null)?.breachReason ?? null
     const normalizedBreachReason = breachReason?.toUpperCase() ?? null
     const breachedByMaxDrawdown = normalizedBreachReason === 'MAX_DRAWDOWN'
     const breachedByDailyDrawdown = normalizedBreachReason === 'DAILY_DRAWDOWN'
     const minTradeDurationBreached = normalizedBreachReason === 'MIN_TRADE_DURATION'
+    const rawResetType = (account.metrics as { expectedBalanceOperationType?: string | null } | null)?.expectedBalanceOperationType
+      ?? null
+    const resetType = rawResetType === 'PHASE_RESET'
+      ? 'RESET_NEXT_PHASE'
+      : rawResetType === 'WITHDRAWAL'
+        ? 'RESET_WITHDRAWAL'
+        : rawResetType === 'MANUAL_ADJUSTMENT'
+          ? 'RESET_MANUAL_ADJUSTMENT'
+          : null
 
     const objectives = {
       profit_target: {
@@ -423,16 +441,24 @@ export const getChallengeAccountDetail = async (
       },
       max_drawdown: {
         label: 'Max Drawdown',
-        status: breachedByMaxDrawdown || (metrics.minEquity ?? metrics.equity) < maxDrawdownBalance ? 'breached' : 'passed',
-        note: maxDrawdownBalance
+        status: breachedByMaxDrawdown
+          ? 'breached'
+          : metrics.breachBalance != null
+            ? ((metrics.minEquity ?? metrics.equity) < maxDrawdownBalance ? 'breached' : 'passed')
+            : 'pending',
+        note: metrics.breachBalance != null
           ? `${formatAccountCurrency(maxDrawdownRemaining)} loss remaining`
           : 'Pending',
       },
       ...(normalizedChallengeType === 'ngn_flexi' ? {} : {
         max_daily_drawdown: {
           label: 'Max Daily Drawdown',
-          status: breachedByDailyDrawdown || (metrics.dailyLowEquity ?? metrics.equity) < dailyDrawdownBalance ? 'breached' : 'passed',
-          note: dailyDrawdownBalance
+          status: breachedByDailyDrawdown
+            ? 'breached'
+            : metrics.dailyBreachBalance != null
+              ? ((metrics.dailyLowEquity ?? metrics.equity) < dailyDrawdownBalance ? 'breached' : 'passed')
+              : 'pending',
+          note: metrics.dailyBreachBalance != null
             ? `${formatAccountCurrency(dailyDrawdownRemaining)} loss remaining`
             : 'Pending',
         },
@@ -492,6 +518,7 @@ export const getChallengeAccountDetail = async (
       has_pending_withdrawal: Boolean(pendingPayout),
       pending_withdrawal_amount: pendingPayout ? pendingPayout.amountKobo / 100 : null,
       breached_reason: breachReason,
+      reset_type: resetType,
       started_at: account.startedAt?.toISOString() ?? null,
       breached_at: account.breachedAt?.toISOString() ?? null,
       passed_at: account.passedAt?.toISOString() ?? null,
@@ -540,6 +567,7 @@ export const getChallengeAccountDetail = async (
           : metrics.processedTradeIds ?? [],
         breach_event: (metrics as { breachEvent?: unknown }).breachEvent ?? null,
         trade_duration_violations: (metrics as { tradeDurationViolations?: unknown }).tradeDurationViolations ?? null,
+        reset_type: resetType,
       },
       objectives,
       credentials,

@@ -18,31 +18,42 @@ app = FastAPI(title="Replay Equity Curve", version="0.1.0")
 
 TICK_SERVICE_URL = os.environ.get("TICK_SERVICE_URL", "http://15.237.52.163:8201")
 BACKEND_BASE_URL = os.environ.get("BACKEND_BASE_URL", "")
-BACKEND_REPLAY_ENDPOINT = os.environ.get("BACKEND_REPLAY_ENDPOINT", "/v1/mt5/replay-result")
+BACKEND_REPLAY_ENDPOINT = os.environ.get("BACKEND_REPLAY_ENDPOINT", "/v1/mt5/metrics")
 BACKEND_ENGINE_SECRET = os.environ.get("BACKEND_ENGINE_SECRET", "")
 def notify_backend(result: ReplayResult) -> None:
     if not BACKEND_BASE_URL:
         return
     payload = {
         "account_number": result.account_number,
-        "breach_reason": result.breach_reason,
-        "breach_balance": result.breach_balance,
-        "daily_breach_balance": result.daily_breach_balance,
+        "platform": "mt5",
+        "balance": result.snapshot.get("balance") if result.snapshot else None,
+        "equity": result.snapshot.get("equity") if result.snapshot else None,
+        "unrealized_pnl": result.snapshot.get("unrealized_pnl") if result.snapshot else None,
         "min_equity": result.min_equity,
-        "daily_low_equity": result.daily_low_equity,
+        "min_equity_note": None,
+        "equity_low": result.equity_low,
+        "peak_balance": result.peak_balance,
         "drawdown_percent": result.drawdown_percent,
+        "daily_peak_balance": result.daily_peak_balance,
+        "daily_low_equity": result.daily_low_equity,
         "daily_dd_percent": result.daily_dd_percent,
         "trading_cycle_start": result.trading_cycle_start,
         "trading_cycle_source": result.trading_cycle_source,
-        "profit": result.profit,
-        "balance": result.snapshot.get("balance") if result.snapshot else None,
-        "equity": result.snapshot.get("equity") if result.snapshot else None,
+        "total_trades": None,
+        "short_trades_count": None,
         "trading_days_count": len(result.daily_pnl_summary or []),
+        "trades": [],
+        "positions": [],
+        "timestamp": result.payload_received_at,
+        "engine_id": "replay",
+        "latency_ms": None,
+        "breach_reason": result.breach_reason,
+        "breach_balance": result.breach_balance,
+        "daily_breach_balance": result.daily_breach_balance,
         "breach_event": result.breach_event,
         "trade_duration_violations": result.trade_duration_violations,
         "passed": result.passed,
         "profit_target_balance": result.profit_target_balance,
-        "payload_received_at": result.payload_received_at,
     }
     headers = {}
     if BACKEND_ENGINE_SECRET:
@@ -475,6 +486,7 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
 
     peak_balance = replay.initial_balance
     daily_peak_balance = replay.initial_balance
+    daily_start_balance = replay.initial_balance
     daily_low_equity = float("inf")
     daily_dd_percent = None
     min_equity = float("inf")
@@ -495,19 +507,21 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
         event = snapshot.get("event", {})
         event_type = event.get("type")
 
+        day_key = datetime.utcfromtimestamp(ts / 1000).date()
+        day_key_str = day_key.isoformat()
         if event_type == "deal" and event.get("ignored"):
             peak_balance = replay.initial_balance
             daily_peak_balance = replay.initial_balance
+            daily_start_balance = replay.initial_balance
             daily_low_equity = float("inf")
             min_equity = float("inf")
+            current_day = day_key
 
         if balance_snapshot > peak_balance:
             peak_balance = balance_snapshot
-
-        day_key = datetime.utcfromtimestamp(ts / 1000).date()
-        day_key_str = day_key.isoformat()
         if current_day is None or day_key != current_day:
             current_day = day_key
+            daily_start_balance = balance_snapshot
             daily_peak_balance = balance_snapshot
             daily_low_equity = float("inf")
         else:
@@ -559,7 +573,7 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
         breach_balance = peak_balance - replay.max_dd_amount
         daily_breach_balance = None
         if replay.daily_dd_amount is not None and replay.daily_dd_amount > 0:
-            daily_breach_balance = daily_peak_balance - replay.daily_dd_amount
+            daily_breach_balance = daily_start_balance - replay.daily_dd_amount
         if breach_reason is None:
             if equity < breach_balance:
                 breach_reason = "MAX_DRAWDOWN"
@@ -580,9 +594,9 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
     breach_balance = peak_balance - replay.max_dd_amount
     daily_breach_balance = None
     if replay.daily_dd_amount is not None and replay.daily_dd_amount > 0:
-        daily_breach_balance = daily_peak_balance - replay.daily_dd_amount
-        if daily_peak_balance > 0 and daily_low_equity != float("inf"):
-            daily_dd_percent = ((daily_peak_balance - daily_low_equity) / daily_peak_balance) * 100
+        daily_breach_balance = daily_start_balance - replay.daily_dd_amount
+        if daily_start_balance > 0 and daily_low_equity != float("inf"):
+            daily_dd_percent = ((daily_start_balance - daily_low_equity) / daily_start_balance) * 100
 
     if min_equity == float("inf"):
         min_equity = replay.initial_balance

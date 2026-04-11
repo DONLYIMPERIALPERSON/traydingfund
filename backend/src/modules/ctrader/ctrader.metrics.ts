@@ -464,6 +464,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     const wasBreached = account.status?.toLowerCase() === 'breached'
     const wasPassed = account.status?.toLowerCase() === 'awaiting_reset'
     const isFundedPhase = normalizedPhase === 'funded'
+    const isAdminChecking = account.status?.toLowerCase() === 'admin_checking'
     const passed = !breached
       && !isInstantFunded
       && !isFundedPhase
@@ -606,6 +607,54 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
           passedAt: now,
         },
       }))
+    } else if (isAdminChecking && !breached) {
+      transactionSteps.push(prisma.cTraderAccount.update({
+        where: { id: account.id },
+        data: {
+          status: 'active',
+        },
+      }))
+    }
+
+    if (passed && !wasPassed) {
+      const resetBalance = accountData.initialBalance ?? balance
+      const resetMaxDdAmount = accountData.maxDdAmount ?? 0
+      const resetDailyDdAmount = accountData.dailyDdAmount ?? 0
+      const resetBreachBalance = resetBalance - resetMaxDdAmount
+      const resetDailyBreachBalance = resetBalance - resetDailyDdAmount
+      transactionSteps.push(prisma.cTraderAccountMetric.updateMany({
+        where: { accountId: account.id },
+        data: {
+          balance: resetBalance,
+          equity: resetBalance,
+          unrealizedPnl: 0,
+          maxPermittedLossLeft: resetBalance,
+          highestBalance: resetBalance,
+          breachBalance: resetBreachBalance,
+          profitTargetBalance: resetBalance,
+          minTradingDaysRequired: accountData.minTradingDaysRequired ?? 0,
+          minTradingDaysMet: false,
+          stageElapsedHours: 0,
+          durationViolationsCount: 0,
+          processedTradeIds: [],
+          dailyStartAt: dailyDdEnabled ? now : null,
+          dailyHighBalance: dailyDdEnabled ? resetBalance : 0,
+          dailyBreachBalance: dailyDdEnabled ? resetDailyBreachBalance : 0,
+          dailyLowEquity: null,
+          drawdownPercent: null,
+          dailyDrawdownPercent: null,
+          firstTradeAt: null,
+          totalTrades: 0,
+          tradingDaysCount: 0,
+          tradingCycleStart: null,
+          tradingCycleSource: null,
+          shortDurationViolation: false,
+          minEquity: resetBalance,
+          lastBalance: resetBalance,
+          lastEquity: resetBalance,
+          capturedAt: now,
+        },
+      }))
     }
 
     await prisma.$transaction(transactionSteps)
@@ -698,6 +747,35 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
             expectedBalanceOperationType: 'PHASE_RESET',
             expectedBalanceOperationExpiresAt: expectedOperationExpiresAt,
             expectedBalanceOperationAmount: resetBalance,
+            balance: resetBalance,
+            equity: resetBalance,
+            unrealizedPnl: 0,
+            maxPermittedLossLeft: resetBalance,
+            highestBalance: resetBalance,
+            breachBalance: resetBalance - (accountData.maxDdAmount ?? 0),
+            profitTargetBalance: resetBalance,
+            minTradingDaysMet: false,
+            stageElapsedHours: 0,
+            durationViolationsCount: 0,
+            processedTradeIds: [],
+            dailyStartAt: dailyDdEnabled ? now : null,
+            dailyHighBalance: dailyDdEnabled ? resetBalance : 0,
+            dailyBreachBalance: dailyDdEnabled
+              ? resetBalance - (accountData.dailyDdAmount ?? 0)
+              : 0,
+            dailyLowEquity: null,
+            drawdownPercent: null,
+            dailyDrawdownPercent: null,
+            firstTradeAt: null,
+            totalTrades: 0,
+            tradingDaysCount: 0,
+            tradingCycleStart: null,
+            tradingCycleSource: null,
+            shortDurationViolation: false,
+            minEquity: resetBalance,
+            lastBalance: resetBalance,
+            lastEquity: resetBalance,
+            capturedAt: now,
           },
         })
         await notifyFinanceEngine({

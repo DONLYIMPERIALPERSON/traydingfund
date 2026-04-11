@@ -134,7 +134,7 @@ export const listActiveChallengeAccounts = async (_req: Request, res: Response, 
     const normalizedPlatform = platform?.toLowerCase()
     const accounts = await prisma.cTraderAccount.findMany({
       where: {
-        status: { in: ['active', 'assigned', 'assigned_pending_access', 'awaiting_reset', 'withdraw_requested'] },
+        status: { in: ['active', 'assigned', 'assigned_pending_access', 'awaiting_reset', 'withdraw_requested', 'admin_checking'] },
         ...(normalizedPlatform ? { platform: { equals: normalizedPlatform, mode: 'insensitive' } } : {}),
       },
       orderBy: { createdAt: 'desc' },
@@ -145,6 +145,7 @@ export const listActiveChallengeAccounts = async (_req: Request, res: Response, 
       accounts: accounts.map((account) => {
         const pnl = (account.metrics?.equity ?? account.metrics?.balance ?? 0) - (account.initialBalance ?? 0)
         return {
+          id: account.id,
           challenge_id: account.challengeId,
           user_id: account.userId,
           trader_name: account.user?.fullName ?? null,
@@ -276,6 +277,44 @@ export const listBreachedChallengeAccounts = async (_req: Request, res: Response
         breach_reason: account.metrics?.breachReason ?? null,
         breached_at: account.breachedAt?.toISOString() ?? null,
       })),
+    })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const lookupChallengeAccount = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const accountNumber = String(req.query.account_number ?? '').trim()
+    if (!accountNumber) {
+      throw new ApiError('account_number is required', 400)
+    }
+
+    const account = await prisma.cTraderAccount.findFirst({
+      where: { accountNumber },
+      include: { user: true, metrics: true },
+    })
+
+    if (!account) {
+      throw new ApiError('Account not found', 404)
+    }
+
+    res.json({
+      account: {
+        id: account.id,
+        challenge_id: account.challengeId,
+        account_number: account.accountNumber,
+        platform: account.platform ?? 'ctrader',
+        status: account.status,
+        phase: account.phase,
+        account_size: account.accountSize,
+        currency: account.currency ?? null,
+        trader_name: account.user?.fullName ?? null,
+        trader_email: account.user?.email ?? null,
+        breach_reason: account.metrics?.breachReason ?? null,
+        breached_at: account.breachedAt?.toISOString() ?? null,
+        last_feed_at: account.metrics?.capturedAt?.toISOString() ?? null,
+      },
     })
   } catch (err) {
     next(err as Error)

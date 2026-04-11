@@ -1,0 +1,16 @@
+{
+  "REPLAY_BASE_URL": "https://90ac-102-89-34-50.ngrok-free.app",
+  "REPLAY_ENDPOINT": "/replay/ea",
+  "MT5_TERMINALS": [
+    "C:\\MT5\\terminal_A\\terminal64.exe"
+  ],
+  "POLL_INTERVAL_SECONDS": 10,
+  "MAX_JOB_RUNTIME_SECONDS": 120,
+  "LOOKBACK_MINUTES": 60,
+  "TIMER_SECONDS": 2,
+  "ACCOUNTS_FILE": "accounts.json",
+  "BACKEND_BASE_URL": "https://py6ut5yhp2mf.share.zrok.io",
+  "BACKEND_ACTIVE_ACCOUNTS_ENDPOINT": "/api/v1/mt5/active-accounts",
+  "BACKEND_ENGINE_SECRET": "dev-mt5-secret",
+  "SYNC_INTERVAL_SECONDS": 30
+}
