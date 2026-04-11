@@ -59,6 +59,13 @@ type MetricsPayload = {
   timestamp?: string
   engine_id?: string
   latency_ms?: number
+  breach_reason?: string
+  breach_balance?: number
+  daily_breach_balance?: number
+  breach_event?: unknown
+  trade_duration_violations?: unknown
+  passed?: boolean
+  profit_target_balance?: number
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -90,7 +97,8 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     console.log('Body:', req.body)
 
     const payload = req.body as MetricsPayload
-    if (payload?.platform && String(payload.platform).toLowerCase() === 'mt5') {
+    const normalizedPayloadPlatform = payload?.platform ? String(payload.platform).toLowerCase() : null
+    if (normalizedPayloadPlatform === 'mt5') {
       try {
         const logDir = path.join(process.cwd(), 'outputs', 'mt5-payloads')
         const logPath = path.join(logDir, 'mt5-metrics.jsonl')
@@ -103,6 +111,21 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         fs.appendFileSync(logPath, `${JSON.stringify(entry)}\n`, 'utf8')
       } catch (error) {
         console.warn('[metrics] Failed to log MT5 payload', error)
+      }
+    }
+    if (normalizedPayloadPlatform === 'mt5' && payload?.engine_id === 'replay') {
+      try {
+        const logDir = path.join(process.cwd(), 'outputs', 'replay-metrics')
+        const logPath = path.join(logDir, 'replay-metrics.jsonl')
+        fs.mkdirSync(logDir, { recursive: true })
+        const entry = {
+          receivedAt: new Date().toISOString(),
+          headers: req.headers,
+          payload,
+        }
+        fs.appendFileSync(logPath, `${JSON.stringify(entry)}\n`, 'utf8')
+      } catch (error) {
+        console.warn('[metrics] Failed to log replay payload', error)
       }
     }
 
@@ -136,7 +159,6 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       throw new ApiError('Account not found', 404)
     }
 
-    const normalizedPayloadPlatform = String(payload.platform).toLowerCase()
     const normalizedAccountPlatform = String(account.platform ?? 'ctrader').toLowerCase()
     const isMt5Payload = normalizedPayloadPlatform === 'mt5'
     if (normalizedPayloadPlatform !== normalizedAccountPlatform) {
@@ -214,6 +236,21 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     const reportedDailyDrawdownPercent = Number.isFinite(payload.daily_dd_percent)
       ? Number(payload.daily_dd_percent)
       : null
+    const reportedBreachReason = payload.breach_reason ? String(payload.breach_reason) : null
+    const reportedBreachBalance = Number.isFinite(payload.breach_balance)
+      ? Number(payload.breach_balance)
+      : null
+    const reportedDailyBreachBalance = Number.isFinite(payload.daily_breach_balance)
+      ? Number(payload.daily_breach_balance)
+      : null
+    const reportedBreachEvent = payload.breach_event ?? null
+    const reportedTradeViolations = payload.trade_duration_violations ?? null
+    const reportedProfitTargetBalance = Number.isFinite(payload.profit_target_balance)
+      ? Number(payload.profit_target_balance)
+      : null
+    const reportedPassed = typeof payload.passed === 'boolean' ? payload.passed : null
+    const resolvedBreachEvent = reportedBreachEvent ?? (metrics as any)?.breachEvent ?? null
+    const resolvedTradeViolations = reportedTradeViolations ?? (metrics as any)?.tradeDurationViolations ?? null
     const tradingCycleStart = payload.trading_cycle_start
       ? new Date(payload.trading_cycle_start)
       : null
@@ -242,7 +279,9 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     const highestBalance = isMt5Payload && reportedPeakBalance != null
       ? reportedPeakBalance
       : Math.max(metrics?.highestBalance ?? accountData.initialBalance ?? balance, balance)
-    const breachBalance = accountData.maxDdAmount != null
+    const breachBalance = isMt5Payload && reportedBreachBalance != null
+      ? reportedBreachBalance
+      : accountData.maxDdAmount != null
       ? highestBalance - accountData.maxDdAmount
       : (metrics?.breachBalance ?? balance)
 
@@ -260,7 +299,9 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
           : ((metrics as any)?.dailyHighBalance ?? balance)))
       : 0
     const dailyBreachBalance = dailyDdEnabled
-      ? dailyStartBalance - accountData.dailyDdAmount
+      ? (isMt5Payload && reportedDailyBreachBalance != null
+        ? reportedDailyBreachBalance
+        : dailyStartBalance - accountData.dailyDdAmount)
       : 0
 
     const trades = payload.trades ?? []
@@ -367,7 +408,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
 
     const profitTargetBalance = accountData.profitTargetAmount != null && accountData.initialBalance != null
       ? accountData.initialBalance + accountData.profitTargetAmount
-      : (metrics?.profitTargetBalance ?? balance)
+      : (reportedProfitTargetBalance ?? metrics?.profitTargetBalance ?? balance)
 
     const resetExpectationActive = (metrics as any)?.expectedBalanceOperationType === 'PHASE_RESET'
     const resetExpectedAmount = (metrics as any)?.expectedBalanceOperationAmount as number | null | undefined
@@ -430,7 +471,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       }
     }
 
-    let breachReason: string | null = (metrics as any)?.breachReason ?? null
+    let breachReason: string | null = reportedBreachReason ?? (metrics as any)?.breachReason ?? null
     const awaitingReset = account.status?.toLowerCase() === 'awaiting_reset'
     const resetGuardActive = !breachReason && (awaitingReset || resetExpectationActive)
 
@@ -465,7 +506,9 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     const wasPassed = account.status?.toLowerCase() === 'awaiting_reset'
     const isFundedPhase = normalizedPhase === 'funded'
     const isAdminChecking = account.status?.toLowerCase() === 'admin_checking'
-    const passed = !breached
+    const passed = reportedPassed != null
+      ? reportedPassed
+      : !breached
       && !isInstantFunded
       && !isFundedPhase
       && profitTargetBalance != null
@@ -480,6 +523,31 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         ? 'awaiting_reset'
         : account.status
     const statusWillChange = expectedStatus && account.status?.toLowerCase() !== expectedStatus
+
+    const breachEventTimeMs = (() => {
+      if (!reportedBreachEvent || typeof reportedBreachEvent !== 'object') return null
+      const event = reportedBreachEvent as { [key: string]: unknown }
+      const timeMs = event.time_ms ?? event.closed_time_ms ?? event.timestamp_ms
+      if (typeof timeMs === 'number' && Number.isFinite(timeMs)) {
+        return timeMs
+      }
+      if (typeof timeMs === 'string') {
+        const parsed = Number(timeMs)
+        if (Number.isFinite(parsed)) return parsed
+      }
+      const isoCandidate = event.time ?? event.timestamp
+      if (typeof isoCandidate === 'string') {
+        const parsedDate = new Date(isoCandidate)
+        if (Number.isFinite(parsedDate.getTime())) return parsedDate.getTime()
+      }
+      return null
+    })()
+    const breachTimestamp = breachEventTimeMs != null
+      ? new Date(breachEventTimeMs)
+      : (payload.timestamp ? new Date(payload.timestamp) : now)
+    const resolvedBreachTimestamp = Number.isFinite(breachTimestamp.getTime())
+      ? breachTimestamp
+      : now
 
     if (breached && !wasBreached) {
       console.warn('[ctrader-metrics] Breach detected', {
@@ -549,6 +617,8 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         expectedBalanceOperationType: (metrics as any)?.expectedBalanceOperationType ?? null,
         expectedBalanceOperationExpiresAt: (metrics as any)?.expectedBalanceOperationExpiresAt ?? null,
         expectedBalanceOperationAmount: (metrics as any)?.expectedBalanceOperationAmount ?? null,
+        breachEvent: resolvedBreachEvent,
+        tradeDurationViolations: resolvedTradeViolations,
         capturedAt: now,
       } as Prisma.CTraderAccountMetricUncheckedCreateInput,
       update: {
@@ -588,6 +658,8 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         expectedBalanceOperationType: (metrics as any)?.expectedBalanceOperationType ?? null,
         expectedBalanceOperationExpiresAt: (metrics as any)?.expectedBalanceOperationExpiresAt ?? null,
         expectedBalanceOperationAmount: (metrics as any)?.expectedBalanceOperationAmount ?? null,
+        breachEvent: resolvedBreachEvent,
+        tradeDurationViolations: resolvedTradeViolations,
         capturedAt: now,
       } as Prisma.CTraderAccountMetricUncheckedUpdateInput,
     }))
@@ -596,7 +668,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
         where: { id: account.id },
         data: {
           status: 'breached',
-          breachedAt: now,
+          breachedAt: resolvedBreachTimestamp,
         },
       }))
     } else if (passed && account.status.toLowerCase() !== 'breached') {
@@ -806,10 +878,12 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     res.json({
       account_number: account.accountNumber,
       balance,
-      equity,
+      breachReason,
       min_equity: guardedMinEquity,
       breach_threshold: breachBalance,
       breach_reason: breachReason,
+      breach_event: resolvedBreachEvent,
+      trade_duration_violations: resolvedTradeViolations,
       status: breached ? 'breached' : passed ? 'awaiting_reset' : 'active',
       next_stage_assigned: nextStageAssigned,
       next_stage_challenge_id: nextStageChallengeId,

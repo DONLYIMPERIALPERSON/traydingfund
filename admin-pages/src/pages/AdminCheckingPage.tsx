@@ -28,6 +28,43 @@ const AdminCheckingPage = () => {
   const [error, setError] = useState('')
   const [reportOpen, setReportOpen] = useState(false)
 
+  const formatCurrency = (value: number | null | undefined, currency?: string | null) => {
+    if (value == null) return '—'
+    const normalized = currency?.toUpperCase() === 'NGN' ? 'NGN' : 'USD'
+    if (normalized === 'NGN') {
+      return `₦${value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    }
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value)
+  }
+
+  const formatBreachTime = (account?: AdminLookupAccount | null) => {
+    if (!account) return '—'
+    const event = account.breach_event
+    if (event && typeof event === 'object') {
+      const timeMs = (event as Record<string, unknown>).time_ms
+        ?? (event as Record<string, unknown>).closed_time_ms
+        ?? (event as Record<string, unknown>).timestamp_ms
+      if (typeof timeMs === 'number' && Number.isFinite(timeMs)) {
+        return formatDateTime(new Date(timeMs).toISOString())
+      }
+      if (typeof timeMs === 'string') {
+        const parsed = Number(timeMs)
+        if (Number.isFinite(parsed)) return formatDateTime(new Date(parsed).toISOString())
+      }
+      const isoCandidate = (event as Record<string, unknown>).time
+        ?? (event as Record<string, unknown>).timestamp
+      if (typeof isoCandidate === 'string') {
+        return formatDateTime(isoCandidate)
+      }
+    }
+    return formatDateTime(account.breached_at)
+  }
+
   const handleLookup = async () => {
     const trimmed = accountNumber.trim()
     if (!trimmed) {
@@ -138,8 +175,43 @@ const AdminCheckingPage = () => {
                 paddingTop: 12,
                 color: '#e2e8f0',
               }}>
-                <p style={{ margin: 0 }}><strong>Breach Reason:</strong> {account.breach_reason ?? 'No breach recorded'}</p>
-                <p style={{ margin: '4px 0 0' }}><strong>Breached At:</strong> {formatDateTime(account.breached_at)}</p>
+                <div style={{ display: 'grid', gap: 6 }}>
+                  <div><strong>Reason:</strong> {account.breach_reason ?? 'No breach recorded'}</div>
+                  <div><strong>Breach Time:</strong> {formatBreachTime(account)}</div>
+                  <div><strong>Account Peak:</strong> {formatCurrency(account.highest_balance, account.currency)}</div>
+                  <div><strong>Equity Low:</strong> {formatCurrency(account.daily_low_equity ?? account.min_equity, account.currency)}</div>
+                  <div><strong>Daily High:</strong> {formatCurrency(account.daily_high_balance, account.currency)}</div>
+                  <div><strong>Daily Breach Balance:</strong> {formatCurrency(account.daily_breach_balance, account.currency)}</div>
+                  <div><strong>Max Breach Balance:</strong> {formatCurrency(account.breach_balance, account.currency)}</div>
+                </div>
+                {account.breach_event && (
+                  <div style={{ marginTop: 10 }}>
+                    <strong>Trigger Event</strong>
+                    <div style={{ marginTop: 6, display: 'grid', gap: 4 }}>
+                      {Object.entries(account.breach_event).map(([key, value]) => (
+                        <div key={key} style={{ fontSize: 13 }}>
+                          <span style={{ color: '#93c5fd' }}>{key.replace(/_/g, ' ')}:</span> {String(value)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {Array.isArray(account.trade_duration_violations) && account.trade_duration_violations.length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <strong>Trade Duration Violations</strong>
+                    <div style={{ marginTop: 6, display: 'grid', gap: 8 }}>
+                      {account.trade_duration_violations.slice(0, 3).map((violation, index) => (
+                        <div key={`violation-${index}`} style={{ fontSize: 13, padding: 8, borderRadius: 8, background: '#111827' }}>
+                          {Object.entries(violation).map(([key, value]) => (
+                            <div key={key}>
+                              <span style={{ color: '#93c5fd' }}>{key.replace(/_/g, ' ')}:</span> {String(value)}
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -63,6 +63,12 @@ const AccountOverviewPage: React.FC = () => {
       day: '2-digit',
     })
   }
+  const formatDateTime = (value?: string | number | null) => {
+    if (value == null) return 'N/A'
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return String(value)
+    return parsed.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+  }
   const parseAccountSize = (value: string) => {
     const normalized = value
       .toLowerCase()
@@ -133,6 +139,26 @@ const AccountOverviewPage: React.FC = () => {
   const normalizedBreachReason = accountData.breached_reason?.toLowerCase() ?? ''
   const breachDetails = accountData.metrics.breach_event
   const tradeViolations = accountData.metrics.trade_duration_violations ?? []
+  const breachEventTimestamp = (() => {
+    if (!breachDetails || typeof breachDetails !== 'object') return accountData.breached_at ?? null
+    const event = breachDetails as Record<string, unknown>
+    const eventTimeMs = event.time_ms ?? event.closed_time_ms ?? event.timestamp_ms
+    if (typeof eventTimeMs === 'number' && Number.isFinite(eventTimeMs)) {
+      return eventTimeMs
+    }
+    if (typeof eventTimeMs === 'string') {
+      const parsed = Number(eventTimeMs)
+      if (Number.isFinite(parsed)) return parsed
+    }
+    const isoCandidate = event.time ?? event.timestamp
+    if (typeof isoCandidate === 'string') return isoCandidate
+    return accountData.breached_at ?? null
+  })()
+  const breachDailyHigh = accountData.metrics.daily_peak_balance
+  const breachDailyLow = accountData.metrics.daily_low_equity
+  const breachPeak = accountData.metrics.highest_balance
+  const breachBalance = accountData.metrics.breach_balance
+  const dailyBreachBalance = accountData.metrics.daily_breach_balance
   const durationViolationsCount = (accountData.metrics.duration_violations_count ?? 0) > 0
     ? accountData.metrics.duration_violations_count ?? 0
     : (Array.isArray(tradeViolations) ? tradeViolations.length : 0)
@@ -497,17 +523,39 @@ const AccountOverviewPage: React.FC = () => {
                   <span className="breach-value">{accountData.breached_reason ?? 'Unknown'}</span>
                 </div>
                 <div>
+                  <span className="breach-label">Breach Time</span>
+                  <span className="breach-value">{formatDateTime(breachEventTimestamp)}</span>
+                </div>
+                {breachPeak != null && (
+                  <div>
+                    <span className="breach-label">Account Peak</span>
+                    <span className="breach-value">{formatCurrency(breachPeak, accountCurrency)}</span>
+                  </div>
+                )}
+                <div>
                   <span className="breach-label">Equity Low</span>
                   <span className="breach-value">
-                    {formatCurrency(accountData.metrics.min_equity ?? accountData.metrics.equity, accountCurrency)}
+                    {formatCurrency(breachDailyLow ?? accountData.metrics.min_equity ?? accountData.metrics.equity, accountCurrency)}
                   </span>
                 </div>
-                <div>
-                  <span className="breach-label">Breach Balance</span>
-                  <span className="breach-value">
-                    {formatCurrency(accountData.metrics.breach_balance, accountCurrency)}
-                  </span>
-                </div>
+                {breachDailyHigh != null && (
+                  <div>
+                    <span className="breach-label">Daily High</span>
+                    <span className="breach-value">{formatCurrency(breachDailyHigh, accountCurrency)}</span>
+                  </div>
+                )}
+                {(normalizedBreachReason === 'daily_drawdown' && dailyBreachBalance != null) && (
+                  <div>
+                    <span className="breach-label">Daily Breach Balance</span>
+                    <span className="breach-value">{formatCurrency(dailyBreachBalance, accountCurrency)}</span>
+                  </div>
+                )}
+                {(normalizedBreachReason !== 'daily_drawdown' && breachBalance != null) && (
+                  <div>
+                    <span className="breach-label">Breach Balance</span>
+                    <span className="breach-value">{formatCurrency(breachBalance, accountCurrency)}</span>
+                  </div>
+                )}
               </div>
 
               {normalizedBreachReason === 'min_trade_duration' && tradeViolations.length > 0 && (

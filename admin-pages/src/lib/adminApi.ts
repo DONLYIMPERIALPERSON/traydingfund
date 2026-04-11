@@ -56,6 +56,14 @@ export type AdminLookupAccount = {
   trader_email?: string | null
   breach_reason?: string | null
   breached_at?: string | null
+  breach_event?: Record<string, unknown> | null
+  trade_duration_violations?: Record<string, unknown>[] | null
+  breach_balance?: number | null
+  daily_breach_balance?: number | null
+  daily_high_balance?: number | null
+  daily_low_equity?: number | null
+  min_equity?: number | null
+  highest_balance?: number | null
   last_feed_at?: string | null
 }
 
