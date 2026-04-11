@@ -4,7 +4,7 @@ import { ApiError } from '../../common/errors'
 import { env } from '../../config/env'
 import { pushActiveAccountFullSync } from '../../services/ctraderEngine.service'
 
-const ACTIVE_STATUSES = ['active', 'assigned', 'assigned_pending_access', 'funded', 'withdraw_requested', 'admin_checking']
+const ACTIVE_STATUSES = ['active', 'assigned', 'assigned_pending_access', 'funded', 'admin_checking']
 
 export const listActiveCTraderAccounts = async (req: Request, res: Response, next: NextFunction) => {
   try {

@@ -17,6 +17,10 @@ const parseCommand = (text?: string | null) => {
   if (match) {
     return [`/${match[1]}`, match[2]]
   }
+  const withdrawApprovedCompact = normalized.match(/^\/withdraw_approved(\d+)[_:|-]([0-9]+(?:\.[0-9]+)?)$/i)
+  if (withdrawApprovedCompact) {
+    return ['/withdraw_approved', withdrawApprovedCompact[1], withdrawApprovedCompact[2]]
+  }
   return normalized.split(' ')
 }
 
@@ -51,11 +55,21 @@ const formatEventMessage = (payload: {
     return lines.join('\n')
   }
   if (payload.type === 'WITHDRAW_REQUEST') {
+    const compactApproveCommand = payload.account
+      ? `/withdraw_approved${payload.account}${payload.amount != null ? `_${payload.amount}` : ''}`
+      : null
+    const compactDoneCommand = payload.account
+      ? `/withdraw_done${payload.account}`
+      : null
     return [
       '💸 Withdrawal requested',
       `Account: ${payload.account}`,
       platformLine,
       `Amount: ${payload.amount ?? payload.profit ?? 0}`,
+      compactApproveCommand ? 'Approve Command:' : null,
+      compactApproveCommand,
+      compactDoneCommand ? 'Done Command:' : null,
+      compactDoneCommand,
     ].filter(Boolean).join('\n')
   }
   if (payload.type === 'WITHDRAWAL') {

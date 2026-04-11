@@ -254,7 +254,7 @@ export const withdrawComplete = async (req: Request, res: Response, next: NextFu
         },
       }),
       prisma.payout.updateMany({
-        where: { accountId: account.id, status: 'processing' },
+        where: { accountId: account.id, status: { in: ['processing', 'pending_approval'] } },
         data: {
           status: 'completed',
           completedAt,

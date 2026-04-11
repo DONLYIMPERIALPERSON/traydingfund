@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import { prisma } from '../../config/prisma'
+import { Prisma } from '@prisma/client'
 import { ApiError } from '../../common/errors'
 import { buildObjectiveFields, parseAccountSize } from '../ctrader/ctrader.objectives'
 import { createOverallRewardCertificate, createPayoutCertificate } from '../../services/certificate.service'
@@ -176,6 +177,96 @@ const mapPayoutMethodDetails = (user: { payoutMethodType?: string | null; payout
 })
 
 const clampNonNegative = (value: number | null | undefined) => Math.max(0, value ?? 0)
+
+const resetWithdrawalMetrics = async (accountId: number, newBalance: number, phase: string, challengeType: string) => {
+  const objectiveFields = await buildObjectiveFields({
+    accountSize: String(newBalance),
+    challengeType,
+    phase,
+  })
+  const now = new Date()
+  const maxDdAmount = objectiveFields.maxDdAmount ?? 0
+  const dailyDdAmount = objectiveFields.dailyDdAmount ?? 0
+  const breachBalance = newBalance - maxDdAmount
+  const dailyBreachBalance = newBalance - dailyDdAmount
+
+  await prisma.cTraderAccountMetric.upsert({
+    where: { accountId },
+    create: {
+      accountId,
+      balance: newBalance,
+      equity: newBalance,
+      unrealizedPnl: 0,
+      maxPermittedLossLeft: newBalance,
+      highestBalance: newBalance,
+      breachBalance,
+      profitTargetBalance: newBalance,
+      winRate: 0,
+      closedTradesCount: 0,
+      winningTradesCount: 0,
+      lotsTradedTotal: 0,
+      todayClosedPnl: 0,
+      todayTradesCount: 0,
+      todayLotsTotal: 0,
+      minTradingDaysRequired: objectiveFields.minTradingDaysRequired ?? 0,
+      minTradingDaysMet: false,
+      stageElapsedHours: 0,
+      scalpingViolationsCount: 0,
+      durationViolationsCount: 0,
+      processedTradeIds: [],
+      dailyStartAt: now,
+      dailyHighBalance: newBalance,
+      dailyBreachBalance,
+      firstTradeAt: null,
+      totalTrades: 0,
+      shortDurationViolation: false,
+      breachReason: null,
+      minEquity: newBalance,
+      lastBalance: newBalance,
+      lastEquity: newBalance,
+      expectedBalanceChange: false,
+      expectedChangeExpiresAt: null,
+      expectedBalanceOperationType: null,
+      expectedBalanceOperationExpiresAt: null,
+      expectedBalanceOperationAmount: null,
+      breachEvent: Prisma.JsonNull,
+      tradeDurationViolations: Prisma.JsonNull,
+      capturedAt: now,
+    },
+    update: {
+      balance: newBalance,
+      equity: newBalance,
+      unrealizedPnl: 0,
+      maxPermittedLossLeft: newBalance,
+      highestBalance: newBalance,
+      breachBalance,
+      profitTargetBalance: newBalance,
+      minTradingDaysRequired: objectiveFields.minTradingDaysRequired ?? 0,
+      minTradingDaysMet: false,
+      stageElapsedHours: 0,
+      durationViolationsCount: 0,
+      processedTradeIds: [],
+      dailyStartAt: now,
+      dailyHighBalance: newBalance,
+      dailyBreachBalance,
+      firstTradeAt: null,
+      totalTrades: 0,
+      shortDurationViolation: false,
+      breachReason: null,
+      minEquity: newBalance,
+      lastBalance: newBalance,
+      lastEquity: newBalance,
+      expectedBalanceChange: false,
+      expectedChangeExpiresAt: null,
+      expectedBalanceOperationType: null,
+      expectedBalanceOperationExpiresAt: null,
+      expectedBalanceOperationAmount: null,
+      breachEvent: Prisma.JsonNull,
+      tradeDurationViolations: Prisma.JsonNull,
+      capturedAt: now,
+    },
+  })
+}
 
 export const getPayoutSummary = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -392,10 +483,20 @@ export const requestPayout = async (req: AuthRequest, res: Response, next: NextF
       },
     })
 
+    const resetBalance = payoutInfo.initialBalance
     await prisma.cTraderAccount.update({
       where: { id: payoutInfo.account.id },
-      data: { status: 'withdraw_requested' },
+      data: {
+        status: 'withdraw_requested',
+        initialBalance: resetBalance,
+      },
     })
+    await resetWithdrawalMetrics(
+      payoutInfo.account.id,
+      resetBalance,
+      payoutInfo.account.phase ?? 'funded',
+      payoutInfo.account.challengeType ?? 'two_step',
+    )
 
     const payload = {
       request_id: payout.providerRef ?? payout.id,
@@ -405,11 +506,8 @@ export const requestPayout = async (req: AuthRequest, res: Response, next: NextF
       message: 'Payout request submitted successfully.',
     }
 
-    try {
-      // Notify finance engine only after admin approval.
-    } catch (error) {
-      console.error('Failed to notify finance engine about withdrawal request', error)
-    }
+    await clearCacheByPrefix(buildCacheKey(['payouts', 'summary', user.id]))
+    await clearCacheByPrefix(buildCacheKey(['trader', 'challenges', user.id]))
 
     if (dbUser.email) {
       try {
@@ -427,8 +525,6 @@ export const requestPayout = async (req: AuthRequest, res: Response, next: NextF
       }
     }
 
-    await clearCacheByPrefix(buildCacheKey(['payouts', 'summary', user.id]))
-    await clearCacheByPrefix(buildCacheKey(['trader', 'challenges', user.id]))
     res.json(payload)
   } catch (err) {
     next(err as Error)

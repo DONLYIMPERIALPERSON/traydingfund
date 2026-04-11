@@ -564,15 +564,23 @@ const AccountOverviewPage: React.FC = () => {
                   <div className="breach-trades-grid">
                     {tradeViolations.slice(0, 3).map((trade, index) => {
                       const typed = trade as Record<string, unknown>
+                      const pair = typed.symbol
+                        ?? typed.pair
+                        ?? typed.instrument
+                        ?? (breachDetails && typeof breachDetails === 'object'
+                          ? (breachDetails as Record<string, unknown>).symbol
+                          : null)
+                        ?? '-'
+                      const closedAt = typed.closed_time_ms ?? typed.time_ms ?? typed.timestamp_ms ?? typed.closed_at ?? null
                       return (
                         <div className="breach-trade-card" key={`violation-${index}`}>
-                          <div><strong>Pair:</strong> {String(typed.symbol ?? '-')}
+                          <div><strong>Pair:</strong> {String(pair)}
                           </div>
                           <div><strong>Deal ID:</strong> {String(typed.deal_id ?? '-')}
                           </div>
                           <div><strong>Duration (min):</strong> {String(typed.duration_min ?? '-')}
                           </div>
-                          <div><strong>Closed at:</strong> {String(typed.closed_time_ms ?? '-')}
+                          <div><strong>Closed at:</strong> {formatDateTime(typeof closedAt === 'number' || typeof closedAt === 'string' ? closedAt : null)}
                           </div>
                         </div>
                       )
