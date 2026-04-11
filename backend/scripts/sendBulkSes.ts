@@ -5,70 +5,72 @@ import dotenv from 'dotenv'
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses'
 import { buildEmailTemplate } from '../src/services/emailTemplate'
 
-const SUBJECT = 'He passed N800,000 in hours and withdrew same day'
+const SUBJECT = 'See How Plenty Plenty Nigerians Dey Join Us'
 
 const HTML_BODY = buildEmailTemplate({
-  title: 'He passed N800,000 in hours and withdrew same day',
-  subtitle: 'No noise. Just performance.',
+  title: 'See How Plenty Plenty Nigerians Dey Join Us',
+  subtitle: 'More Nigerian traders are choosing MACHEFUNDED every day.',
   content: `
     <p>Hey Trader,</p>
 
     <p>
-      Yesterday, one of our traders picked up a Flexi ₦800,000 account.
+      See how plenty plenty Nigerian traders dey join us every day! 🇳🇬
     </p>
     <p>
-      No noise. No hype.
+      Over the past few weeks, something powerful has been happening…
     </p>
     <p>
-      Within a few hours…<br/>
-      He completed both phases.
+      More traders across Nigeria are discovering a better way to get funded — and they’re choosing MACHEFUNDED.
     </p>
     <p>
-      And yes — he requested a withdrawal the same day.
-    </p>
-    <p>
-      No delays. No complications.
+      From beginners testing their first strategy…<br/>
+      To experienced traders scaling aggressively…<br/>
+      The traction we’re seeing right now is massive.
     </p>
 
     <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 20px 0;" />
 
     <p>
-      Now compare that to what most traders are used to:
+      And it’s not just talk 👇
     </p>
     <ul>
-      <li>Platforms crashing mid-trade</li>
-      <li>Manual processes slowing everything down</li>
-      <li>Delayed payouts</li>
-      <li>Rules that don’t match real market conditions</li>
+      <li>✅ We processed payouts for over 300 Nigerian traders in just 1 week</li>
+      <li>✅ Fast executions, smooth dashboard, reliable systems</li>
+      <li>✅ No unnecessary stress — just trade, pass, and get paid</li>
     </ul>
 
     <p>
-      At MacheFunded, we built things differently:
+      Now here’s where it gets interesting 👇🔥
+    </p>
+    <p>
+      We’re dropping MULTIPLE DISCOUNTS so everyone can get in:
     </p>
     <ul>
-      <li>Fast, stable platform</li>
-      <li>Simple rules designed for real traders</li>
-      <li>Flexible challenge models (like Flexi)</li>
-      <li>Competitive pricing across all account sizes</li>
+      <li>🎁 FREE N200,000 ACCOUNTS (5 slots only) — Use code: <strong>MACHEFREE</strong></li>
+      <li>🔥 80% OFF (ONLY 5 PEOPLE) — First come, first served</li>
+      <li>⚡ 50% OFF — code: <strong>NAIJA50</strong> (ONLY 50 PEOPLE)</li>
+      <li>⚡ 30% OFF — code: <strong>NAIJA30</strong> (ONLY 30 PEOPLE)</li>
+      <li>⚡ 20% OFF — code: <strong>NAIJA20</strong> - VALID till 13/04/2026</li>
     </ul>
 
     <p>
-      If you’re tired of the usual experience…
+      This is your chance to enter at the level you want — whether FREE or heavily discounted.
     </p>
     <p>
-      👉 Take a look here: <a href="https://machefunded.com">https://machefunded.com</a>
-    </p>
-    <p>
-      Or join other traders already inside:<br/>
-      👉 <a href="https://discord.gg/SXuDQc7g2">https://discord.gg/SXuDQc7g2</a>
+      👉 Get started now: <a href="https://machefunded.com">https://machefunded.com</a>
     </p>
 
     <p>
-      No noise. Just performance.
+      Don’t wait… once these slots are gone, they’re gone.
     </p>
     <p>
-      — MacheFunded Team<br/>
-      machefunded.com
+      Momentum is building fast — get in early and secure your spot.
+    </p>
+    <p>
+      Let’s get you funded.
+    </p>
+    <p>
+      — Team MACHEFUNDED
     </p>
   `,
   buttonText: 'Visit MacheFunded',
