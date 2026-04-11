@@ -38,7 +38,7 @@ const run = async () => {
   date.setHours(10, 0, 0, 0)
 
   const currency: 'NGN' | 'USD' = 'NGN'
-  const name = pickRandom(randomNames)
+  const name = pickRandom(randomNames) ?? 'Trader'
   const amount = 70_000
   const rewardLabel = buildRewardLabel(currency, amount)
 
