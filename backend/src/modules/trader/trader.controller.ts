@@ -416,6 +416,7 @@ export const getChallengeAccountDetail = async (
       ? Math.max(0, (metrics.dailyLowEquity ?? metrics.equity) - dailyDrawdownBalance)
       : 0
 
+    const platform = String(account.platform ?? 'ctrader').toLowerCase()
     const breachReason = (account.metrics as { breachReason?: string | null } | null)?.breachReason ?? null
     const normalizedBreachReason = breachReason?.toUpperCase() ?? null
     const breachedByMaxDrawdown = normalizedBreachReason === 'MAX_DRAWDOWN'
@@ -431,6 +432,8 @@ export const getChallengeAccountDetail = async (
           ? 'RESET_MANUAL_ADJUSTMENT'
           : null
 
+    const isMt5Account = platform === 'mt5'
+
     const objectives = {
       profit_target: {
         label: 'Profit Target',
@@ -443,7 +446,9 @@ export const getChallengeAccountDetail = async (
         label: 'Max Drawdown',
         status: breachedByMaxDrawdown
           ? 'breached'
-          : metrics.breachBalance != null
+          : isMt5Account
+            ? (metrics.breachBalance != null ? 'passed' : 'pending')
+            : metrics.breachBalance != null
             ? ((metrics.minEquity ?? metrics.equity) < maxDrawdownBalance ? 'breached' : 'passed')
             : 'pending',
         note: metrics.breachBalance != null
@@ -455,7 +460,9 @@ export const getChallengeAccountDetail = async (
           label: 'Max Daily Drawdown',
           status: breachedByDailyDrawdown
             ? 'breached'
-            : metrics.dailyBreachBalance != null
+            : isMt5Account
+              ? (metrics.dailyBreachBalance != null ? 'passed' : 'pending')
+              : metrics.dailyBreachBalance != null
               ? ((metrics.dailyLowEquity ?? metrics.equity) < dailyDrawdownBalance ? 'breached' : 'passed')
               : 'pending',
           note: metrics.dailyBreachBalance != null
@@ -478,8 +485,6 @@ export const getChallengeAccountDetail = async (
     }
 
     const pendingPayout = account.payouts?.[0] ?? null
-
-    const platform = String(account.platform ?? 'ctrader').toLowerCase()
     const credentials = platform === 'mt5'
       ? {
         server: account.mt5Server ?? account.brokerName,

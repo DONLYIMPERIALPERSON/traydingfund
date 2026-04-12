@@ -112,6 +112,21 @@ const formatAccountSize = (label: string) => {
   return `$${number.toLocaleString('en-US')}`
 }
 
+const normalizeDisplayPrice = (value: string | number | null | undefined, currency?: string | null) => {
+  if (value == null) return ''
+  const raw = String(value).trim()
+  if (!raw) return ''
+  if (raw.startsWith('$') || raw.startsWith('₦')) return raw
+
+  const numeric = Number(raw.replace(/[^0-9.\-]/g, ''))
+  if (!Number.isFinite(numeric)) return raw
+
+  const normalizedCurrency = String(currency ?? '').toUpperCase() === 'NGN' ? 'NGN' : 'USD'
+  return normalizedCurrency === 'NGN'
+    ? `₦${numeric.toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+    : `$${numeric.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+}
+
 const DesktopTradingAccountsPage: React.FC = () => {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<PricingTab>(() => pricingTabs[0] as PricingTab)
@@ -253,7 +268,12 @@ const DesktopTradingAccountsPage: React.FC = () => {
       const phase = activeTab.key === 'instant'
         ? 'funded'
         : 'phase_1'
-      const fee = matchedPlan?.price ? `${matchedPlan.price}` : (tier.discountPrice ?? tier.price)
+      const resolvedCurrency = matchedPlan?.currency
+        ?? (isNgnAccount ? 'NGN' : 'USD')
+      const fee = normalizeDisplayPrice(
+        matchedPlan?.price ? `${matchedPlan.price}` : (tier.discountPrice ?? tier.price),
+        resolvedCurrency
+      )
       const status = matchedPlan?.status?.toLowerCase() === 'paused' ? 'paused' : 'available'
       return {
         id: matchedPlan?.id ?? planId,

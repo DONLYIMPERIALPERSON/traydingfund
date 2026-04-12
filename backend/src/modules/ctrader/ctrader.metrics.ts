@@ -476,7 +476,9 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       }
     }
 
-    let breachReason: string | null = reportedBreachReason ?? (metrics as any)?.breachReason ?? null
+    let breachReason: string | null = isMt5Payload
+      ? reportedBreachReason
+      : (reportedBreachReason ?? (metrics as any)?.breachReason ?? null)
     const awaitingReset = account.status?.toLowerCase() === 'awaiting_reset'
     const resetGuardActive = !breachReason && (awaitingReset || resetExpectationActive)
 
@@ -490,6 +492,10 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
 
     if (breachReason) {
       // keep breached status locked once triggered
+    } else if (isMt5Payload) {
+      // MT5 breach authority comes from the risk engine verdict only.
+      // Keep backend numeric calculations for UI/progress tracking, but do not
+      // independently infer breach status when the engine says breach_reason is null.
     } else if (resetGuardActive) {
       // Skip DD/fraud checks during a reset window to avoid false breaches.
     } else if (unsupportedTrade) {

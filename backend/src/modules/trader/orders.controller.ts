@@ -51,7 +51,19 @@ const maybeBurnAccount = async (accountId: number) => {
 const burnStatuses = new Set(['failed', 'violated', 'breached', 'completed', 'passed'])
 const AFFILIATE_COMMISSION_PERCENT = 10
 
-const createAffiliateCommission = async (tx: Prisma.TransactionClient, order: { id: number; affiliateId?: number | null; netAmountKobo: number }) => {
+const toUsdKobo = (amountKobo: number, currency?: string | null, rate?: number) => {
+  if (currency?.toUpperCase() === 'NGN') {
+    const divider = rate && rate > 0 ? rate : 1300
+    const amount = amountKobo / 100
+    return Math.round((amount / divider) * 100)
+  }
+  return amountKobo
+}
+
+const createAffiliateCommission = async (
+  tx: Prisma.TransactionClient,
+  order: { id: number; affiliateId?: number | null; netAmountKobo: number; currency?: string | null }
+) => {
   const resolvedAffiliateId = order.affiliateId ?? null
   if (!resolvedAffiliateId) return
 
@@ -62,7 +74,10 @@ const createAffiliateCommission = async (tx: Prisma.TransactionClient, order: { 
 
   if (existing) return
 
-  const commissionAmount = Math.round(order.netAmountKobo * (AFFILIATE_COMMISSION_PERCENT / 100))
+  const fxConfig = await getFxRatesConfig()
+  const usdNgnRate = fxConfig.rules?.usd_ngn_rate ?? 1300
+  const commissionBaseKobo = toUsdKobo(order.netAmountKobo, order.currency, usdNgnRate)
+  const commissionAmount = Math.round(commissionBaseKobo * (AFFILIATE_COMMISSION_PERCENT / 100))
 
   await affiliateCommissionClient.create({
     data: {
@@ -756,6 +771,7 @@ export const createFreeOrder = async (req: AuthRequest, res: Response, next: Nex
         id: order.id,
         ...(affiliateId !== undefined && affiliateId !== null ? { affiliateId } : {}),
         netAmountKobo: order.netAmountKobo,
+        currency: order.currency,
       })
     }
 
@@ -903,6 +919,7 @@ export const handleSafeHavenWebhook = async (req: Request, res: Response, next: 
         id: nextOrder.id,
         ...(affiliateId !== undefined && affiliateId !== null ? { affiliateId } : {}),
         netAmountKobo: nextOrder.netAmountKobo,
+        currency: nextOrder.currency,
       })
       }
 

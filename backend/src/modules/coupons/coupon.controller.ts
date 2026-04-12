@@ -39,6 +39,13 @@ const serializeCoupon = (coupon: Coupon) => ({
   status: coupon.isActive ? 'Active' : 'Inactive',
 })
 
+const formatMoney = (amount: number, currency: 'USD' | 'NGN') => {
+  if (currency === 'NGN') {
+    return `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+  }
+  return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+}
+
 export const previewCheckoutCoupon = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     ensureUser(req)
@@ -59,15 +66,19 @@ export const previewCheckoutCoupon = async (req: AuthRequest, res: Response, nex
       challengeType: challenge_type ?? null,
     })
 
+    const currency: 'USD' | 'NGN' = String(challenge_type ?? '').toLowerCase().includes('ngn')
+      ? 'NGN'
+      : 'USD'
+
     res.json({
       code: preview.code,
       plan_id: plan_id,
       original_amount: preview.originalAmountKobo / 100,
       discount_amount: preview.discountAmountKobo / 100,
       final_amount: preview.finalAmountKobo / 100,
-      formatted_original_amount: `$${(preview.originalAmountKobo / 100).toLocaleString('en-US')}`,
-      formatted_discount_amount: `$${(preview.discountAmountKobo / 100).toLocaleString('en-US')}`,
-      formatted_final_amount: `$${(preview.finalAmountKobo / 100).toLocaleString('en-US')}`,
+       formatted_original_amount: formatMoney(preview.originalAmountKobo / 100, currency),
+       formatted_discount_amount: formatMoney(preview.discountAmountKobo / 100, currency),
+       formatted_final_amount: formatMoney(preview.finalAmountKobo / 100, currency),
     })
   } catch (err) {
     next(err as Error)

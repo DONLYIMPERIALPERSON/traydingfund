@@ -435,11 +435,13 @@ const AccountOverviewPage: React.FC = () => {
                                 const maxDailyLimit = accountData.metrics.daily_dd_amount
                                   ?? ((accountData.metrics.daily_peak_balance ?? 0)
                                     - (accountData.metrics.daily_breach_balance ?? 0))
-                                const dailyLossBase = accountData.metrics.daily_low_equity
-                                  ?? accountData.metrics.equity
+                                const dailyStartBalance = accountData.metrics.daily_peak_balance
+                                  ?? accountData.metrics.balance
+                                const dailyLossBase = accountData.metrics.equity
+                                  ?? accountData.metrics.balance
                                 const maxDailyLossTillNow = Math.max(
                                   0,
-                                  (accountData.metrics.daily_peak_balance ?? 0) - dailyLossBase
+                                  dailyStartBalance - dailyLossBase
                                 )
                                 const todayPermittedLoss = Math.max(0, maxDailyLimit - maxDailyLossTillNow)
                                 return (

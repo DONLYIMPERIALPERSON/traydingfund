@@ -20,6 +20,14 @@ type ChallengePlanRecord = {
   phase?: string | null
 }
 
+const formatMoney = (amount: number, currency: string) => {
+  const normalized = currency?.toUpperCase() === 'NGN' ? 'NGN' : 'USD'
+  if (normalized === 'NGN') {
+    return `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+  }
+  return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+}
+
 export const listPublicPlans = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const plans = await (prisma as typeof prisma & { challengePlan: any }).challengePlan.findMany({
@@ -45,7 +53,7 @@ export const listPublicPlans = async (_req: Request, res: Response, next: NextFu
       plans: resolvedPlans.map((plan) => ({
         id: plan.planId,
         name: plan.name,
-        price: plan.price,
+        price: formatMoney(plan.price, plan.currency),
         account_size: plan.accountSize,
         currency: plan.currency,
         max_drawdown: plan.maxDrawdown,

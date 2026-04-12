@@ -27,6 +27,20 @@ interface AccountData {
   status: string
 }
 
+const normalizeDisplayPrice = (value: string | number | null | undefined, currency: 'USD' | 'NGN') => {
+  if (value == null) return ''
+  const raw = String(value).trim()
+  if (!raw) return ''
+  if (raw.startsWith('$') || raw.startsWith('₦')) return raw
+
+  const numeric = Number(raw.replace(/[^0-9.\-]/g, ''))
+  if (!Number.isFinite(numeric)) return raw
+
+  return currency === 'NGN'
+    ? `₦${numeric.toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+    : `$${numeric.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+}
+
 const DesktopStartChallengePage: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
@@ -52,6 +66,7 @@ const DesktopStartChallengePage: React.FC = () => {
     accountData?.size?.trim().startsWith('₦')
     || String((accountData as any)?.challenge_type ?? '').toLowerCase().startsWith('ngn')
   )
+  const checkoutCurrency: 'USD' | 'NGN' = isNgnAccount ? 'NGN' : 'USD'
   const isFreeCheckout = Boolean(couponPreview && couponPreview.final_amount === 0)
 
   const normalizeCouponError = (error: unknown) => {
@@ -393,7 +408,7 @@ const DesktopStartChallengePage: React.FC = () => {
                       <div className="desktop-summary-row"><span>Discount ({couponPreview.code})</span><strong>-{couponPreview.formatted_discount_amount}</strong></div>
                     </>
                   )}
-                  <div className="desktop-summary-row desktop-summary-total" style={{color: 'black'}}><span>Total</span><strong style={{color: 'black'}}>{couponPreview?.formatted_final_amount ?? accountData.fee}</strong></div>
+                  <div className="desktop-summary-row desktop-summary-total" style={{color: 'black'}}><span>Total</span><strong style={{color: 'black'}}>{normalizeDisplayPrice(couponPreview?.formatted_final_amount ?? accountData.fee, checkoutCurrency)}</strong></div>
                   {selectedPaymentMethod === 'crypto' && !isFreeCheckout && (
                     <div className="desktop-summary-row">
                       <span>Crypto Fee</span>

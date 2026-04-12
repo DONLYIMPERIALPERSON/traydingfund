@@ -28,7 +28,7 @@ const toUsdKobo = (amountKobo: number, currency?: string | null, rate?: number) 
   return amountKobo
 }
 
-const createAffiliateCommission = async (order: { id: number; affiliateId?: number | null; netAmountKobo: number }) => {
+const createAffiliateCommission = async (order: { id: number; affiliateId?: number | null; netAmountKobo: number; currency?: string | null }) => {
   const affiliateId = order.affiliateId ?? null
   if (!affiliateId) return
 
@@ -37,7 +37,10 @@ const createAffiliateCommission = async (order: { id: number; affiliateId?: numb
   })
   if (existing) return
 
-  const commissionAmount = Math.round(order.netAmountKobo * (AFFILIATE_COMMISSION_PERCENT / 100))
+  const fxConfig = await getFxRatesConfig()
+  const usdNgnRate = fxConfig.rules?.usd_ngn_rate ?? 1300
+  const commissionBaseKobo = toUsdKobo(order.netAmountKobo, order.currency, usdNgnRate)
+  const commissionAmount = Math.round(commissionBaseKobo * (AFFILIATE_COMMISSION_PERCENT / 100))
   await prisma.affiliateCommission.create({
     data: {
       orderId: order.id,
@@ -242,6 +245,7 @@ export const approveCryptoOrder = async (req: Request, res: Response, next: Next
       id: updated.id,
       ...(updated.affiliateId !== null && updated.affiliateId !== undefined ? { affiliateId: updated.affiliateId } : {}),
       netAmountKobo: updated.netAmountKobo,
+      currency: updated.currency,
     })
 
     const challengeType = updated.challengeType ?? 'two_step'

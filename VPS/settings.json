@@ -1,16 +1,26 @@
 {
-  "REPLAY_BASE_URL": "https://90ac-102-89-34-50.ngrok-free.app",
+  "REPLAY_BASE_URL": "https://risk-engine.machefunded.com",
   "REPLAY_ENDPOINT": "/replay/ea",
+
   "MT5_TERMINALS": [
-    "C:\\MT5\\terminal_A\\terminal64.exe"
+    "C:\\MT5\\terminal_A\\terminal64.exe",
+    "C:\\MT5\\terminal_B\\terminal64.exe",
+    "C:\\MT5\\terminal_C\\terminal64.exe",
+    "C:\\MT5\\terminal_D\\terminal64.exe",
+    "C:\\MT5\\terminal_E\\terminal64.exe",
+    "C:\\MT5\\terminal_F\\terminal64.exe"
   ],
+
   "POLL_INTERVAL_SECONDS": 10,
   "MAX_JOB_RUNTIME_SECONDS": 120,
   "LOOKBACK_MINUTES": 60,
   "TIMER_SECONDS": 2,
+
   "ACCOUNTS_FILE": "accounts.json",
-  "BACKEND_BASE_URL": "https://py6ut5yhp2mf.share.zrok.io",
+
+  "BACKEND_BASE_URL": "https://api.machefunded.com",
   "BACKEND_ACTIVE_ACCOUNTS_ENDPOINT": "/api/v1/mt5/active-accounts",
   "BACKEND_ENGINE_SECRET": "dev-mt5-secret",
+
   "SYNC_INTERVAL_SECONDS": 30
 }
