@@ -139,8 +139,18 @@ client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
   if (!client.user) return;
 
-  // ❌ ignore replies
-  if (message.reference) return;
+  if (message.reference?.messageId) {
+    try {
+      const repliedMessage = await message.channel.messages.fetch(message.reference.messageId);
+
+      if (repliedMessage.author.id !== client.user.id) {
+        return;
+      }
+    } catch (error) {
+      console.error('[ARIA][REPLY_FETCH_ERROR]', error?.message || error);
+      return;
+    }
+  }
 
   const text = message.content;
   const mentioned = wasBotMentioned(message);
@@ -150,7 +160,7 @@ client.on('messageCreate', async (message) => {
   const promoIntent = hasPromoIntent(text);
   const beginnerIntent = hasBeginnerIntent(text);
 
-  if (!mentioned && !directQuestion && !buyingIntent && !complaintIntent && !promoIntent && !beginnerIntent) {
+  if (!mentioned && !directQuestion && !message.reference && !buyingIntent && !complaintIntent && !promoIntent && !beginnerIntent) {
     return;
   }
 
