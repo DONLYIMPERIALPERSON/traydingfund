@@ -52,6 +52,10 @@ async function askAI(question) {
       model: OLLAMA_MODEL,
       prompt: SYSTEM_PROMPT + question,
       stream: false,
+      options: {
+        num_predict: 150,
+        temperature: 0.3,
+      },
     });
 
     const answer = String(res.data?.response || '').trim();
