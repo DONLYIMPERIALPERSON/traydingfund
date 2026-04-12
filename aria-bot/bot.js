@@ -6,6 +6,9 @@ const { SYSTEM_PROMPT } = require('./prompt');
 
 const DISCORD_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const ESCALATION_REPLY = '@machefunded can you assist here?';
+const ALLOWED_CHANNELS = [
+  '1413064690287771749', // general chat
+];
 
 const client = new Client({
   intents: [
@@ -138,6 +141,7 @@ client.on('ready', () => {
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
   if (!client.user) return;
+  if (!ALLOWED_CHANNELS.includes(message.channel.id)) return;
 
   if (message.reference?.messageId) {
     try {
