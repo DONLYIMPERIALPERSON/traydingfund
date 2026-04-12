@@ -251,6 +251,38 @@ string BuildPayload()
    return json;
 }
 
+bool HasValidAccountSnapshot()
+{
+   long login = AccountInfoInteger(ACCOUNT_LOGIN);
+   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+   double equity = AccountInfoDouble(ACCOUNT_EQUITY);
+   bool connected = (bool)TerminalInfoInteger(TERMINAL_CONNECTED);
+
+   if(!connected)
+   {
+      Print("[ReplayMetricsEA] Skipping metrics capture: terminal not connected.");
+      return false;
+   }
+
+   if(login <= 0)
+   {
+      Print("[ReplayMetricsEA] Skipping metrics capture: account login not ready.");
+      return false;
+   }
+
+   if(balance <= 0 || equity <= 0)
+   {
+      PrintFormat(
+         "[ReplayMetricsEA] Skipping metrics capture: invalid snapshot balance=%.2f equity=%.2f.",
+         balance,
+         equity
+      );
+      return false;
+   }
+
+   return true;
+}
+
 bool WritePayloadToFile(string json)
 {
    string filename = "metrics_" + IntegerToString((int)AccountInfoInteger(ACCOUNT_LOGIN)) + ".json";
@@ -295,8 +327,11 @@ void OnDeinit(const int reason)
 
 void OnTimer()
 {
-   string payload = BuildPayload();
-   WritePayloadToFile(payload);
+   if(HasValidAccountSnapshot())
+   {
+      string payload = BuildPayload();
+      WritePayloadToFile(payload);
+   }
    EventKillTimer();
    long chart_id = ChartID();
    if(chart_id > 0)

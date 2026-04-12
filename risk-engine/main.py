@@ -667,6 +667,9 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
 
 @app.post("/replay/ea", response_model=ReplaySession)
 def submit_ea_payload(payload: EAPayload):
+    if payload.current_balance <= 0 or payload.current_equity <= 0:
+        raise HTTPException(status_code=400, detail="Invalid MT5 snapshot: balance/equity must be > 0")
+
     session_id = str(uuid4())
     timestamp = now_iso()
     rules = resolve_rules(payload)

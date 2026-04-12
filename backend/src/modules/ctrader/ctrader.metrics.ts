@@ -206,6 +206,11 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
 
     const equity = payload.equity
     const balance = payload.balance
+
+    if (isMt5Payload && (balance <= 0 || equity <= 0)) {
+      throw new ApiError('Invalid MT5 replay snapshot: balance/equity must be greater than zero', 400)
+    }
+
     const reportedUnrealizedPnl = Number.isFinite(payload.unrealized_pnl)
       ? Number(payload.unrealized_pnl)
       : null

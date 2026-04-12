@@ -167,6 +167,28 @@ def send_metrics_from_file(account_number: str, account_meta: Dict[str, str] | N
         print(f"[replay-mt5] Failed reading metrics file {filename}: {exc}")
         return
 
+    try:
+        payload_account = str(payload.get("account_number") or "")
+        current_balance = float(payload.get("current_balance"))
+        current_equity = float(payload.get("current_equity"))
+    except Exception:
+        print(f"[replay-mt5] Skipping metrics send for {account_number}; invalid payload structure")
+        return
+
+    if payload_account != str(account_number):
+        print(
+            f"[replay-mt5] Skipping metrics send for {account_number}; "
+            f"payload account mismatch ({payload_account})"
+        )
+        return
+
+    if current_balance <= 0 or current_equity <= 0:
+        print(
+            f"[replay-mt5] Skipping metrics send for {account_number}; "
+            f"invalid snapshot balance={current_balance} equity={current_equity}"
+        )
+        return
+
     if account_meta:
         payload["account_type"] = account_meta.get("accountType") or account_meta.get("account_type")
         raw_size = account_meta.get("accountSize") or account_meta.get("account_size")
