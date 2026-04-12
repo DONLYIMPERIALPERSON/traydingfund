@@ -148,7 +148,7 @@ client.on('messageCreate', async (message) => {
     return;
   }
 
-  const channelId = message.channel.parentId || message.channel.id;
+  const channelId = message.channel.id;
 
   if (!ALLOWED_CHANNELS.includes(channelId)) {
     console.log('Blocked: not allowed channel');
