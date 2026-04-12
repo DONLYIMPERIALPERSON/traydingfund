@@ -141,7 +141,13 @@ client.on('ready', () => {
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
   if (!client.user) return;
-  if (!ALLOWED_CHANNELS.includes(message.channel.id)) return;
+
+  console.log('CHANNEL ID:', message.channel.id);
+
+  if (message.channel.name && message.channel.name.startsWith('ticket')) return;
+
+  const channelId = message.channel.parentId || message.channel.id;
+  if (!ALLOWED_CHANNELS.includes(channelId)) return;
 
   if (message.reference?.messageId) {
     try {
