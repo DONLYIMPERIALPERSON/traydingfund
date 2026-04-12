@@ -163,17 +163,6 @@ client.on('messageCreate', async (message) => {
   }
 
   const text = message.content;
-  const mentioned = wasBotMentioned(message);
-  const directQuestion = isDirectQuestion(text);
-  const buyingIntent = hasBuyingIntent(text);
-  const complaintIntent = hasComplaintIntent(text);
-  const promoIntent = hasPromoIntent(text);
-  const beginnerIntent = hasBeginnerIntent(text);
-
-  if (!mentioned && !directQuestion && !message.reference && !buyingIntent && !complaintIntent && !promoIntent && !beginnerIntent) {
-    return;
-  }
-
   const question = cleanQuestion(message);
   if (!question) return;
 
