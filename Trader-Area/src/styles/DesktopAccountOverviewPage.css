@@ -651,20 +651,25 @@
   background: rgba(10, 10, 20, 0.65);
   backdrop-filter: blur(6px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: 24px;
   z-index: 2000;
+  overflow-y: auto;
 }
 
 .breach-modal {
   width: min(720px, 95vw);
+  max-height: calc(100vh - 48px);
   background: #ffffff;
   border-radius: 20px;
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
   border: 1px solid rgba(148, 163, 184, 0.2);
   overflow: hidden;
   animation: breachModalEnter 0.25s ease-out;
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .breach-modal-header {
@@ -707,6 +712,7 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  overflow-y: auto;
 }
 
 .breach-summary {
@@ -857,6 +863,21 @@
 }
 
 @media (max-width: 768px) {
+  .breach-modal-overlay {
+    padding: 12px;
+  }
+
+  .breach-modal {
+    width: min(100%, 96vw);
+    max-height: calc(100vh - 24px);
+    border-radius: 16px;
+  }
+
+  .breach-modal-header,
+  .breach-modal-body {
+    padding: 16px;
+  }
+
   .account-overview-content {
     padding: 16px 14px 32px;
     padding-top: 96px;
@@ -947,6 +968,16 @@
 }
 
 @media (max-width: 480px) {
+  .breach-modal-overlay {
+    padding: 8px;
+  }
+
+  .breach-modal {
+    width: 100%;
+    max-height: calc(100vh - 16px);
+    border-radius: 14px;
+  }
+
   .account-overview-content {
     padding: 14px 12px 28px;
     padding-top: 96px;
