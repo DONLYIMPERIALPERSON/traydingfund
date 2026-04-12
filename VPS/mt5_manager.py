@@ -3,7 +3,7 @@ import os
 import subprocess
 import time
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import requests
 
@@ -103,7 +103,7 @@ def build_config_file(account: Dict[str, str], mt5_path: str, job_id: str) -> st
     return config_file
 
 
-def run_mt5_job(account: Dict[str, str], mt5_path: str) -> Dict[str, str]:
+def start_mt5_job(account: Dict[str, str], mt5_path: str) -> Dict[str, object]:
     account_number = account.get("accountNumber")
     job_id = datetime.utcnow().strftime("%Y%m%d%H%M%S")
     metrics_file = os.path.join(COMMON_FILES_DIR, f"metrics_{account_number}.json")
@@ -120,37 +120,105 @@ def run_mt5_job(account: Dict[str, str], mt5_path: str) -> Dict[str, str]:
         startupinfo=startupinfo,
     )
 
-    start_time = time.time()
-    while True:
-        retcode = process.poll()
-        if retcode is not None:
-            break
-        if time.time() - start_time > MAX_JOB_RUNTIME_SECONDS:
-            try:
-                process.terminate()
-                time.sleep(2)
-                if process.poll() is None:
-                    process.kill()
-            except Exception:
-                pass
-            break
-        time.sleep(1)
+    return {
+        "account": str(account_number),
+        "account_meta": account,
+        "mt5_path": mt5_path,
+        "process": process,
+        "config_file": config_file,
+        "metrics_file": metrics_file,
+        "initial_mtime": initial_mtime,
+        "started_at": time.time(),
+        "job_id": job_id,
+    }
 
+
+def cleanup_config_file(config_file: str) -> None:
     if os.path.exists(config_file):
         try:
             os.remove(config_file)
         except Exception:
             pass
 
+
+def finalize_mt5_job(job: Dict[str, object]) -> Dict[str, object]:
+    account_number = str(job.get("account"))
+    metrics_file = str(job.get("metrics_file"))
+    initial_mtime = job.get("initial_mtime")
+    config_file = str(job.get("config_file"))
+
+    cleanup_config_file(config_file)
+
     updated_mtime = os.path.getmtime(metrics_file) if os.path.exists(metrics_file) else None
     metrics_updated = updated_mtime is not None and updated_mtime != initial_mtime
 
     return {
-        "account": str(account_number),
+        "account": account_number,
         "status": "sent",
-        "job_id": job_id,
+        "job_id": str(job.get("job_id")),
         "metrics_updated": metrics_updated,
     }
+
+
+def stop_expired_job(job: Dict[str, object]) -> bool:
+    process = job.get("process")
+    started_at = float(job.get("started_at") or 0)
+    if not isinstance(process, subprocess.Popen):
+        return True
+
+    if process.poll() is not None:
+        return True
+
+    if time.time() - started_at <= MAX_JOB_RUNTIME_SECONDS:
+        return False
+
+    try:
+        process.terminate()
+        time.sleep(2)
+        if process.poll() is None:
+            process.kill()
+    except Exception:
+        pass
+    return True
+
+
+def collect_finished_jobs(active_jobs: Dict[str, Dict[str, object]]) -> List[Dict[str, object]]:
+    finished: List[Dict[str, object]] = []
+    for terminal_path, job in list(active_jobs.items()):
+        process = job.get("process")
+        should_finalize = False
+        if isinstance(process, subprocess.Popen) and process.poll() is not None:
+            should_finalize = True
+        elif stop_expired_job(job):
+            should_finalize = True
+
+        if should_finalize:
+            finished.append(job)
+            active_jobs.pop(terminal_path, None)
+
+    return finished
+
+
+def get_due_accounts(
+    accounts: List[Dict[str, str]],
+    last_processed_at: Dict[str, float],
+    active_account_numbers: set[str],
+) -> List[Dict[str, str]]:
+    now = time.time()
+    due_accounts: List[Dict[str, str]] = []
+    for account in accounts:
+        if str(account.get("platform", "")).lower() != "mt5":
+            continue
+
+        account_number = str(account.get("accountNumber") or "")
+        if not account_number or account_number in active_account_numbers:
+            continue
+
+        last_seen = last_processed_at.get(account_number, 0)
+        if now - last_seen >= 60:
+            due_accounts.append(account)
+
+    return due_accounts
 
 
 def send_metrics_from_file(account_number: str, account_meta: Dict[str, str] | None = None) -> None:
@@ -223,10 +291,22 @@ def run_loop() -> None:
 
     last_processed_at: Dict[str, float] = {}
     last_sync_at = 0.0
-    queue_index = 0
+    active_jobs: Dict[str, Dict[str, object]] = {}
     while True:
         try:
             now = time.time()
+
+            finished_jobs = collect_finished_jobs(active_jobs)
+            for job in finished_jobs:
+                account_number = str(job.get("account"))
+                account_meta = job.get("account_meta")
+                job_result = finalize_mt5_job(job)
+                if job_result.get("metrics_updated"):
+                    send_metrics_from_file(account_number, account_meta if isinstance(account_meta, dict) else None)
+                else:
+                    print(f"[replay-mt5] Skipping metrics send for {account_number}; metrics file not updated")
+                last_processed_at[account_number] = time.time()
+
             if now - last_sync_at >= SYNC_INTERVAL_SECONDS:
                 active_accounts = fetch_active_accounts()
                 if active_accounts:
@@ -239,22 +319,23 @@ def run_loop() -> None:
                 time.sleep(POLL_INTERVAL_SECONDS)
                 continue
 
-            account = accounts[queue_index % len(accounts)]
-            if str(account.get("platform", "")).lower() != "mt5":
-                queue_index += 1
-                time.sleep(POLL_INTERVAL_SECONDS)
-                continue
-            account_number = str(account.get("accountNumber"))
-            last_seen = last_processed_at.get(account_number, 0)
-            if now - last_seen >= 60:
-                mt5_path = MT5_TERMINALS[queue_index % len(MT5_TERMINALS)]
-                job_result = run_mt5_job(account, mt5_path)
-                if job_result.get("metrics_updated"):
-                    send_metrics_from_file(account_number, account)
-                else:
-                    print(f"[replay-mt5] Skipping metrics send for {account_number}; metrics file not updated")
-                last_processed_at[account_number] = time.time()
-            queue_index += 1
+            active_account_numbers = {
+                str(job.get("account"))
+                for job in active_jobs.values()
+                if job.get("account") is not None
+            }
+            due_accounts = get_due_accounts(accounts, last_processed_at, active_account_numbers)
+
+            for mt5_path in MT5_TERMINALS:
+                if mt5_path in active_jobs:
+                    continue
+                if not due_accounts:
+                    break
+
+                account = due_accounts.pop(0)
+                account_number = str(account.get("accountNumber"))
+                active_jobs[mt5_path] = start_mt5_job(account, mt5_path)
+                print(f"[replay-mt5] Started MT5 job for {account_number} on {mt5_path}")
 
             time.sleep(POLL_INTERVAL_SECONDS)
         except Exception as exc:
