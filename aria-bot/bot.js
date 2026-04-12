@@ -140,41 +140,39 @@ client.on('ready', () => {
 
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
-  if (!client.user) return;
 
   console.log('CHANNEL ID:', message.channel.id);
 
-  if (message.channel.name && message.channel.name.startsWith('ticket')) return;
+  if (message.channel.name && message.channel.name.startsWith('ticket')) {
+    console.log('Blocked: ticket channel');
+    return;
+  }
 
   const channelId = message.channel.parentId || message.channel.id;
-  if (!ALLOWED_CHANNELS.includes(channelId)) return;
+
+  if (!ALLOWED_CHANNELS.includes(channelId)) {
+    console.log('Blocked: not allowed channel');
+    return;
+  }
 
   if (message.reference?.messageId) {
     try {
       const repliedMessage = await message.channel.messages.fetch(message.reference.messageId);
 
       if (repliedMessage.author.id !== client.user.id) {
+        console.log('Blocked: reply to another user');
         return;
       }
     } catch (error) {
-      console.error('[ARIA][REPLY_FETCH_ERROR]', error?.message || error);
-      return;
+      console.log('Reply fetch failed, allowing message');
     }
   }
 
-  const text = message.content;
-  const question = cleanQuestion(message);
-  if (!question) return;
-
-  console.log('[ARIA][QUESTION]', {
-    user: message.author.tag,
-    channel: message.channel?.id,
-    question,
-  });
+  console.log('[ARIA][PROCESSING MESSAGE]', message.content);
 
   await message.channel.sendTyping();
 
-  const answer = await askAI(question);
+  const answer = await askAI(message.content);
 
   console.log('[ARIA][FINAL_REPLY]', answer);
 
