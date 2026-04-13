@@ -30,6 +30,11 @@ const navItemsWithSections: SidebarSection[] = [
         href: "/trading-accounts",
         icon: () => <i className="fas fa-shopping-cart" style={{fontSize: '18px', color: '#666'}}></i>,
       },
+      {
+        label: "Calendar",
+        href: "/calendar",
+        icon: () => <i className="fas fa-calendar-alt" style={{fontSize: '18px', color: '#666'}}></i>,
+      },
     ],
   },
   {
