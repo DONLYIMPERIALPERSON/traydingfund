@@ -35,7 +35,7 @@ export default function Navbar() {
     };
 
     return (
-        <nav className='fixed top-12 md:top-14 left-0 right-0 z-50 px-4'>
+        <nav className='fixed top-4 md:top-6 left-0 right-0 z-50 px-4'>
             <div className='max-w-6xl mx-auto flex items-center justify-between bg-white rounded-2xl p-3 shadow-[0_0_24px_rgba(0,0,0,0.1)]'>
                 <Link to='/' className="flex items-center gap-2">
                     <img src='/logo.png' alt="MacheFunded logo" className="h-8 rounded-md" />
