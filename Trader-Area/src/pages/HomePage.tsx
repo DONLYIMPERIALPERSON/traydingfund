@@ -5,6 +5,7 @@ import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopActiveAccountsSection from '../components/DesktopActiveAccountsSection'
 import DesktopHistorySection from '../components/DesktopHistorySection'
 import DesktopFooter from '../components/DesktopFooter'
+import ServiceUnavailableState from '../components/ServiceUnavailableState'
 import { fetchUserChallengeAccounts, type UserChallengeAccountListItem } from '../lib/traderAuth'
 
 const HomePage: React.FC = () => {
@@ -108,9 +109,7 @@ const HomePage: React.FC = () => {
             Loading accounts...
           </div>
         ) : accountLoadError ? (
-          <div style={{ background: 'white', border: '1px solid #f1b0b7', borderRadius: '12px', padding: '20px', color: '#721c24' }}>
-            {accountLoadError}
-          </div>
+          <ServiceUnavailableState onRetry={() => window.location.reload()} />
         ) : !hasAnyAccounts ? (
           <div style={{ background: 'white', border: '1px solid #e0e0e0', borderRadius: '12px', padding: '32px' }}>
             <h3 style={{ margin: 0, color: '#333' }}>No account yet</h3>

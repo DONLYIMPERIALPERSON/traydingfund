@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
+import ServiceUnavailableState from '../components/ServiceUnavailableState'
 import '../styles/DesktopAffiliatePage.css'
 import {
   fetchAffiliateDashboard,
@@ -84,12 +85,7 @@ const AffiliatePage: React.FC = () => {
         <DesktopHeader />
         <DesktopSidebar />
         <div className="affiliate-content">
-          <div style={{ textAlign: 'center', padding: '50px', color: 'red' }}>
-            <div>Error: {error}</div>
-            <button onClick={loadDashboardData} style={{ marginTop: '20px' }}>
-              Try Again
-            </button>
-          </div>
+          <ServiceUnavailableState onRetry={loadDashboardData} />
         </div>
         <DesktopFooter />
       </div>

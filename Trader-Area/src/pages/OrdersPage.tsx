@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
+import ServiceUnavailableState from '../components/ServiceUnavailableState'
 import { fetchOrders, type TraderOrder } from '../lib/traderAuth'
 import '../styles/DesktopOrdersPage.css'
 
@@ -43,7 +44,7 @@ const OrdersPage: React.FC = () => {
         {loading ? (
           <div className="orders-card">Loading orders...</div>
         ) : error ? (
-          <div className="orders-card orders-error">{error}</div>
+          <ServiceUnavailableState onRetry={() => void loadOrders(currentPage)} />
         ) : orders.length === 0 ? (
           <div className="orders-card">No orders yet.</div>
         ) : (

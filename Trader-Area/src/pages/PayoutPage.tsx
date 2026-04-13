@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
+import ServiceUnavailableState from '../components/ServiceUnavailableState'
 import '../styles/DesktopPayoutPage.css'
 import {
   payoutAPI,
@@ -40,6 +41,38 @@ const PayoutPage: React.FC = () => {
 
   const navigate = useNavigate()
 
+  const loadPayoutData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await payoutAPI.getPayoutSummary()
+      setPayoutData(data)
+
+      const [payoutProfile, cryptoPayoutProfile, profileRes, historyRes, overallReward] = await Promise.all([
+        fetchBankAccountProfile(),
+        fetchCryptoPayoutProfile(),
+        fetchProfile(),
+        fetchKycHistory(),
+        payoutAPI.fetchOverallRewardCertificate(),
+      ])
+      setBankProfile(payoutProfile)
+      setCryptoProfile(cryptoPayoutProfile)
+
+      const historyItems = historyRes.requests ?? []
+      const latestRequestStatus = historyItems[0]?.status?.toLowerCase()
+      const profileStatus = (profileRes.kyc_status || 'not_started').toLowerCase()
+      setKycStatus(historyItems.length > 0
+        ? (latestRequestStatus || profileStatus)
+        : 'not_started')
+      setOverallCertificate(overallReward)
+      setCertificateVersion(Date.now())
+    } catch {
+      setError('service_unavailable')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const normalizeStatus = (status: string) => status.replace(/_/g, ' ').toLowerCase()
   const resolveStatusLabel = (status: string) => {
     if (status === 'pending_approval') return 'Pending approval'
@@ -57,50 +90,7 @@ const PayoutPage: React.FC = () => {
   }
 
   useEffect(() => {
-    const fetchPayoutData = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        const data = await payoutAPI.getPayoutSummary()
-        setPayoutData(data)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load payout data')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchPayoutData()
-  }, [])
-
-  useEffect(() => {
-    const loadPayoutMethods = async () => {
-      try {
-        const [payoutProfile, cryptoPayoutProfile, profileRes, historyRes, overallReward] = await Promise.all([
-          fetchBankAccountProfile(),
-          fetchCryptoPayoutProfile(),
-          fetchProfile(),
-          fetchKycHistory(),
-          payoutAPI.fetchOverallRewardCertificate(),
-        ])
-        setBankProfile(payoutProfile)
-        setCryptoProfile(cryptoPayoutProfile)
-
-        const historyItems = historyRes.requests ?? []
-        const latestRequestStatus = historyItems[0]?.status?.toLowerCase()
-        const profileStatus = (profileRes.kyc_status || 'not_started').toLowerCase()
-        setKycStatus(historyItems.length > 0
-          ? (latestRequestStatus || profileStatus)
-          : 'not_started')
-        setOverallCertificate(overallReward)
-        setCertificateVersion(Date.now())
-
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load payout methods.')
-      }
-    }
-
-    void loadPayoutMethods()
+    void loadPayoutData()
   }, [])
 
   const hasPayoutMethod = Boolean(bankProfile || cryptoProfile)
@@ -203,11 +193,7 @@ const PayoutPage: React.FC = () => {
         )}
 
         {error && (
-          <div className="error-state">
-            <i className="fas fa-exclamation-triangle"></i>
-            <p>{error}</p>
-            <button onClick={() => window.location.reload()}>Retry</button>
-          </div>
+          <ServiceUnavailableState onRetry={() => void loadPayoutData()} />
         )}
 
         {!loading && !error && !isKycVerified ? (

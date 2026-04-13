@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
+import ServiceUnavailableState from '../components/ServiceUnavailableState'
 import { fetchUserChallengeAccounts, type UserChallengeAccountListItem } from '../lib/traderAuth'
 
 type DailyPnlStatus = 'neutral' | 'loss' | 'profit'
@@ -128,25 +129,6 @@ const CalendarPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    setLoading(true)
-    setError('')
-
-    fetchUserChallengeAccounts()
-      .then((response) => {
-        const allAccounts = [...response.active_accounts, ...response.history_accounts]
-        setAccounts(allAccounts)
-        const firstAccount = allAccounts[0]
-        if (firstAccount) {
-          setSelectedChallengeId(firstAccount.challenge_id)
-        }
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Unable to load accounts')
-      })
-      .finally(() => setLoading(false))
-  }, [])
-
   const selectedAccount = useMemo(
     () => accounts.find((account) => account.challenge_id === selectedChallengeId) ?? accounts[0] ?? null,
     [accounts, selectedChallengeId],
@@ -259,7 +241,7 @@ const CalendarPage: React.FC = () => {
                 <img src="/logo.webp" alt="MacheFunded" style={{ width: '42px', height: '42px', borderRadius: '12px', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.22)' }} />
                 <div style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '0.4px' }}>
                   <span style={{ color: '#ffffff' }}>MACHE</span>
-                  <span style={{ color: brandGold }}>FUNDED</span>
+                  <span style={{ color: '#ffffff' }}>FUNDED</span>
                 </div>
               </div>
               <h1 style={{ color: '#fff', fontSize: '30px', margin: '0 0 8px 0' }}>Trading Calendar</h1>
@@ -320,46 +302,11 @@ const CalendarPage: React.FC = () => {
         {loading ? (
           <div style={{ background: '#fff', borderRadius: '18px', padding: '24px', border: '1px solid #e6eaef' }}>Loading calendar...</div>
         ) : error ? (
-          <div style={{
-            background: 'linear-gradient(180deg, #ffffff, #f8fbfc)',
-            borderRadius: '22px',
-            padding: '28px',
-            border: '1px solid #dce8ed',
-            boxShadow: '0 16px 35px rgba(15,23,42,0.05)',
-            maxWidth: '760px',
-          }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '8px 12px', borderRadius: '999px', background: 'rgba(0,142,164,0.08)', color: brandPrimary, fontSize: '12px', fontWeight: 800, letterSpacing: '0.4px', textTransform: 'uppercase', marginBottom: '16px' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '999px', background: brandGold }} />
-              Temporary service interruption
-            </div>
-            <h2 style={{ margin: '0 0 10px 0', color: '#0f172a', fontSize: '28px', lineHeight: 1.2 }}>
-              We’re experiencing a temporary issue on our side.
-            </h2>
-            <p style={{ margin: 0, color: '#475569', fontSize: '16px', lineHeight: 1.7, maxWidth: '620px' }}>
-              Your trading calendar is temporarily unavailable because our service is not responding as expected. Please try again shortly — our team is already working to restore everything as quickly as possible.
-            </p>
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '20px' }}>
-              <button
-                onClick={loadCalendarAccounts}
-                style={{
-                  background: brandPrimary,
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '12px',
-                  padding: '12px 16px',
-                  fontSize: '14px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  boxShadow: '0 10px 24px rgba(0,142,164,0.22)',
-                }}
-              >
-                Try again
-              </button>
-              <div style={{ display: 'inline-flex', alignItems: 'center', padding: '12px 14px', borderRadius: '12px', background: 'rgba(255,215,0,0.12)', color: '#6b5a00', fontSize: '13px', fontWeight: 600 }}>
-                MacheFunded status: monitoring recovery
-              </div>
-            </div>
-          </div>
+          <ServiceUnavailableState
+            title="We’re experiencing a temporary issue on our side."
+            message="Your trading calendar is temporarily unavailable because our service is not responding as expected. Please try again shortly — our team is already working to restore everything as quickly as possible."
+            onRetry={loadCalendarAccounts}
+          />
         ) : !selectedAccount ? (
           <div style={{ background: '#fff', borderRadius: '18px', padding: '24px', border: '1px solid #e6eaef' }}>
             No account available yet. Start a challenge to see your trading calendar.

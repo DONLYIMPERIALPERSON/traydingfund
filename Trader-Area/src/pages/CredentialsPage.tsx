@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
+import ServiceUnavailableState from '../components/ServiceUnavailableState'
 import { fetchUserChallengeAccountDetail, type UserChallengeAccountDetailResponse } from '../lib/traderAuth'
 import '../styles/DesktopCredentialsPage.css'
 
@@ -15,7 +16,7 @@ const CredentialsPage: React.FC = () => {
 
   const challengeId = searchParams.get('challenge_id')
 
-  useEffect(() => {
+  const loadAccountDetails = () => {
     if (!challengeId) {
       setError('Challenge ID is required')
       setLoading(false)
@@ -28,10 +29,14 @@ const CredentialsPage: React.FC = () => {
       .then((data) => {
         setAccountData(data)
       })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Failed to load account details')
+      .catch(() => {
+        setError('service_unavailable')
       })
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadAccountDetails()
   }, [challengeId])
 
   if (loading) {
@@ -51,8 +56,10 @@ const CredentialsPage: React.FC = () => {
       <div className="desktop-credentials-page">
         <DesktopHeader />
         <DesktopSidebar />
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#ff8b8b' }}>
-          {error || 'Account not found'}
+        <div style={{ padding: '96px 24px 24px', display: 'flex', justifyContent: 'center' }}>
+          {error === 'service_unavailable'
+            ? <ServiceUnavailableState onRetry={loadAccountDetails} />
+            : <div style={{ color: '#ff8b8b' }}>{error || 'Account not found'}</div>}
         </div>
       </div>
     )
