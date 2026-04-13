@@ -204,6 +204,16 @@ const CalendarPage: React.FC = () => {
           .calendar-grid {
             min-width: 720px;
           }
+
+          .calendar-hero-stats {
+            flex-wrap: nowrap !important;
+            overflow-x: auto;
+            padding-bottom: 4px;
+          }
+
+          .calendar-hero-stat {
+            flex: 0 0 auto;
+          }
         }
       `}</style>
       <DesktopHeader />
@@ -230,20 +240,20 @@ const CalendarPage: React.FC = () => {
                 </div>
               </div>
               <h1 style={{ color: '#fff', fontSize: '30px', margin: '0 0 8px 0' }}>Trading Calendar</h1>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '6px' }}>
-                <div style={{ padding: '10px 14px', borderRadius: '14px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.16)' }}>
+              <div className="calendar-hero-stats" style={{ display: 'flex', flexWrap: 'nowrap', gap: '12px', marginTop: '6px', alignItems: 'stretch' }}>
+                <div className="calendar-hero-stat" style={{ padding: '10px 14px', borderRadius: '14px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.16)' }}>
                   <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'rgba(255,255,255,0.7)', marginBottom: '4px', fontWeight: 700 }}>
                     Month
                   </div>
                   <div style={{ color: '#fff', fontSize: '16px', fontWeight: 800 }}>{currentMonthLabel}</div>
                 </div>
-                <div style={{ padding: '10px 14px', borderRadius: '14px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.16)' }}>
+                <div className="calendar-hero-stat" style={{ padding: '10px 14px', borderRadius: '14px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.16)' }}>
                   <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'rgba(255,255,255,0.7)', marginBottom: '4px', fontWeight: 700 }}>
                     Profitable Days
                   </div>
                   <div style={{ color: '#fff', fontSize: '16px', fontWeight: 800 }}>{summary.profitDays}</div>
                 </div>
-                <div style={{ padding: '10px 14px', borderRadius: '14px', background: 'rgba(255,215,0,0.14)', border: '1px solid rgba(255,215,0,0.24)' }}>
+                <div className="calendar-hero-stat" style={{ padding: '10px 14px', borderRadius: '14px', background: 'rgba(255,215,0,0.14)', border: '1px solid rgba(255,215,0,0.24)' }}>
                   <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'rgba(255,255,255,0.7)', marginBottom: '4px', fontWeight: 700 }}>
                     Total PnL
                   </div>
