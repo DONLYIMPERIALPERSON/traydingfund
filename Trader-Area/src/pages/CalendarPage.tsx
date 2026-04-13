@@ -230,9 +230,28 @@ const CalendarPage: React.FC = () => {
                 </div>
               </div>
               <h1 style={{ color: '#fff', fontSize: '30px', margin: '0 0 8px 0' }}>Trading Calendar</h1>
-              <p style={{ color: 'rgba(255,255,255,0.8)', margin: 0, maxWidth: '700px', lineHeight: 1.6 }}>
-                A branded monthly PnL calendar designed for clean reviews and shareable screenshots.
-              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '6px' }}>
+                <div style={{ padding: '10px 14px', borderRadius: '14px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.16)' }}>
+                  <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'rgba(255,255,255,0.7)', marginBottom: '4px', fontWeight: 700 }}>
+                    Month
+                  </div>
+                  <div style={{ color: '#fff', fontSize: '16px', fontWeight: 800 }}>{currentMonthLabel}</div>
+                </div>
+                <div style={{ padding: '10px 14px', borderRadius: '14px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.16)' }}>
+                  <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'rgba(255,255,255,0.7)', marginBottom: '4px', fontWeight: 700 }}>
+                    Profitable Days
+                  </div>
+                  <div style={{ color: '#fff', fontSize: '16px', fontWeight: 800 }}>{summary.profitDays}</div>
+                </div>
+                <div style={{ padding: '10px 14px', borderRadius: '14px', background: 'rgba(255,215,0,0.14)', border: '1px solid rgba(255,215,0,0.24)' }}>
+                  <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'rgba(255,255,255,0.7)', marginBottom: '4px', fontWeight: 700 }}>
+                    Total PnL
+                  </div>
+                  <div style={{ color: brandGold, fontSize: '16px', fontWeight: 800 }}>
+                    {formatCurrency(summary.totalPnl, selectedAccount?.currency ?? 'USD')}
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div style={{ minWidth: '280px', maxWidth: '360px', width: '100%' }}>
