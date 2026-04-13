@@ -168,11 +168,49 @@ const CalendarPage: React.FC = () => {
 
   return (
     <div style={{ backgroundColor: '#f5f7fa', minHeight: '100vh', fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif' }}>
+      <style>{`
+        @media (max-width: 1024px) {
+          .calendar-page-content {
+            margin-left: 0 !important;
+            width: 100% !important;
+            padding: 84px 16px 24px !important;
+          }
+
+          .calendar-summary-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .calendar-page-content {
+            padding: 80px 12px 20px !important;
+          }
+
+          .calendar-hero-card,
+          .calendar-main-card {
+            border-radius: 18px !important;
+            padding: 18px !important;
+          }
+
+          .calendar-summary-grid {
+            grid-template-columns: 1fr !important;
+          }
+
+          .calendar-grid-scroll {
+            overflow-x: auto;
+            padding-bottom: 6px;
+          }
+
+          .calendar-grid {
+            min-width: 720px;
+          }
+        }
+      `}</style>
       <DesktopHeader />
       <DesktopSidebar />
 
-      <div style={{ marginLeft: '280px', padding: '24px', paddingTop: '84px', minHeight: '100vh' }}>
-        <div style={{
+      <div className="calendar-page-content home-desktop-content" style={{ marginLeft: '280px', padding: '24px', paddingTop: '84px', minHeight: '100vh' }}>
+        <div className="calendar-hero-card" style={{
           background: 'linear-gradient(135deg, rgba(0,142,164,0.98), rgba(10,41,52,0.98))',
           borderRadius: '24px',
           padding: '28px',
@@ -237,7 +275,7 @@ const CalendarPage: React.FC = () => {
           </div>
         ) : (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '16px', marginBottom: '24px' }}>
+            <div className="calendar-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '16px', marginBottom: '24px' }}>
               {[
                 { label: 'Profit Days', value: summary.profitDays, accent: '#0cb362' },
                 { label: 'Loss Days', value: summary.lossDays, accent: '#dc3545' },
@@ -252,7 +290,7 @@ const CalendarPage: React.FC = () => {
               ))}
             </div>
 
-            <div style={{ background: '#fff', borderRadius: '24px', padding: '24px', border: '1px solid #e7edf3', boxShadow: '0 18px 35px rgba(15,23,42,0.06)' }}>
+            <div className="calendar-main-card" style={{ background: '#fff', borderRadius: '24px', padding: '24px', border: '1px solid #e7edf3', boxShadow: '0 18px 35px rgba(15,23,42,0.06)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
                   <h2 style={{ margin: 0, fontSize: '24px', color: '#111827' }}>{currentMonthLabel}</h2>
@@ -275,7 +313,8 @@ const CalendarPage: React.FC = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '12px' }}>
+              <div className="calendar-grid-scroll">
+                <div className="calendar-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '12px' }}>
                 {weekDays.map((day) => (
                   <div key={day} style={{ padding: '8px 4px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: brandPrimary, letterSpacing: '0.4px', textTransform: 'uppercase' }}>
                     {day}
@@ -331,6 +370,7 @@ const CalendarPage: React.FC = () => {
                     </div>
                   )
                 })}
+                </div>
               </div>
             </div>
           </>
