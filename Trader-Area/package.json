@@ -26,6 +26,7 @@
   "dependencies": {
     "@descope/react-sdk": "^2.26.4",
     "@supabase/supabase-js": "^2.99.2",
+    "@vercel/analytics": "^2.0.1",
     "express": "^5.2.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
