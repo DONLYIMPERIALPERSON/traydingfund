@@ -39,25 +39,14 @@ const ServiceUnavailableState: React.FC<ServiceUnavailableStateProps> = ({
       `}</style>
 
       <div style={{
-        width: '64px',
-        height: '64px',
-        borderRadius: '20px',
-        background: 'linear-gradient(180deg, rgba(0,142,164,0.1), rgba(0,142,164,0.04))',
-        border: '1px solid rgba(0,142,164,0.14)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        width: '12px',
+        height: '12px',
+        borderRadius: '999px',
+        background: brandPrimary,
+        boxShadow: `0 0 0 10px rgba(0,142,164,0.12)`,
+        animation: 'serviceFade 2.2s ease-in-out infinite',
         marginBottom: '18px',
-      }}>
-        <div style={{
-          width: '12px',
-          height: '12px',
-          borderRadius: '999px',
-          background: brandPrimary,
-          boxShadow: `0 0 0 10px rgba(0,142,164,0.12)`,
-          animation: 'serviceFade 2.2s ease-in-out infinite',
-        }} />
-      </div>
+      }} />
 
       <div style={{
         display: 'inline-flex',
