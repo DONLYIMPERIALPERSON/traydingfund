@@ -6,9 +6,6 @@ type ServiceUnavailableStateProps = {
   onRetry?: () => void
 }
 
-const brandPrimary = '#008ea4'
-const brandGold = '#FFD700'
-
 const ServiceUnavailableState: React.FC<ServiceUnavailableStateProps> = ({
   title = 'Service Temporarily Unavailable',
   message = 'We are currently experiencing technical difficulties. Please try again in a few minutes.',
@@ -31,41 +28,6 @@ const ServiceUnavailableState: React.FC<ServiceUnavailableStateProps> = ({
       maxWidth: '760px',
       margin: '0 auto',
     }}>
-      <style>{`
-        @keyframes serviceFade {
-          0%, 100% { opacity: 0.55; }
-          50% { opacity: 1; }
-        }
-      `}</style>
-
-      <div style={{
-        width: '12px',
-        height: '12px',
-        borderRadius: '999px',
-        background: brandPrimary,
-        boxShadow: `0 0 0 10px rgba(0,142,164,0.12)`,
-        animation: 'serviceFade 2.2s ease-in-out infinite',
-        marginBottom: '18px',
-      }} />
-
-      <div style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '8px',
-        padding: '8px 12px',
-        borderRadius: '999px',
-        background: 'rgba(0,142,164,0.08)',
-        color: brandPrimary,
-        fontSize: '12px',
-        fontWeight: 700,
-        letterSpacing: '0.35px',
-        textTransform: 'uppercase',
-        marginBottom: '14px',
-      }}>
-        <span style={{ width: '8px', height: '8px', borderRadius: '999px', background: brandGold }} />
-        Service notice
-      </div>
-
       <h2 style={{ margin: '0 0 10px 0', color: '#0f172a', fontSize: '32px', lineHeight: 1.15, letterSpacing: '-0.02em' }}>
         {title}
       </h2>
