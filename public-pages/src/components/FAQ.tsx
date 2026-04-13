@@ -75,20 +75,20 @@ export default function FAQ({ limit, showReadMore = false }: FAQProps) {
   const visibleFaqs = typeof limit === 'number' ? faqs.slice(0, limit) : faqs
 
   return (
-    <section id="faq" className="py-14 md:py-20 bg-white/2 border-t border-white/10">
+    <section id="faq" className="border-t border-white/8 bg-white/[0.02] py-14 md:py-20">
       <div className="max-w-5xl mx-auto px-4">
         <div className="text-center mb-10">
           <h2 className="text-2xl md:text-4xl text-white font-semibold">Frequently Asked Questions</h2>
-          <p className="text-gray-300 mt-3 max-w-2xl mx-auto">
+          <p className="mt-3 max-w-2xl mx-auto text-white/68">
             Quick answers to the most common questions about MacheFunded challenges and payouts.
           </p>
         </div>
 
         <div className="grid gap-4">
           {visibleFaqs.map((faq) => (
-            <div key={faq.question} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div key={faq.question} className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/8 to-white/[0.03] p-5 shadow-[0_0_20px_rgba(255,255,255,0.04)]">
               <h3 className="text-white font-semibold text-lg">{faq.question}</h3>
-              <p className="text-gray-300 mt-2 text-sm leading-relaxed">{faq.answer}</p>
+              <p className="mt-2 text-sm leading-relaxed text-white/70">{faq.answer}</p>
             </div>
           ))}
         </div>
@@ -97,13 +97,13 @@ export default function FAQ({ limit, showReadMore = false }: FAQProps) {
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <a
               href="/faq"
-              className="inline-flex items-center justify-center rounded-full border border-white/20 px-6 py-2 text-sm font-semibold text-white hover:bg-white/10 transition"
+              className="inline-flex items-center justify-center rounded-full border border-white/20 px-6 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
             >
               Read more FAQs
             </a>
             <a
               href="/supported-markets"
-              className="inline-flex items-center justify-center rounded-full border border-[#ffd700] px-6 py-2 text-sm font-semibold text-[#ffd700] transition hover:bg-[#ffd700] hover:text-black"
+              className="inline-flex items-center justify-center rounded-full border border-[#7fe7f7]/50 px-6 py-2 text-sm font-semibold text-[#7fe7f7] transition hover:bg-[#0f3a46] hover:text-white"
             >
               🔗 Supported markets list
             </a>

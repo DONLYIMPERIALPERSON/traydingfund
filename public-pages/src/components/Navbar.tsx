@@ -1,9 +1,10 @@
 import { MenuIcon, XIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
+    const [isScrolled, setIsScrolled] = useState(false);
 
     const navLinks = [
         { name: 'Home', href: '/#', isSection: true, sectionId: 'home' },
@@ -16,6 +17,17 @@ export default function Navbar() {
     ];
 
     const location = useLocation();
+
+    useEffect(() => {
+        const handleScroll = () => {
+            setIsScrolled(window.scrollY > 12);
+        };
+
+        handleScroll();
+        window.addEventListener('scroll', handleScroll);
+
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     const handleNavClick = (link: typeof navLinks[0], e: React.MouseEvent) => {
         if (link.isSection && link.sectionId) {
@@ -35,24 +47,23 @@ export default function Navbar() {
     };
 
     return (
-        <nav className='fixed top-4 md:top-6 left-0 right-0 z-50 px-4'>
-            <div className='max-w-6xl mx-auto flex items-center justify-between bg-white rounded-2xl p-3 shadow-[0_0_24px_rgba(0,0,0,0.1)]'>
+        <nav className={`fixed top-0 left-0 right-0 z-50 border-b transition-colors duration-300 ${isScrolled ? 'border-white/8 bg-[#0a2a33]' : 'border-white/8 bg-transparent'}`}>
+            <div className='mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3 md:px-6'>
                 <Link to='/' className="flex items-center gap-2">
-                    <img src='/logo.png' alt="MacheFunded logo" className="h-8 rounded-md" />
+                    <img src='/transperent-logo.png' alt="MacheFunded logo" className="h-9 w-auto" />
                     <span className="text-lg font-bold tracking-wide">
-                        <span className="text-[#008ea4]">MACHE</span>
-                        <span className="text-black">FUNDED</span>
+                        <span className="text-white">MACHEFUNDED</span>
                     </span>
                 </Link>
 
-                <div className='hidden md:flex items-center gap-8 text-sm font-medium text-gray-900'>
+                <div className='hidden md:flex items-center gap-8 text-sm font-medium text-white/85'>
                     {navLinks.map((link) => (
                         link.isSection ? (
                             <a
                                 href={link.href}
                                 key={link.name}
                                 onClick={(e) => handleNavClick(link, e)}
-                                className="hover:text-black/70 transition"
+                                className="transition hover:text-white"
                             >
                                 {link.name}
                             </a>
@@ -61,7 +72,7 @@ export default function Navbar() {
                                 to={link.href}
                                 key={link.name}
                                 onClick={(e) => handleNavClick(link, e)}
-                                className="hover:text-black/70 transition"
+                                className="transition hover:text-white"
                             >
                                 {link.name}
                             </Link>
@@ -72,13 +83,13 @@ export default function Navbar() {
                 <div className='hidden md:flex items-center gap-3'>
                     <a
                         href="https://trader.machefunded.com"
-                        className='inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-medium text-white bg-[#008ea4] hover:bg-[#00798b] active:scale-95 transition-all'
+                        className='inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-medium text-white bg-[#0b8ea6] hover:bg-[#0ea5bf] active:scale-95 transition-all'
                     >
                         Dashboard
                     </a>
                 </div>
 
-                <button onClick={() => setIsOpen(!isOpen)} className='md:hidden text-gray-900'>
+                <button onClick={() => setIsOpen(!isOpen)} className='md:hidden text-white'>
                     <MenuIcon className='size-6' />
                 </button>
             </div>

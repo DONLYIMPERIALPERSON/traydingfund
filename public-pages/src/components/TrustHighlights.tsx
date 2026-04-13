@@ -33,16 +33,16 @@ export default function TrustHighlights() {
     ];
 
     return (
-        <section className="py-14 md:py-20 border-t border-white/6 bg-white/2">
+        <section className="border-t border-white/8 bg-white/[0.02] py-14 md:py-20">
             <div className="max-w-6xl mx-auto px-4">
                 <div className="text-center mb-12">
-                    <p className="text-xs uppercase tracking-[0.3em] text-[#ffd700] font-semibold mb-4">
+                    <p className="mb-4 text-xs font-semibold uppercase tracking-[0.3em] text-[#7fe7f7]">
                         THE MACHEFUNDED EDGE
                     </p>
                     <h2 className="text-2xl md:text-4xl text-white font-semibold">
                         Real funding, real speed, real trader focus
                     </h2>
-                    <p className="max-w-2xl mx-auto text-sm text-gray-400 my-3">
+                    <p className="mx-auto my-3 max-w-2xl text-sm text-white/65">
                         Everything we build is designed to help you trade, scale, and withdraw with confidence.
                     </p>
                 </div>
@@ -51,16 +51,16 @@ export default function TrustHighlights() {
                     {highlights.map((item, i) => (
                         <div
                             key={i}
-                            className="rounded-2xl p-6 bg-white/5 border border-white/10 transition duration-300 hover:border-white/20 hover:-translate-y-1"
+                            className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/8 to-white/[0.03] p-6 shadow-[0_0_20px_rgba(255,255,255,0.04)] transition duration-300 hover:-translate-y-1 hover:border-white/20"
                         >
-                            <h3 className="text-lg font-semibold text-[#ffd700] mb-2">{item.title}</h3>
-                            <p className="text-sm text-gray-300 leading-relaxed">{item.desc}</p>
+                            <h3 className="mb-2 text-lg font-semibold text-[#7fe7f7]">{item.title}</h3>
+                            <p className="text-sm leading-relaxed text-white/72">{item.desc}</p>
                         </div>
                     ))}
                 </div>
 
-                <div className="mt-10 py-2">
-                    <div className="flex flex-col items-center text-center gap-4">
+                <div className="mt-10 rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-5">
+                    <div className="flex flex-col items-center gap-4 text-center">
                         <div className="flex items-center gap-3">
                             <h3 className="text-xl font-semibold text-white">Excellent</h3>
                             <div className="flex items-center gap-1">
@@ -75,7 +75,7 @@ export default function TrustHighlights() {
                             </div>
                         </div>
 
-                        <div className="text-sm text-gray-300">
+                        <div className="text-sm text-white/70">
                             4.8/5 based on 200+ reviews
                         </div>
                     </div>
@@ -85,7 +85,7 @@ export default function TrustHighlights() {
                     {mockReviews.map((item, i) => (
                         <div
                             key={i}
-                            className="rounded-2xl p-5 bg-white/5 border border-white/10 transition duration-300 hover:border-white/20"
+                            className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/8 to-white/[0.03] p-5 transition duration-300 hover:border-white/20"
                         >
                             <div className="flex items-center gap-1 mb-2">
                                 {[...Array(5)].map((_, starIndex) => (
@@ -98,8 +98,8 @@ export default function TrustHighlights() {
                                 ))}
                             </div>
                             <h4 className="text-white font-semibold mb-2">{item.title}</h4>
-                            <p className="text-sm text-gray-300 leading-relaxed mb-3">{item.review}</p>
-                            <p className="text-xs text-gray-400">— {item.name}</p>
+                            <p className="mb-3 text-sm leading-relaxed text-white/72">{item.review}</p>
+                            <p className="text-xs text-white/50">— {item.name}</p>
                         </div>
                     ))}
                 </div>
