@@ -1,0 +1,96 @@
+.naira-auth-subtitle {
+	text-align: center;
+	margin-top: -6px;
+	margin-bottom: 16px;
+	color: rgba(255, 255, 255, 0.75);
+	font-size: 14px;
+}
+
+.naira-auth-stack {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.naira-auth-label {
+	margin-bottom: 2px;
+}
+
+.naira-auth-helper,
+.naira-auth-error,
+.naira-auth-info,
+.naira-auth-continue-note {
+	text-align: center;
+	font-size: 13px;
+}
+
+.naira-auth-helper,
+.naira-auth-continue-note {
+	color: rgba(255, 255, 255, 0.75);
+}
+
+.naira-auth-error {
+	color: #ff8f8f;
+	background: rgba(255, 115, 115, 0.12);
+	border: 1px solid rgba(255, 115, 115, 0.35);
+	border-radius: 10px;
+	padding: 10px 12px;
+}
+
+.naira-auth-info {
+	color: #7dd3fc;
+	background: rgba(125, 211, 252, 0.12);
+	border: 1px solid rgba(125, 211, 252, 0.35);
+	border-radius: 10px;
+	padding: 10px 12px;
+}
+
+.naira-auth-forgot {
+	display: flex;
+	justify-content: flex-end;
+}
+
+.naira-auth-link,
+.naira-auth-change-email {
+	background: none;
+	border: none;
+	color: #facc15;
+	font-size: 12px;
+	font-weight: 600;
+	cursor: pointer;
+	padding: 0;
+	text-decoration: underline;
+}
+
+.naira-auth-email-display {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	background: rgba(255, 255, 255, 0.08);
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	border-radius: 8px;
+	padding: 8px 12px;
+}
+
+.naira-auth-email-display span {
+	color: rgba(255, 255, 255, 0.9);
+	font-size: 14px;
+}
+
+.naira-auth-secondary-btn {
+	background: rgba(255, 255, 255, 0.12) !important;
+	color: #fff !important;
+	box-shadow: none !important;
+	border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.naira-auth-visibility {
+	position: absolute;
+	right: 12px;
+	top: 50%;
+	transform: translateY(-50%);
+	background: none;
+	border: none;
+	color: rgba(255, 255, 255, 0.7);
+	cursor: pointer;
+}

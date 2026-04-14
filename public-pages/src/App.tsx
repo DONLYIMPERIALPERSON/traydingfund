@@ -8,6 +8,7 @@ import FAQPage from './pages/FAQPage';
 import StorePage from './pages/StorePage';
 import MacheMinutePage from './pages/MacheMinutePage';
 import SupportedMarketsPage from './pages/SupportedMarketsPage';
+import AtticProgramPage from './pages/AtticProgramPage';
 import Footer from './components/Footer';
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
 				<Route path="/faq" element={<FAQPage />} />
 				<Route path="/supported-markets" element={<SupportedMarketsPage />} />
 				<Route path="/store" element={<StorePage />} />
+				<Route path="/attic-program" element={<AtticProgramPage />} />
 				<Route path="/themacheminute" element={<MacheMinutePage />} />
 				<Route path="/ref/:code" element={<Navigate to="/" replace />} />
 				<Route path="*" element={<Navigate to="/" replace />} />
