@@ -4,6 +4,7 @@ import TrustHighlights from "../components/TrustHighlights";
 import CTA from "../components/CTA";
 import FAQ from "../components/FAQ";
 import { useEffect } from "react";
+import { ArrowRightIcon } from 'lucide-react';
 
 export default function Home() {
     useEffect(() => {
@@ -32,6 +33,31 @@ export default function Home() {
 
             <div className="relative z-10">
                 <Hero />
+                <section className="px-4 py-8 md:py-10">
+                    <div className="mx-auto max-w-6xl rounded-[2rem] border border-[#7fe7f7]/20 bg-gradient-to-r from-[#0c2f39] via-[#0b2530] to-[#071c22] p-6 shadow-[0_20px_70px_rgba(0,0,0,0.22)] md:p-8">
+                        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+                            <div className="max-w-3xl">
+                                <span className="inline-flex items-center rounded-full border border-[#7fe7f7]/30 bg-[#7fe7f7]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-[#7fe7f7]">
+                                    New
+                                </span>
+                                <h2 className="mt-4 text-2xl font-bold text-white md:text-4xl">
+                                    Start your funding journey faster with the Attic Program for just ₦1,500.
+                                </h2>
+                                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/72 md:text-base">
+                                    A low-entry, high-opportunity path built to help talented traders prove themselves and unlock a funded challenge account.
+                                </p>
+                            </div>
+
+                            <a
+                                href="/attic-program"
+                                className="inline-flex items-center justify-center gap-2 self-start rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-gray-100 md:self-center"
+                            >
+                                Explore Attic Program
+                                <ArrowRightIcon className="size-4" />
+                            </a>
+                        </div>
+                    </div>
+                </section>
                 <Pricing />
                 <TrustHighlights />
                 <FAQ limit={3} showReadMore />
