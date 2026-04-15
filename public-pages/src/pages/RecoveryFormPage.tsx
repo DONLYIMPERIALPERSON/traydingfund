@@ -3,16 +3,30 @@ import { useState } from 'react';
 
 const phaseOptions = ['Phase 1', 'Phase 2', 'Funded'];
 
+const accountTypeOptions = {
+  '2 Step': ['$2,000', '$10,000', '$30,000', '$50,000', '$100,000', '$200,000'],
+  '1 Step': ['$2,000', '$10,000', '$30,000', '$50,000', '$100,000', '$200,000'],
+  'Instant Funded': ['$2,000', '$10,000', '$30,000', '$50,000', '$100,000', '$200,000'],
+  'Standard Account': ['₦200,000', '₦500,000', '₦800,000'],
+  'Flexi Account': ['₦200,000', '₦500,000', '₦800,000'],
+} as const;
+
+const accountTypes = Object.keys(accountTypeOptions) as Array<keyof typeof accountTypeOptions>;
+
 type FormState = {
   email: string;
   accountNumber: string;
   phase: string;
+  accountType: string;
+  accountSize: string;
 };
 
 const initialState: FormState = {
   email: '',
   accountNumber: '',
   phase: '',
+  accountType: '',
+  accountSize: '',
 };
 
 export default function RecoveryFormPage() {
@@ -41,6 +55,8 @@ export default function RecoveryFormPage() {
           email: form.email.trim(),
           accountNumber: form.accountNumber.trim(),
           phase: form.phase,
+          accountType: form.accountType,
+          accountSize: form.accountSize,
         }),
       });
 
@@ -114,6 +130,55 @@ export default function RecoveryFormPage() {
               </label>
 
               <label className="grid gap-2 text-sm text-gray-300">
+                Account Type
+                <select
+                  required
+                  value={form.accountType}
+                  onChange={(event) => {
+                    const nextType = event.target.value;
+                    setForm((current) => ({
+                      ...current,
+                      accountType: nextType,
+                      accountSize: '',
+                    }));
+                  }}
+                  className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-[#ffd700]/60"
+                >
+                  <option value="" disabled className="text-black">
+                    Select account type
+                  </option>
+                  {accountTypes.map((accountType) => (
+                    <option key={accountType} value={accountType} className="text-black">
+                      {accountType}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-2 text-sm text-gray-300">
+                Account Size
+                <select
+                  required
+                  value={form.accountSize}
+                  disabled={!form.accountType}
+                  onChange={(event) => handleChange('accountSize', event.target.value)}
+                  className="rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-[#ffd700]/60 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <option value="" disabled className="text-black">
+                    {form.accountType ? 'Select account size' : 'Select account type first'}
+                  </option>
+                  {(form.accountType
+                    ? accountTypeOptions[form.accountType as keyof typeof accountTypeOptions]
+                    : []
+                  ).map((accountSize) => (
+                    <option key={accountSize} value={accountSize} className="text-black">
+                      {accountSize}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-2 text-sm text-gray-300">
                 Phase
                 <select
                   required
@@ -170,6 +235,8 @@ export default function RecoveryFormPage() {
               <ul className="mt-4 space-y-3 text-sm leading-relaxed text-white/75">
                 <li>• Make sure the email matches the one used on your trading account.</li>
                 <li>• Double-check your account number before sending the request.</li>
+                <li>• Select the exact account type first so the correct sizes are shown.</li>
+                <li>• Pick the correct account size linked to that account type.</li>
                 <li>• Select the correct account stage: Phase 1, Phase 2, or Funded.</li>
               </ul>
             </div>

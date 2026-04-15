@@ -34,14 +34,24 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { email, accountNumber, phase } = req.body || {};
+    const { email, accountNumber, phase, accountType, accountSize } = req.body || {};
 
     const normalizedEmail = String(email || '').trim().toLowerCase();
     const normalizedAccountNumber = normalizeAccountNumber(accountNumber);
     const normalizedPhase = String(phase || '').trim();
+    const normalizedAccountType = String(accountType || '').trim();
+    const normalizedAccountSize = String(accountSize || '').trim();
 
-    if (!normalizedEmail || !normalizedAccountNumber || !normalizedPhase) {
-      return res.status(400).json({ message: 'Email, account number, and phase are required.' });
+    const allowedAccountTypes = {
+      '2 Step': ['$2,000', '$10,000', '$30,000', '$50,000', '$100,000', '$200,000'],
+      '1 Step': ['$2,000', '$10,000', '$30,000', '$50,000', '$100,000', '$200,000'],
+      'Instant Funded': ['$2,000', '$10,000', '$30,000', '$50,000', '$100,000', '$200,000'],
+      'Standard Account': ['₦200,000', '₦500,000', '₦800,000'],
+      'Flexi Account': ['₦200,000', '₦500,000', '₦800,000'],
+    };
+
+    if (!normalizedEmail || !normalizedAccountNumber || !normalizedPhase || !normalizedAccountType || !normalizedAccountSize) {
+      return res.status(400).json({ message: 'Email, account number, account type, account size, and phase are required.' });
     }
 
     const allowedPhases = new Set(['Phase 1', 'Phase 2', 'Funded']);
@@ -49,11 +59,22 @@ export default async function handler(req, res) {
       return res.status(400).json({ message: 'Invalid phase selected.' });
     }
 
+    const sizesForType = allowedAccountTypes[normalizedAccountType];
+    if (!sizesForType) {
+      return res.status(400).json({ message: 'Invalid account type selected.' });
+    }
+
+    if (!sizesForType.includes(normalizedAccountSize)) {
+      return res.status(400).json({ message: 'Invalid account size selected for the chosen account type.' });
+    }
+
     const message = [
       '🚨 Recovery Form Submission',
       '',
       `Email: ${normalizedEmail}`,
       `Account Number: ${normalizedAccountNumber}`,
+      `Account Type: ${normalizedAccountType}`,
+      `Account Size: ${normalizedAccountSize}`,
       `Phase: ${normalizedPhase}`,
       '',
       'Warning acknowledged: Wrong details or manipulated data can lead to a permanent ban.',
