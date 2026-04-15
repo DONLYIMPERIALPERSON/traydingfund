@@ -10,6 +10,7 @@ export default function Navbar() {
         { name: 'Home', href: '/#', isSection: true, sectionId: 'home' },
         { name: 'Challenges', href: '/#pricing', isSection: true, sectionId: 'pricing' },
         { name: 'Attic Program', href: '/attic-program', isSection: false },
+        { name: 'Recovery Form', href: '/recovery-form', isSection: false },
         { name: 'Store', href: '/store', isSection: false },
         { name: 'Trading Objectives', href: '/rules', isSection: false },
         { name: 'Blog', href: 'https://blog.machefunded.com', isSection: false },
