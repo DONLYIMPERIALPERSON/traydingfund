@@ -15,5 +15,15 @@ export function notFoundHandler(_req: Request, res: Response) {
 
 export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction) {
   const status = err instanceof ApiError ? err.status : 500
+
+  console.error('[ERROR HANDLER]', {
+    name: err.name,
+    message: err.message,
+    status,
+    stack: err.stack,
+    rawResponse: (err as Error & { rawResponse?: string }).rawResponse,
+    headers: (err as Error & { headers?: Record<string, string> }).headers,
+  })
+
   res.status(status).json({ message: err.message || 'Internal Server Error' })
 }
