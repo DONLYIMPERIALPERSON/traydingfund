@@ -49,7 +49,7 @@ const maybeBurnAccount = async (accountId: number) => {
 }
 
 const burnStatuses = new Set(['failed', 'violated', 'breached', 'completed', 'passed'])
-const AFFILIATE_COMMISSION_PERCENT = 10
+const AFFILIATE_COMMISSION_PERCENT = 30
 
 const toUsdKobo = (amountKobo: number, currency?: string | null, rate?: number) => {
   if (currency?.toUpperCase() === 'NGN') {

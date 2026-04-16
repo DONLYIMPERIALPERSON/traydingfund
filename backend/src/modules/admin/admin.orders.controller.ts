@@ -9,7 +9,7 @@ import { createOnboardingCertificate } from '../../services/certificate.service'
 import { getFxRatesConfig } from '../fxRates/fxRates.service'
 import { fetchRemoteAttachment, sendUnifiedEmail } from '../../services/email.service'
 
-const AFFILIATE_COMMISSION_PERCENT = 10
+const AFFILIATE_COMMISSION_PERCENT = 30
 
 const formatCurrency = (amountKobo: number) =>
   `$${(amountKobo / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
