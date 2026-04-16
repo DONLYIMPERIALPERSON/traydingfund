@@ -53,6 +53,8 @@ const AccountRecoveryPage: React.FC = () => {
   }, [])
 
   const availableSizes = useMemo(() => accountTypeOptions[accountType] ?? [], [accountType])
+  const brandColor = '#008ea4'
+  const brandSoft = 'rgba(0, 142, 164, 0.10)'
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -98,35 +100,63 @@ const AccountRecoveryPage: React.FC = () => {
           ) : error && requests.length === 0 ? (
             <ServiceUnavailableState onRetry={() => void load()} />
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.1fr 1fr', gap: 24 }}>
-              <form onSubmit={handleSubmit} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 24, display: 'grid', gap: 16 }}>
-                <h3 style={{ margin: 0 }}>Apply for account recovery</h3>
-                <input value={email} readOnly placeholder="Email" style={{ padding: 12, borderRadius: 10, border: '1px solid #d1d5db' }} />
-                <select value={platform} onChange={(e) => setPlatform(e.target.value as 'ctrader' | 'mt5')} required style={{ padding: 12, borderRadius: 10, border: '1px solid #d1d5db' }}>
-                  <option value="ctrader">cTrader</option>
-                  <option value="mt5">MT5</option>
-                </select>
-                <input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="Account number" required style={{ padding: 12, borderRadius: 10, border: '1px solid #d1d5db' }} />
-                <select value={accountType} onChange={(e) => { setAccountType(e.target.value); setAccountSize('') }} required style={{ padding: 12, borderRadius: 10, border: '1px solid #d1d5db' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 0.95fr) minmax(320px, 0.85fr)', gap: 20, alignItems: 'start' }}>
+              <form onSubmit={handleSubmit} style={{ background: '#fff', border: `1px solid ${brandSoft}`, boxShadow: '0 18px 50px rgba(15, 23, 42, 0.06)', borderRadius: 18, padding: isMobile ? 18 : 22, display: 'grid', gap: 14 }}>
+                <div style={{ display: 'grid', gap: 4 }}>
+                  <h3 style={{ margin: 0, color: '#0f172a' }}>Apply for account recovery</h3>
+                  <p style={{ margin: 0, fontSize: 14, color: '#64748b' }}>Provide the core details of the lost account and we will review it manually.</p>
+                </div>
+
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>Platform</span>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    {(['ctrader', 'mt5'] as const).map((item) => {
+                      const active = platform === item
+                      return (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => setPlatform(item)}
+                          style={{
+                            borderRadius: 999,
+                            border: `1px solid ${active ? brandColor : '#cbd5e1'}`,
+                            background: active ? brandColor : '#fff',
+                            color: active ? '#fff' : '#334155',
+                            fontWeight: 700,
+                            padding: '10px 16px',
+                            cursor: 'pointer',
+                            minWidth: 110,
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          {item === 'ctrader' ? 'cTrader' : 'MT5'}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="Account number" required style={{ padding: 12, borderRadius: 10, border: '1px solid #d1d5db', width: '100%', boxSizing: 'border-box' }} />
+                <select value={accountType} onChange={(e) => { setAccountType(e.target.value); setAccountSize('') }} required style={{ padding: 12, borderRadius: 10, border: '1px solid #d1d5db', width: '100%', boxSizing: 'border-box' }}>
                   <option value="">Select account type</option>
                   {Object.keys(accountTypeOptions).map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
-                <select value={accountSize} onChange={(e) => setAccountSize(e.target.value)} required disabled={!accountType} style={{ padding: 12, borderRadius: 10, border: '1px solid #d1d5db' }}>
+                <select value={accountSize} onChange={(e) => setAccountSize(e.target.value)} required disabled={!accountType} style={{ padding: 12, borderRadius: 10, border: '1px solid #d1d5db', width: '100%', boxSizing: 'border-box' }}>
                   <option value="">Select account size</option>
                   {availableSizes.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
-                <select value={phase} onChange={(e) => setPhase(e.target.value)} required style={{ padding: 12, borderRadius: 10, border: '1px solid #d1d5db' }}>
+                <select value={phase} onChange={(e) => setPhase(e.target.value)} required style={{ padding: 12, borderRadius: 10, border: '1px solid #d1d5db', width: '100%', boxSizing: 'border-box' }}>
                   <option value="">Select phase</option>
                   {phaseOptions.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
                 {success && <div style={{ color: '#065f46', background: '#d1fae5', padding: 12, borderRadius: 10 }}>{success}</div>}
                 {error && <div style={{ color: '#991b1b', background: '#fee2e2', padding: 12, borderRadius: 10 }}>{error}</div>}
-                <button type="submit" disabled={submitting} style={{ padding: 14, borderRadius: 10, border: 'none', background: '#111827', color: '#fff', fontWeight: 700 }}>
+                <button type="submit" disabled={submitting} style={{ padding: 14, borderRadius: 12, border: 'none', background: brandColor, color: '#fff', fontWeight: 700, boxShadow: '0 12px 24px rgba(0, 142, 164, 0.22)' }}>
                   {submitting ? 'Submitting...' : 'Submit Recovery Request'}
                 </button>
               </form>
 
-              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 24 }}>
+              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 18, padding: isMobile ? 18 : 22 }}>
                 <h3 style={{ marginTop: 0 }}>My recovery requests</h3>
                 {requests.length === 0 ? (
                   <p style={{ color: '#6b7280' }}>No recovery requests submitted yet.</p>
