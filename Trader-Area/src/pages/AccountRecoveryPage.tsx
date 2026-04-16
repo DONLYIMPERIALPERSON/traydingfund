@@ -26,6 +26,7 @@ const AccountRecoveryPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024)
 
   const load = async () => {
     try {
@@ -43,6 +44,12 @@ const AccountRecoveryPage: React.FC = () => {
 
   useEffect(() => {
     void load()
+  }, [])
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
   }, [])
 
   const availableSizes = useMemo(() => accountTypeOptions[accountType] ?? [], [accountType])
@@ -79,7 +86,7 @@ const AccountRecoveryPage: React.FC = () => {
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
       <DesktopHeader />
       <DesktopSidebar />
-      <div style={{ marginLeft: '280px', padding: '24px' }}>
+      <div style={{ marginLeft: isMobile ? 0 : '280px', padding: isMobile ? '88px 16px 24px' : '24px' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div style={{ marginBottom: 24 }}>
             <h1 style={{ margin: 0, color: '#111827' }}>Account Recovery</h1>
@@ -91,7 +98,7 @@ const AccountRecoveryPage: React.FC = () => {
           ) : error && requests.length === 0 ? (
             <ServiceUnavailableState onRetry={() => void load()} />
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.1fr 1fr', gap: 24 }}>
               <form onSubmit={handleSubmit} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 24, display: 'grid', gap: 16 }}>
                 <h3 style={{ margin: 0 }}>Apply for account recovery</h3>
                 <input value={email} readOnly placeholder="Email" style={{ padding: 12, borderRadius: 10, border: '1px solid #d1d5db' }} />
