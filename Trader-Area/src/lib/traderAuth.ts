@@ -313,6 +313,29 @@ export type TraderOrder = {
   paid_at: string | null
 }
 
+export type AccountRecoveryRequestItem = {
+  id: number
+  user_id: number
+  user_name?: string | null
+  user_email?: string | null
+  email: string
+  account_number: string
+  platform: string
+  broker_name?: string | null
+  mt5_login?: string | null
+  mt5_server?: string | null
+  phase: string
+  account_type: string
+  account_size: string
+  status: string
+  review_note: string | null
+  decline_reason: string | null
+  submitted_at: string
+  reviewed_at: string | null
+  reviewed_by: string | null
+  recovered_account_id: number | null
+}
+
 function parseBackendError(prefix: string, status: number, rawText: string): Error {
   let detail = rawText
   try {
@@ -611,6 +634,24 @@ export async function fetchOrders(
 
 export async function fetchCertificates(): Promise<CertificateListResponse> {
   return apiFetch<CertificateListResponse>('/trader/certificates')
+}
+
+export async function submitAccountRecoveryRequest(payload: {
+  email: string
+  account_number: string
+  platform: 'ctrader' | 'mt5'
+  phase: string
+  account_type: string
+  account_size: string
+}): Promise<{ message: string; request: AccountRecoveryRequestItem }> {
+  return apiFetch<{ message: string; request: AccountRecoveryRequestItem }>('/account-recovery/trader', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function fetchMyAccountRecoveryRequests(): Promise<{ requests: AccountRecoveryRequestItem[] }> {
+  return apiFetch<{ requests: AccountRecoveryRequestItem[] }>('/account-recovery/trader')
 }
 
 export async function fetchPublicCoupons(): Promise<{ coupons: PublicCouponResponse[] }> {

@@ -12,6 +12,7 @@ import { supportRouter } from '../modules/support/support.routes'
 import { couponRouter } from '../modules/coupons/coupon.routes'
 import { planRouter } from '../modules/plans/plan.routes'
 import { financeRouter } from '../modules/finance/finance.routes'
+import { accountRecoveryRouter } from '../modules/accountRecovery/accountRecovery.routes'
 
 export const router = Router()
 
@@ -32,3 +33,4 @@ router.use('/v1/payouts', payoutRouter)
 router.use('/v1/coupons', couponRouter)
 router.use('/v1/support', supportRouter)
 router.use('/v1/public', planRouter)
+router.use('/v1/account-recovery', accountRecoveryRouter)

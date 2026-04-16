@@ -445,6 +445,29 @@ export type UserSupportTicket = {
   user_email: string
 }
 
+export type AccountRecoveryRequestItem = {
+  id: number
+  user_id: number
+  user_name?: string | null
+  user_email?: string | null
+  email: string
+  account_number: string
+  platform: string
+  broker_name?: string | null
+  mt5_login?: string | null
+  mt5_server?: string | null
+  phase: string
+  account_type: string
+  account_size: string
+  status: string
+  review_note: string | null
+  decline_reason: string | null
+  submitted_at: string
+  reviewed_at: string | null
+  reviewed_by: string | null
+  recovered_account_id: number | null
+}
+
 export const adminLoginWithBackend = async (_sessionToken?: string) =>
   apiFetch<AdminAuthMeResponse>('/admin/me')
 
@@ -501,6 +524,24 @@ export const fetchBreachedChallengeAccounts = async () =>
 
 export const fetchAdminUsers = async () =>
   apiFetch<{ users: AdminUsersListItem[]; stats: { total_users: number; funded_users: number; breached_users: number } }>('/admin/users')
+
+export const fetchAccountRecoveryRequests = async () =>
+  apiFetch<{ requests: AccountRecoveryRequestItem[] }>('/account-recovery/admin')
+
+export const reviewAccountRecoveryRequest = async (requestId: number, payload: {
+  action: 'approve' | 'decline'
+  review_note?: string
+  decline_reason?: string
+  platform?: 'ctrader' | 'mt5'
+  broker_name?: string
+  mt5_login?: string
+  mt5_server?: string
+  mt5_password?: string
+}) =>
+  apiFetch<{ message: string; request: AccountRecoveryRequestItem }>(`/account-recovery/admin/${requestId}/review`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 
 export const fetchAdminKycProfiles = async () =>
   apiFetch<{ profiles: AdminKycProfileItem[]; stats: { eligible_profiles: number; today_eligible: number } }>('/admin/kyc/profiles')

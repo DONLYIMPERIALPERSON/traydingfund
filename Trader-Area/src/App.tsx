@@ -22,6 +22,7 @@ import LoginPage from './pages/LoginPage'
 import OrdersPage from './pages/OrdersPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import CalendarPage from './pages/CalendarPage'
+import AccountRecoveryPage from './pages/AccountRecoveryPage'
 
 const isAuthenticated = () => Boolean(localStorage.getItem('supabase_access_token'))
 
@@ -205,6 +206,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <CalendarPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/account-recovery"
+            element={
+              <ProtectedRoute>
+                <AccountRecoveryPage />
               </ProtectedRoute>
             }
           />

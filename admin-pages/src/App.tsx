@@ -22,6 +22,7 @@ import FxRatesPage from './pages/FxRatesPage'
 import CTraderPage from './pages/CTraderPage'
 import SendAnnouncementPage from './pages/SendAnnouncementPage'
 import SalaryPage from './pages/SalaryPage'
+import AccountRecoveryPage from './pages/AccountRecoveryPage'
 import {
   adminLoginWithBackend,
   clearPersistedAdminUser,
@@ -35,7 +36,7 @@ import AdminSupabaseAuthCard from './components/AdminSupabaseAuthCard'
 import { supabase } from './lib/supabaseClient'
 import './App.css'
 
-type AdminPage = 'analysis' | 'users' | 'accounts' | 'adminChecking' | 'fundedAccounts' | 'breaches' | 'orders' | 'payouts' | 'userProfile' | 'kycReview' | 'referrals' | 'financeAnalysis' | 'coupons' | 'supportTickets' | 'settings' | 'mt5' | 'sendAnnouncement' | 'salary' | 'tradingRules' | 'fxRates'
+type AdminPage = 'analysis' | 'users' | 'accounts' | 'adminChecking' | 'fundedAccounts' | 'breaches' | 'orders' | 'payouts' | 'userProfile' | 'kycReview' | 'accountRecovery' | 'referrals' | 'financeAnalysis' | 'coupons' | 'supportTickets' | 'settings' | 'mt5' | 'sendAnnouncement' | 'salary' | 'tradingRules' | 'fxRates'
 
 function readableAuthError(message: string): string {
   if (message.toLowerCase().includes('failed to fetch')) {
@@ -115,7 +116,7 @@ function App() {
   useEffect(() => {
     if (!authUser || authUser.role === 'super_admin' || !authUser.allowed_pages) return;
 
-    const possiblePages = ['analysis', 'users', 'accounts', 'adminChecking', 'fundedAccounts', 'breaches', 'orders', 'payouts', 'kycReview', 'referrals', 'financeAnalysis', 'coupons', 'supportTickets', 'settings', 'mt5', 'sendAnnouncement', 'salary', 'tradingRules', 'fxRates'];
+    const possiblePages = ['analysis', 'users', 'accounts', 'adminChecking', 'fundedAccounts', 'breaches', 'orders', 'payouts', 'kycReview', 'accountRecovery', 'referrals', 'financeAnalysis', 'coupons', 'supportTickets', 'settings', 'mt5', 'sendAnnouncement', 'salary', 'tradingRules', 'fxRates'];
     const firstAllowed = possiblePages.find(page => authUser.allowed_pages?.includes(page) ?? false);
     if (!firstAllowed) {
       setAuthError('No pages assigned to this admin account.');
@@ -319,6 +320,7 @@ function App() {
           {!authError && activePage === 'tradingRules' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('tradingRules'))) && <TradingRulesPage />}
           {!authError && activePage === 'fxRates' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('fxRates'))) && <FxRatesPage />}
           {!authError && activePage === 'kycReview' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('kycReview'))) && <KycReviewPage />}
+          {!authError && activePage === 'accountRecovery' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('accountRecovery'))) && <AccountRecoveryPage />}
           {!authError && activePage === 'referrals' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('referrals'))) && <ReferralsPage />}
           {!authError && activePage === 'userProfile' && selectedUser && (
             <UserProfilePage
@@ -327,7 +329,7 @@ function App() {
               onOpenSupportChat={handleOpenSupportChat}
             />
           )}
-          {!authError && !['analysis', 'users', 'accounts', 'adminChecking', 'fundedAccounts', 'breaches', 'mt5', 'orders', 'payouts', 'financeAnalysis', 'coupons', 'sendAnnouncement', 'supportTickets', 'settings', 'kycReview', 'referrals', 'userProfile', 'salary', 'tradingRules', 'fxRates'].includes(activePage) && (
+          {!authError && !['analysis', 'users', 'accounts', 'adminChecking', 'fundedAccounts', 'breaches', 'mt5', 'orders', 'payouts', 'financeAnalysis', 'coupons', 'sendAnnouncement', 'supportTickets', 'settings', 'kycReview', 'accountRecovery', 'referrals', 'userProfile', 'salary', 'tradingRules', 'fxRates'].includes(activePage) && (
             <div className="admin-no-access">
               <h2>Access Denied</h2>
               <p>You do not have permission to access this page. Please select an available page from the sidebar.</p>

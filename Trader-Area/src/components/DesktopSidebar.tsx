@@ -85,6 +85,11 @@ const navItemsWithSections: SidebarSection[] = [
         href: "/kyc",
         icon: () => <i className="fas fa-id-card" style={{fontSize: '18px', color: '#666'}}></i>,
       },
+      {
+        label: "Account Recovery",
+        href: "/account-recovery",
+        icon: () => <i className="fas fa-life-ring" style={{fontSize: '18px', color: '#666'}}></i>,
+      },
     ],
   },
   {
