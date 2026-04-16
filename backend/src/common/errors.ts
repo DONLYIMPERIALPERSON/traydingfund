@@ -15,6 +15,7 @@ export function notFoundHandler(_req: Request, res: Response) {
 
 export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction) {
   const status = err instanceof ApiError ? err.status : 500
+  const responseMessage = status >= 500 ? 'Internal Server Error' : (err.message || 'Request failed')
 
   console.error('[ERROR HANDLER]', {
     name: err.name,
@@ -25,5 +26,5 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
     headers: (err as Error & { headers?: Record<string, string> }).headers,
   })
 
-  res.status(status).json({ message: err.message || 'Internal Server Error' })
+  res.status(status).json({ message: responseMessage })
 }
