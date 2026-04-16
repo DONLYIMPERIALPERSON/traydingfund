@@ -67,6 +67,22 @@ const createClientAssertion = async () => {
   }
 
   const normalizedKey = env.safehavenPrivateKey.replace(/\\n/g, '\n')
+
+  try {
+    crypto.createPrivateKey({ key: normalizedKey, format: 'pem' })
+  } catch (error) {
+    console.error('SAFEHAVEN PRIVATE KEY ERROR:', {
+      message: error instanceof Error ? error.message : String(error),
+      hasBeginMarker: normalizedKey.includes('BEGIN'),
+      hasEndMarker: normalizedKey.includes('END'),
+      length: normalizedKey.length,
+      preview: normalizedKey.slice(0, 80),
+    })
+    throw new Error(
+      'SAFEHAVEN_PRIVATE_KEY is invalid. Ensure the production env value is a valid PEM private key with BEGIN/END markers and escaped newlines preserved.'
+    )
+  }
+
   const now = Math.floor(Date.now() / 1000)
   const header = { alg: 'RS256', typ: 'JWT' }
   const payload = {
