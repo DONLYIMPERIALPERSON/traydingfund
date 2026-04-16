@@ -2,9 +2,9 @@ import { env } from '../config/env'
 import crypto from 'crypto'
 
 class SafeHavenResponseError extends Error {
-  status?: number
-  headers?: Record<string, string>
-  rawResponse?: string
+  status: number | undefined
+  headers: Record<string, string> | undefined
+  rawResponse: string | undefined
 
   constructor(message: string, options: { status?: number; headers?: Record<string, string>; rawResponse?: string } = {}) {
     super(message)
