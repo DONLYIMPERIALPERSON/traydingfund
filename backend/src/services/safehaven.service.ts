@@ -1,6 +1,20 @@
 import { env } from '../config/env'
 import crypto from 'crypto'
 
+class SafeHavenResponseError extends Error {
+  status?: number
+  headers?: Record<string, string>
+  rawResponse?: string
+
+  constructor(message: string, options: { status?: number; headers?: Record<string, string>; rawResponse?: string } = {}) {
+    super(message)
+    this.name = 'SafeHavenResponseError'
+    this.status = options.status
+    this.headers = options.headers
+    this.rawResponse = options.rawResponse
+  }
+}
+
 type SafeHavenTokenResponse = {
   access_token: string
   token_type: string
@@ -96,13 +110,22 @@ const requestAccessToken = async () => {
   })
 
   const rawText = await response.text()
+  const responseHeaders = Object.fromEntries(response.headers.entries())
 
   console.log('SAFEHAVEN TOKEN STATUS:', response.status)
-  console.log('SAFEHAVEN TOKEN HEADERS:', Object.fromEntries(response.headers.entries()))
+  console.log('SAFEHAVEN TOKEN HEADERS:', responseHeaders)
   console.log('SAFEHAVEN TOKEN RAW DATA:', rawText)
 
   if (!response.ok) {
-    throw new Error(`SafeHaven token request failed: ${rawText}`)
+    console.error('SAFEHAVEN TOKEN REQUEST FAILED:', {
+      status: response.status,
+      headers: responseHeaders,
+      raw: rawText,
+    })
+    throw new SafeHavenResponseError(
+      `SafeHaven token request failed with status ${response.status}. Raw response: ${rawText}`,
+      { status: response.status, headers: responseHeaders, rawResponse: rawText }
+    )
   }
 
   try {
@@ -116,7 +139,10 @@ const requestAccessToken = async () => {
   } catch (err) {
     console.error('SAFEHAVEN TOKEN PARSE ERROR:', err)
     console.error('RAW TOKEN RESPONSE WAS:', rawText)
-    throw err
+    throw new SafeHavenResponseError(
+      `SafeHaven token parse failed. Raw response: ${rawText}`,
+      { status: response.status, headers: responseHeaders, rawResponse: rawText }
+    )
   }
 }
 
@@ -133,13 +159,23 @@ const makeAuthenticatedRequest = async <T>(path: string, init: RequestInit = {})
   })
 
   const rawText = await response.text()
+  const responseHeaders = Object.fromEntries(response.headers.entries())
 
   console.log('SAFEHAVEN STATUS:', response.status)
-  console.log('SAFEHAVEN HEADERS:', Object.fromEntries(response.headers.entries()))
+  console.log('SAFEHAVEN HEADERS:', responseHeaders)
   console.log('SAFEHAVEN RAW DATA:', rawText)
 
   if (!response.ok) {
-    throw new Error(`SafeHaven request failed: ${rawText}`)
+    console.error('SAFEHAVEN REQUEST FAILED:', {
+      path,
+      status: response.status,
+      headers: responseHeaders,
+      raw: rawText,
+    })
+    throw new SafeHavenResponseError(
+      `SafeHaven request failed for ${path} with status ${response.status}. Raw response: ${rawText}`,
+      { status: response.status, headers: responseHeaders, rawResponse: rawText }
+    )
   }
 
   try {
@@ -153,7 +189,10 @@ const makeAuthenticatedRequest = async <T>(path: string, init: RequestInit = {})
   } catch (err) {
     console.error('SAFEHAVEN PARSE ERROR:', err)
     console.error('RAW RESPONSE WAS:', rawText)
-    throw err
+    throw new SafeHavenResponseError(
+      `SafeHaven parse failed for ${path}. Raw response: ${rawText}`,
+      { status: response.status, headers: responseHeaders, rawResponse: rawText }
+    )
   }
 }
 
