@@ -26,8 +26,7 @@ const reviewRecoverySchema = z.object({
   decline_reason: z.string().optional(),
   platform: z.enum(['ctrader', 'mt5']).optional(),
   broker_name: z.string().optional(),
-  mt5_login: z.string().optional(),
-  mt5_server: z.string().optional(),
+  mt5_server: z.enum(['Exness-MT5Trial9', 'Exness-MT5Trial10']).optional(),
   mt5_password: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (data.action === 'approve') {
@@ -35,7 +34,7 @@ const reviewRecoverySchema = z.object({
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'platform is required for approval', path: ['platform'] })
     }
     if (data.platform === 'mt5') {
-      if (!data.mt5_server?.trim()) {
+      if (!data.mt5_server) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'mt5_server is required for MT5 approval', path: ['mt5_server'] })
       }
       if (!data.mt5_password?.trim()) {

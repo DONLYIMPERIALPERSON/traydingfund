@@ -534,8 +534,7 @@ export const reviewAccountRecoveryRequest = async (requestId: number, payload: {
   decline_reason?: string
   platform?: 'ctrader' | 'mt5'
   broker_name?: string
-  mt5_login?: string
-  mt5_server?: string
+  mt5_server?: 'Exness-MT5Trial9' | 'Exness-MT5Trial10'
   mt5_password?: string
 }) =>
   apiFetch<{ message: string; request: AccountRecoveryRequestItem }>(`/account-recovery/admin/${requestId}/review`, {

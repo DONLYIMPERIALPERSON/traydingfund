@@ -5,6 +5,8 @@ import { buildObjectiveFields } from '../ctrader/ctrader.objectives'
 import { normalizeAccountSize, resolveChallengeCurrency } from '../ctrader/ctrader.assignment'
 import { pushActiveAccountAdd } from '../../services/ctraderEngine.service'
 
+const ALLOWED_MT5_SERVERS = ['Exness-MT5Trial9', 'Exness-MT5Trial10'] as const
+
 type AuthRequest = Request & { user?: { id: number; email: string } }
 
 const ensureUser = (req: AuthRequest) => {
@@ -207,8 +209,11 @@ export const reviewRecoveryRequest = async (req: Request, res: Response, next: N
     if (!['ctrader', 'mt5'].includes(resolvedPlatform)) {
       throw new ApiError('platform must be ctrader or mt5', 400)
     }
-    if (resolvedPlatform === 'mt5' && (!mt5_server?.trim() || !mt5_password?.trim())) {
-      throw new ApiError('MT5 server and password are required before approval', 400)
+    if (resolvedPlatform === 'mt5' && !mt5_password?.trim()) {
+      throw new ApiError('MT5 password is required before approval', 400)
+    }
+    if (resolvedPlatform === 'mt5' && !ALLOWED_MT5_SERVERS.includes(String(mt5_server ?? '') as (typeof ALLOWED_MT5_SERVERS)[number])) {
+      throw new ApiError('mt5_server must be Exness-MT5Trial9 or Exness-MT5Trial10', 400)
     }
 
     const duplicateAccount = await prisma.cTraderAccount.findFirst({
@@ -242,10 +247,12 @@ export const reviewRecoveryRequest = async (req: Request, res: Response, next: N
         challengeType: normalizedChallengeType,
         status: 'active',
         accessStatus: 'granted',
-        brokerName: broker_name?.trim() || existingRequest.brokerName?.trim() || (resolvedPlatform === 'mt5' ? (mt5_server?.trim() || 'Recovered MT5 Account') : 'Recovered cTrader Account'),
+        brokerName: resolvedPlatform === 'mt5'
+          ? String(mt5_server)
+          : (broker_name?.trim() || existingRequest.brokerName?.trim() || 'Recovered cTrader Account'),
         accountNumber: existingRequest.accountNumber.trim(),
-        mt5Login: resolvedPlatform === 'mt5' ? (mt5_login?.trim() || existingRequest.mt5Login?.trim() || existingRequest.accountNumber.trim()) : null,
-        mt5Server: resolvedPlatform === 'mt5' ? mt5_server?.trim() || null : null,
+        mt5Login: resolvedPlatform === 'mt5' ? existingRequest.accountNumber.trim() : null,
+        mt5Server: resolvedPlatform === 'mt5' ? String(mt5_server) : null,
         mt5Password: resolvedPlatform === 'mt5' ? mt5_password?.trim() || null : null,
         userId: existingRequest.userId,
         assignedAt: new Date(),
@@ -274,9 +281,9 @@ export const reviewRecoveryRequest = async (req: Request, res: Response, next: N
         reviewedAt: new Date(),
         reviewedBy: admin?.email ?? 'admin',
         platform: resolvedPlatform,
-        brokerName: broker_name?.trim() || existingRequest.brokerName,
-        mt5Login: resolvedPlatform === 'mt5' ? (mt5_login?.trim() || existingRequest.mt5Login || existingRequest.accountNumber.trim()) : null,
-        mt5Server: resolvedPlatform === 'mt5' ? mt5_server?.trim() || null : null,
+        brokerName: resolvedPlatform === 'mt5' ? String(mt5_server) : (broker_name?.trim() || existingRequest.brokerName),
+        mt5Login: resolvedPlatform === 'mt5' ? existingRequest.accountNumber.trim() : null,
+        mt5Server: resolvedPlatform === 'mt5' ? String(mt5_server) : null,
         mt5Password: resolvedPlatform === 'mt5' ? mt5_password?.trim() || null : null,
         recoveredAccountId: createdAccount.id,
       },

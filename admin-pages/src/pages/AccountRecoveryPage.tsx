@@ -10,8 +10,7 @@ const AccountRecoveryPage = () => {
   const [reasons, setReasons] = useState<Record<number, string>>({})
   const [platforms, setPlatforms] = useState<Record<number, 'ctrader' | 'mt5'>>({})
   const [brokers, setBrokers] = useState<Record<number, string>>({})
-  const [mt5Logins, setMt5Logins] = useState<Record<number, string>>({})
-  const [mt5Servers, setMt5Servers] = useState<Record<number, string>>({})
+  const [mt5Servers, setMt5Servers] = useState<Record<number, 'Exness-MT5Trial9' | 'Exness-MT5Trial10'>>({})
   const [mt5Passwords, setMt5Passwords] = useState<Record<number, string>>({})
   const [actioningId, setActioningId] = useState<number | null>(null)
 
@@ -44,8 +43,7 @@ const AccountRecoveryPage = () => {
         decline_reason: action === 'decline' ? (reasons[requestId] || 'Declined by admin') : undefined,
         platform: action === 'approve' ? (platforms[requestId] || 'ctrader') : undefined,
         broker_name: action === 'approve' ? (brokers[requestId] || undefined) : undefined,
-        mt5_login: action === 'approve' ? (mt5Logins[requestId] || undefined) : undefined,
-        mt5_server: action === 'approve' ? (mt5Servers[requestId] || undefined) : undefined,
+        mt5_server: action === 'approve' ? (mt5Servers[requestId] || 'Exness-MT5Trial9') : undefined,
         mt5_password: action === 'approve' ? (mt5Passwords[requestId] || undefined) : undefined,
       })
       await load()
@@ -130,18 +128,17 @@ const AccountRecoveryPage = () => {
                       />
                       {(platforms[request.id] ?? 'ctrader') === 'mt5' && (
                         <>
-                          <input
+                          <div style={{ fontSize: 12, color: '#6b7280' }}>
+                            MT5 login will use the submitted account number: <strong>{request.account_number}</strong>
+                          </div>
+                          <select
                             className="kyc-review-input"
-                            placeholder="MT5 login"
-                            value={mt5Logins[request.id] ?? ''}
-                            onChange={(e) => setMt5Logins((prev) => ({ ...prev, [request.id]: e.target.value }))}
-                          />
-                          <input
-                            className="kyc-review-input"
-                            placeholder="MT5 server"
-                            value={mt5Servers[request.id] ?? ''}
-                            onChange={(e) => setMt5Servers((prev) => ({ ...prev, [request.id]: e.target.value }))}
-                          />
+                            value={mt5Servers[request.id] ?? 'Exness-MT5Trial9'}
+                            onChange={(e) => setMt5Servers((prev) => ({ ...prev, [request.id]: e.target.value as 'Exness-MT5Trial9' | 'Exness-MT5Trial10' }))}
+                          >
+                            <option value="Exness-MT5Trial9">Exness-MT5Trial9</option>
+                            <option value="Exness-MT5Trial10">Exness-MT5Trial10</option>
+                          </select>
                           <input
                             className="kyc-review-input"
                             placeholder="MT5 password"
