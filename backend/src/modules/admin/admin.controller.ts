@@ -56,7 +56,9 @@ export const listAdminUsers = async (_req: Request, res: Response, next: NextFun
       orderBy: { createdAt: 'desc' },
       include: {
         cTraderAccounts: true,
-        orders: true,
+        orders: {
+          where: { status: 'completed' },
+        },
         payouts: { include: { account: true } },
       },
     })
