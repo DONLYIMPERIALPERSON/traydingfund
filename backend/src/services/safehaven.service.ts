@@ -95,12 +95,29 @@ const requestAccessToken = async () => {
     body: body.toString(),
   })
 
+  const rawText = await response.text()
+
+  console.log('SAFEHAVEN TOKEN STATUS:', response.status)
+  console.log('SAFEHAVEN TOKEN HEADERS:', Object.fromEntries(response.headers.entries()))
+  console.log('SAFEHAVEN TOKEN RAW DATA:', rawText)
+
   if (!response.ok) {
-    const text = await response.text()
-    throw new Error(`SafeHaven token request failed: ${text}`)
+    throw new Error(`SafeHaven token request failed: ${rawText}`)
   }
 
-  return (await response.json()) as SafeHavenTokenResponse
+  try {
+    console.log('BEFORE TOKEN PARSE:', rawText)
+
+    const parsed = JSON.parse(rawText) as SafeHavenTokenResponse
+
+    console.log('PARSED TOKEN RESPONSE:', parsed)
+
+    return parsed
+  } catch (err) {
+    console.error('SAFEHAVEN TOKEN PARSE ERROR:', err)
+    console.error('RAW TOKEN RESPONSE WAS:', rawText)
+    throw err
+  }
 }
 
 const makeAuthenticatedRequest = async <T>(path: string, init: RequestInit = {}) => {
@@ -115,12 +132,29 @@ const makeAuthenticatedRequest = async <T>(path: string, init: RequestInit = {})
     },
   })
 
+  const rawText = await response.text()
+
+  console.log('SAFEHAVEN STATUS:', response.status)
+  console.log('SAFEHAVEN HEADERS:', Object.fromEntries(response.headers.entries()))
+  console.log('SAFEHAVEN RAW DATA:', rawText)
+
   if (!response.ok) {
-    const text = await response.text()
-    throw new Error(`SafeHaven request failed: ${text}`)
+    throw new Error(`SafeHaven request failed: ${rawText}`)
   }
 
-  return (await response.json()) as T
+  try {
+    console.log('BEFORE PARSE:', rawText)
+
+    const parsed = JSON.parse(rawText) as T
+
+    console.log('PARSED SAFEHAVEN RESPONSE:', parsed)
+
+    return parsed
+  } catch (err) {
+    console.error('SAFEHAVEN PARSE ERROR:', err)
+    console.error('RAW RESPONSE WAS:', rawText)
+    throw err
+  }
 }
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
