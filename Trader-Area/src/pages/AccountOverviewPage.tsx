@@ -4,7 +4,7 @@ import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
 import ServiceUnavailableState from '../components/ServiceUnavailableState'
-import { fetchUserChallengeAccountDetail, type UserChallengeAccountDetailResponse } from '../lib/traderAuth'
+import { fetchUserChallengeAccountDetail, refreshChallengeAccount, type UserChallengeAccountDetailResponse } from '../lib/traderAuth'
 import '../styles/DesktopAccountOverviewPage.css'
 
 const AccountOverviewPage: React.FC = () => {
@@ -13,6 +13,7 @@ const AccountOverviewPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showBreachModal, setShowBreachModal] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   const resolveCurrencyCode = (account: UserChallengeAccountDetailResponse) => {
     const currency = account.currency
@@ -83,6 +84,23 @@ const AccountOverviewPage: React.FC = () => {
 
   const challengeId = searchParams.get('challenge_id')
 
+  const isActiveAccount = (status?: string | null) => {
+    const normalized = String(status ?? '').toLowerCase()
+    return normalized === 'active'
+      || normalized === 'assigned'
+      || normalized === 'funded'
+      || normalized === 'assigned_pending_access'
+      || normalized === 'awaiting_reset'
+      || normalized === 'admin_checking'
+  }
+
+  const isOlderThanThirtyMinutes = (timestamp?: string | null) => {
+    if (!timestamp) return true
+    const parsed = new Date(timestamp)
+    if (Number.isNaN(parsed.getTime())) return true
+    return (Date.now() - parsed.getTime()) > (30 * 60 * 1000)
+  }
+
   const loadAccountData = useCallback(async () => {
     if (!challengeId) return
 
@@ -94,6 +112,24 @@ const AccountOverviewPage: React.FC = () => {
       setError('service_unavailable')
     }
   }, [challengeId])
+
+  const handleForceRefresh = useCallback(async () => {
+    if (!challengeId || isRefreshing) return
+
+    try {
+      setIsRefreshing(true)
+      const response = await refreshChallengeAccount(challengeId)
+      setAccountData((current) => current ? {
+        ...current,
+        last_refresh_requested_at: response.requested_at ?? new Date().toISOString(),
+      } : current)
+      await loadAccountData()
+    } catch (err) {
+      console.error('Failed to refresh account metrics', err)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }, [challengeId, isRefreshing, loadAccountData])
 
   useEffect(() => {
     if (!challengeId) {
@@ -168,7 +204,9 @@ const AccountOverviewPage: React.FC = () => {
   const isFraudBreach = normalizedBreachReason.includes('fraud')
   const accountCurrency = resolveCurrencyCode(accountData)
   const pendingWithdrawalAmount = accountData.pending_withdrawal_amount ?? 0
-  const lastUpdatedLabel = formatRelativeUpdate(accountData.last_feed_at ?? accountData.last_refresh_requested_at)
+  const latestUpdateTimestamp = accountData.last_feed_at ?? accountData.last_refresh_requested_at
+  const lastUpdatedLabel = formatRelativeUpdate(latestUpdateTimestamp)
+  const showForceRefreshButton = isActiveAccount(accountData.objective_status) && isOlderThanThirtyMinutes(latestUpdateTimestamp)
   return (
     <div className="account-overview-page">
       <DesktopHeader />
@@ -215,7 +253,20 @@ const AccountOverviewPage: React.FC = () => {
         <div className="balance-overview-section">
           <div className="balance-overview-header">
             <span className="balance-overview-title">Balance Overview</span>
-            <span className="connection-status">Last updated: {lastUpdatedLabel}</span>
+            <div className="connection-status-wrap">
+              {showForceRefreshButton ? (
+                <button
+                  type="button"
+                  className={`connection-status refresh-action${isRefreshing ? ' refreshing' : ''}`}
+                  onClick={() => void handleForceRefresh()}
+                  disabled={isRefreshing}
+                >
+                  {isRefreshing ? 'Updating...' : 'Refresh'}
+                </button>
+              ) : (
+                <span className="connection-status">Last updated: {lastUpdatedLabel}</span>
+              )}
+            </div>
           </div>
           {hasPendingWithdrawal ? (
             <div className="pending-withdrawal-warning">

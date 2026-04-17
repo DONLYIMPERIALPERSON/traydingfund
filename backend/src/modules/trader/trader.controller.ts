@@ -12,6 +12,7 @@ import { listUserCertificates } from '../../services/certificate.service'
 import { requestAccountAccess } from '../../services/accessEngine.service'
 import { buildCacheKey, getCached, setCached, clearCacheByPrefix } from '../../common/cache'
 import { recordCredentialView } from '../../services/emailLog.service'
+import { pushActiveAccountAdd } from '../../services/ctraderEngine.service'
 
 type AuthRequest = Request & { user?: { id: number; email: string } }
 
@@ -607,6 +608,18 @@ export const requestChallengeRefresh = async (req: AuthRequest, res: Response, n
       where: { id: account.id },
       data: { lastRefreshRequestedAt: now } as unknown as Record<string, unknown>,
     })
+
+    try {
+      await pushActiveAccountAdd({
+        accountNumber: account.accountNumber,
+        phase: account.phase,
+        status: account.status,
+        challengeType: account.challengeType,
+      })
+    } catch (error) {
+      console.error('Failed to push active account for trader refresh', error)
+    }
+
     try {
       await requestAccountAccess({
         user_email: user.email,

@@ -540,9 +540,10 @@ export async function fetchTradingObjectives(): Promise<TradingObjectivesRespons
   return apiFetch<TradingObjectivesResponse>('/trading-objectives')
 }
 
-export async function refreshChallengeAccount(): Promise<{ status: string }> {
+export async function refreshChallengeAccount(challengeId: string): Promise<{ status: string; requested_at?: string }> {
   return apiFetch<{ status: string; requested_at?: string }>('/trader/challenges/refresh', {
     method: 'POST',
+    body: JSON.stringify({ challenge_id: challengeId }),
   })
 }
 

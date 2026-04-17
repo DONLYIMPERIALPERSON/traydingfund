@@ -318,6 +318,31 @@
   font-weight: 500;
 }
 
+.connection-status-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.refresh-action {
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.refresh-action:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.refresh-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.refresh-action.refreshing {
+  background-color: #1f2937;
+}
+
 .balance-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
