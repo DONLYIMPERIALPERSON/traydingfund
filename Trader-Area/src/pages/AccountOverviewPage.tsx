@@ -90,7 +90,6 @@ const AccountOverviewPage: React.FC = () => {
       || normalized === 'assigned'
       || normalized === 'funded'
       || normalized === 'assigned_pending_access'
-      || normalized === 'awaiting_reset'
       || normalized === 'admin_checking'
   }
 
