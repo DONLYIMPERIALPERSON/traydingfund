@@ -95,9 +95,9 @@ const AccountOverviewPage: React.FC = () => {
   }
 
   const isOlderThanThirtyMinutes = (timestamp?: string | null) => {
-    if (!timestamp) return true
+    if (!timestamp) return false
     const parsed = new Date(timestamp)
-    if (Number.isNaN(parsed.getTime())) return true
+    if (Number.isNaN(parsed.getTime())) return false
     return (Date.now() - parsed.getTime()) > (30 * 60 * 1000)
   }
 
@@ -206,7 +206,8 @@ const AccountOverviewPage: React.FC = () => {
   const pendingWithdrawalAmount = accountData.pending_withdrawal_amount ?? 0
   const latestUpdateTimestamp = accountData.last_feed_at ?? accountData.last_refresh_requested_at
   const lastUpdatedLabel = formatRelativeUpdate(latestUpdateTimestamp)
-  const showForceRefreshButton = isActiveAccount(accountData.objective_status) && isOlderThanThirtyMinutes(latestUpdateTimestamp)
+  const showForceRefreshButton = isActiveAccount(accountData.objective_status)
+    && isOlderThanThirtyMinutes(accountData.last_feed_at)
   return (
     <div className="account-overview-page">
       <DesktopHeader />

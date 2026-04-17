@@ -9,7 +9,6 @@ import {
   generatePassedChallengeCertificateTest,
 } from '../../services/rewardCertificate.service'
 import { listUserCertificates } from '../../services/certificate.service'
-import { requestAccountAccess } from '../../services/accessEngine.service'
 import { buildCacheKey, getCached, setCached, clearCacheByPrefix } from '../../common/cache'
 import { recordCredentialView } from '../../services/emailLog.service'
 import { pushActiveAccountAdd } from '../../services/ctraderEngine.service'
@@ -618,24 +617,6 @@ export const requestChallengeRefresh = async (req: AuthRequest, res: Response, n
       })
     } catch (error) {
       console.error('Failed to push active account for trader refresh', error)
-    }
-
-    try {
-      await requestAccountAccess({
-        user_email: user.email,
-        account_number: account.accountNumber,
-        broker: account.brokerName,
-        platform: account.platform ?? 'ctrader',
-        ...(account.user?.fullName ? { user_name: account.user.fullName } : {}),
-        ...(account.challengeType ? { account_type: account.challengeType } : {}),
-        ...(account.phase ? { account_phase: account.phase } : {}),
-        ...(account.accountSize ? { account_size: account.accountSize } : {}),
-        ...(account.mt5Login ? { mt5_login: account.mt5Login } : {}),
-        ...(account.mt5Server ? { mt5_server: account.mt5Server } : {}),
-        ...(account.mt5Password ? { mt5_password: account.mt5Password } : {}),
-      })
-    } catch (error) {
-      console.error('Failed to request account refresh', error)
     }
 
     res.json({ status: 'refresh_requested', requested_at: now.toISOString() })
