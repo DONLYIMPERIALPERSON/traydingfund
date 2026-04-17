@@ -5,76 +5,42 @@ import dotenv from 'dotenv'
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses'
 import { buildEmailTemplate } from '../src/services/emailTemplate'
 
-const SUBJECT = 'See How Plenty Plenty Nigerians Dey Join Us'
+const SUBJECT = '₦1,500 for a ₦200,000 Challenge — Limited Access'
 
 const HTML_BODY = buildEmailTemplate({
-  title: 'See How Plenty Plenty Nigerians Dey Join Us',
-  subtitle: 'More Nigerian traders are choosing MACHEFUNDED every day.',
+  title: '₦1,500 for a ₦200,000 Challenge — Limited Access',
+  subtitle: 'A simple and powerful way for Nigerian traders to get started.',
   content: `
-    <p>Hey Trader,</p>
+    <p>Hello Trader,</p>
 
     <p>
-      See how plenty plenty Nigerian traders dey join us every day! 🇳🇬
+      In trading, one principle always stands out — quality over everything.
     </p>
     <p>
-      Over the past few weeks, something powerful has been happening…
+      At Machefunded, we’ve built our systems around speed, reliability, and a seamless experience. From automated next-phase upgrades immediately after passing, to fast and responsive support, everything is designed to keep you focused on what truly matters — trading.
     </p>
     <p>
-      More traders across Nigeria are discovering a better way to get funded — and they’re choosing MACHEFUNDED.
+      This week alone, we paid out over $17,000 to Nigerian traders, reinforcing our commitment to consistency and trust.
     </p>
     <p>
-      From beginners testing their first strategy…<br/>
-      To experienced traders scaling aggressively…<br/>
-      The traction we’re seeing right now is massive.
-    </p>
-
-    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 20px 0;" />
-
-    <p>
-      And it’s not just talk 👇
-    </p>
-    <ul>
-      <li>✅ We processed payouts for over 300 Nigerian traders in just 1 week</li>
-      <li>✅ Fast executions, smooth dashboard, reliable systems</li>
-      <li>✅ No unnecessary stress — just trade, pass, and get paid</li>
-    </ul>
-
-    <p>
-      Now here’s where it gets interesting 👇🔥
+      If you’re looking to get started or scale faster, now is the time. Our Attic Program gives Nigerian traders access to a ₦200,000 account for just ₦1,500 — a simple and powerful way to begin your journey with us.
     </p>
     <p>
-      We’re dropping MULTIPLE DISCOUNTS so everyone can get in:
-    </p>
-    <ul>
-      <li>🎁 FREE N200,000 ACCOUNTS (5 slots only) — Use code: <strong>MACHEFREE</strong></li>
-      <li>🔥 80% OFF (ONLY 5 PEOPLE) — First come, first served</li>
-      <li>⚡ 50% OFF — code: <strong>NAIJA50</strong> (ONLY 50 PEOPLE)</li>
-      <li>⚡ 30% OFF — code: <strong>NAIJA30</strong> (ONLY 30 PEOPLE)</li>
-      <li>⚡ 20% OFF — code: <strong>NAIJA20</strong> - VALID till 13/04/2026</li>
-    </ul>
-
-    <p>
-      This is your chance to enter at the level you want — whether FREE or heavily discounted.
+      Explore the opportunity here: <a href="https://www.machefunded.com/attic-program">https://www.machefunded.com/attic-program</a>
     </p>
     <p>
-      👉 Get started now: <a href="https://machefunded.com">https://machefunded.com</a>
-    </p>
-
-    <p>
-      Don’t wait… once these slots are gone, they’re gone.
+      You can also join our growing community of traders on Discord to stay updated, connect, and learn:<br/>
+      <a href="https://discord.gg/SXuDQc7g2">https://discord.gg/SXuDQc7g2</a>
     </p>
     <p>
-      Momentum is building fast — get in early and secure your spot.
+      Trade with speed. Trade with confidence. Choose quality.
     </p>
     <p>
-      Let’s get you funded.
-    </p>
-    <p>
-      — Team MACHEFUNDED
+      Machefunded Team
     </p>
   `,
-  buttonText: 'Visit MacheFunded',
-  buttonLink: 'https://machefunded.com',
+  buttonText: 'Explore Attic Program',
+  buttonLink: 'https://www.machefunded.com/attic-program',
   infoBox: 'If you no longer want to receive emails, reply with "unsubscribe".',
 })
 
