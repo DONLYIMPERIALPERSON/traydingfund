@@ -70,7 +70,7 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
   const [otpCooldown, setOtpCooldown] = useState<number>(0)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const appBaseUrl = import.meta.env.VITE_APP_BASE_URL || 'https://trader.machfunded.com'
+  const appBaseUrl = import.meta.env.VITE_APP_BASE_URL || window.location.origin
 
   const otpLocked = otpAttemptsLeft <= 0
   const otpResendDisabled = loading || otpCooldown > 0
