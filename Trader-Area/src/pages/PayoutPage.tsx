@@ -77,15 +77,16 @@ const PayoutPage: React.FC = () => {
   const resolveStatusLabel = (status: string) => {
     if (status === 'pending_approval') return 'Pending approval'
     if (status === 'processing') return 'Processing'
-    if (status === 'failed') return 'Pending approval'
+    if (status === 'failed' || status === 'declined') return 'Declined'
     if (status === 'completed') return 'Completed'
     return normalizeStatus(status)
   }
 
   const resolveStatusClass = (status: string) => {
-    if (status === 'pending_approval' || status === 'failed') return 'pending'
+    if (status === 'pending_approval') return 'pending'
     if (status === 'processing') return 'processing'
     if (status === 'completed') return 'completed'
+    if (status === 'failed' || status === 'declined') return 'declined'
     return 'pending'
   }
 
@@ -413,6 +414,11 @@ const PayoutPage: React.FC = () => {
                               )}
                               {withdrawal.reference && (
                                 <div className="history-reference">Ref: {withdrawal.reference}</div>
+                              )}
+                              {withdrawal.decline_reason && (
+                                <div className="history-reference" style={{ color: '#b91c1c' }}>
+                                  Reason: {withdrawal.decline_reason}
+                                </div>
                               )}
                             </div>
                           </div>

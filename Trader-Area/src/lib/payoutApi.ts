@@ -23,6 +23,7 @@ export interface WithdrawalHistory {
   requested_at: string
   completed_at: string | null
   reference: string
+  decline_reason?: string | null
   mt5_account_number?: string | null
 }
 

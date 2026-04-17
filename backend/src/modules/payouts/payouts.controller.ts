@@ -339,6 +339,7 @@ export const getPayoutSummary = async (req: AuthRequest, res: Response, next: Ne
         requestedAt: true,
         completedAt: true,
         reference: true,
+        rejectionReason: true,
         account: {
           select: {
             accountNumber: true,
@@ -365,6 +366,7 @@ export const getPayoutSummary = async (req: AuthRequest, res: Response, next: Ne
         requested_at: withdrawal.requestedAt.toISOString(),
         completed_at: withdrawal.completedAt?.toISOString() ?? null,
         reference: withdrawal.reference,
+        decline_reason: withdrawal.rejectionReason ?? null,
         mt5_account_number: withdrawal.account?.accountNumber ?? null,
       })),
       eligibility: {
@@ -670,7 +672,10 @@ export const approvePayoutRequest = async (req: AuthRequest, res: Response, next
       throw new ApiError('Payout ID is required', 400)
     }
 
-    const payout = await prisma.payout.findUnique({ where: { id: payoutId } })
+    const payout = await prisma.payout.findUnique({
+      where: { id: payoutId },
+      include: { account: true },
+    })
     if (!payout) {
       throw new ApiError('Payout not found', 404)
     }
@@ -780,7 +785,10 @@ export const rejectPayoutRequest = async (req: AuthRequest, res: Response, next:
       throw new ApiError('Payout ID is required', 400)
     }
 
-    const payout = await prisma.payout.findUnique({ where: { id: payoutId } })
+    const payout = await prisma.payout.findUnique({
+      where: { id: payoutId },
+      include: { account: true },
+    })
     if (!payout) {
       throw new ApiError('Payout not found', 404)
     }
@@ -793,7 +801,7 @@ export const rejectPayoutRequest = async (req: AuthRequest, res: Response, next:
       const payoutUpdate = await tx.payout.update({
         where: { id: payout.id },
         data: {
-          status: 'failed',
+          status: 'declined',
           rejectedAt: new Date(),
           rejectedBy: req.user?.email ?? 'admin',
           rejectionReason: reason ?? 'Rejected by admin',
@@ -807,6 +815,23 @@ export const rejectPayoutRequest = async (req: AuthRequest, res: Response, next:
       }
       return payoutUpdate
     })
+
+    try {
+      const user = await prisma.user.findUnique({ where: { id: updated.userId } })
+      if (user?.email) {
+        await sendUnifiedEmail({
+          to: user.email,
+          subject: '❌ Withdrawal Declined',
+          title: 'Withdrawal Declined',
+          subtitle: 'Your payout request was not approved',
+          content: 'Your withdrawal request was declined by the admin team. Please review the reason below and contact support if you need help.',
+          buttonText: 'View Dashboard',
+          infoBox: `Amount: ${formatMoney(updated.amountKobo / 100, payout.account?.currency ?? null)}<br>Status: Declined<br>Reason: ${updated.rejectionReason ?? 'Rejected by admin'}<br>Reference: ${updated.providerRef ?? updated.id}`,
+        })
+      }
+    } catch (error) {
+      console.error('Failed to send payout rejection email', error)
+    }
 
     res.json({
       id: updated.id,
