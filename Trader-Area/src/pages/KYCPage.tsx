@@ -4,11 +4,11 @@ import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
 import '../styles/DesktopKYCPage.css'
 import {
+  createKycUploadUrl,
   fetchKycEligibility,
   fetchKycHistory,
   fetchProfile,
   persistAuthUser,
-  uploadKycDocument,
   submitKyc,
   type KycRequestItem,
 } from '../lib/traderAuth'
@@ -103,23 +103,26 @@ const KYCPage: React.FC = () => {
   }
 
   const uploadToR2 = async (file: File, documentSide: 'front' | 'back') => {
-    const fileBase64 = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        const result = reader.result?.toString() ?? ''
-        const base64 = result.includes('base64,') ? result.split('base64,')[1] : result
-        resolve(base64)
-      }
-      reader.onerror = () => reject(new Error('Failed to read file.'))
-      reader.readAsDataURL(file)
-    })
-
-    const uploadMeta = await uploadKycDocument({
+    const uploadMeta = await createKycUploadUrl({
       filename: file.name,
       content_type: file.type,
       document_side: documentSide,
-      file_base64: fileBase64,
     })
+
+    const uploadResponse = await fetch(uploadMeta.upload_url, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': file.type,
+      },
+      body: file,
+    })
+
+    if (!uploadResponse.ok) {
+      if (uploadResponse.status === 413) {
+        throw new Error('Upload failed: file too large. Please reduce the file size and try again.')
+      }
+      throw new Error('Upload failed. Please check your connection and try again.')
+    }
 
     if (!uploadMeta.public_url) {
       throw new Error('Upload completed, but public URL is missing.')
