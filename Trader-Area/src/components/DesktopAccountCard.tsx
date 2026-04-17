@@ -98,10 +98,16 @@ const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType
   return (
     <div
       style={{
-        background: 'linear-gradient(135deg, #0b9fb8 0%, #006d80 100%)',
+        backgroundColor: '#04191f',
+        backgroundImage: [
+          'radial-gradient(900px 440px at 50% 4%, rgba(17, 124, 145, 0.34), transparent 64%)',
+          'radial-gradient(600px 320px at 100% 72%, rgba(10, 149, 173, 0.22), transparent 70%)',
+          'radial-gradient(560px 280px at 0% 30%, rgba(5, 109, 128, 0.18), transparent 72%)',
+          'linear-gradient(180deg, #0a2a33 0%, #062028 38%, #04191f 100%)'
+        ].join(', '),
         borderRadius: '12px',
         padding: '20px',
-        boxShadow: '0 10px 24px rgba(0, 110, 128, 0.35)',
+        boxShadow: '0 14px 30px rgba(4, 25, 31, 0.35)',
         border: '1px solid rgba(255,255,255,0.2)',
         cursor: 'pointer',
         transition: 'all 0.2s ease',
