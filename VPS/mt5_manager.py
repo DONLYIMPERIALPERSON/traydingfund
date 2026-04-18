@@ -33,6 +33,7 @@ COMMON_FILES_DIR = os.path.join(
     "Common",
     "Files",
 )
+round_robin_cursor = 0
 
 
 def load_accounts() -> List[Dict[str, str]]:
@@ -221,6 +222,18 @@ def get_due_accounts(
     return due_accounts
 
 
+def rotate_due_accounts(due_accounts: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    global round_robin_cursor
+    if not due_accounts:
+        round_robin_cursor = 0
+        return due_accounts
+
+    round_robin_cursor = round_robin_cursor % len(due_accounts)
+    rotated = due_accounts[round_robin_cursor:] + due_accounts[:round_robin_cursor]
+    round_robin_cursor = (round_robin_cursor + 1) % len(due_accounts)
+    return rotated
+
+
 def send_metrics_from_file(account_number: str, account_meta: Dict[str, str] | None = None) -> None:
     filename = f"metrics_{account_number}.json"
     file_path = os.path.join(COMMON_FILES_DIR, filename)
@@ -327,6 +340,7 @@ def run_loop() -> None:
                 if job.get("account") is not None
             }
             due_accounts = get_due_accounts(accounts, last_processed_at, active_account_numbers)
+            due_accounts = rotate_due_accounts(due_accounts)
 
             for mt5_path in MT5_TERMINALS:
                 if mt5_path in active_jobs:
