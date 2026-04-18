@@ -41,6 +41,23 @@ export type ChallengeAccountListItem = {
   current_pnl?: string | null
   profit?: string | null
   win_rate?: string | null
+  created_at?: string | null
+  passed_at?: string | null
+  breached_at?: string | null
+}
+
+export type AtticAccountsSummary = {
+  period: string
+  total: number
+  active: number
+  passed: number
+  breached: number
+}
+
+export type AtticAccountsResponse = {
+  summary: AtticAccountsSummary
+  accounts: ChallengeAccountListItem[]
+  pagination: { page: number; limit: number; total: number; pages: number }
 }
 
 export type AdminLookupAccount = {
@@ -497,6 +514,20 @@ export const fetchActiveChallengeAccounts = async (platform?: string) =>
   apiFetch<{ accounts: ChallengeAccountListItem[] }>(
     platform ? `/admin/challenges/active?platform=${encodeURIComponent(platform)}` : '/admin/challenges/active'
   )
+
+export const fetchAtticChallengeAccounts = async (
+  page: number = 1,
+  limit: number = 10,
+  period: 'today' | 'week' | 'month' = 'today',
+  search?: string,
+) => {
+  const params = new URLSearchParams()
+  params.set('page', String(page))
+  params.set('limit', String(limit))
+  params.set('period', period)
+  if (search?.trim()) params.set('search', search.trim())
+  return apiFetch<AtticAccountsResponse>(`/admin/challenges/attic?${params.toString()}`)
+}
 
 export const adminResetAccount = async (payload: { account_id?: number; account_number?: string }) =>
   apiFetch<AdminResetAccountResponse>('/admin/ctrader/accounts/reset', {

@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { getAdminMe, getDashboardStats, listActiveChallengeAccounts, listAdminUsers, listBreachedChallengeAccounts, listFundedChallengeAccounts, listTopFundedTraders, lookupChallengeAccount } from './admin.controller'
+import { getAdminMe, getDashboardStats, listActiveChallengeAccounts, listAdminUsers, listAtticChallengeAccounts, listBreachedChallengeAccounts, listFundedChallengeAccounts, listTopFundedTraders, lookupChallengeAccount } from './admin.controller'
 import { approveCryptoOrder, declineCryptoOrder, getOrderStats, listOrders, listPendingAssignments, retryPendingAssignments } from './admin.orders.controller'
 import { authenticate, requireRole } from '../../common/auth'
 import { createAllowlistEntry, deleteAllowlistEntry, listAllowlist, updateAllowlistEntry } from './admin.allowlist.controller'
@@ -20,6 +20,7 @@ adminRouter.get('/me', authenticate, requireRole(['admin', 'super_admin']), getA
 adminRouter.get('/dashboard', authenticate, requireRole(['admin', 'super_admin']), getDashboardStats)
 adminRouter.get('/users', authenticate, requireRole(['admin', 'super_admin']), listAdminUsers)
 adminRouter.get('/challenges/active', authenticate, requireRole(['admin', 'super_admin']), listActiveChallengeAccounts)
+adminRouter.get('/challenges/attic', authenticate, requireRole(['admin', 'super_admin']), listAtticChallengeAccounts)
 adminRouter.get('/challenges/lookup', authenticate, requireRole(['admin', 'super_admin']), lookupChallengeAccount)
 adminRouter.get('/challenges/funded', authenticate, requireRole(['admin', 'super_admin']), listFundedChallengeAccounts)
 adminRouter.get('/challenges/funded/top', authenticate, requireRole(['admin', 'super_admin']), listTopFundedTraders)

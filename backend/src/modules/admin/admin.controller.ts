@@ -168,6 +168,117 @@ export const listActiveChallengeAccounts = async (_req: Request, res: Response, 
   }
 }
 
+const resolvePeriodStart = (period?: string) => {
+  const now = new Date()
+  if (period === 'today') {
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  }
+  if (period === 'week') {
+    const day = now.getDay()
+    const mondayOffset = day === 0 ? -6 : 1 - day
+    const startOfWeek = new Date(now)
+    startOfWeek.setDate(now.getDate() + mondayOffset)
+    startOfWeek.setHours(0, 0, 0, 0)
+    return startOfWeek
+  }
+  if (period === 'month') {
+    return new Date(now.getFullYear(), now.getMonth(), 1)
+  }
+  return null
+}
+
+const resolveAtticStatusTimestamp = (account: {
+  status: string
+  createdAt: Date
+  updatedAt: Date
+  passedAt: Date | null
+  breachedAt: Date | null
+}) => {
+  const status = String(account.status ?? '').toLowerCase()
+  if (status === 'breached') return account.breachedAt ?? account.updatedAt
+  if (['passed', 'funded', 'completed'].includes(status)) return account.passedAt ?? account.updatedAt
+  return account.createdAt
+}
+
+export const listAtticChallengeAccounts = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const period = String(req.query.period ?? 'today').toLowerCase()
+    const page = Math.max(1, Number(req.query.page ?? 1) || 1)
+    const limit = Math.max(1, Math.min(100, Number(req.query.limit ?? 10) || 10))
+    const search = String(req.query.search ?? '').trim().toLowerCase()
+    const startDate = resolvePeriodStart(period)
+
+    const accounts = await prisma.cTraderAccount.findMany({
+      where: { challengeType: { equals: 'attic', mode: 'insensitive' } },
+      orderBy: { createdAt: 'desc' },
+      include: { user: true, metrics: true },
+    })
+
+    const filtered = accounts.filter((account) => {
+      const statusDate = resolveAtticStatusTimestamp(account)
+      if (startDate && statusDate < startDate) {
+        return false
+      }
+      if (!search) return true
+      const email = String(account.user?.email ?? '').toLowerCase()
+      const name = String(account.user?.fullName ?? '').toLowerCase()
+      const accountNumber = String(account.accountNumber ?? '').toLowerCase()
+      const challengeId = String(account.challengeId ?? '').toLowerCase()
+      return email.includes(search) || name.includes(search) || accountNumber.includes(search) || challengeId.includes(search)
+    })
+
+    const summary = filtered.reduce(
+      (acc, account) => {
+        const status = String(account.status ?? '').toLowerCase()
+        if (status === 'breached') acc.breached += 1
+        else if (['passed', 'funded', 'completed'].includes(status)) acc.passed += 1
+        else acc.active += 1
+        return acc
+      },
+      { active: 0, passed: 0, breached: 0 }
+    )
+
+    const total = filtered.length
+    const pages = Math.max(1, Math.ceil(total / limit))
+    const startIndex = (page - 1) * limit
+    const paginated = filtered.slice(startIndex, startIndex + limit)
+
+    res.json({
+      summary: {
+        period,
+        total,
+        active: summary.active,
+        passed: summary.passed,
+        breached: summary.breached,
+      },
+      accounts: paginated.map((account) => {
+        const pnl = (account.metrics?.equity ?? account.metrics?.balance ?? 0) - (account.initialBalance ?? 0)
+        return {
+          id: account.id,
+          challenge_id: account.challengeId,
+          user_id: account.userId,
+          trader_name: account.user?.fullName ?? null,
+          trader_email: account.user?.email ?? null,
+          account_size: account.accountSize,
+          currency: account.currency ?? null,
+          phase: mapAccountPhaseLabel(account.phase),
+          mt5_account: account.accountNumber,
+          mt5_server: account.brokerName,
+          platform: account.platform ?? 'ctrader',
+          objective_status: account.status,
+          current_pnl: pnl ? `${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toLocaleString('en-US')}` : '+$0',
+          created_at: account.createdAt.toISOString(),
+          passed_at: account.passedAt?.toISOString() ?? null,
+          breached_at: account.breachedAt?.toISOString() ?? null,
+        }
+      }),
+      pagination: { page, limit, total, pages },
+    })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
 const formatPnl = (pnl: number) => `${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toLocaleString('en-US')}`
 
 export const listFundedChallengeAccounts = async (_req: Request, res: Response, next: NextFunction) => {

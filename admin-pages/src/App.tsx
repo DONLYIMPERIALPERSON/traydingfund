@@ -5,6 +5,7 @@ import AdminFooter from './components/AdminFooter'
 import DashboardPage from './pages/DashboardPage'
 import UsersPage, { type AdminUser } from './pages/UsersPage'
 import AccountsPage from './pages/AccountsPage'
+import AtticAccountsPage from './pages/AtticAccountsPage'
 import AdminCheckingPage from './pages/AdminCheckingPage'
 import FundedAccountsPage from './pages/FundedAccountsPage'
 import BreachesPage from './pages/BreachesPage'
@@ -36,7 +37,7 @@ import AdminSupabaseAuthCard from './components/AdminSupabaseAuthCard'
 import { supabase } from './lib/supabaseClient'
 import './App.css'
 
-type AdminPage = 'analysis' | 'users' | 'accounts' | 'adminChecking' | 'fundedAccounts' | 'breaches' | 'orders' | 'payouts' | 'userProfile' | 'kycReview' | 'accountRecovery' | 'referrals' | 'financeAnalysis' | 'coupons' | 'supportTickets' | 'settings' | 'mt5' | 'sendAnnouncement' | 'salary' | 'tradingRules' | 'fxRates'
+type AdminPage = 'analysis' | 'users' | 'accounts' | 'atticAccounts' | 'adminChecking' | 'fundedAccounts' | 'breaches' | 'orders' | 'payouts' | 'userProfile' | 'kycReview' | 'accountRecovery' | 'referrals' | 'financeAnalysis' | 'coupons' | 'supportTickets' | 'settings' | 'mt5' | 'sendAnnouncement' | 'salary' | 'tradingRules' | 'fxRates'
 
 function readableAuthError(message: string): string {
   if (message.toLowerCase().includes('failed to fetch')) {
@@ -116,7 +117,7 @@ function App() {
   useEffect(() => {
     if (!authUser || authUser.role === 'super_admin' || !authUser.allowed_pages) return;
 
-    const possiblePages = ['analysis', 'users', 'accounts', 'adminChecking', 'fundedAccounts', 'breaches', 'orders', 'payouts', 'kycReview', 'accountRecovery', 'referrals', 'financeAnalysis', 'coupons', 'supportTickets', 'settings', 'mt5', 'sendAnnouncement', 'salary', 'tradingRules', 'fxRates'];
+    const possiblePages = ['analysis', 'users', 'accounts', 'atticAccounts', 'adminChecking', 'fundedAccounts', 'breaches', 'orders', 'payouts', 'kycReview', 'accountRecovery', 'referrals', 'financeAnalysis', 'coupons', 'supportTickets', 'settings', 'mt5', 'sendAnnouncement', 'salary', 'tradingRules', 'fxRates'];
     const firstAllowed = possiblePages.find(page => authUser.allowed_pages?.includes(page) ?? false);
     if (!firstAllowed) {
       setAuthError('No pages assigned to this admin account.');
@@ -290,6 +291,7 @@ function App() {
           {!authError && activePage === 'analysis' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('analysis'))) && <DashboardPage />}
           {!authError && activePage === 'users' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('users'))) && <UsersPage onOpenProfile={handleOpenUserProfile} />}
           {!authError && activePage === 'accounts' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('accounts'))) && <AccountsPage onOpenProfile={handleOpenUserProfile} />}
+          {!authError && activePage === 'atticAccounts' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('accounts'))) && <AtticAccountsPage onOpenProfile={handleOpenUserProfile} />}
           {!authError && activePage === 'adminChecking' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('adminChecking'))) && <AdminCheckingPage />}
           {!authError && activePage === 'fundedAccounts' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('fundedAccounts'))) && <FundedAccountsPage onOpenProfile={handleOpenUserProfile} />}
           {!authError && activePage === 'breaches' && (authUser.role === 'super_admin' || (authUser.allowed_pages?.includes('breaches'))) && <BreachesPage onOpenProfile={handleOpenUserProfile} />}
@@ -329,7 +331,7 @@ function App() {
               onOpenSupportChat={handleOpenSupportChat}
             />
           )}
-          {!authError && !['analysis', 'users', 'accounts', 'adminChecking', 'fundedAccounts', 'breaches', 'mt5', 'orders', 'payouts', 'financeAnalysis', 'coupons', 'sendAnnouncement', 'supportTickets', 'settings', 'kycReview', 'accountRecovery', 'referrals', 'userProfile', 'salary', 'tradingRules', 'fxRates'].includes(activePage) && (
+          {!authError && !['analysis', 'users', 'accounts', 'atticAccounts', 'adminChecking', 'fundedAccounts', 'breaches', 'mt5', 'orders', 'payouts', 'financeAnalysis', 'coupons', 'sendAnnouncement', 'supportTickets', 'settings', 'kycReview', 'accountRecovery', 'referrals', 'userProfile', 'salary', 'tradingRules', 'fxRates'].includes(activePage) && (
             <div className="admin-no-access">
               <h2>Access Denied</h2>
               <p>You do not have permission to access this page. Please select an available page from the sidebar.</p>
