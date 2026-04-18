@@ -32,10 +32,11 @@ REPLAY_HARD_MAX_FETCH_WINDOW_MS = int(os.environ.get("REPLAY_HARD_MAX_FETCH_WIND
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
 REPLAY_QUEUE_KEY = os.environ.get("REPLAY_QUEUE_KEY", "mf:replay:queue")
 REPLAY_SESSION_PREFIX = os.environ.get("REPLAY_SESSION_PREFIX", "mf:replay:session:")
+REPLAY_WORKER_COUNT = max(1, int(os.environ.get("REPLAY_WORKER_COUNT", "2")))
 EVENT_ORDER = {"open": 0, "deal": 1, "tick": 2}
 redis_client: Optional[redis.Redis] = None
 worker_stop_event = Event()
-worker_thread: Optional[Thread] = None
+worker_threads: List[Thread] = []
 
 def notify_backend(result: ReplayResult) -> None:
     if not BACKEND_BASE_URL:
@@ -330,14 +331,17 @@ def build_replay_input_from_payload(payload: EAPayload) -> ReplayInputPayload:
 
 @app.on_event("startup")
 def startup_event() -> None:
-    global worker_thread
     client = get_redis_client()
     if not client:
         print("[replay-queue] Startup without Redis queue")
         return
     worker_stop_event.clear()
-    worker_thread = Thread(target=replay_worker_loop, name="replay-worker", daemon=True)
-    worker_thread.start()
+    worker_threads.clear()
+    for index in range(REPLAY_WORKER_COUNT):
+        worker = Thread(target=replay_worker_loop, name=f"replay-worker-{index + 1}", daemon=True)
+        worker.start()
+        worker_threads.append(worker)
+    print(f"[replay-queue] started workers count={REPLAY_WORKER_COUNT}")
 
 
 @app.on_event("shutdown")
