@@ -231,15 +231,15 @@ export async function refreshPaymentOrderStatus(providerOrderId: string): Promis
 }
 
 export async function fetchUserChallengeAccounts(): Promise<UserChallengeAccountListResponse> {
-	return apiFetch<UserChallengeAccountListResponse>('/trader/challenges');
+	return apiFetch<UserChallengeAccountListResponse>('/trader/challenges?scope=attic');
 }
 
 export async function fetchUserChallengeAccountDetail(challengeId: string): Promise<UserChallengeAccountDetailResponse> {
-	return apiFetch<UserChallengeAccountDetailResponse>(`/trader/challenges/${encodeURIComponent(challengeId)}`);
+	return apiFetch<UserChallengeAccountDetailResponse>(`/trader/challenges/${encodeURIComponent(challengeId)}?scope=attic`);
 }
 
 export async function refreshChallengeAccount(challengeId: string): Promise<{ status: string; requested_at?: string }> {
-	return apiFetch<{ status: string; requested_at?: string }>('/trader/challenges/refresh', {
+	return apiFetch<{ status: string; requested_at?: string }>('/trader/challenges/refresh?scope=attic', {
 		method: 'POST',
 		body: JSON.stringify({ challenge_id: challengeId }),
 	});

@@ -60,6 +60,13 @@ const normalizeChallengeType = (value?: string | null) => {
   return normalized
 }
 
+type ChallengeScope = 'trader' | 'attic'
+
+const resolveChallengeScope = (req: Request): ChallengeScope => {
+  const raw = String(req.query.scope ?? '').toLowerCase()
+  return raw === 'attic' ? 'attic' : 'trader'
+}
+
 const formatCurrency = (value: number, currency: string) => {
   const normalized = currency.toUpperCase()
   try {
@@ -221,7 +228,8 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
 export const listChallengeAccounts = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureUser(req)
-    const cacheKey = buildCacheKey(['trader', 'challenges', user.id])
+    const scope = resolveChallengeScope(req)
+    const cacheKey = buildCacheKey(['trader', 'challenges', user.id, scope])
     const cached = await getCached<Record<string, unknown>>(cacheKey)
     if (cached) {
       res.json(cached)
@@ -232,7 +240,12 @@ export const listChallengeAccounts = async (req: AuthRequest, res: Response, nex
       metrics?: CTraderAccountMetric | null
       adjustments: { reason: string | null; createdAt: Date }[]
     })[] = await prisma.cTraderAccount.findMany({
-      where: { userId: user.id },
+      where: {
+        userId: user.id,
+        ...(scope === 'attic'
+          ? { challengeType: 'attic' }
+          : { NOT: { challengeType: 'attic' } }),
+      },
       orderBy: { createdAt: 'desc' },
       include: {
         metrics: true,
@@ -248,7 +261,7 @@ export const listChallengeAccounts = async (req: AuthRequest, res: Response, nex
       },
     })
 
-    const mapped = accounts.flatMap((account) => {
+    const mapped = accounts.map((account) => {
       const displayStatus = mapAccountStatus(account.status)
       const hasPendingWithdrawal = account.payouts?.length > 0
       const rawResetType = (account.metrics as { expectedBalanceOperationType?: string | null } | null)?.expectedBalanceOperationType
@@ -279,35 +292,7 @@ export const listChallengeAccounts = async (req: AuthRequest, res: Response, nex
         passed_stage: null,
       }
 
-      const hasPhaseReset = account.adjustments.some((adjustment) => adjustment.reason === 'phase_reset')
-      const normalizedType = normalizeChallengeType(account.challengeType)
-      const shouldAddSyntheticAtticHistory = hasPhaseReset && normalizedType === 'ngn_standard'
-
-      if (!shouldAddSyntheticAtticHistory) {
-        return [baseAccount]
-      }
-
-      const latestPhaseReset = account.adjustments[0]
-      const syntheticAtticHistory = {
-        challenge_id: `${account.challengeId}:attic-history`,
-        account_size: '₦200,000',
-        currency: 'NGN',
-        challenge_type: 'attic',
-        phase: 'phase_1',
-        objective_status: 'completed',
-        display_status: 'Passed',
-        is_active: false,
-        mt5_account: account.accountNumber,
-        platform: account.platform ?? 'ctrader',
-        has_pending_withdrawal: false,
-        reset_type: 'RESET_NEXT_PHASE',
-        started_at: account.startedAt?.toISOString() ?? null,
-        breached_at: null,
-        passed_at: latestPhaseReset?.createdAt?.toISOString() ?? account.updatedAt?.toISOString() ?? null,
-        passed_stage: 'phase_1',
-      }
-
-      return [baseAccount, syntheticAtticHistory]
+      return baseAccount
     })
 
     const payload = {
@@ -331,6 +316,7 @@ export const getChallengeAccountDetail = async (
 ) => {
   try {
     const user = ensureUser(req)
+    const scope = resolveChallengeScope(req)
     const challengeId = String(req.params.challengeId ?? '').trim()
     if (!challengeId) {
       throw new ApiError('Challenge ID is required', 400)
@@ -338,7 +324,13 @@ export const getChallengeAccountDetail = async (
 
     type CTraderAccountWithMetrics = CTraderAccount & { metrics: CTraderAccountMetric | null }
     const account: (CTraderAccountWithMetrics & { payouts: { status: string; amountKobo: number }[] }) | null = await prisma.cTraderAccount.findFirst({
-      where: { userId: user.id, challengeId },
+      where: {
+        userId: user.id,
+        challengeId,
+        ...(scope === 'attic'
+          ? { challengeType: 'attic' }
+          : { NOT: { challengeType: 'attic' } }),
+      },
       include: {
         metrics: true,
         payouts: {
@@ -628,13 +620,20 @@ export const getChallengeAccountDetail = async (
 export const requestChallengeRefresh = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureUser(req)
+    const scope = resolveChallengeScope(req)
     const { challenge_id } = req.body as { challenge_id?: string }
     if (!challenge_id) {
       throw new ApiError('challenge_id is required', 400)
     }
 
     const account = await prisma.cTraderAccount.findFirst({
-      where: { userId: user.id, challengeId: challenge_id },
+      where: {
+        userId: user.id,
+        challengeId: challenge_id,
+        ...(scope === 'attic'
+          ? { challengeType: 'attic' }
+          : { NOT: { challengeType: 'attic' } }),
+      },
       include: { user: true },
     })
     if (!account) {
