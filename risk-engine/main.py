@@ -5,6 +5,7 @@ from datetime import datetime
 import os
 from pathlib import Path
 from threading import Event, Thread
+import time
 from typing import Dict, List, Optional
 from uuid import uuid4
 
@@ -38,6 +39,7 @@ worker_thread: Optional[Thread] = None
 
 def notify_backend(result: ReplayResult) -> None:
     if not BACKEND_BASE_URL:
+        print(f"[replay-risk] processed account={result.account_number} backend=skipped reason=no_backend_base_url")
         return
     payload = {
         "account_number": result.account_number,
@@ -75,14 +77,18 @@ def notify_backend(result: ReplayResult) -> None:
     if BACKEND_ENGINE_SECRET:
         headers["X-ENGINE-SECRET"] = BACKEND_ENGINE_SECRET
     try:
-        requests.post(
+        response = requests.post(
             f"{BACKEND_BASE_URL.rstrip('/')}{BACKEND_REPLAY_ENDPOINT}",
             json=payload,
             headers=headers,
             timeout=10,
         )
+        print(
+            f"[replay-risk] sent result account={result.account_number} "
+            f"backend_status={response.status_code} breach_reason={result.breach_reason} passed={result.passed}"
+        )
     except Exception as exc:
-        print(f"[replay] Failed notifying backend: {exc}")
+        print(f"[replay-risk] backend send failed account={result.account_number} error={exc}")
 
 
 class PositionPayload(BaseModel):
@@ -526,9 +532,8 @@ def _ticks_for_symbols(symbols: List[str], start_ms: int, end_ms: int) -> Dict[s
             )
             response.raise_for_status()
             ticks_by_symbol[symbol] = response.json()
-            print(f"[replay-risk] ticks loaded symbol={symbol} count={len(ticks_by_symbol[symbol])} start_ms={start_ms} end_ms={end_ms}")
         except requests.RequestException:
-            print(f"[replay-risk] ticks failed symbol={symbol} start_ms={start_ms} end_ms={end_ms}")
+            ticks_by_symbol[symbol] = []
     return ticks_by_symbol
 
 
@@ -704,6 +709,7 @@ def iter_timeline_snapshots(
 
 
 def calculate_result(session: ReplaySession) -> ReplayResult:
+    started_at = time.perf_counter()
     if not session.ea_payload:
         raise HTTPException(status_code=400, detail="EA payload not found for session")
     if not session.replay_input:
@@ -916,6 +922,11 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
         passed=passed,
         profit_target_balance=profit_target_balance,
         payload_received_at=session.updated_at,
+    )
+    elapsed_ms = round((time.perf_counter() - started_at) * 1000, 2)
+    print(
+        f"[replay-risk] processed account={result.account_number} session={result.session_id} "
+        f"duration_ms={elapsed_ms} breach_reason={result.breach_reason} passed={result.passed}"
     )
     # Replay results are sent to backend; local JSON output disabled.
     notify_backend(result)
