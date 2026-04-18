@@ -24,6 +24,7 @@ REPLAY_MAX_TICKS_PER_CHUNK = int(os.environ.get("REPLAY_MAX_TICKS_PER_CHUNK", "2
 REPLAY_MIN_CHUNK_MS = int(os.environ.get("REPLAY_MIN_CHUNK_MS", str(5 * 60 * 1000)))
 REPLAY_MAX_CHUNK_MS = int(os.environ.get("REPLAY_MAX_CHUNK_MS", str(24 * 60 * 60 * 1000)))
 REPLAY_INITIAL_CHUNK_MS = int(os.environ.get("REPLAY_INITIAL_CHUNK_MS", str(60 * 60 * 1000)))
+REPLAY_HARD_MAX_FETCH_WINDOW_MS = int(os.environ.get("REPLAY_HARD_MAX_FETCH_WINDOW_MS", str(60 * 60 * 1000)))
 EVENT_ORDER = {"open": 0, "deal": 1, "tick": 2}
 
 def notify_backend(result: ReplayResult) -> None:
@@ -400,7 +401,15 @@ def _load_tick_chunk(symbols: List[str], start_ms: int, final_end_ms: int, chunk
     if not symbols:
         return {}, final_end_ms, chunk_ms
 
-    window_ms = max(REPLAY_MIN_CHUNK_MS, min(chunk_ms, REPLAY_MAX_CHUNK_MS, max(1, final_end_ms - start_ms + 1)))
+    window_ms = max(
+        REPLAY_MIN_CHUNK_MS,
+        min(
+            chunk_ms,
+            REPLAY_MAX_CHUNK_MS,
+            REPLAY_HARD_MAX_FETCH_WINDOW_MS,
+            max(1, final_end_ms - start_ms + 1),
+        ),
+    )
 
     while True:
         chunk_end_ms = min(final_end_ms, start_ms + window_ms - 1)
