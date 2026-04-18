@@ -73,7 +73,7 @@ const resolvePayoutCooldownStart = (payout?: {
   status?: string | null
   requestedAt?: Date | null
   rejectedAt?: Date | null
-}) => {
+} | null) => {
   if (!payout) return null
   const normalizedStatus = String(payout.status ?? '').toLowerCase()
   if (normalizedStatus === 'declined') {
