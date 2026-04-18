@@ -130,6 +130,7 @@ class ReplayInputPayload(BaseModel):
     profit_target_amount: Optional[float] = None
     min_trading_days_required: Optional[int] = None
     min_trade_duration_minutes: Optional[int] = None
+    snapshot: Optional[dict] = None
 
 
 class ReplaySession(BaseModel):
@@ -518,7 +519,8 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
 
     current_day = None
     daily_pnl_map: Dict[str, float] = {}
-    time_limit_hours = replay.snapshot.get("time_limit_hours") if isinstance(replay.snapshot, dict) else None
+    replay_snapshot = getattr(replay, "snapshot", None)
+    time_limit_hours = replay_snapshot.get("time_limit_hours") if isinstance(replay_snapshot, dict) else None
     timeline = build_timeline(payload, ticks_by_symbol, meta_map, replay.initial_balance)
     for snapshot in timeline:
         equity = snapshot["equity"]
