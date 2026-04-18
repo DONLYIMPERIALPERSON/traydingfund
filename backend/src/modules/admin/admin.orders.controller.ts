@@ -198,6 +198,79 @@ export const listPendingAssignments = async (_req: Request, res: Response, next:
   }
 }
 
+export const retryPendingAssignments = async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const pendingOrders = await prisma.order.findMany({
+      where: { assignmentStatus: 'pending_assign', status: { in: ['pending', 'completed'] } },
+      include: { user: true },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    let assignedCount = 0
+    const skipped: Array<{ orderId: number; providerOrderId: string | null; reason: string }> = []
+
+    for (const order of pendingOrders) {
+      const platform = (order.metadata as { platform?: string } | null)?.platform ?? 'ctrader'
+
+      const assigned = await assignReadyAccountFromPool({
+        userId: order.userId,
+        challengeType: order.challengeType ?? 'two_step',
+        phase: order.phase ?? 'phase_1',
+        accountSize: order.accountSize,
+        currency: order.currency ?? 'USD',
+        platform,
+      })
+
+      if (!assigned) {
+        skipped.push({
+          orderId: order.id,
+          providerOrderId: order.providerOrderId,
+          reason: 'no_ready_account_matched',
+        })
+        continue
+      }
+
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { assignmentStatus: 'assigned' },
+      })
+
+      if (platform.toLowerCase() === 'mt5') {
+        await prisma.cTraderAccount.update({
+          where: { id: assigned.id },
+          data: { status: 'active', accessStatus: 'granted', accessGrantedAt: new Date() },
+        })
+      } else if (order.user?.email) {
+        const accessAccountSize = assigned.accountSize ?? order.accountSize
+        await requestAccountAccess({
+          user_email: order.user.email,
+          account_number: assigned.accountNumber,
+          broker: assigned.brokerName,
+          platform,
+          ...(order.user.fullName ? { user_name: order.user.fullName } : {}),
+          ...(order.challengeType ? { account_type: order.challengeType } : {}),
+          ...(order.phase ? { account_phase: order.phase } : {}),
+          ...(accessAccountSize ? { account_size: accessAccountSize } : {}),
+          ...(assigned.mt5Login ? { mt5_login: assigned.mt5Login } : {}),
+          ...(assigned.mt5Server ? { mt5_server: assigned.mt5Server } : {}),
+          ...(assigned.mt5Password ? { mt5_password: assigned.mt5Password } : {}),
+        })
+      }
+
+      assignedCount += 1
+    }
+
+    res.json({
+      message: 'Pending assignments processed',
+      total: pendingOrders.length,
+      assigned: assignedCount,
+      skipped,
+    })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
 export const approveCryptoOrder = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const orderId = Number(req.params.id)

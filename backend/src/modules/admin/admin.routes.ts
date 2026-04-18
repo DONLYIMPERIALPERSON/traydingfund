@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { getAdminMe, getDashboardStats, listActiveChallengeAccounts, listAdminUsers, listBreachedChallengeAccounts, listFundedChallengeAccounts, listTopFundedTraders, lookupChallengeAccount } from './admin.controller'
-import { approveCryptoOrder, declineCryptoOrder, getOrderStats, listOrders, listPendingAssignments } from './admin.orders.controller'
+import { approveCryptoOrder, declineCryptoOrder, getOrderStats, listOrders, listPendingAssignments, retryPendingAssignments } from './admin.orders.controller'
 import { authenticate, requireRole } from '../../common/auth'
 import { createAllowlistEntry, deleteAllowlistEntry, listAllowlist, updateAllowlistEntry } from './admin.allowlist.controller'
 import { adminResetAccount, deleteReadyCTraderAccount, downloadCTraderTemplate, forceAssignNextStage, getCTraderSummary, listCTraderAccounts, logCTraderCredentialView, uploadCTraderAccounts } from './ctrader.controller'
@@ -27,6 +27,7 @@ adminRouter.get('/challenges/breaches', authenticate, requireRole(['admin', 'sup
 adminRouter.get('/orders', authenticate, requireRole(['admin', 'super_admin']), listOrders)
 adminRouter.get('/orders/stats', authenticate, requireRole(['admin', 'super_admin']), getOrderStats)
 adminRouter.get('/orders/pending-assign', authenticate, requireRole(['admin', 'super_admin']), listPendingAssignments)
+adminRouter.post('/orders/pending-assign/retry', authenticate, requireRole(['admin', 'super_admin']), retryPendingAssignments)
 adminRouter.post('/orders/:id/approve', authenticate, requireRole(['admin', 'super_admin']), approveCryptoOrder)
 adminRouter.post('/orders/:id/decline', authenticate, requireRole(['admin', 'super_admin']), declineCryptoOrder)
 adminRouter.post('/ctrader/accounts/upload', authenticate, requireRole(['admin', 'super_admin']), uploadCTraderAccounts)
