@@ -4,12 +4,15 @@ import json
 from datetime import datetime
 import os
 from pathlib import Path
+from threading import Event, Thread
 from typing import Dict, List, Optional
 from uuid import uuid4
 
 import requests
+import redis
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 load_dotenv()
@@ -25,7 +28,13 @@ REPLAY_MIN_CHUNK_MS = int(os.environ.get("REPLAY_MIN_CHUNK_MS", str(5 * 60 * 100
 REPLAY_MAX_CHUNK_MS = int(os.environ.get("REPLAY_MAX_CHUNK_MS", str(24 * 60 * 60 * 1000)))
 REPLAY_INITIAL_CHUNK_MS = int(os.environ.get("REPLAY_INITIAL_CHUNK_MS", str(60 * 60 * 1000)))
 REPLAY_HARD_MAX_FETCH_WINDOW_MS = int(os.environ.get("REPLAY_HARD_MAX_FETCH_WINDOW_MS", str(60 * 60 * 1000)))
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
+REPLAY_QUEUE_KEY = os.environ.get("REPLAY_QUEUE_KEY", "mf:replay:queue")
+REPLAY_SESSION_PREFIX = os.environ.get("REPLAY_SESSION_PREFIX", "mf:replay:session:")
 EVENT_ORDER = {"open": 0, "deal": 1, "tick": 2}
+redis_client: Optional[redis.Redis] = None
+worker_stop_event = Event()
+worker_thread: Optional[Thread] = None
 
 def notify_backend(result: ReplayResult) -> None:
     if not BACKEND_BASE_URL:
@@ -147,6 +156,7 @@ class ReplaySession(BaseModel):
     replay_input: Optional[ReplayInputPayload]
     created_at: str
     updated_at: str
+    status: str = "queued"
 
 
 class ReplayResult(BaseModel):
@@ -174,10 +184,159 @@ class ReplayResult(BaseModel):
     payload_received_at: str
 
 
+class ReplayEnqueueResponse(BaseModel):
+    session_id: str
+    account_number: str
+    status: str
+    queued_at: str
+
+
+class ReplayStatusResponse(BaseModel):
+    session_id: str
+    account_number: str
+    status: str
+    queued_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    error: Optional[str] = None
+    result: Optional[dict] = None
+
+
 SESSIONS: Dict[str, ReplaySession] = {}
 BASE_DIR = Path(__file__).resolve().parent
 OUTPUTS_DIR = BASE_DIR / "outputs"
 OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _session_key(session_id: str) -> str:
+    return f"{REPLAY_SESSION_PREFIX}{session_id}"
+
+
+def get_redis_client() -> Optional[redis.Redis]:
+    global redis_client
+    if redis_client is not None:
+        return redis_client
+    try:
+        redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+        redis_client.ping()
+        return redis_client
+    except Exception as exc:
+        print(f"[replay-queue] Redis unavailable: {exc}")
+        redis_client = None
+        return None
+
+
+def save_session_record(
+    session: ReplaySession,
+    *,
+    status: Optional[str] = None,
+    result: Optional[ReplayResult] = None,
+    error: Optional[str] = None,
+) -> None:
+    if status:
+        session.status = status
+    session.updated_at = now_iso()
+    SESSIONS[session.session_id] = session
+    client = get_redis_client()
+    if not client:
+        return
+    payload = {
+        "session": session.model_dump(mode="json"),
+        "status": session.status,
+        "error": error,
+        "result": result.model_dump(mode="json") if result else None,
+    }
+    client.set(_session_key(session.session_id), json.dumps(payload))
+
+
+def load_session_record(session_id: str) -> Optional[dict]:
+    client = get_redis_client()
+    if client:
+        raw = client.get(_session_key(session_id))
+        if raw:
+            return json.loads(raw)
+    session = SESSIONS.get(session_id)
+    if not session:
+        return None
+    return {
+        "session": session.model_dump(mode="json"),
+        "status": session.status,
+        "error": None,
+        "result": None,
+    }
+
+
+def enqueue_session(session: ReplaySession) -> None:
+    save_session_record(session, status="queued")
+    client = get_redis_client()
+    if client:
+        client.lpush(REPLAY_QUEUE_KEY, session.session_id)
+    else:
+        raise HTTPException(status_code=503, detail="Replay queue is unavailable")
+
+
+def replay_worker_loop() -> None:
+    client = get_redis_client()
+    if not client:
+        return
+    while not worker_stop_event.is_set():
+        try:
+            job = client.brpop(REPLAY_QUEUE_KEY, timeout=5)
+            if not job:
+                continue
+            _, session_id = job
+            record = load_session_record(session_id)
+            if not record:
+                continue
+            session = ReplaySession.model_validate(record["session"])
+            save_session_record(session, status="processing")
+            result = calculate_result(session)
+            save_session_record(session, status="completed", result=result)
+        except Exception as exc:
+            print(f"[replay-queue] Worker error: {exc}")
+            try:
+                if 'session' in locals():
+                    save_session_record(session, status="failed", error=str(exc))
+            except Exception:
+                pass
+
+
+def build_replay_input_from_payload(payload: EAPayload) -> ReplayInputPayload:
+    rules = resolve_rules(payload)
+    base_balance = float(payload.account_size or rules.get("account_size", payload.current_balance))
+    max_dd_amount = base_balance * float(rules.get("max_drawdown_pct", 0)) / 100
+    daily_dd_amount = base_balance * float(rules.get("daily_drawdown_pct", 0)) / 100
+    profit_target_amount = base_balance * float(rules.get("profit_target_pct", 0)) / 100
+    return ReplayInputPayload(
+        account_number=payload.account_number,
+        account_type=payload.account_type,
+        challenge_type=payload.challenge_type,
+        phase=payload.phase,
+        account_size=payload.account_size,
+        initial_balance=base_balance,
+        max_dd_amount=max_dd_amount,
+        daily_dd_amount=daily_dd_amount,
+        profit_target_amount=profit_target_amount,
+        min_trading_days_required=int(rules.get("min_trading_days", 0) or 0),
+        min_trade_duration_minutes=int(rules.get("min_trade_duration_minutes", 0) or 0),
+        snapshot={"time_limit_hours": rules.get("time_limit_hours")},
+    )
+
+
+@app.on_event("startup")
+def startup_event() -> None:
+    global worker_thread
+    client = get_redis_client()
+    if not client:
+        print("[replay-queue] Startup without Redis queue")
+        return
+    worker_stop_event.clear()
+    worker_thread = Thread(target=replay_worker_loop, name="replay-worker", daemon=True)
+    worker_thread.start()
+
+
+@app.on_event("shutdown")
+def shutdown_event() -> None:
+    worker_stop_event.set()
 
 ACCOUNT_RULES = {
     "one_step_phase_1": {
@@ -763,44 +922,30 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
     return result
 
 
-@app.post("/replay/ea", response_model=ReplaySession)
+@app.post("/replay/ea", response_model=ReplayEnqueueResponse, status_code=202)
 def submit_ea_payload(payload: EAPayload):
     if payload.current_balance <= 0 or payload.current_equity <= 0:
         raise HTTPException(status_code=400, detail="Invalid MT5 snapshot: balance/equity must be > 0")
 
     session_id = str(uuid4())
     timestamp = now_iso()
-    rules = resolve_rules(payload)
-    base_balance = float(payload.account_size or rules.get("account_size", payload.current_balance))
-    max_dd_amount = base_balance * float(rules.get("max_drawdown_pct", 0)) / 100
-    daily_dd_amount = base_balance * float(rules.get("daily_drawdown_pct", 0)) / 100
-    profit_target_amount = base_balance * float(rules.get("profit_target_pct", 0)) / 100
-    replay_input = ReplayInputPayload(
-        account_number=payload.account_number,
-        account_type=payload.account_type,
-        challenge_type=payload.challenge_type,
-        phase=payload.phase,
-        account_size=payload.account_size,
-        initial_balance=base_balance,
-        max_dd_amount=max_dd_amount,
-        daily_dd_amount=daily_dd_amount,
-        profit_target_amount=profit_target_amount,
-        min_trading_days_required=int(rules.get("min_trading_days", 0) or 0),
-        min_trade_duration_minutes=int(rules.get("min_trade_duration_minutes", 0) or 0),
-        snapshot={"time_limit_hours": rules.get("time_limit_hours")},
-    )
     session = ReplaySession(
         session_id=session_id,
         account_number=payload.account_number,
         ea_payload=payload,
-        replay_input=replay_input,
+        replay_input=build_replay_input_from_payload(payload),
         created_at=timestamp,
         updated_at=timestamp,
+        status="queued",
     )
-    SESSIONS[session_id] = session
-    # Payload logging disabled (use backend records instead).
-    calculate_result(session)
-    return session
+    enqueue_session(session)
+    response = ReplayEnqueueResponse(
+        session_id=session_id,
+        account_number=payload.account_number,
+        status="queued",
+        queued_at=timestamp,
+    )
+    return JSONResponse(status_code=202, content=response.model_dump(mode="json"))
 
 
 @app.post("/replay/input", response_model=ReplaySession)
@@ -832,12 +977,21 @@ def submit_replay_input(payload: ReplayInputPayload):
     return session
 
 
-@app.get("/replay/result/{session_id}", response_model=ReplayResult)
+@app.get("/replay/result/{session_id}", response_model=ReplayStatusResponse)
 def get_replay_result(session_id: str):
-    session = SESSIONS.get(session_id)
-    if not session:
+    record = load_session_record(session_id)
+    if not record:
         raise HTTPException(status_code=404, detail="Session not found")
-    return calculate_result(session)
+    session = ReplaySession.model_validate(record["session"])
+    return ReplayStatusResponse(
+        session_id=session.session_id,
+        account_number=session.account_number,
+        status=record.get("status") or session.status,
+        queued_at=session.created_at,
+        updated_at=session.updated_at,
+        error=record.get("error"),
+        result=record.get("result"),
+    )
 
 
 @app.get("/replay/sessions", response_model=List[ReplaySession])

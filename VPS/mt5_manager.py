@@ -276,12 +276,12 @@ def send_metrics_from_file(account_number: str, account_meta: Dict[str, str] | N
         url = f"{REPLAY_BASE_URL}{REPLAY_ENDPOINT}"
         response = requests.post(url, json=payload, timeout=15)
         print(f"[replay-mt5] Sent metrics for {account_number} -> {response.status_code}")
-        if response.status_code != 200:
+        if response.status_code not in (200, 202):
             try:
                 print(f"[replay-mt5] Replay response body: {response.text}")
             except Exception:
                 pass
-        if response.status_code == 200:
+        if response.status_code in (200, 202):
             os.remove(file_path)
     except Exception as exc:
         print(f"[replay-mt5] Error sending metrics for {account_number}: {exc}")
