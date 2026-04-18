@@ -42,6 +42,7 @@ export type ChallengeAccountListItem = {
   profit?: string | null
   win_rate?: string | null
   created_at?: string | null
+  assigned_at?: string | null
   passed_at?: string | null
   breached_at?: string | null
 }

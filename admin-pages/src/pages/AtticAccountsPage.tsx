@@ -17,7 +17,7 @@ const statusLabel = (status?: string | null) => {
 }
 
 const resolveRelevantDate = (account: ChallengeAccountListItem) =>
-  account.breached_at ?? account.passed_at ?? account.created_at ?? null
+  account.breached_at ?? account.passed_at ?? account.assigned_at ?? account.created_at ?? null
 
 const formatDateTime = (value?: string | null) => {
   if (!value) return '-'

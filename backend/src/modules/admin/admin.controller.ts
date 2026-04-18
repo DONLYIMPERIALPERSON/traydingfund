@@ -274,6 +274,7 @@ export const listAtticChallengeAccounts = async (req: Request, res: Response, ne
           objective_status: account.status,
           current_pnl: pnl ? `${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toLocaleString('en-US')}` : '+$0',
           created_at: account.createdAt.toISOString(),
+          assigned_at: account.assignedAt?.toISOString() ?? null,
           passed_at: account.passedAt?.toISOString() ?? null,
           breached_at: account.breachedAt?.toISOString() ?? null,
         }
