@@ -579,15 +579,15 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
         | {deal.symbol for deal in payload.closed_deals if not _should_ignore_deal(deal)}
     )
     meta_map = _symbol_meta_map(payload)
-    print(
-        f"[replay-risk] calculate_result account={payload.account_number} "
-        f"symbols={symbols} meta={{"
-        + ", ".join(
-            f"{symbol}:tick_size={meta.tick_size},tick_value={meta.tick_value},contract_size={meta.contract_size}"
-            for symbol, meta in meta_map.items()
+    zero_value_symbols = [
+        f"{symbol}:tick_size={meta.tick_size},tick_value={meta.tick_value},contract_size={meta.contract_size}"
+        for symbol, meta in meta_map.items()
+        if meta.tick_value == 0
+    ]
+    if zero_value_symbols:
+        print(
+            f"[replay-risk] zero tick_value account={payload.account_number} symbols={zero_value_symbols}"
         )
-        + "}}"
-    )
 
     peak_balance = replay.initial_balance
     daily_peak_balance = replay.initial_balance
