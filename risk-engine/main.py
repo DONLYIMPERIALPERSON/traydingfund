@@ -344,6 +344,10 @@ def _pnl_from_ticks(
         return 0.0
     price_diff = price - position.open_price if position.type == 0 else position.open_price - price
     if meta.tick_size == 0:
+        print(
+            f"[replay-risk] tick_size=0 for symbol={position.symbol} "
+            f"contract_size={meta.contract_size} tick_value={meta.tick_value} tick={tick}"
+        )
         return 0.0
     ticks = price_diff / meta.tick_size
     return ticks * meta.tick_value * position.volume
@@ -360,8 +364,10 @@ def _ticks_for_symbols(symbols: List[str], start_ms: int, end_ms: int) -> Dict[s
             )
             response.raise_for_status()
             ticks_by_symbol[symbol] = response.json()
+            print(f"[replay-risk] ticks loaded symbol={symbol} count={len(ticks_by_symbol[symbol])} start_ms={start_ms} end_ms={end_ms}")
         except requests.RequestException:
             ticks_by_symbol[symbol] = []
+            print(f"[replay-risk] ticks failed symbol={symbol} start_ms={start_ms} end_ms={end_ms}")
     return ticks_by_symbol
 
 
@@ -501,6 +507,15 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
         | {deal.symbol for deal in payload.closed_deals if not _should_ignore_deal(deal)}
     )
     meta_map = _symbol_meta_map(payload)
+    print(
+        f"[replay-risk] calculate_result account={payload.account_number} "
+        f"symbols={symbols} meta={{"
+        + ", ".join(
+            f"{symbol}:tick_size={meta.tick_size},tick_value={meta.tick_value},contract_size={meta.contract_size}"
+            for symbol, meta in meta_map.items()
+        )
+        + "}}"
+    )
 
     ticks_by_symbol = _ticks_for_symbols(symbols, payload.anchor_time_ms, replay_anchor_end_ms(payload))
 
