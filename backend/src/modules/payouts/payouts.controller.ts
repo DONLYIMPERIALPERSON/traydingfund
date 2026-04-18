@@ -69,6 +69,19 @@ const resolveScheduleDays = (schedule?: string | null) => {
   return 7
 }
 
+const resolvePayoutCooldownStart = (payout?: {
+  status?: string | null
+  requestedAt?: Date | null
+  rejectedAt?: Date | null
+}) => {
+  if (!payout) return null
+  const normalizedStatus = String(payout.status ?? '').toLowerCase()
+  if (normalizedStatus === 'declined') {
+    return payout.rejectedAt ?? payout.requestedAt ?? null
+  }
+  return payout.requestedAt ?? null
+}
+
 const computeProfit = (balance: number, initialBalance: number) => Math.max(0, balance - initialBalance)
 
 const buildAccountPayout = async (accountId: number) => {
@@ -141,13 +154,14 @@ const buildAccountPayout = async (accountId: number) => {
   const profitSplitAmount = profitRaw * (profitSplitPercent / 100)
 
   const lastPayout = await prisma.payout.findFirst({
-    where: { accountId: account.id, status: { in: ['processing', 'completed', 'pending_approval'] } },
+    where: { accountId: account.id, status: { in: ['processing', 'completed', 'pending_approval', 'declined'] } },
     orderBy: { requestedAt: 'desc' },
   })
 
   const scheduleDays = resolveScheduleDays(objectiveFields.withdrawalSchedule)
-  const nextEligibleAt = lastPayout
-    ? new Date(lastPayout.requestedAt.getTime() + scheduleDays * 24 * 60 * 60 * 1000)
+  const payoutCooldownStart = resolvePayoutCooldownStart(lastPayout)
+  const nextEligibleAt = payoutCooldownStart
+    ? new Date(payoutCooldownStart.getTime() + scheduleDays * 24 * 60 * 60 * 1000)
     : null
 
   return {

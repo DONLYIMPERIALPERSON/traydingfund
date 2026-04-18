@@ -227,11 +227,20 @@ export const listChallengeAccounts = async (req: AuthRequest, res: Response, nex
       res.json(cached)
       return
     }
-    const accounts: (CTraderAccount & { payouts: { status: string }[]; metrics?: CTraderAccountMetric | null })[] = await prisma.cTraderAccount.findMany({
+    const accounts: (CTraderAccount & {
+      payouts: { status: string }[]
+      metrics?: CTraderAccountMetric | null
+      adjustments: { reason: string | null; createdAt: Date }[]
+    })[] = await prisma.cTraderAccount.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
       include: {
         metrics: true,
+        adjustments: {
+          where: { reason: { in: ['phase_reset'] } },
+          orderBy: { createdAt: 'desc' },
+          select: { reason: true, createdAt: true },
+        },
         payouts: {
           where: { status: { in: ['pending_approval', 'processing'] } },
           select: { status: true },
@@ -239,7 +248,7 @@ export const listChallengeAccounts = async (req: AuthRequest, res: Response, nex
       },
     })
 
-    const mapped = accounts.map((account) => {
+    const mapped = accounts.flatMap((account) => {
       const displayStatus = mapAccountStatus(account.status)
       const hasPendingWithdrawal = account.payouts?.length > 0
       const rawResetType = (account.metrics as { expectedBalanceOperationType?: string | null } | null)?.expectedBalanceOperationType
@@ -251,7 +260,7 @@ export const listChallengeAccounts = async (req: AuthRequest, res: Response, nex
           : rawResetType === 'MANUAL_ADJUSTMENT'
             ? 'RESET_MANUAL_ADJUSTMENT'
             : null
-      return {
+      const baseAccount = {
         challenge_id: account.challengeId,
         account_size: account.accountSize,
         currency: account.currency,
@@ -269,6 +278,36 @@ export const listChallengeAccounts = async (req: AuthRequest, res: Response, nex
         passed_at: account.passedAt?.toISOString() ?? null,
         passed_stage: null,
       }
+
+      const hasPhaseReset = account.adjustments.some((adjustment) => adjustment.reason === 'phase_reset')
+      const normalizedType = normalizeChallengeType(account.challengeType)
+      const shouldAddSyntheticAtticHistory = hasPhaseReset && normalizedType === 'ngn_standard'
+
+      if (!shouldAddSyntheticAtticHistory) {
+        return [baseAccount]
+      }
+
+      const latestPhaseReset = account.adjustments[0]
+      const syntheticAtticHistory = {
+        challenge_id: `${account.challengeId}:attic-history`,
+        account_size: '₦200,000',
+        currency: 'NGN',
+        challenge_type: 'attic',
+        phase: 'phase_1',
+        objective_status: 'completed',
+        display_status: 'Passed',
+        is_active: false,
+        mt5_account: account.accountNumber,
+        platform: account.platform ?? 'ctrader',
+        has_pending_withdrawal: false,
+        reset_type: 'RESET_NEXT_PHASE',
+        started_at: account.startedAt?.toISOString() ?? null,
+        breached_at: null,
+        passed_at: latestPhaseReset?.createdAt?.toISOString() ?? account.updatedAt?.toISOString() ?? null,
+        passed_stage: 'phase_1',
+      }
+
+      return [baseAccount, syntheticAtticHistory]
     })
 
     const payload = {
