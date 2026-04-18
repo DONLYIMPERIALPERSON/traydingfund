@@ -351,10 +351,6 @@ def _pnl_from_ticks(
         return 0.0
     price_diff = price - position.open_price if position.type == 0 else position.open_price - price
     if meta.tick_size == 0:
-        print(
-            f"[replay-risk] tick_size=0 for symbol={position.symbol} "
-            f"contract_size={meta.contract_size} tick_value={meta.tick_value} tick={tick}"
-        )
         return 0.0
     ticks = price_diff / meta.tick_size
     return ticks * meta.tick_value * position.volume
@@ -373,7 +369,6 @@ def _ticks_for_symbols(symbols: List[str], start_ms: int, end_ms: int) -> Dict[s
             ticks_by_symbol[symbol] = response.json()
             print(f"[replay-risk] ticks loaded symbol={symbol} count={len(ticks_by_symbol[symbol])} start_ms={start_ms} end_ms={end_ms}")
         except requests.RequestException:
-            ticks_by_symbol[symbol] = []
             print(f"[replay-risk] ticks failed symbol={symbol} start_ms={start_ms} end_ms={end_ms}")
     return ticks_by_symbol
 
@@ -416,29 +411,14 @@ def _load_tick_chunk(symbols: List[str], start_ms: int, final_end_ms: int, chunk
         ticks_by_symbol = _ticks_for_symbols(symbols, start_ms, chunk_end_ms)
         total_ticks = sum(len(ticks) for ticks in ticks_by_symbol.values())
         max_symbol_ticks = max((len(ticks) for ticks in ticks_by_symbol.values()), default=0)
-        print(
-            f"[replay-risk] chunk window start_ms={start_ms} end_ms={chunk_end_ms} "
-            f"window_ms={window_ms} total_ticks={total_ticks} max_symbol_ticks={max_symbol_ticks} "
-            f"limit={REPLAY_MAX_TICKS_PER_CHUNK}"
-        )
-
         within_limit = total_ticks <= REPLAY_MAX_TICKS_PER_CHUNK and max_symbol_ticks <= REPLAY_MAX_TICKS_PER_CHUNK
 
         if within_limit or window_ms <= REPLAY_MIN_CHUNK_MS or chunk_end_ms <= start_ms:
-            if not within_limit:
-                print(
-                    f"[replay-risk] forced chunk at minimum window start_ms={start_ms} end_ms={chunk_end_ms} "
-                    f"window_ms={window_ms} total_ticks={total_ticks} max_symbol_ticks={max_symbol_ticks}"
-                )
             next_chunk_ms = window_ms
             if total_ticks < max(1, REPLAY_MAX_TICKS_PER_CHUNK // 4):
                 next_chunk_ms = min(REPLAY_MAX_CHUNK_MS, max(REPLAY_MIN_CHUNK_MS, window_ms * 2))
             return ticks_by_symbol, chunk_end_ms, next_chunk_ms
 
-        print(
-            f"[replay-risk] shrinking chunk start_ms={start_ms} end_ms={chunk_end_ms} "
-            f"window_ms={window_ms} total_ticks={total_ticks} max_symbol_ticks={max_symbol_ticks}"
-        )
         window_ms = max(REPLAY_MIN_CHUNK_MS, window_ms // 2)
 
 
