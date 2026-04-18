@@ -723,6 +723,7 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
     replay = session.replay_input
 
     cycle_start, cycle_source, _cycle_start_ms = _resolve_cycle_start(payload)
+    time_limit_start_ms = _cycle_start_ms or payload.anchor_time_ms
     symbols = sorted(
         {pos.symbol for pos in payload.positions}
         | {deal.symbol for deal in payload.closed_deals if not _should_ignore_deal(deal)}
@@ -818,12 +819,13 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
                     break
 
         if breach_reason is None and time_limit_hours:
-            elapsed_hours = max(0.0, (ts - payload.anchor_time_ms) / 3_600_000)
+            elapsed_hours = max(0.0, (ts - time_limit_start_ms) / 3_600_000)
             if elapsed_hours > float(time_limit_hours) and not passed:
                 breach_reason = "TIME_LIMIT"
                 breach_event = {
                     "type": "time_limit",
                     "time_ms": ts,
+                    "time_limit_start_ms": time_limit_start_ms,
                     "elapsed_hours": elapsed_hours,
                     "limit_hours": float(time_limit_hours),
                 }
