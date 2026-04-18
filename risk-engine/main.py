@@ -20,6 +20,12 @@ TICK_SERVICE_URL = os.environ.get("TICK_SERVICE_URL", "http://15.237.52.163:8201
 BACKEND_BASE_URL = os.environ.get("BACKEND_BASE_URL", "")
 BACKEND_REPLAY_ENDPOINT = os.environ.get("BACKEND_REPLAY_ENDPOINT", "/v1/mt5/metrics")
 BACKEND_ENGINE_SECRET = os.environ.get("BACKEND_ENGINE_SECRET", "")
+REPLAY_MAX_TICKS_PER_CHUNK = int(os.environ.get("REPLAY_MAX_TICKS_PER_CHUNK", "20000"))
+REPLAY_MIN_CHUNK_MS = int(os.environ.get("REPLAY_MIN_CHUNK_MS", str(5 * 60 * 1000)))
+REPLAY_MAX_CHUNK_MS = int(os.environ.get("REPLAY_MAX_CHUNK_MS", str(24 * 60 * 60 * 1000)))
+REPLAY_INITIAL_CHUNK_MS = int(os.environ.get("REPLAY_INITIAL_CHUNK_MS", str(60 * 60 * 1000)))
+EVENT_ORDER = {"open": 0, "deal": 1, "tick": 2}
+
 def notify_backend(result: ReplayResult) -> None:
     if not BACKEND_BASE_URL:
         return
@@ -380,25 +386,47 @@ def replay_anchor_end_ms(payload: EAPayload) -> int:
     return max(latest, int(datetime.utcnow().timestamp() * 1000))
 
 
-def build_timeline(
-    payload: EAPayload,
-    ticks_by_symbol: Dict[str, List[dict]],
-    meta_map: Dict[str, SymbolMetaPayload],
-    initial_balance: float,
-) -> List[dict]:
+def _build_structural_events(payload: EAPayload) -> List[tuple]:
     events: List[tuple] = []
     for position in payload.positions:
         events.append(("open", position.open_time_ms, position))
     for deal in payload.closed_deals:
         events.append(("deal", deal.time_ms, deal))
-    for symbol, ticks in ticks_by_symbol.items():
-        for tick in ticks:
-            time_ms = int(tick.get("time") or tick.get("time_msc") or 0)
-            if time_ms:
-                events.append(("tick", time_ms, symbol, tick))
+    events.sort(key=lambda item: (item[1], EVENT_ORDER.get(item[0], 9)))
+    return events
 
-    order = {"open": 0, "deal": 1, "tick": 2}
-    events.sort(key=lambda item: (item[1], order.get(item[0], 9)))
+
+def _load_tick_chunk(symbols: List[str], start_ms: int, final_end_ms: int, chunk_ms: int) -> tuple[Dict[str, List[dict]], int, int]:
+    if not symbols:
+        return {}, final_end_ms, chunk_ms
+
+    window_ms = max(REPLAY_MIN_CHUNK_MS, min(chunk_ms, REPLAY_MAX_CHUNK_MS, max(1, final_end_ms - start_ms + 1)))
+
+    while True:
+        chunk_end_ms = min(final_end_ms, start_ms + window_ms - 1)
+        ticks_by_symbol = _ticks_for_symbols(symbols, start_ms, chunk_end_ms)
+        total_ticks = sum(len(ticks) for ticks in ticks_by_symbol.values())
+        print(
+            f"[replay-risk] chunk window start_ms={start_ms} end_ms={chunk_end_ms} "
+            f"window_ms={window_ms} total_ticks={total_ticks} limit={REPLAY_MAX_TICKS_PER_CHUNK}"
+        )
+
+        if total_ticks <= REPLAY_MAX_TICKS_PER_CHUNK or window_ms <= REPLAY_MIN_CHUNK_MS or chunk_end_ms <= start_ms:
+            next_chunk_ms = window_ms
+            if total_ticks < max(1, REPLAY_MAX_TICKS_PER_CHUNK // 4):
+                next_chunk_ms = min(REPLAY_MAX_CHUNK_MS, max(REPLAY_MIN_CHUNK_MS, window_ms * 2))
+            return ticks_by_symbol, chunk_end_ms, next_chunk_ms
+
+        window_ms = max(REPLAY_MIN_CHUNK_MS, window_ms // 2)
+
+
+def iter_timeline_snapshots(
+    payload: EAPayload,
+    meta_map: Dict[str, SymbolMetaPayload],
+    initial_balance: float,
+):
+    events = _build_structural_events(payload)
+    final_end_ms = replay_anchor_end_ms(payload)
 
     open_positions: Dict[str, PositionPayload] = {}
     open_time_map: Dict[str, int] = {}
@@ -412,84 +440,106 @@ def build_timeline(
     peak_balance = balance
 
     last_ticks: Dict[str, dict] = {}
-    snapshots: List[dict] = []
 
-    def snapshot_at(time_ms: int, event: Optional[dict] = None) -> None:
+    def snapshot_at(time_ms: int, event: Optional[dict] = None) -> dict:
         equity = balance
         for position in open_positions.values():
             tick = last_ticks.get(position.symbol)
             meta = meta_map.get(position.symbol)
             if tick and meta:
                 equity += _pnl_from_ticks(position, tick, meta)
-        snapshots.append({"time_ms": time_ms, "equity": equity, "balance": balance, "event": event})
+        return {"time_ms": time_ms, "equity": equity, "balance": balance, "event": event}
 
-    snapshot_at(payload.anchor_time_ms, {"type": "anchor"})
+    yield snapshot_at(payload.anchor_time_ms, {"type": "anchor"})
 
-    for event in events:
-        event_type = event[0]
-        time_ms = event[1]
-        if time_ms < payload.anchor_time_ms:
-            continue
-        event_meta: dict = {"type": event_type, "time_ms": time_ms}
-        if event_type == "open":
-            position = event[2]
-            key = position.position_id or position.ticket or f"{position.symbol}:{position.open_time_ms}"
-            open_positions[key] = position
-            open_time_map[key] = position.open_time_ms
-            event_meta.update({"symbol": position.symbol, "position_id": position.position_id, "ticket": position.ticket})
-        elif event_type == "deal":
-            deal = event[2]
-            ignored_deal = _should_ignore_deal(deal)
-            event_meta.update({
-                "symbol": deal.symbol,
-                "deal_type": deal.deal_type,
-                "entry": deal.entry,
-                "ignored": ignored_deal,
-            })
-            if ignored_deal:
-                if deal.time_ms != payload.anchor_time_ms:
-                    balance = initial_balance
-                    if balance > peak_balance:
-                        peak_balance = balance
-            elif deal.entry == 0:
-                position = PositionPayload(
-                    ticket=deal.position_id,
-                    position_id=deal.position_id,
-                    symbol=deal.symbol,
-                    volume=deal.volume,
-                    open_price=deal.price,
-                    open_time_ms=deal.time_ms,
-                    type=deal.type,
-                )
+    symbols = sorted({event[2].symbol for event in events if event[0] == "open"} | {event[2].symbol for event in events if event[0] == "deal" and not _should_ignore_deal(event[2])})
+    event_index = 0
+    chunk_start_ms = payload.anchor_time_ms
+    chunk_ms = max(REPLAY_MIN_CHUNK_MS, min(REPLAY_INITIAL_CHUNK_MS, REPLAY_MAX_CHUNK_MS))
+
+    while chunk_start_ms <= final_end_ms:
+        ticks_by_symbol, chunk_end_ms, chunk_ms = _load_tick_chunk(symbols, chunk_start_ms, final_end_ms, chunk_ms)
+        chunk_events: List[tuple] = []
+
+        while event_index < len(events) and events[event_index][1] <= chunk_end_ms:
+            event = events[event_index]
+            if event[1] >= chunk_start_ms:
+                chunk_events.append(event)
+            event_index += 1
+
+        for symbol, ticks in ticks_by_symbol.items():
+            for tick in ticks:
+                time_ms = int(tick.get("time") or tick.get("time_msc") or 0)
+                if time_ms and chunk_start_ms <= time_ms <= chunk_end_ms:
+                    chunk_events.append(("tick", time_ms, symbol, tick))
+
+        chunk_events.sort(key=lambda item: (item[1], EVENT_ORDER.get(item[0], 9)))
+
+        for event in chunk_events:
+            event_type = event[0]
+            time_ms = event[1]
+            if time_ms < payload.anchor_time_ms:
+                continue
+            event_meta: dict = {"type": event_type, "time_ms": time_ms}
+            if event_type == "open":
+                position = event[2]
                 key = position.position_id or position.ticket or f"{position.symbol}:{position.open_time_ms}"
                 open_positions[key] = position
                 open_time_map[key] = position.open_time_ms
-                event_meta.update({"position_id": deal.position_id, "deal_id": deal.deal_id})
-            elif deal.entry == 1:
-                balance += _deal_net(deal)
-                if balance > peak_balance:
-                    peak_balance = balance
-                key = deal.position_id or deal.deal_id
-                if key in open_positions:
-                    open_positions.pop(key, None)
-                open_time = open_time_map.pop(key, None)
-                if open_time is not None:
-                    duration_min = (deal.time_ms - open_time) / 60000.0
-                    event_meta["duration_min"] = duration_min
+                event_meta.update({"symbol": position.symbol, "position_id": position.position_id, "ticket": position.ticket})
+            elif event_type == "deal":
+                deal = event[2]
+                ignored_deal = _should_ignore_deal(deal)
                 event_meta.update({
-                    "position_id": deal.position_id,
-                    "deal_id": deal.deal_id,
-                    "profit": _deal_net(deal),
+                    "symbol": deal.symbol,
+                    "deal_type": deal.deal_type,
+                    "entry": deal.entry,
+                    "ignored": ignored_deal,
                 })
-        elif event_type == "tick":
-            symbol = event[2]
-            tick = event[3]
-            last_ticks[symbol] = tick
-            event_meta.update({"symbol": symbol})
+                if ignored_deal:
+                    if deal.time_ms != payload.anchor_time_ms:
+                        balance = initial_balance
+                        if balance > peak_balance:
+                            peak_balance = balance
+                elif deal.entry == 0:
+                    position = PositionPayload(
+                        ticket=deal.position_id,
+                        position_id=deal.position_id,
+                        symbol=deal.symbol,
+                        volume=deal.volume,
+                        open_price=deal.price,
+                        open_time_ms=deal.time_ms,
+                        type=deal.type,
+                    )
+                    key = position.position_id or position.ticket or f"{position.symbol}:{position.open_time_ms}"
+                    open_positions[key] = position
+                    open_time_map[key] = position.open_time_ms
+                    event_meta.update({"position_id": deal.position_id, "deal_id": deal.deal_id})
+                elif deal.entry == 1:
+                    balance += _deal_net(deal)
+                    if balance > peak_balance:
+                        peak_balance = balance
+                    key = deal.position_id or deal.deal_id
+                    if key in open_positions:
+                        open_positions.pop(key, None)
+                    open_time = open_time_map.pop(key, None)
+                    if open_time is not None:
+                        duration_min = (deal.time_ms - open_time) / 60000.0
+                        event_meta["duration_min"] = duration_min
+                    event_meta.update({
+                        "position_id": deal.position_id,
+                        "deal_id": deal.deal_id,
+                        "profit": _deal_net(deal),
+                    })
+            elif event_type == "tick":
+                symbol = event[2]
+                tick = event[3]
+                last_ticks[symbol] = tick
+                event_meta.update({"symbol": symbol})
 
-        snapshot_at(time_ms, event_meta)
+            yield snapshot_at(time_ms, event_meta)
 
-    return snapshots
+        chunk_start_ms = chunk_end_ms + 1
 
 
 def calculate_result(session: ReplaySession) -> ReplayResult:
@@ -517,8 +567,6 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
         + "}}"
     )
 
-    ticks_by_symbol = _ticks_for_symbols(symbols, payload.anchor_time_ms, replay_anchor_end_ms(payload))
-
     peak_balance = replay.initial_balance
     daily_peak_balance = replay.initial_balance
     daily_start_balance = replay.initial_balance
@@ -536,8 +584,7 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
     daily_pnl_map: Dict[str, float] = {}
     replay_snapshot = getattr(replay, "snapshot", None)
     time_limit_hours = replay_snapshot.get("time_limit_hours") if isinstance(replay_snapshot, dict) else None
-    timeline = build_timeline(payload, ticks_by_symbol, meta_map, replay.initial_balance)
-    for snapshot in timeline:
+    for snapshot in iter_timeline_snapshots(payload, meta_map, replay.initial_balance):
         equity = snapshot["equity"]
         ts = snapshot["time_ms"]
         balance_snapshot = snapshot.get("balance", replay.initial_balance)
