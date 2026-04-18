@@ -12,6 +12,7 @@ type EngineRegistryEntry = {
 }
 
 const engineRegistry = new Map<string, EngineRegistryEntry>()
+let roundRobinCursor = 0
 
 const nowMs = () => Date.now()
 
@@ -95,9 +96,19 @@ export const listAssignedMt5Accounts = async (req: Request, res: Response, next:
       ORDER BY "updatedAt" ASC
     `
 
+    if (activeAccounts.length > 0) {
+      roundRobinCursor = roundRobinCursor % activeAccounts.length
+    } else {
+      roundRobinCursor = 0
+    }
+
+    const rotatedAccounts = activeAccounts.length > 0
+      ? [...activeAccounts.slice(roundRobinCursor), ...activeAccounts.slice(0, roundRobinCursor)]
+      : activeAccounts
+
     const assignedAccounts = new Set(engine.activeAccounts)
 
-    for (const account of activeAccounts) {
+    for (const account of rotatedAccounts) {
       if (assignedAccounts.has(account.accountNumber)) continue
       const nextEngine = selectEngine()
       if (!nextEngine) break
@@ -107,7 +118,11 @@ export const listAssignedMt5Accounts = async (req: Request, res: Response, next:
       }
     }
 
-    const responsePayload = activeAccounts
+    if (activeAccounts.length > 0) {
+      roundRobinCursor = (roundRobinCursor + 1) % activeAccounts.length
+    }
+
+    const responsePayload = rotatedAccounts
       .filter((account) => assignedAccounts.has(account.accountNumber))
       .map((account) => ({
         account_number: account.accountNumber,
