@@ -7,7 +7,7 @@ import { createVirtualAccount } from '../../services/safehaven.service'
 import { getFxRatesConfig } from '../fxRates/fxRates.service'
 import { pushActiveAccountRemove } from '../../services/ctraderEngine.service'
 import { requestAccountAccess } from '../../services/accessEngine.service'
-import { assignReadyAccountFromPool } from '../ctrader/ctrader.assignment'
+import { assignReadyAccountFromPool, buildBaseChallengeId } from '../ctrader/ctrader.assignment'
 import { createOnboardingCertificate } from '../../services/certificate.service'
 import { buildObjectiveFields } from '../ctrader/ctrader.objectives'
 import { fetchRemoteAttachment, sendUnifiedEmail } from '../../services/email.service'
@@ -45,7 +45,7 @@ const resolveAffiliateCommissionAmountKobo = (order: { netAmountKobo: number; cu
 
 const assignReadyAccount = async (
   userId: number,
-  payload: { challengeType: string; phase: string; accountSize: string; currency?: string; platform?: string },
+  payload: { challengeType: string; phase: string; accountSize: string; currency?: string; platform?: string; baseChallengeId?: string },
 ) => assignReadyAccountFromPool({
   userId,
   challengeType: payload.challengeType,
@@ -53,6 +53,7 @@ const assignReadyAccount = async (
   accountSize: payload.accountSize,
   currency: payload.currency ?? 'USD',
   platform: payload.platform ?? 'ctrader',
+  ...(payload.baseChallengeId ? { baseChallengeId: payload.baseChallengeId } : {}),
 })
 
 const maybeBurnAccount = async (accountId: number) => {
@@ -328,6 +329,7 @@ const handleCompletedOrder = async (order: Order) => {
         accountSize: assignmentAccountSize,
         currency: order.currency ?? (isAtticOrder ? 'NGN' : 'USD'),
         platform: (order.metadata as { platform?: string } | null)?.platform ?? 'ctrader',
+        baseChallengeId: buildBaseChallengeId(order.id),
       })
 
     if (assigned) {

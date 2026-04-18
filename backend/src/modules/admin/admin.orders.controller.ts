@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../config/prisma'
 import { ApiError } from '../../common/errors'
-import { assignReadyAccountFromPool } from '../ctrader/ctrader.assignment'
+import { assignReadyAccountFromPool, buildBaseChallengeId } from '../ctrader/ctrader.assignment'
 import { buildObjectiveFields } from '../ctrader/ctrader.objectives'
 import { requestAccountAccess } from '../../services/accessEngine.service'
 import { createOnboardingCertificate } from '../../services/certificate.service'
@@ -219,6 +219,7 @@ export const retryPendingAssignments = async (_req: Request, res: Response, next
         accountSize: order.accountSize,
         currency: order.currency ?? 'USD',
         platform,
+        baseChallengeId: buildBaseChallengeId(order.id),
       })
 
       if (!assigned) {
@@ -378,6 +379,7 @@ export const approveCryptoOrder = async (req: Request, res: Response, next: Next
         accountSize: updated.accountSize,
         currency: updated.currency ?? 'USD',
         platform,
+        baseChallengeId: buildBaseChallengeId(updated.id),
       })
 
       if (assigned) {
