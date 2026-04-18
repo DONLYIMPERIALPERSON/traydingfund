@@ -85,6 +85,15 @@ export const assignReadyAccountFromPool = async ({
 
     const account = readyAccounts[0]
     if (!account) {
+      console.warn('[assignReadyAccountFromPool] no ready account matched', {
+        userId,
+        challengeType,
+        phase,
+        accountSize,
+        normalizedAccountSize,
+        resolvedCurrency,
+        resolvedPlatform,
+      })
       return null
     }
 
@@ -96,6 +105,11 @@ export const assignReadyAccountFromPool = async ({
       select: { id: true },
     })
     if (existingChallenge) {
+      console.warn('[assignReadyAccountFromPool] generated challenge id already exists', {
+        challengeId,
+        existingAccountId: existingChallenge.id,
+        readyAccountId: account.id,
+      })
       return null
     }
     const updateData = {

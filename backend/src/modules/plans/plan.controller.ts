@@ -42,12 +42,16 @@ export const listPublicPlans = async (_req: Request, res: Response, next: NextFu
       { planId: '50k', name: '$50K', price: 203, accountSize: '$50K', currency: 'USD', status: 'Available', enabled: true, challengeType: 'two_step', phase: 'phase_1' },
       { planId: '100k', name: '$100K', price: 354, accountSize: '$100K', currency: 'USD', status: 'Available', enabled: true, challengeType: 'two_step', phase: 'phase_1' },
       { planId: '200k', name: '$200K', price: 681, accountSize: '$200K', currency: 'USD', status: 'Available', enabled: true, challengeType: 'two_step', phase: 'phase_1' },
+      { planId: 'attic_200000', name: 'Attic ₦200,000', price: 1500, accountSize: '₦200,000', currency: 'NGN', status: 'Available', enabled: true, challengeType: 'attic', phase: 'phase_1' },
       { planId: '200000', name: '₦200,000', price: 5000, accountSize: '₦200,000', currency: 'NGN', status: 'Available', enabled: true, challengeType: 'ngn_standard', phase: 'phase_1' },
       { planId: '500000', name: '₦500,000', price: 11500, accountSize: '₦500,000', currency: 'NGN', status: 'Available', enabled: true, challengeType: 'ngn_standard', phase: 'phase_1' },
       { planId: '800000', name: '₦800,000', price: 17000, accountSize: '₦800,000', currency: 'NGN', status: 'Available', enabled: true, challengeType: 'ngn_standard', phase: 'phase_1' },
     ]
 
-    const resolvedPlans = (plans?.length ? plans : fallbackPlans) as ChallengePlanRecord[]
+    const databasePlans = (plans ?? []) as ChallengePlanRecord[]
+    const existingPlanIds = new Set(databasePlans.map((plan) => plan.planId))
+    const mergedFallbackPlans = fallbackPlans.filter((plan) => !existingPlanIds.has(plan.planId))
+    const resolvedPlans = [...databasePlans, ...mergedFallbackPlans] as ChallengePlanRecord[]
 
     res.json({
       plans: resolvedPlans.map((plan) => ({

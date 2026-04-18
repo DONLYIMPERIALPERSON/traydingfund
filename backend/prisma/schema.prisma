@@ -110,8 +110,12 @@ model CouponRedemption {
   userId     Int
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  orderId     Int?
+  order       Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
   @@index([couponId])
   @@index([userId])
+  @@index([orderId])
 }
 
 model SupportTicket {
@@ -313,6 +317,7 @@ model Order {
   user            User     @relation(fields: [userId], references: [id])
   affiliateId     Int?
   affiliate       User?    @relation("AffiliateOrders", fields: [affiliateId], references: [id])
+  couponRedemptions CouponRedemption[]
   affiliateCommission AffiliateCommission?
 
   @@index([userId])

@@ -110,6 +110,22 @@ export const DEFAULT_TRADING_OBJECTIVES: TradingObjectivesConfig = {
       ],
     },
     {
+      key: 'attic',
+      label: 'Attic Program',
+      phases: [
+        {
+          key: 'phase_1',
+          label: 'Attic Phase',
+          rules: [
+            { key: 'max_drawdown', label: 'Max Drawdown', value: '20%' },
+            { key: 'profit_target', label: 'Profit Target', value: '30%' },
+            { key: 'min_trading_days', label: 'Minimum Trading Days', value: '0' },
+            { key: 'time_limit', label: 'Time Limit', value: '24 hours' },
+          ],
+        },
+      ],
+    },
+    {
       key: 'ngn_standard',
       label: 'NGN Standard',
       phases: [

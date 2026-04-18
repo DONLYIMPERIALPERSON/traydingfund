@@ -37,11 +37,11 @@ export type AffiliateDashboard = {
 
 
 export async function fetchAffiliateDashboard(): Promise<AffiliateDashboard> {
-  return apiFetch<AffiliateDashboard>('/trader/affiliate/summary')
+  return apiFetch<AffiliateDashboard>('/trader/affiliate/summary?scope=trader')
 }
 
 export async function requestAffiliatePayout(): Promise<{ message: string }> {
-  return apiFetch<{ message: string; amount: number; status: string }>('/trader/affiliate/payouts', {
+  return apiFetch<{ message: string; amount: number; status: string }>('/trader/affiliate/payouts?scope=trader', {
     method: 'POST',
   })
 }

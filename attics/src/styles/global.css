@@ -117,6 +117,12 @@ body {
 	cursor: pointer;
 }
 
+.attics-dashboard-avatar-btn {
+	border: none;
+	cursor: pointer;
+	font: inherit;
+}
+
 .attics-dashboard-account-card,
 .attics-dashboard-summary-strip,
 .attics-dashboard-bottom-nav {
@@ -163,6 +169,218 @@ body {
 	color: rgba(238, 247, 251, 0.72);
 	font-size: 14px;
 	line-height: 1.7;
+}
+
+.attics-dashboard-active-account-card {
+	margin-top: 18px;
+	padding: 18px;
+	border-radius: 20px;
+	background: linear-gradient(180deg, rgba(127, 231, 247, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%);
+	border: 1px solid rgba(127, 231, 247, 0.18);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+	text-align: left;
+}
+
+.attics-dashboard-active-account-card__header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: nowrap;
+}
+
+.attics-dashboard-active-account-update-wrap {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 6px;
+	margin-left: auto;
+	flex-shrink: 0;
+}
+
+.attics-dashboard-active-account-card__header h2 {
+	margin: 0;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.2;
+	color: #ffffff;
+	word-break: break-word;
+}
+
+.attics-dashboard-active-account-tag {
+	padding: 4px 8px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.08);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	color: rgba(238, 247, 251, 0.7);
+	white-space: nowrap;
+}
+
+.attics-dashboard-active-account-refresh-btn {
+	border: 1px solid rgba(127, 231, 247, 0.24);
+	background: rgba(127, 231, 247, 0.1);
+	color: #7fe7f7;
+	border-radius: 999px;
+	padding: 4px 8px;
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	cursor: pointer;
+	font-family: inherit;
+}
+
+.attics-dashboard-active-account-refresh-btn:disabled {
+	opacity: 0.7;
+	cursor: default;
+}
+
+.attics-dashboard-active-account-card__balance-row {
+	display: flex;
+	justify-content: flex-start;
+	align-items: flex-end;
+	gap: 12px;
+	margin-top: 18px;
+	padding-bottom: 16px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.attics-dashboard-active-account-card__balance-row strong {
+	font-size: 28px;
+	line-height: 1;
+	color: #ffffff;
+}
+
+.attics-dashboard-active-account-card__balance-row span {
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: #7ef0b1;
+}
+
+.attics-dashboard-active-account-stats {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+	margin-top: 16px;
+}
+
+.attics-dashboard-active-account-chart {
+	margin-top: 16px;
+	padding: 14px 12px 10px;
+	border-radius: 16px;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.attics-dashboard-active-account-chart__labels,
+.attics-dashboard-active-account-chart__ends {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+}
+
+.attics-dashboard-active-account-chart__labels {
+	margin-bottom: 10px;
+}
+
+.attics-dashboard-active-account-chart__labels > div {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.attics-dashboard-active-account-chart__labels > div:last-child {
+	text-align: right;
+	align-items: flex-end;
+}
+
+.attics-dashboard-active-account-chart__labels span,
+.attics-dashboard-active-account-chart__ends span {
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: rgba(238, 247, 251, 0.58);
+}
+
+.attics-dashboard-active-account-chart__labels strong {
+	font-size: 13px;
+	font-weight: 600;
+	color: #ffffff;
+}
+
+.attics-dashboard-active-account-chart__track-wrap {
+	padding: 6px 0 8px;
+}
+
+.attics-dashboard-active-account-chart__track {
+	position: relative;
+	height: 8px;
+	border-radius: 999px;
+	background: linear-gradient(90deg, rgba(255, 143, 143, 0.45) 0%, rgba(255, 255, 255, 0.08) 50%, rgba(126, 240, 177, 0.45) 100%);
+	overflow: visible;
+}
+
+.attics-dashboard-active-account-chart__midline {
+	position: absolute;
+	left: 50%;
+	top: -3px;
+	bottom: -3px;
+	width: 1px;
+	background: rgba(255, 255, 255, 0.32);
+	transform: translateX(-50%);
+}
+
+.attics-dashboard-active-account-chart__marker {
+	position: absolute;
+	top: 50%;
+	width: 14px;
+	height: 14px;
+	border-radius: 999px;
+	background: #7fe7f7;
+	border: 2px solid #06212a;
+	box-shadow: 0 0 0 3px rgba(127, 231, 247, 0.16);
+	transform: translate(-50%, -50%);
+}
+
+.attics-dashboard-active-account-chart__ends {
+	margin-top: 8px;
+}
+
+.attics-dashboard-active-account-stat {
+	padding: 14px 12px;
+	border-radius: 16px;
+	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.attics-dashboard-active-account-stat span {
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: rgba(238, 247, 251, 0.58);
+}
+
+.attics-dashboard-active-account-stat strong {
+	font-size: 18px;
+	color: #ffffff;
+}
+
+.attics-dashboard-active-account-stat .is-positive {
+	color: #7ef0b1;
+}
+
+.attics-dashboard-active-account-stat .is-negative {
+	color: #ff8f8f;
 }
 
 .attics-dashboard-activate-btn {
@@ -545,19 +763,23 @@ body {
 	background: rgba(3, 12, 15, 0.72);
 	backdrop-filter: blur(8px);
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	justify-content: center;
-	padding: 20px;
+	padding: max(20px, env(safe-area-inset-top)) 16px 24px;
 	z-index: 120;
+	overflow-y: auto;
 }
 
 .attics-dashboard-modal {
-	width: min(100%, 380px);
-	border-radius: 24px;
+	width: min(100%, 340px);
+	max-height: calc(100vh - 44px);
+	overflow-y: auto;
+	margin-top: 12px;
+	border-radius: 20px;
 	background: #0d2027;
 	border: 1px solid rgba(255, 255, 255, 0.08);
 	box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
-	padding: 20px;
+	padding: 16px;
 	color: #eef7fb;
 }
 
@@ -565,13 +787,14 @@ body {
 	display: flex;
 	justify-content: space-between;
 	align-items: flex-start;
-	gap: 12px;
-	margin-bottom: 18px;
+	gap: 10px;
+	margin-bottom: 14px;
 }
 
 .attics-dashboard-modal__header h3 {
-	margin: 8px 0 0;
-	font-size: 22px;
+	margin: 6px 0 0;
+	font-size: 18px;
+	line-height: 1.2;
 }
 
 .attics-dashboard-modal__close {
@@ -587,17 +810,34 @@ body {
 .attics-dashboard-modal__list {
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
+	gap: 10px;
 }
 
 .attics-dashboard-modal__item {
-	padding: 14px;
-	border-radius: 16px;
+	padding: 12px;
+	border-radius: 14px;
 	background: rgba(255, 255, 255, 0.04);
 	border: 1px solid rgba(255, 255, 255, 0.06);
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	gap: 6px;
+}
+
+.attics-dashboard-modal__item--stacked {
+	gap: 10px;
+}
+
+.attics-dashboard-modal__pair {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.attics-dashboard-modal__pair:last-child {
+	padding-bottom: 0;
+	border-bottom: none;
 }
 
 .attics-dashboard-modal__item-top {
@@ -615,8 +855,10 @@ body {
 }
 
 .attics-dashboard-modal__item strong {
-	font-size: 15px;
+	font-size: 14px;
 	font-weight: 600;
+	line-height: 1.35;
+	word-break: break-word;
 }
 
 .attics-dashboard-copy-btn {
@@ -634,18 +876,87 @@ body {
 }
 
 .attics-dashboard-modal__warning {
-	margin-top: 16px;
-	padding: 14px;
-	border-radius: 16px;
+	margin-top: 12px;
+	padding: 12px;
+	border-radius: 14px;
 	background: rgba(255, 196, 0, 0.08);
 	border: 1px solid rgba(255, 196, 0, 0.16);
 	color: rgba(255, 244, 214, 0.92);
+	font-size: 11px;
+	line-height: 1.5;
+}
+
+.attics-dashboard-error-text,
+.attics-dashboard-info-text {
+	max-width: 460px;
+	margin: 12px auto 0;
+	padding: 10px 12px;
+	border-radius: 14px;
 	font-size: 12px;
-	line-height: 1.6;
+	line-height: 1.5;
+	text-align: left;
+}
+
+.attics-dashboard-error-text {
+	background: rgba(255, 115, 115, 0.12);
+	border: 1px solid rgba(255, 115, 115, 0.24);
+	color: #ffb4b4;
+}
+
+.attics-dashboard-info-text {
+	background: rgba(127, 231, 247, 0.12);
+	border: 1px solid rgba(127, 231, 247, 0.2);
+	color: #baf6ff;
 }
 
 .attics-dashboard-modal__warning strong {
 	color: #fff1bf;
+}
+
+.attics-dashboard-promo-input {
+	width: 100%;
+	padding: 12px 14px;
+	border-radius: 12px;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	background: rgba(255, 255, 255, 0.05);
+	color: #eef7fb;
+	font: inherit;
+	outline: none;
+}
+
+.attics-dashboard-promo-input::placeholder {
+	color: rgba(238, 247, 251, 0.42);
+}
+
+.attics-dashboard-promo-input:focus {
+	border-color: rgba(127, 231, 247, 0.45);
+	box-shadow: 0 0 0 3px rgba(127, 231, 247, 0.12);
+}
+
+.attics-dashboard-promo-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin-top: 12px;
+}
+
+.attics-dashboard-logout-copy {
+	margin: 8px 0 0;
+	color: rgba(238, 247, 251, 0.72);
+	font-size: 13px;
+	line-height: 1.6;
+}
+
+.attics-dashboard-promo-secondary {
+	width: 100%;
+	padding: 12px 14px;
+	border-radius: 12px;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	background: rgba(255, 255, 255, 0.05);
+	color: #eef7fb;
+	font: inherit;
+	font-weight: 600;
+	cursor: pointer;
 }
 
 .is-positive {
@@ -1145,6 +1456,35 @@ body {
 	.attics-dashboard-account-card,
 	.attics-dashboard-summary-strip {
 		border-radius: 22px;
+	}
+
+	.attics-dashboard-active-account-card__balance-row {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.attics-dashboard-active-account-update-wrap {
+		max-width: 46%;
+		justify-content: flex-end;
+		margin-left: 0;
+		flex-wrap: nowrap;
+	}
+
+	.attics-dashboard-active-account-tag {
+		white-space: nowrap;
+	}
+
+	.attics-dashboard-active-account-chart__labels,
+	.attics-dashboard-active-account-chart__ends {
+		gap: 8px;
+	}
+
+	.attics-dashboard-active-account-card__balance-row strong {
+		font-size: 24px;
+	}
+
+	.attics-dashboard-active-account-stats {
+		grid-template-columns: 1fr;
 	}
 
 	.attics-dashboard-bottom-nav {

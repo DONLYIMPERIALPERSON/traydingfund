@@ -104,6 +104,8 @@ class SymbolMetaPayload(BaseModel):
 class EAPayload(BaseModel):
     account_number: str
     account_type: Optional[str] = None
+    challenge_type: Optional[str] = None
+    phase: Optional[str] = None
     account_size: Optional[float] = None
     platform: str = "mt5"
     current_balance: float
@@ -119,6 +121,8 @@ class EAPayload(BaseModel):
 class ReplayInputPayload(BaseModel):
     account_number: str
     account_type: Optional[str] = None
+    challenge_type: Optional[str] = None
+    phase: Optional[str] = None
     account_size: Optional[float] = None
     initial_balance: float
     max_dd_amount: float
@@ -252,6 +256,14 @@ ACCOUNT_RULES = {
         "min_trade_duration_minutes": 3,
         "min_trading_days": 0,
     },
+    "attic_phase_1": {
+        "max_drawdown_pct": 20,
+        "daily_drawdown_pct": 0,
+        "profit_target_pct": 30,
+        "min_trade_duration_minutes": 0,
+        "min_trading_days": 0,
+        "time_limit_hours": 24,
+    },
 }
 
 
@@ -259,6 +271,13 @@ def resolve_rules(payload: EAPayload) -> dict:
     account_type = (payload.account_type or "").strip().lower()
     if account_type and account_type in ACCOUNT_RULES:
         return {"account_type": account_type, **ACCOUNT_RULES[account_type]}
+
+    challenge_type = (payload.challenge_type or "").strip().lower()
+    phase = (payload.phase or "").strip().lower()
+    combined = f"{challenge_type}_{phase}".strip("_")
+    if combined and combined in ACCOUNT_RULES:
+        return {"account_type": combined, **ACCOUNT_RULES[combined]}
+
     raise HTTPException(status_code=400, detail="Unknown or missing account_type for replay rules")
 
 
@@ -499,6 +518,7 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
 
     current_day = None
     daily_pnl_map: Dict[str, float] = {}
+    time_limit_hours = replay.snapshot.get("time_limit_hours") if isinstance(replay.snapshot, dict) else None
     timeline = build_timeline(payload, ticks_by_symbol, meta_map, replay.initial_balance)
     for snapshot in timeline:
         equity = snapshot["equity"]
@@ -561,6 +581,18 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
                         "time_ms": ts,
                     }
                     break
+
+        if breach_reason is None and time_limit_hours:
+            elapsed_hours = max(0.0, (ts - payload.anchor_time_ms) / 3_600_000)
+            if elapsed_hours > float(time_limit_hours) and not passed:
+                breach_reason = "TIME_LIMIT"
+                breach_event = {
+                    "type": "time_limit",
+                    "time_ms": ts,
+                    "elapsed_hours": elapsed_hours,
+                    "limit_hours": float(time_limit_hours),
+                }
+                break
 
         if event_type != "tick":
             continue
@@ -680,6 +712,8 @@ def submit_ea_payload(payload: EAPayload):
     replay_input = ReplayInputPayload(
         account_number=payload.account_number,
         account_type=payload.account_type,
+        challenge_type=payload.challenge_type,
+        phase=payload.phase,
         account_size=payload.account_size,
         initial_balance=base_balance,
         max_dd_amount=max_dd_amount,
@@ -687,6 +721,7 @@ def submit_ea_payload(payload: EAPayload):
         profit_target_amount=profit_target_amount,
         min_trading_days_required=int(rules.get("min_trading_days", 0) or 0),
         min_trade_duration_minutes=int(rules.get("min_trade_duration_minutes", 0) or 0),
+        snapshot={"time_limit_hours": rules.get("time_limit_hours")},
     )
     session = ReplaySession(
         session_id=session_id,

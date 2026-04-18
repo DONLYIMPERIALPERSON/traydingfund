@@ -11,7 +11,7 @@ import { assignReadyAccountFromPool } from '../ctrader/ctrader.assignment'
 import { createOnboardingCertificate } from '../../services/certificate.service'
 import { buildObjectiveFields } from '../ctrader/ctrader.objectives'
 import { fetchRemoteAttachment, sendUnifiedEmail } from '../../services/email.service'
-import { applyCouponToOrder } from '../../services/coupon.service'
+import { applyCouponToOrder, redeemCouponForCompletedOrder } from '../../services/coupon.service'
 import { buildCacheKey, clearCacheByPrefix } from '../../common/cache'
 
 const CRYPTO_ADDRESSES = {
@@ -27,6 +27,20 @@ const resolveCryptoAddress = (currency: keyof typeof CRYPTO_ADDRESSES) => {
     return env.cryptoEthAddress || env.cryptoSolAddress || env.cryptoTrxAddress
   }
   return CRYPTO_ADDRESSES[currency]
+}
+
+const isNgnChallengeType = (challengeType?: string | null) => {
+  const normalized = String(challengeType ?? '').toLowerCase()
+  return normalized.includes('ngn') || normalized === 'attic'
+}
+
+const resolveAffiliateCommissionAmountKobo = (order: { netAmountKobo: number; currency?: string | null; challengeType?: string | null }, usdNgnRate: number) => {
+  if (String(order.challengeType ?? '').toLowerCase() === 'attic') {
+    return 30000
+  }
+
+  const commissionBaseKobo = toUsdKobo(order.netAmountKobo, order.currency, usdNgnRate)
+  return Math.round(commissionBaseKobo * (AFFILIATE_COMMISSION_PERCENT / 100))
 }
 
 const assignReadyAccount = async (
@@ -76,8 +90,7 @@ const createAffiliateCommission = async (
 
   const fxConfig = await getFxRatesConfig()
   const usdNgnRate = fxConfig.rules?.usd_ngn_rate ?? 1300
-  const commissionBaseKobo = toUsdKobo(order.netAmountKobo, order.currency, usdNgnRate)
-  const commissionAmount = Math.round(commissionBaseKobo * (AFFILIATE_COMMISSION_PERCENT / 100))
+  const commissionAmount = resolveAffiliateCommissionAmountKobo(order, usdNgnRate)
 
   await affiliateCommissionClient.create({
     data: {
@@ -220,29 +233,39 @@ const buildCryptoOrderResponse = (order: Order) => ({
 })
 
 const handleCompletedOrder = async (order: Order) => {
+  const isAtticOrder = String(order.challengeType ?? '').toLowerCase() === 'attic'
+
+  await redeemCouponForCompletedOrder({
+    couponId: (order as { metadata?: { couponId?: number | null } | null }).metadata?.couponId ?? null,
+    userId: order.userId,
+    orderId: order.id,
+  })
+
   let onboardingCertificateUrl: string | null = null
   let certificateAttachments: Array<{ filename: string; content: Buffer; contentType?: string }> | undefined
 
-  try {
-    const certificate = await createOnboardingCertificate({
-      userId: order.userId,
-      orderId: order.id,
-      challengeType: order.challengeType,
-      phase: order.phase,
-      accountSize: order.accountSize,
-    })
-    onboardingCertificateUrl = certificate.certificateUrl
-    if (onboardingCertificateUrl) {
-      certificateAttachments = [
-        await fetchRemoteAttachment({
-          url: onboardingCertificateUrl,
-          filename: 'onboarding-certificate.png',
-          contentType: 'image/png',
-        }),
-      ]
+  if (!isAtticOrder) {
+    try {
+      const certificate = await createOnboardingCertificate({
+        userId: order.userId,
+        orderId: order.id,
+        challengeType: order.challengeType,
+        phase: order.phase,
+        accountSize: order.accountSize,
+      })
+      onboardingCertificateUrl = certificate.certificateUrl
+      if (onboardingCertificateUrl) {
+        certificateAttachments = [
+          await fetchRemoteAttachment({
+            url: onboardingCertificateUrl,
+            filename: 'onboarding-certificate.png',
+            contentType: 'image/png',
+          }),
+        ]
+      }
+    } catch (error) {
+      console.error('Failed to create onboarding certificate', error)
     }
-  } catch (error) {
-    console.error('Failed to create onboarding certificate', error)
   }
 
   const user = await prisma.user.findUnique({ where: { id: order.userId } })
@@ -276,7 +299,7 @@ const handleCompletedOrder = async (order: Order) => {
           `Status: ${order.status}`,
           `Objectives: ${objectivesLines.length ? objectivesLines.join(' | ') : 'Check your dashboard for objectives.'}`,
         ].join('<br>'),
-        ...(certificateAttachments ? { attachments: certificateAttachments } : {}),
+        ...(!isAtticOrder && certificateAttachments ? { attachments: certificateAttachments } : {}),
       })
       console.info('Purchase email send result', {
         orderId: order.id,
@@ -295,17 +318,15 @@ const handleCompletedOrder = async (order: Order) => {
   }
 
   if (order.assignmentStatus !== 'assigned') {
-    const normalizedAccountSize = order.accountSize
-      .replace(/\$|,/g, '')
-      .replace(/k$/i, '000')
-      .replace(/\s+/g, '')
+    const accountSizeDigits = order.accountSize.replace(/\D/g, '')
+    const assignmentAccountSize = accountSizeDigits ? `$${accountSizeDigits}` : order.accountSize
 
     try {
       const assigned = await assignReadyAccount(order.userId, {
         challengeType: order.challengeType ?? 'challenge',
         phase: order.phase ?? 'phase_1',
-        accountSize: normalizedAccountSize ? `$${normalizedAccountSize}` : order.accountSize,
-        currency: order.currency ?? 'USD',
+        accountSize: assignmentAccountSize,
+        currency: order.currency ?? (isAtticOrder ? 'NGN' : 'USD'),
         platform: (order.metadata as { platform?: string } | null)?.platform ?? 'ctrader',
       })
 
@@ -364,6 +385,10 @@ const handleCompletedOrder = async (order: Order) => {
       console.error('Failed to assign ready account after payment completion', {
         orderId: order.id,
         providerOrderId: order.providerOrderId,
+        challengeType: order.challengeType,
+        currency: order.currency,
+        accountSize: order.accountSize,
+        assignmentAccountSize,
         error,
       })
       await prisma.order.update({
@@ -598,7 +623,41 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
       userId: user.id,
     })
 
-    const isNgnOrder = challenge_type?.toLowerCase().includes('ngn')
+    if (couponResult.finalAmountKobo <= 0) {
+      const freeOrder = await prisma.order.create({
+        data: {
+          providerOrderId,
+          status: 'completed',
+          assignmentStatus: 'unassigned',
+          currency: isNgnChallengeType(challenge_type) ? 'NGN' : 'USD',
+          grossAmountKobo: amount_kobo,
+          discountAmountKobo: couponResult.discountAmountKobo,
+          netAmountKobo: couponResult.finalAmountKobo,
+          planId: plan_id,
+          accountSize: account_size,
+          challengeType: challenge_type,
+          phase,
+          couponCode: couponResult.couponCode,
+          checkoutUrl: null,
+          paymentMethod: 'coupon',
+          paymentProvider: 'internal',
+          metadata: {
+            platform: normalizedPlatform,
+            couponId: couponResult.couponId,
+          },
+          paidAt: new Date(),
+          userId: user.id,
+          affiliateId: affiliateId && !Number.isNaN(affiliateId) && affiliateId !== user.id ? affiliateId : null,
+          idempotencyKey,
+        } as Prisma.OrderUncheckedCreateInput,
+      })
+
+      const finalizedFreeOrder = (await handleCompletedOrder(freeOrder)) ?? freeOrder
+      res.json(buildFreeOrderResponse(finalizedFreeOrder))
+      return
+    }
+
+    const isNgnOrder = isNgnChallengeType(challenge_type)
     const fxConfig = await getFxRatesConfig()
     const baseAmount = couponResult.finalAmountKobo / 100
     const usdToNgnRate = fxConfig.rules?.usd_ngn_rate ?? 1300
@@ -646,7 +705,7 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
         providerOrderId,
         status: 'pending',
         assignmentStatus: 'unassigned',
-        currency: challenge_type?.toLowerCase().includes('ngn') ? 'NGN' : 'USD',
+        currency: isNgnChallengeType(challenge_type) ? 'NGN' : 'USD',
         grossAmountKobo: amount_kobo,
         discountAmountKobo: couponResult.discountAmountKobo,
         netAmountKobo: couponResult.finalAmountKobo,
@@ -667,6 +726,7 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
         metadata: {
           safehaven: virtualAccount,
           platform: normalizedPlatform,
+          couponId: couponResult.couponId,
         },
         userId: user.id,
         affiliateId: affiliateId && !Number.isNaN(affiliateId) && affiliateId !== user.id ? affiliateId : null,
@@ -746,7 +806,7 @@ export const createFreeOrder = async (req: AuthRequest, res: Response, next: Nex
         providerOrderId,
         status: 'completed',
         assignmentStatus: 'unassigned',
-        currency: challenge_type?.toLowerCase().includes('ngn') ? 'NGN' : 'USD',
+        currency: isNgnChallengeType(challenge_type) ? 'NGN' : 'USD',
         grossAmountKobo: amount_kobo,
         discountAmountKobo: couponResult.discountAmountKobo,
         netAmountKobo: couponResult.finalAmountKobo,
@@ -757,7 +817,7 @@ export const createFreeOrder = async (req: AuthRequest, res: Response, next: Nex
         couponCode: couponResult.couponCode,
         paymentMethod: 'coupon',
         paymentProvider: 'internal',
-        metadata: { platform: normalizedPlatform },
+        metadata: { platform: normalizedPlatform, couponId: couponResult.couponId },
         paidAt: new Date(),
         userId: user.id,
         affiliateId: affiliateId && !Number.isNaN(affiliateId) && affiliateId !== user.id ? affiliateId : null,
@@ -847,7 +907,7 @@ export const createCryptoOrder = async (req: AuthRequest, res: Response, next: N
         providerOrderId,
         status: 'pending',
         assignmentStatus: 'unassigned',
-        currency: challenge_type?.toLowerCase().includes('ngn') ? 'NGN' : 'USD',
+        currency: isNgnChallengeType(challenge_type) ? 'NGN' : 'USD',
         grossAmountKobo: amount_kobo,
         discountAmountKobo: couponResult.discountAmountKobo,
         netAmountKobo: couponResult.finalAmountKobo,
@@ -858,7 +918,7 @@ export const createCryptoOrder = async (req: AuthRequest, res: Response, next: N
         couponCode: couponResult.couponCode,
         paymentMethod: 'crypto',
         paymentProvider: 'manual',
-        metadata: { platform: normalizedPlatform },
+        metadata: { platform: normalizedPlatform, couponId: couponResult.couponId },
         cryptoCurrency: normalizedCurrency,
         cryptoAddress: address,
         userId: user.id,

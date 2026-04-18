@@ -101,15 +101,28 @@ const resetAccountMetrics = async (accountId: number, newBalance: number, phase:
   })
 }
 
+const ATTIC_PROMOTION_ACCOUNT_SIZE = '₦200,000'
+
 const resolveNextPhase = (challengeType: string, phase?: string | null) => {
   const normalizedChallengeType = String(challengeType ?? '').toLowerCase()
   const normalizedPhase = String(phase ?? '').toLowerCase()
+  if (normalizedChallengeType === 'attic') {
+    return 'phase_1'
+  }
   if (normalizedChallengeType === 'instant_funded') {
     return 'funded'
   }
   if (normalizedPhase === 'phase_1') return 'phase_2'
   if (normalizedPhase === 'phase_2') return 'funded'
   return phase ?? 'phase_1'
+}
+
+const resolveNextChallengeType = (challengeType: string) => {
+  const normalizedChallengeType = String(challengeType ?? '').toLowerCase()
+  if (normalizedChallengeType === 'attic') {
+    return 'ngn_standard'
+  }
+  return challengeType
 }
 
 const resolveCurrencyLabel = (currency?: string | null) => {
@@ -141,7 +154,12 @@ export const resetComplete = async (req: Request, res: Response, next: NextFunct
       throw new ApiError('Account not found', 404)
     }
 
-    const newBalance = account.metrics?.balance
+    const promotedChallengeType = resolveNextChallengeType(account.challengeType ?? 'two_step')
+    const promotedAccountSize = String(account.challengeType ?? '').toLowerCase() === 'attic'
+      ? ATTIC_PROMOTION_ACCOUNT_SIZE
+      : account.accountSize
+    const newBalance = parseAccountSize(promotedAccountSize)
+      ?? account.metrics?.balance
       ?? account.initialBalance
       ?? parseAccountSize(account.accountSize)
       ?? 0
@@ -156,6 +174,9 @@ export const resetComplete = async (req: Request, res: Response, next: NextFunct
         data: {
           status: 'active',
           phase: nextPhase,
+          challengeType: promotedChallengeType,
+          accountSize: promotedAccountSize,
+          currency: String(promotedChallengeType).toLowerCase().includes('ngn') ? 'NGN' : account.currency,
           breachedAt: null,
           passedAt: null,
           initialBalance: storedInitial,
@@ -181,7 +202,7 @@ export const resetComplete = async (req: Request, res: Response, next: NextFunct
       }),
     ])
 
-    await resetAccountMetrics(account.id, newBalance, nextPhase, challengeType)
+    await resetAccountMetrics(account.id, newBalance, nextPhase, promotedChallengeType)
 
     if (account.userId) {
       await clearCacheByPrefix(buildCacheKey(['trader', 'challenges', account.userId]))
@@ -204,7 +225,7 @@ export const resetComplete = async (req: Request, res: Response, next: NextFunct
                 subtitle: 'Your next phase is now active',
                 content: 'Your account reset is complete. Your phase has been upgraded, your balance has been reset, and your account is active again. You can continue trading with the same login credentials.',
                 buttonText: 'View Dashboard',
-                infoBox: `Account Number: ${account.accountNumber}<br>New Phase: ${nextPhase}<br>Balance Reset: ${newBalance}`,
+                infoBox: `Account Number: ${account.accountNumber}<br>New Challenge: ${promotedChallengeType}<br>New Phase: ${nextPhase}<br>Balance Reset: ${newBalance}`,
               })
             },
           })

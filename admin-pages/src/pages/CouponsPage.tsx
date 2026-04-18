@@ -194,6 +194,7 @@ const CouponsPage = () => {
     { id: '50k', name: '$50K', account_size: '$50K', currency: 'USD', challenge_type: 'two_step' },
     { id: '100k', name: '$100K', account_size: '$100K', currency: 'USD', challenge_type: 'two_step' },
     { id: '200k', name: '$200K', account_size: '$200K', currency: 'USD', challenge_type: 'two_step' },
+    { id: 'attic_200000', name: 'Attic ₦200,000', account_size: '₦200,000', currency: 'NGN', challenge_type: 'attic' },
     { id: '200000', name: '₦200,000', account_size: '₦200,000', currency: 'NGN', challenge_type: 'ngn_standard' },
     { id: '500000', name: '₦500,000', account_size: '₦500,000', currency: 'NGN', challenge_type: 'ngn_standard' },
     { id: '800000', name: '₦800,000', account_size: '₦800,000', currency: 'NGN', challenge_type: 'ngn_standard' },
@@ -213,7 +214,7 @@ const CouponsPage = () => {
       .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
       .map((value) => value.trim().toLowerCase())
 
-    const fallbackTypes = ['one_step', 'two_step', 'instant_funded', 'ngn']
+    const fallbackTypes = ['one_step', 'two_step', 'instant_funded', 'ngn_standard', 'ngn_flexi', 'attic']
     return Array.from(new Set([...fromPlans, ...fallbackTypes])).filter(Boolean)
   }, [planList])
 

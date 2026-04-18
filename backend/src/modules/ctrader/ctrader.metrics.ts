@@ -5,7 +5,7 @@ import { prisma } from '../../config/prisma'
 import { Prisma } from '@prisma/client'
 import { env } from '../../config/env'
 import { ApiError } from '../../common/errors'
-import { buildObjectiveFields } from './ctrader.objectives'
+import { buildObjectiveFields, getObjectiveRules } from './ctrader.objectives'
 import { pushActiveAccountRemove } from '../../services/ctraderEngine.service'
 import { notifyFinanceEngine } from '../../services/financeEngine.service'
 import { createPassedChallengeCertificate } from '../../services/certificate.service'
@@ -362,17 +362,18 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       newlyProcessedTrades.push(trade)
     })
     const priorViolations = (metrics as any)?.durationViolationsCount ?? 0
-    const minDurationSeconds = accountData.minTradeDurationMinutes != null
+    const durationRuleEnabled = accountData.minTradeDurationMinutes != null
+    const minDurationSeconds = durationRuleEnabled
       ? accountData.minTradeDurationMinutes * 60
       : MIN_TRADE_DURATION_SECONDS
     const newViolations = newlyProcessedTrades.filter((trade) => {
       const duration = calculateTradeDurationMinutes(trade)
-      return duration != null && duration * 60 < minDurationSeconds
+      return durationRuleEnabled && duration != null && duration * 60 < minDurationSeconds
     }).length
     const durationViolationsCount = isMt5Payload
-      ? Math.max(0, reportedShortTradesCount ?? 0)
-      : priorViolations + newViolations
-    const shortDurationViolation = durationViolationsCount >= MAX_DURATION_VIOLATIONS
+      ? (durationRuleEnabled ? Math.max(0, reportedShortTradesCount ?? 0) : 0)
+      : (durationRuleEnabled ? priorViolations + newViolations : 0)
+    const shortDurationViolation = durationRuleEnabled && durationViolationsCount >= MAX_DURATION_VIOLATIONS
     const supportedSymbols = new Set(
       (supportedSymbolsConfig.supported_symbols ?? []).map((symbol) => String(symbol).toUpperCase())
     )
@@ -476,6 +477,44 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       }
     }
 
+    const normalizedChallengeType = String(accountData.challengeType ?? '').toLowerCase()
+    const normalizedPhase = String(accountData.phase ?? '').toLowerCase()
+    const isMultiPhase = ['two_step', 'ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)
+    const isAttic = normalizedChallengeType === 'attic'
+    const isInstantFunded = normalizedChallengeType === 'instant_funded'
+    const isFundedPhase = normalizedPhase === 'funded'
+
+    const objectiveRules = await getObjectiveRules(accountData.challengeType, accountData.phase)
+    const stageTimeLimitHours = (() => {
+      const raw = objectiveRules.withdrawalSchedule
+      void raw
+      return null
+    })()
+    const rawTimeLimit = await (async () => {
+      try {
+        const config = await getObjectiveRules(accountData.challengeType, accountData.phase)
+        return config
+      } catch {
+        return null
+      }
+    })()
+    const timeLimitHours = (() => {
+      const phaseConfig = rawTimeLimit
+      void phaseConfig
+      if (String(accountData.challengeType ?? '').toLowerCase() === 'attic') {
+        return 24
+      }
+      return null
+    })()
+
+    const provisionalPassed = reportedPassed != null
+      ? reportedPassed
+      : !isInstantFunded
+      && !isFundedPhase
+      && profitTargetBalance != null
+      && equity >= profitTargetBalance
+      && minTradingDaysMet
+
     let breachReason: string | null = isMt5Payload
       ? reportedBreachReason
       : (reportedBreachReason ?? (metrics as any)?.breachReason ?? null)
@@ -500,6 +539,8 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       // Skip DD/fraud checks during a reset window to avoid false breaches.
     } else if (unsupportedTrade) {
       breachReason = 'UNSUPPORTED_SYMBOL'
+    } else if (timeLimitHours != null && stageElapsedHours > timeLimitHours && !provisionalPassed) {
+      breachReason = 'TIME_LIMIT'
     } else if ((isMt5Payload ? effectiveEquityLow : guardedMinEquity) < breachBalance) {
       breachReason = 'MAX_DRAWDOWN'
     } else if (dailyDdEnabled && (equity < dailyBreachBalance || (isMt5Payload ? effectiveEquityLow : guardedMinEquity) < dailyBreachBalance)) {
@@ -508,23 +549,12 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       breachReason = 'MIN_TRADE_DURATION'
     }
 
-    const normalizedChallengeType = String(accountData.challengeType ?? '').toLowerCase()
-    const normalizedPhase = String(accountData.phase ?? '').toLowerCase()
-    const isMultiPhase = ['two_step', 'ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)
-    const isInstantFunded = normalizedChallengeType === 'instant_funded'
+    
     const breached = breachReason != null
     const wasBreached = account.status?.toLowerCase() === 'breached'
     const wasPassed = account.status?.toLowerCase() === 'awaiting_reset'
-    const isFundedPhase = normalizedPhase === 'funded'
     const isAdminChecking = account.status?.toLowerCase() === 'admin_checking'
-    const passed = reportedPassed != null
-      ? reportedPassed
-      : !breached
-      && !isInstantFunded
-      && !isFundedPhase
-      && profitTargetBalance != null
-      && equity >= profitTargetBalance
-      && minTradingDaysMet
+    const passed = !breached && provisionalPassed
     void normalizedChallengeType
     void normalizedPhase
 
@@ -774,7 +804,9 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     }
 
     const normalizedPhaseKey = String(accountData.phase ?? '').toLowerCase()
-    const nextPhaseKey = isMultiPhase
+    const nextPhaseKey = isAttic
+      ? 'phase_1'
+      : isMultiPhase
       ? (normalizedPhaseKey === 'phase_1' ? 'phase_2' : normalizedPhaseKey === 'phase_2' ? 'funded' : normalizedPhaseKey)
       : (normalizedPhaseKey === 'phase_1' ? 'funded' : normalizedPhaseKey)
     const shouldIssueCertificate = nextPhaseKey === 'funded'
@@ -806,7 +838,9 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
           subject: '🎉 Phase Passed – Action in Progress',
           title: 'Phase Passed',
           subtitle: 'Your account is being prepared for the next phase',
-          content: `Congratulations! You have passed this phase. Your account is being prepared for the next phase (${nextPhaseKey.replace('_', ' ')}). No action is required, and your existing login credentials will remain the same.`,
+          content: isAttic
+            ? 'Congratulations! You have passed the Attic phase. Your account is being prepared for the ₦200,000 NGN Standard Challenge (Phase 1). No action is required, and your existing login credentials will remain the same.'
+            : `Congratulations! You have passed this phase. Your account is being prepared for the next phase (${nextPhaseKey.replace('_', ' ')}). No action is required, and your existing login credentials will remain the same.`,
           buttonText: 'View Dashboard',
           infoBox: `Account Size: ${accountData.accountSize}<br>Challenge: ${accountData.challengeType}<br>Phase: ${accountData.phase}<br>Account Number: ${account.accountNumber}`,
           ...(attachments ? { attachments } : {}),

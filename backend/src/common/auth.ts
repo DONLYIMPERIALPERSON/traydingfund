@@ -5,6 +5,12 @@ import { env } from '../config/env'
 import { prisma } from '../config/prisma'
 import { ApiError } from './errors'
 
+const debugAuth = (...args: unknown[]) => {
+  if (env.nodeEnv !== 'production') {
+    console.log('[backend-auth]', ...args)
+  }
+}
+
 const jwks = env.supabaseJwksUrl
   ? createRemoteJWKSet(new URL(env.supabaseJwksUrl), {
       headers: {
@@ -25,6 +31,12 @@ export type AuthenticatedRequest = Request & { user?: AuthUser; supabaseSub?: st
 export const authenticate = async (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization
+    debugAuth('incoming auth request', {
+      path: req.originalUrl,
+      hasAuthorization: Boolean(authHeader),
+      authPrefix: authHeader?.slice(0, 20) ?? null,
+      origin: req.headers.origin ?? null,
+    })
     if (!authHeader?.startsWith('Bearer ')) {
       throw new ApiError('Missing bearer token', 401)
     }
@@ -34,9 +46,16 @@ export const authenticate = async (req: AuthenticatedRequest, _res: Response, ne
     }
 
     const token = authHeader.replace('Bearer ', '').trim()
+    debugAuth('verifying bearer token', { tokenPreview: `${token.slice(0, 12)}...` })
     const { payload } = await jwtVerify(token, jwks, {
       issuer: `${env.supabaseUrl}/auth/v1`,
       audience: 'authenticated',
+    })
+    debugAuth('jwt verified', {
+      sub: payload.sub ?? null,
+      email: (payload.email as string | undefined) ?? null,
+      aud: payload.aud ?? null,
+      iss: payload.iss ?? null,
     })
 
     const sub = payload.sub
@@ -58,18 +77,23 @@ export const authenticate = async (req: AuthenticatedRequest, _res: Response, ne
       update: { email, role: resolvedRole },
       create: { email, role: resolvedRole, status: 'active' },
     })
+    debugAuth('user authenticated', { userId: user.id, email: user.email, role: user.role })
 
     req.user = { id: user.id, email: user.email, role: user.role }
     req.supabaseSub = sub
     next()
   } catch (error) {
     console.error('Auth middleware failed:', error)
-    const message = error instanceof Error ? error.message : 'Invalid auth token'
-    const reason = (error as { code?: string; claim?: string })?.code
-    if (reason === 'ERR_JWT_EXPIRED' || message.toLowerCase().includes('jwt') || message.toLowerCase().includes('token')) {
-      return next(new ApiError('Invalid auth token', 401))
+    debugAuth('auth failure details', {
+      path: req.originalUrl,
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : 'UnknownError',
+    })
+    if (error instanceof ApiError) {
+      return next(error)
     }
-    return next(error as Error)
+
+    return next(new ApiError('Invalid auth token', 401))
   }
 }
 

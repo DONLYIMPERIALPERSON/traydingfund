@@ -259,6 +259,8 @@ def send_metrics_from_file(account_number: str, account_meta: Dict[str, str] | N
 
     if account_meta:
         payload["account_type"] = account_meta.get("accountType") or account_meta.get("account_type")
+        payload["challenge_type"] = account_meta.get("challengeType") or account_meta.get("challenge_type")
+        payload["phase"] = account_meta.get("phase")
         raw_size = account_meta.get("accountSize") or account_meta.get("account_size")
         if raw_size is not None:
             if isinstance(raw_size, str):

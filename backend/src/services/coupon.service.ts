@@ -98,26 +98,42 @@ export const applyCouponToOrder = async (payload: {
     ...(payload.challengeType !== undefined ? { challengeType: payload.challengeType } : {}),
   })
 
-  await prisma.$transaction(async (tx) => {
-    await tx.coupon.update({
-      where: { id: preview.couponId },
-      data: { usedCount: { increment: 1 } },
-    })
-
-    await tx.couponRedemption.create({
-      data: {
-        couponId: preview.couponId,
-        userId: payload.userId,
-      },
-    })
-  })
-
   return {
     couponCode: preview.code,
     couponId: preview.couponId,
     discountAmountKobo: preview.discountAmountKobo,
     finalAmountKobo: preview.finalAmountKobo,
   }
+}
+
+export const redeemCouponForCompletedOrder = async (payload: {
+  couponId?: number | null
+  userId: number
+  orderId: number
+}) => {
+  if (!payload.couponId) return
+
+  const existingOrder = await prisma.$queryRaw<Array<{ id: number }>>`
+    SELECT id
+    FROM "CouponRedemption"
+    WHERE "couponId" = ${payload.couponId}
+      AND "userId" = ${payload.userId}
+    LIMIT 1
+  `
+
+  if (existingOrder.length > 0) return
+
+  await prisma.$transaction(async (tx) => {
+    await tx.coupon.update({
+      where: { id: payload.couponId as number },
+      data: { usedCount: { increment: 1 } },
+    })
+
+    await tx.$executeRaw`
+      INSERT INTO "CouponRedemption" ("couponId", "userId", "createdAt")
+      VALUES (${payload.couponId as number}, ${payload.userId}, NOW())
+    `
+  })
 }
 
 export const listAdminCoupons = async () => prisma.coupon.findMany({ orderBy: { createdAt: 'desc' } })

@@ -8,6 +8,7 @@ import { requestAccountAccess } from '../../services/accessEngine.service'
 import { createOnboardingCertificate } from '../../services/certificate.service'
 import { getFxRatesConfig } from '../fxRates/fxRates.service'
 import { fetchRemoteAttachment, sendUnifiedEmail } from '../../services/email.service'
+import { redeemCouponForCompletedOrder } from '../../services/coupon.service'
 
 const AFFILIATE_COMMISSION_PERCENT = 30
 
@@ -215,6 +216,12 @@ export const approveCryptoOrder = async (req: Request, res: Response, next: Next
         status: 'completed',
         paidAt: new Date(),
       },
+    })
+
+    await redeemCouponForCompletedOrder({
+      couponId: (updated.metadata as { couponId?: number | null } | null)?.couponId ?? null,
+      userId: updated.userId,
+      orderId: updated.id,
     })
 
     let onboardingCertificateUrl: string | null = null

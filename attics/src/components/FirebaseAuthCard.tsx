@@ -24,6 +24,10 @@ function toSafeAuthErrorMessage(err: unknown): string {
 
 const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) => {
 	const navigate = useNavigate();
+	const debugEnabled = String(import.meta.env.VITE_DEBUG_AUTH ?? 'true').toLowerCase() === 'true';
+	const debugLog = (...args: unknown[]) => {
+		if (debugEnabled) console.log('[attics-auth]', ...args);
+	};
 	const [error, setError] = useState('');
 	const [info, setInfo] = useState('');
 	const [loading, setLoading] = useState(false);
@@ -71,7 +75,7 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
 		setError('');
 		try {
 			await updateProfile({ first_name: firstName.trim(), last_name: lastName.trim() });
-			navigate('/');
+			navigate('/dashboard');
 		} catch (err) {
 			setError(toSafeAuthErrorMessage(err));
 		} finally {
@@ -89,6 +93,7 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
 		setError('');
 		try {
 			const baseUrl = import.meta.env.VITE_API_BASE_URL as string;
+			debugLog('checking if email exists', { email: email.trim(), baseUrl });
 			const response = await fetch(`${baseUrl}/auth/email-exists?email=${encodeURIComponent(email.trim())}`);
 			if (!response.ok) throw new Error('Unable to verify email');
 			const data = await response.json();
@@ -118,6 +123,7 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
 		setError('');
 		try {
 			const { data, error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password: password.trim() });
+			debugLog('password sign-in response', { hasSession: Boolean(data?.session), userEmail: data?.user?.email ?? null, error: signInError?.message ?? null });
 			if (signInError) throw signInError;
 
 			if (data?.session?.access_token) {
@@ -129,7 +135,7 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
 				}
 			}
 
-			navigate('/');
+			navigate('/dashboard');
 		} catch (err) {
 			setError(toSafeAuthErrorMessage(err));
 		} finally {
@@ -152,6 +158,7 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
 		setError('');
 		try {
 			const { data, error: verifyError } = await supabase.auth.verifyOtp({ email: email.trim(), token: otpCode.trim(), type: 'email' });
+			debugLog('otp verify response', { hasSession: Boolean(data?.session), userEmail: data?.user?.email ?? null, error: verifyError?.message ?? null });
 			if (verifyError) {
 				setOtpAttemptsLeft((prev) => Math.max(prev - 1, 0));
 				throw verifyError;
@@ -179,6 +186,7 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
 		setError('');
 		try {
 			const { data, error: updateError } = await supabase.auth.updateUser({ password: password.trim() });
+			debugLog('create password response', { hasUser: Boolean(data?.user), userEmail: data?.user?.email ?? null, error: updateError?.message ?? null });
 			if (updateError) throw updateError;
 
 			if (data?.user) {
@@ -193,7 +201,7 @@ const FirebaseAuthCard: React.FC<FirebaseAuthCardProps> = ({ title, subtitle }) 
 				}
 			}
 
-			navigate('/');
+			navigate('/dashboard');
 		} catch (err) {
 			setError(toSafeAuthErrorMessage(err));
 		} finally {

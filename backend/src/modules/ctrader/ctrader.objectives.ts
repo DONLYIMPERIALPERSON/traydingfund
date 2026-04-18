@@ -1,5 +1,5 @@
 import { getTradingObjectivesConfig } from '../tradingObjectives/tradingObjectives.service'
-import type { TradingObjectivePhase } from '../tradingObjectives/tradingObjectives.config'
+import { DEFAULT_TRADING_OBJECTIVES, type TradingObjectiveChallengeType, type TradingObjectivePhase } from '../tradingObjectives/tradingObjectives.config'
 
 export type ObjectiveRuleSet = {
   maxDdPercent: number | null
@@ -48,11 +48,12 @@ const getRuleValue = (phase: TradingObjectivePhase, key: string) =>
 
 export const getObjectiveRules = async (challengeType: string, phase: string): Promise<ObjectiveRuleSet> => {
   const config = await getTradingObjectivesConfig()
-  const challenge = config.rules.challenge_types.find((item) => item.key === challengeType)
+  const challenge = config.rules.challenge_types.find((item: TradingObjectiveChallengeType) => item.key === challengeType)
+    ?? DEFAULT_TRADING_OBJECTIVES.challenge_types.find((item: TradingObjectiveChallengeType) => item.key === challengeType)
   if (!challenge) {
     throw new Error(`Unknown challenge type: ${challengeType}`)
   }
-  const phaseConfig = challenge.phases.find((item) => item.key === phase)
+  const phaseConfig = challenge.phases.find((item: TradingObjectivePhase) => item.key === phase)
   if (!phaseConfig) {
     throw new Error(`Unknown phase: ${phase}`)
   }

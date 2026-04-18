@@ -1,251 +1,114 @@
-int AccountNo = 0; // set this to a number othet than 0 to restrict ea usage on special account
-long ExpiryTime = 0; // set this to YYYYMMDD to expire ea on time for example to expire on 20 december set to 20151220
 //+------------------------------------------------------------------+
-//|                                                TickDataSaver.mq5 |
-//|                                       Copyright © 2025, tidicofx |
-//|                                               tidicofx@yahoo.com |
-//|                                               developed for btmm |
+//|     LiveTickSender_BATCH_FINAL_CLEAN.mq5                        |
 //+------------------------------------------------------------------+
-#property copyright "Copyright © 2025, tidicofx"
-#property link      "tidicofx@yahoo.com"
-#define   Version   "1.00"
-#property version   Version
 #property strict
+
+string SERVICE_URL = "http://127.0.0.1:8200/submit_ticks";
+int TIMEOUT = 5000;
+
+#define BATCH_SIZE 20
+
+MqlTick tick_buffer[];
+int tick_count = 0;
+
+long last_time_msc = 0;
+
 //+------------------------------------------------------------------+
-//| Input Parameters Definition                                      |
-//+------------------------------------------------------------------+
-//+------------------------------------------------------------------+
-//| Local Parameters Definition                                      |
-//+------------------------------------------------------------------+
-struct stc_pip_value
+string ToStrLong(long v)
 {
-  string symbol;
-  double tv;
-  double ts;
-};
-//+------------------------------------------------------------------+
-string lbl = "TDS.";
-bool _res;
-datetime eaStart;
-bool isDone=false;
-string symbolsWithTickData[]={
-  "EURUSD","GBPUSD","AUDUSD","NZDUSD","USDJPY","USDCAD","USDCHF",
-  "EURGBP","EURJPY","GBPJPY","AUDJPY","NZDJPY",
-  "XAUUSD","XAGUSD",
-  "US30","US500","USTEC","UK100","DE30",
-  "BTCUSD","ETHUSD",
-  "USOIL","UKOIL"
-};
-datetime lastUpdate=0;
-datetime lastPVUpdate=0;
-//+------------------------------------------------------------------+
-//| expert initialization function                                   |
-//+------------------------------------------------------------------+
-int OnInit()
-{
-  //------------------------------------------------------------------
-  eaStart=TimeLocal();
-  isDone=false;
-  for (int i=0; i<ArraySize(symbolsWithTickData); i++)
-  {
-    string symbol = symbolsWithTickData[i] + "m";
-    SymbolSelect(symbol, true);
-    SymbolIsSynchronized(symbol);
-  }
-  lastUpdate=0;
-  lastPVUpdate=0;
-  EventSetTimer(1);
-  //------------------------------------------------------------------
-  return (INIT_SUCCEEDED);
+    return StringFormat("%.0f", (double)v);
 }
-//+------------------------------------------------------------------+
-//| expert deinitialization function                                 |
-//+------------------------------------------------------------------+
-void OnDeinit(const int reason)
+
+string ToStrDouble(double v)
 {
-  //------------------------------------------------------------------
-  EventKillTimer();
-  ObjectsDeleteAll(0, lbl);
-  //------------------------------------------------------------------
+    return StringFormat("%.5f", v);
 }
-//+------------------------------------------------------------------+
-//| expert start function                                            |
-//+------------------------------------------------------------------+
-void OnTimer()
+
+bool IsValidNumber(double v)
 {
-  //------------------------------------------------------------------
-  if (TimeCurrent()-lastUpdate>=2*60)
-  {
-    bool failed=false;
-    for (int i=0; i<ArraySize(symbolsWithTickData); i++)
-    {
-      string sym = symbolsWithTickData[i];
-      string symbol = sym + "m";
-      SymbolSelect(symbol, true);
-      SymbolIsSynchronized(symbol);
-      MqlTick last_tick;
-      if (!SymbolInfoTick(symbol, last_tick))
-      {
-        Print("No live tick for ", symbol);
-      }
-      MqlTick ticks[];
-      datetime from = TimeCurrent() - 60;
-      if (CopyTicks(symbol, ticks, COPY_TICKS_ALL, from, 0)>0)
-      {
-        Print("sending "+sym+" ticks from "+TimeToString(ticks[0].time, TIME_DATE|TIME_SECONDS));
-        if (!SendTicksToService(sym, ticks)) failed=true;
-      }
-      else
-      {
-        MqlRates rates[];
-        MqlTick ticks[];
-        double point=SymbolInfoDouble(symbol, SYMBOL_POINT);
-        if (CopyRates(symbol, PERIOD_M1, TimeCurrent()-30*60, TimeCurrent(), rates)<1)
-        {
-          Print("unable to read history for '"+sym+"', try again later...");
-        }
-        else
-        {
-          ArrayResize(ticks, ArraySize(rates));
-          for (int j=0; j<ArraySize(rates); j++)
-          {
-            ticks[j].bid=rates[j].close;
-            ticks[j].ask=rates[j].close+rates[j].spread*point;
-            ticks[j].time=rates[j].time;
-            ticks[j].time_msc=(long)(rates[j].time*1000+60*1000-1);
-          }
-          Print("sending "+sym+" ticks from "+TimeToString(ticks[0].time, TIME_DATE|TIME_SECONDS));
-          if (!SendTicksToService(sym, ticks)) failed=true;
-        }
-      }
-    }
-    if (failed) lastUpdate=TimeCurrent()-4*60;
-    else lastUpdate=TimeCurrent();
-  }
-  //------------------------------------------------------------------
-  datetime today=StringToTime(TimeToString(TimeCurrent(), TIME_DATE));
-  if (lastPVUpdate<today && TimeCurrent()-today>=10*60)
-  {
-    bool failed=false;
-    stc_pip_value spv[]; ArrayResize(spv, ArraySize(symbolsWithTickData));
-    string buffer="";
-    for (int i=0; i<ArraySize(symbolsWithTickData); i++)
-    {
-      string sym = symbolsWithTickData[i];
-      string symbol = sym + "m";
-      SymbolSelect(symbol, true);
-      SymbolIsSynchronized(symbol);
-      double tv=SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_VALUE);
-      double ts=SymbolInfoDouble(symbol, SYMBOL_TRADE_TICK_SIZE);
-      spv[i].symbol=sym;
-      spv[i].tv=tv;
-      spv[i].ts=ts;
-    }
-    Print("sending tick value/size for today");
-    if (SendPipValuesToService(spv, today)) lastPVUpdate=today;
-  }
-  //------------------------------------------------------------------
+    return (v == v && v != DBL_MAX && v != -DBL_MAX);
 }
-//+------------------------------------------------------------------+
-int IsValidSymbol(string symbol)
-{
-  for (int i=0; i<ArraySize(symbolsWithTickData); i++)
-    if (symbolsWithTickData[i]==symbol) return (i);
-  return (-1);
-}
+
 //+------------------------------------------------------------------+
 void OnTick()
 {
-  //------------------------------------------------------------------
-  //------------------------------------------------------------------
-}
-//+------------------------------------------------------------------+
-string SERVICE_URL = "http://127.0.0.1:8200/";
-int TIMEOUT = 5000; // 5 seconds
-//+------------------------------------------------------------------+
-bool SendTicksToService(string symbol, MqlTick &ticks[])
-{
-    string url = "http://127.0.0.1:8200/submit_ticks";
-    string headers = "Content-Type: application/json\r\n";
+    MqlTick tick;
 
-    // Build JSON body
-    string json = "{ \"symbol\": \"" + symbol + "\", \"ticks\": [";
+    if(!SymbolInfoTick(_Symbol, tick))
+        return;
 
-    int total = ArraySize(ticks);
-    for(int i = 0; i < total; i++)
+    if(tick.time_msc == last_time_msc)
+        return;
+
+    last_time_msc = tick.time_msc;
+
+    ArrayResize(tick_buffer, tick_count + 1);
+    tick_buffer[tick_count] = tick;
+    tick_count++;
+
+    if(tick_count >= BATCH_SIZE)
     {
-        json += StringFormat(
-            "{\"time\":%I64d,\"bid\":%.5f,\"ask\":%.5f}",
-            ticks[i].time_msc,
-            ticks[i].bid,
-            ticks[i].ask
-        );
-        if(i < total - 1)
-            json += ",";
+        SendBatch();
+        tick_count = 0;
+        ArrayResize(tick_buffer, 0);
     }
-    json += "] }";
+}
 
-    // Convert string -> char array
+//+------------------------------------------------------------------+
+void SendBatch()
+{
+    int total = ArraySize(tick_buffer);
+    if(total == 0)
+        return;
+
+    string parts[];
+    ArrayResize(parts, total);
+
+    int valid_count = 0;
+
+    for(int i=0; i<total; i++)
+    {
+        double bid_val = tick_buffer[i].bid;
+        double ask_val = tick_buffer[i].ask;
+
+        if(!IsValidNumber(bid_val) || !IsValidNumber(ask_val))
+            continue;
+
+        string obj = "{";
+        obj += "\"time\":" + ToStrLong(tick_buffer[i].time_msc) + ",";
+        obj += "\"bid\":" + ToStrDouble(bid_val) + ",";
+        obj += "\"ask\":" + ToStrDouble(ask_val);
+        obj += "}";
+
+        parts[valid_count] = obj;
+        valid_count++;
+    }
+
+    if(valid_count == 0)
+        return;
+
+    string ticks_json = parts[0];
+    for(int i=1; i<valid_count; i++)
+        ticks_json += "," + parts[i];
+
+    string json = "{";
+    json += "\"symbol\":\"" + _Symbol + "\",";
+    json += "\"ticks\":[" + ticks_json + "]";
+    json += "}";
+
     char data[];
     int len = StringToCharArray(json, data, 0, StringLen(json), CP_UTF8);
+    ArrayResize(data, len);
 
     char response[];
-    string response_headers;
-    int timeout = 5000;
-
-    int result = WebRequest("POST", url, headers, timeout, data, response, response_headers);
-    if(result == -1)
-    {
-        Print("WebRequest failed: ", GetLastError());
-        return false;
-    }
-
-    Print("Server response: ", CharArrayToString(response));
-    return true;
-}
-//+------------------------------------------------------------------+
-//+------------------------------------------------------------------+
-// Send array of stc_pip_value to FastAPI
-// 'spv' is an array of stc_pip_value
-// 'day' is the datetime of the snapshot
-//+------------------------------------------------------------------+
-bool SendPipValuesToService(stc_pip_value &spv[], datetime day)
-{
-    string url = SERVICE_URL + "symbols/day";
     string headers = "Content-Type: application/json\r\n";
-    string iso_date=TimeToString(day, TIME_DATE); StringReplace(iso_date, ".", "-");
-    string json = "{ \"date\": \"" + iso_date + "\", \"symbols\": [";
 
-    int total = ArraySize(spv);
-    for(int i = 0; i < total; i++)
-    {
-        json += StringFormat(
-            "{\"symbol\":\"%s\",\"tick_size\":%.8f,\"tick_value\":%.8f}",
-            spv[i].symbol,
-            spv[i].ts,
-            spv[i].tv
-        );
+    int result = WebRequest("POST", SERVICE_URL, headers, TIMEOUT, data, response, headers);
 
-        if(i < total - 1)
-            json += ",";
-    }
-    json += "] }";
-
-    // Convert string -> char array
-    char data[];
-    int len = StringToCharArray(json, data, 0, StringLen(json), CP_UTF8);
-
-    char response[];
-    string response_headers;
-
-    int result = WebRequest("POST", url, headers, TIMEOUT, data, response, response_headers);
+    // 🔥 ONLY LOG ERRORS
     if(result == -1)
     {
-        Print("WebRequest failed: ", GetLastError());
-        return false;
+        Print("❌ Send failed: ", GetLastError());
     }
-
-    Print("Server response: ", CharArrayToString(response));
-    return true;
 }
 //+------------------------------------------------------------------+

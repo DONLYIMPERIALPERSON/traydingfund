@@ -7,6 +7,8 @@ import { ApiError } from '../../common/errors'
 
 type AuthRequest = Request & { user?: { id: number; email: string } }
 
+type AffiliateScope = 'trader' | 'attic'
+
 const getAffiliateClients = () => {
   const client = prisma as typeof prisma & {
     affiliateCommission?: any
@@ -25,14 +27,34 @@ const ensureUser = (req: AuthRequest) => {
   return req.user
 }
 
-const buildReferralLink = (affiliateId: number) => `https://trader.machefunded.com/ref/${affiliateId}`
+const resolveAffiliateScope = (req: Request): AffiliateScope => {
+  const raw = String(req.query.scope ?? '').toLowerCase()
+  return raw === 'attic' ? 'attic' : 'trader'
+}
+
+const buildReferralLink = (affiliateId: number, scope: AffiliateScope) =>
+  scope === 'attic'
+    ? `https://attic.machefunded.com/ref/${affiliateId}`
+    : `https://trader.machefunded.com/ref/${affiliateId}`
+
+const buildOrderScopeWhere = (scope: AffiliateScope) => (
+  scope === 'attic'
+    ? { challengeType: 'attic' }
+    : { NOT: { challengeType: 'attic' } }
+)
+
+const buildCommissionScopeWhere = (affiliateId: number, scope: AffiliateScope) => ({
+  affiliateId,
+  order: buildOrderScopeWhere(scope),
+})
 
 export const getAffiliateDashboard = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const scope = resolveAffiliateScope(req)
     const { affiliateCommissionClient, affiliatePayoutClient } = getAffiliateClients()
     if (!affiliateCommissionClient?.aggregate || !affiliatePayoutClient?.findMany) {
       res.json({
-        referral_link: buildReferralLink(ensureUser(req).id),
+        referral_link: buildReferralLink(ensureUser(req).id, scope),
         stats: { available_balance: 0, total_earned: 0, referrals: 0, impressions: 0 },
         rewards: [],
         recent_transactions: [],
@@ -49,18 +71,18 @@ export const getAffiliateDashboard = async (req: AuthRequest, res: Response, nex
     const [earned, paid, payoutRequests, recentCommissions, recentPayouts, affiliateProfile] = await Promise.all([
       affiliateCommissionClient.aggregate({
         _sum: { amountKobo: true },
-        where: { affiliateId },
+        where: buildCommissionScopeWhere(affiliateId, scope),
       }),
       affiliateCommissionClient.aggregate({
         _sum: { amountKobo: true },
-        where: { affiliateId, status: 'paid' },
+        where: { ...buildCommissionScopeWhere(affiliateId, scope), status: 'paid' },
       }),
       affiliatePayoutClient.findMany({
         where: { affiliateId },
         orderBy: { requestedAt: 'desc' },
       }),
       affiliateCommissionClient.findMany({
-        where: { affiliateId },
+        where: buildCommissionScopeWhere(affiliateId, scope),
         orderBy: { createdAt: 'desc' },
         take: 5,
         include: { order: true },
@@ -85,11 +107,11 @@ export const getAffiliateDashboard = async (req: AuthRequest, res: Response, nex
     const availableBalance = Math.max(0, totalEarned - totalPaid - pendingPayouts)
 
     res.json({
-      referral_link: buildReferralLink(affiliateId),
+      referral_link: buildReferralLink(affiliateId, scope),
       stats: {
         available_balance: availableBalance / 100,
         total_earned: totalEarned / 100,
-        referrals: await (prisma as any).order.count({ where: { affiliateId } }),
+        referrals: await (prisma as any).order.count({ where: { affiliateId, ...buildOrderScopeWhere(scope) } }),
         impressions: 0,
       },
       rewards: [],
@@ -120,6 +142,7 @@ export const getAffiliateDashboard = async (req: AuthRequest, res: Response, nex
 
 export const listAffiliateCommissions = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const scope = resolveAffiliateScope(req)
     const { affiliateCommissionClient } = getAffiliateClients()
     if (!affiliateCommissionClient?.findMany) {
       res.json({ commissions: [], pagination: { page: 1, limit: 20, total: 0, pages: 1 } })
@@ -133,13 +156,13 @@ export const listAffiliateCommissions = async (req: AuthRequest, res: Response, 
 
     const [commissions, total] = await Promise.all([
       affiliateCommissionClient.findMany({
-        where: { affiliateId: user.id },
+        where: buildCommissionScopeWhere(user.id, scope),
         include: { order: true },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),
-      affiliateCommissionClient.count({ where: { affiliateId: user.id } }),
+      affiliateCommissionClient.count({ where: buildCommissionScopeWhere(user.id, scope) }),
     ])
 
     res.json({
@@ -189,6 +212,7 @@ export const listAffiliatePayouts = async (req: AuthRequest, res: Response, next
 
 export const requestAffiliatePayout = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const scope = resolveAffiliateScope(req)
     const { affiliateCommissionClient, affiliatePayoutClient } = getAffiliateClients()
     if (!affiliateCommissionClient?.aggregate || !affiliatePayoutClient?.findMany) {
       throw new ApiError('Affiliate payouts are not configured yet. Please try again later.', 500)
@@ -206,11 +230,11 @@ export const requestAffiliatePayout = async (req: AuthRequest, res: Response, ne
 
     const totals = await affiliateCommissionClient.aggregate({
       _sum: { amountKobo: true },
-      where: { affiliateId: user.id },
+      where: buildCommissionScopeWhere(user.id, scope),
     })
     const paidTotals = await affiliateCommissionClient.aggregate({
       _sum: { amountKobo: true },
-      where: { affiliateId: user.id, status: 'paid' },
+      where: { ...buildCommissionScopeWhere(user.id, scope), status: 'paid' },
     })
     const pendingPayouts = await affiliatePayoutClient.findMany({
       where: { affiliateId: user.id, status: 'pending' },

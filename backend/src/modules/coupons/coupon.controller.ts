@@ -46,6 +46,11 @@ const formatMoney = (amount: number, currency: 'USD' | 'NGN') => {
   return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 }
 
+const isNgnChallengeType = (challengeType?: string | null) => {
+  const normalized = String(challengeType ?? '').toLowerCase()
+  return normalized.includes('ngn') || normalized === 'attic'
+}
+
 export const previewCheckoutCoupon = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     ensureUser(req)
@@ -66,7 +71,7 @@ export const previewCheckoutCoupon = async (req: AuthRequest, res: Response, nex
       challengeType: challenge_type ?? null,
     })
 
-    const currency: 'USD' | 'NGN' = String(challenge_type ?? '').toLowerCase().includes('ngn')
+    const currency: 'USD' | 'NGN' = isNgnChallengeType(challenge_type)
       ? 'NGN'
       : 'USD'
 
