@@ -214,20 +214,26 @@ export const listAtticChallengeAccounts = async (req: Request, res: Response, ne
       include: { user: true, metrics: true },
     })
 
-    const filtered = accounts.filter((account) => {
-      const statusDate = resolveAtticStatusTimestamp(account)
-      if (startDate && statusDate < startDate) {
-        return false
-      }
-      if (!search) return true
+    const matchesSearch = (account: (typeof accounts)[number]) => {
       const email = String(account.user?.email ?? '').toLowerCase()
       const name = String(account.user?.fullName ?? '').toLowerCase()
       const accountNumber = String(account.accountNumber ?? '').toLowerCase()
       const challengeId = String(account.challengeId ?? '').toLowerCase()
       return email.includes(search) || name.includes(search) || accountNumber.includes(search) || challengeId.includes(search)
+    }
+
+    const filtered = accounts.filter((account) => {
+      if (!search) return true
+      return matchesSearch(account)
     })
 
-    const summary = filtered.reduce(
+    const summaryRows = filtered.filter((account) => {
+      if (!startDate) return true
+      const statusDate = resolveAtticStatusTimestamp(account)
+      return statusDate >= startDate
+    })
+
+    const summary = summaryRows.reduce(
       (acc, account) => {
         const status = String(account.status ?? '').toLowerCase()
         if (status === 'breached') acc.breached += 1
@@ -246,7 +252,7 @@ export const listAtticChallengeAccounts = async (req: Request, res: Response, ne
     res.json({
       summary: {
         period,
-        total,
+        total: summaryRows.length,
         active: summary.active,
         passed: summary.passed,
         breached: summary.breached,
