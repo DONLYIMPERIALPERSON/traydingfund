@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 import os
 from pathlib import Path
-from threading import Event, Thread
+from threading import Event, Lock, Thread
 import time
 from typing import Dict, List, Optional
 from uuid import uuid4
@@ -12,7 +12,7 @@ from uuid import uuid4
 import requests
 import redis
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -24,11 +24,6 @@ TICK_SERVICE_URL = os.environ.get("TICK_SERVICE_URL", "http://15.237.52.163:8201
 BACKEND_BASE_URL = os.environ.get("BACKEND_BASE_URL", "")
 BACKEND_REPLAY_ENDPOINT = os.environ.get("BACKEND_REPLAY_ENDPOINT", "/v1/mt5/metrics")
 BACKEND_ENGINE_SECRET = os.environ.get("BACKEND_ENGINE_SECRET", "")
-REPLAY_MAX_TICKS_PER_CHUNK = int(os.environ.get("REPLAY_MAX_TICKS_PER_CHUNK", "20000"))
-REPLAY_MIN_CHUNK_MS = int(os.environ.get("REPLAY_MIN_CHUNK_MS", str(5 * 60 * 1000)))
-REPLAY_MAX_CHUNK_MS = int(os.environ.get("REPLAY_MAX_CHUNK_MS", str(24 * 60 * 60 * 1000)))
-REPLAY_INITIAL_CHUNK_MS = int(os.environ.get("REPLAY_INITIAL_CHUNK_MS", str(60 * 60 * 1000)))
-REPLAY_HARD_MAX_FETCH_WINDOW_MS = int(os.environ.get("REPLAY_HARD_MAX_FETCH_WINDOW_MS", str(60 * 60 * 1000)))
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
 REPLAY_QUEUE_KEY = os.environ.get("REPLAY_QUEUE_KEY", "mf:replay:queue")
 REPLAY_SESSION_PREFIX = os.environ.get("REPLAY_SESSION_PREFIX", "mf:replay:session:")
@@ -37,11 +32,11 @@ EVENT_ORDER = {"open": 0, "deal": 1, "tick": 2}
 redis_client: Optional[redis.Redis] = None
 worker_stop_event = Event()
 worker_threads: List[Thread] = []
+log_write_lock = Lock()
+account_lock_registry: Dict[str, Lock] = {}
+account_lock_registry_guard = Lock()
 
 def notify_backend(result: ReplayResult) -> None:
-    if not BACKEND_BASE_URL:
-        print(f"[replay-risk] processed account={result.account_number} backend=skipped reason=no_backend_base_url")
-        return
     payload = {
         "account_number": result.account_number,
         "platform": "mt5",
@@ -77,6 +72,18 @@ def notify_backend(result: ReplayResult) -> None:
     headers = {}
     if BACKEND_ENGINE_SECRET:
         headers["X-ENGINE-SECRET"] = BACKEND_ENGINE_SECRET
+    send_attempted_at = now_iso()
+    if not BACKEND_BASE_URL:
+        log_backend_result_send(
+            result=result,
+            payload=payload,
+            status="skipped",
+            send_attempted_at=send_attempted_at,
+            backend_response_at=send_attempted_at,
+            error="no_backend_base_url",
+        )
+        print(f"[replay-risk] processed account={result.account_number} backend=skipped reason=no_backend_base_url")
+        return
     try:
         response = requests.post(
             f"{BACKEND_BASE_URL.rstrip('/')}{BACKEND_REPLAY_ENDPOINT}",
@@ -84,11 +91,28 @@ def notify_backend(result: ReplayResult) -> None:
             headers=headers,
             timeout=10,
         )
+        log_backend_result_send(
+            result=result,
+            payload=payload,
+            status="sent",
+            send_attempted_at=send_attempted_at,
+            backend_response_at=now_iso(),
+            backend_status_code=response.status_code,
+            backend_response_text=response.text[:1000],
+        )
         print(
             f"[replay-risk] sent result account={result.account_number} "
             f"backend_status={response.status_code} breach_reason={result.breach_reason} passed={result.passed}"
         )
     except Exception as exc:
+        log_backend_result_send(
+            result=result,
+            payload=payload,
+            status="failed",
+            send_attempted_at=send_attempted_at,
+            backend_response_at=now_iso(),
+            error=str(exc),
+        )
         print(f"[replay-risk] backend send failed account={result.account_number} error={exc}")
 
 
@@ -169,6 +193,10 @@ class ReplaySession(BaseModel):
 class ReplayResult(BaseModel):
     session_id: str
     account_number: str
+    received_at: Optional[str] = None
+    processing_started_at: Optional[str] = None
+    processed_at: Optional[str] = None
+    processing_duration_ms: Optional[float] = None
     breach_reason: Optional[str]
     breach_balance: float
     daily_breach_balance: Optional[float]
@@ -210,8 +238,98 @@ class ReplayStatusResponse(BaseModel):
 
 SESSIONS: Dict[str, ReplaySession] = {}
 BASE_DIR = Path(__file__).resolve().parent
-OUTPUTS_DIR = BASE_DIR / "outputs"
+OUTPUTS_DIR = BASE_DIR / "output"
 OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+BACKEND_RESULTS_LOG = OUTPUTS_DIR / "sent-backend-results.jsonl"
+RECEIVED_ACCOUNTS_LOG = OUTPUTS_DIR / "received-accounts.jsonl"
+PROCESSED_ACCOUNTS_LOG = OUTPUTS_DIR / "processed-accounts.jsonl"
+
+BACKEND_RESULTS_LOG.touch(exist_ok=True)
+RECEIVED_ACCOUNTS_LOG.touch(exist_ok=True)
+PROCESSED_ACCOUNTS_LOG.touch(exist_ok=True)
+
+
+def append_json_log(path: Path, record: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with log_write_lock:
+        sequence = 1
+        if path.exists():
+            try:
+                with path.open("r", encoding="utf-8") as existing:
+                    sequence = sum(1 for line in existing if line.strip()) + 1
+            except Exception:
+                sequence = 1
+        payload = {"sequence": sequence, **record}
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
+
+
+def log_received_account(*, session: ReplaySession) -> None:
+    append_json_log(
+        RECEIVED_ACCOUNTS_LOG,
+        {
+            "logged_at": now_iso(),
+            "type": "received_account",
+            "account_number": session.account_number,
+            "session_id": session.session_id,
+            "received_at": session.created_at,
+            "status": session.status,
+        },
+    )
+
+
+def log_processed_account(*, result: ReplayResult, send_status: str, backend_status_code: Optional[int] = None) -> None:
+    append_json_log(
+        PROCESSED_ACCOUNTS_LOG,
+        {
+            "logged_at": now_iso(),
+            "type": "processed_account",
+            "account_number": result.account_number,
+            "session_id": result.session_id,
+            "received_at": result.received_at,
+            "processed_at": result.processed_at,
+            "processing_duration_ms": result.processing_duration_ms,
+            "send_status": send_status,
+            "backend_status_code": backend_status_code,
+        },
+    )
+
+
+def log_backend_result_send(
+    *,
+    result: ReplayResult,
+    payload: dict,
+    status: str,
+    send_attempted_at: str,
+    backend_response_at: Optional[str] = None,
+    backend_status_code: Optional[int] = None,
+    backend_response_text: Optional[str] = None,
+    error: Optional[str] = None,
+) -> None:
+    append_json_log(
+        BACKEND_RESULTS_LOG,
+        {
+            "logged_at": now_iso(),
+            "account_number": result.account_number,
+            "time": backend_response_at or send_attempted_at,
+            "backend_status_code": backend_status_code,
+        },
+    )
+    log_processed_account(
+        result=result,
+        send_status=status,
+        backend_status_code=backend_status_code,
+    )
+
+
+def get_account_processing_lock(account_number: str) -> Lock:
+    with account_lock_registry_guard:
+        existing = account_lock_registry.get(account_number)
+        if existing is not None:
+            return existing
+        created = Lock()
+        account_lock_registry[account_number] = created
+        return created
 
 
 def _session_key(session_id: str) -> str:
@@ -295,9 +413,11 @@ def replay_worker_loop() -> None:
             if not record:
                 continue
             session = ReplaySession.model_validate(record["session"])
-            save_session_record(session, status="processing")
-            result = calculate_result(session)
-            save_session_record(session, status="completed", result=result)
+            account_lock = get_account_processing_lock(session.account_number)
+            with account_lock:
+                save_session_record(session, status="processing")
+                result = calculate_result(session)
+                save_session_record(session, status="completed", result=result)
         except Exception as exc:
             print(f"[replay-queue] Worker error: {exc}")
             try:
@@ -331,6 +451,9 @@ def build_replay_input_from_payload(payload: EAPayload) -> ReplayInputPayload:
 
 @app.on_event("startup")
 def startup_event() -> None:
+    print(
+        f"[replay-queue] log file sent={BACKEND_RESULTS_LOG}"
+    )
     client = get_redis_client()
     if not client:
         print("[replay-queue] Startup without Redis queue")
@@ -498,6 +621,32 @@ def _resolve_cycle_start(payload: EAPayload) -> tuple[Optional[str], Optional[st
     return (payload.trading_cycle_start, payload.trading_cycle_source, payload.anchor_time_ms)
 
 
+def _resolve_time_limit_start_ms(payload: EAPayload, cycle_start_ms: Optional[int]) -> int:
+    account_type = str(payload.account_type or "").strip().lower()
+    challenge_type = str(payload.challenge_type or "").strip().lower()
+    is_attic = account_type == "attic_phase_1" or challenge_type == "attic"
+    if not is_attic:
+        return cycle_start_ms or payload.anchor_time_ms
+
+    first_trade_candidates: List[int] = []
+    cycle_floor_ms = cycle_start_ms or payload.anchor_time_ms
+
+    for deal in payload.closed_deals:
+        if _should_ignore_deal(deal):
+            continue
+        if deal.time_ms >= cycle_floor_ms:
+            first_trade_candidates.append(deal.time_ms)
+
+    for position in payload.positions:
+        if position.open_time_ms >= cycle_floor_ms:
+            first_trade_candidates.append(position.open_time_ms)
+
+    if first_trade_candidates:
+        return min(first_trade_candidates)
+
+    return cycle_floor_ms
+
+
 def _symbol_meta_map(payload: EAPayload) -> Dict[str, SymbolMetaPayload]:
     return {meta.symbol: meta for meta in payload.symbols}
 
@@ -560,43 +709,20 @@ def _build_structural_events(payload: EAPayload) -> List[tuple]:
     return events
 
 
-def _load_tick_chunk(symbols: List[str], start_ms: int, final_end_ms: int, chunk_ms: int) -> tuple[Dict[str, List[dict]], int, int]:
-    if not symbols:
-        return {}, final_end_ms, chunk_ms
-
-    window_ms = max(
-        REPLAY_MIN_CHUNK_MS,
-        min(
-            chunk_ms,
-            REPLAY_MAX_CHUNK_MS,
-            REPLAY_HARD_MAX_FETCH_WINDOW_MS,
-            max(1, final_end_ms - start_ms + 1),
-        ),
-    )
-
-    while True:
-        chunk_end_ms = min(final_end_ms, start_ms + window_ms - 1)
-        ticks_by_symbol = _ticks_for_symbols(symbols, start_ms, chunk_end_ms)
-        total_ticks = sum(len(ticks) for ticks in ticks_by_symbol.values())
-        max_symbol_ticks = max((len(ticks) for ticks in ticks_by_symbol.values()), default=0)
-        within_limit = total_ticks <= REPLAY_MAX_TICKS_PER_CHUNK and max_symbol_ticks <= REPLAY_MAX_TICKS_PER_CHUNK
-
-        if within_limit or window_ms <= REPLAY_MIN_CHUNK_MS or chunk_end_ms <= start_ms:
-            next_chunk_ms = window_ms
-            if total_ticks < max(1, REPLAY_MAX_TICKS_PER_CHUNK // 4):
-                next_chunk_ms = min(REPLAY_MAX_CHUNK_MS, max(REPLAY_MIN_CHUNK_MS, window_ms * 2))
-            return ticks_by_symbol, chunk_end_ms, next_chunk_ms
-
-        window_ms = max(REPLAY_MIN_CHUNK_MS, window_ms // 2)
-
-
-def iter_timeline_snapshots(
+def build_timeline(
     payload: EAPayload,
+    ticks_by_symbol: Dict[str, List[dict]],
     meta_map: Dict[str, SymbolMetaPayload],
     initial_balance: float,
-):
+ ) -> List[dict]:
     events = _build_structural_events(payload)
-    final_end_ms = replay_anchor_end_ms(payload)
+    for symbol, ticks in ticks_by_symbol.items():
+        for tick in ticks:
+            time_ms = int(tick.get("time") or tick.get("time_msc") or 0)
+            if time_ms:
+                events.append(("tick", time_ms, symbol, tick))
+
+    events.sort(key=lambda item: (item[1], EVENT_ORDER.get(item[0], 9)))
 
     open_positions: Dict[str, PositionPayload] = {}
     open_time_map: Dict[str, int] = {}
@@ -610,109 +736,88 @@ def iter_timeline_snapshots(
     peak_balance = balance
 
     last_ticks: Dict[str, dict] = {}
+    snapshots: List[dict] = []
 
-    def snapshot_at(time_ms: int, event: Optional[dict] = None) -> dict:
+    def snapshot_at(time_ms: int, event: Optional[dict] = None) -> None:
         equity = balance
         for position in open_positions.values():
             tick = last_ticks.get(position.symbol)
             meta = meta_map.get(position.symbol)
             if tick and meta:
                 equity += _pnl_from_ticks(position, tick, meta)
-        return {"time_ms": time_ms, "equity": equity, "balance": balance, "event": event}
+        snapshots.append({"time_ms": time_ms, "equity": equity, "balance": balance, "event": event})
 
-    yield snapshot_at(payload.anchor_time_ms, {"type": "anchor"})
+    snapshot_at(payload.anchor_time_ms, {"type": "anchor"})
 
-    symbols = sorted({event[2].symbol for event in events if event[0] == "open"} | {event[2].symbol for event in events if event[0] == "deal" and not _should_ignore_deal(event[2])})
-    event_index = 0
-    chunk_start_ms = payload.anchor_time_ms
-    chunk_ms = max(REPLAY_MIN_CHUNK_MS, min(REPLAY_INITIAL_CHUNK_MS, REPLAY_MAX_CHUNK_MS))
-
-    while chunk_start_ms <= final_end_ms:
-        ticks_by_symbol, chunk_end_ms, chunk_ms = _load_tick_chunk(symbols, chunk_start_ms, final_end_ms, chunk_ms)
-        chunk_events: List[tuple] = []
-
-        while event_index < len(events) and events[event_index][1] <= chunk_end_ms:
-            event = events[event_index]
-            if event[1] >= chunk_start_ms:
-                chunk_events.append(event)
-            event_index += 1
-
-        for symbol, ticks in ticks_by_symbol.items():
-            for tick in ticks:
-                time_ms = int(tick.get("time") or tick.get("time_msc") or 0)
-                if time_ms and chunk_start_ms <= time_ms <= chunk_end_ms:
-                    chunk_events.append(("tick", time_ms, symbol, tick))
-
-        chunk_events.sort(key=lambda item: (item[1], EVENT_ORDER.get(item[0], 9)))
-
-        for event in chunk_events:
-            event_type = event[0]
-            time_ms = event[1]
-            if time_ms < payload.anchor_time_ms:
-                continue
-            event_meta: dict = {"type": event_type, "time_ms": time_ms}
-            if event_type == "open":
-                position = event[2]
+    for event in events:
+        event_type = event[0]
+        time_ms = event[1]
+        if time_ms < payload.anchor_time_ms:
+            continue
+        event_meta: dict = {"type": event_type, "time_ms": time_ms}
+        if event_type == "open":
+            position = event[2]
+            key = position.position_id or position.ticket or f"{position.symbol}:{position.open_time_ms}"
+            open_positions[key] = position
+            open_time_map[key] = position.open_time_ms
+            event_meta.update({"symbol": position.symbol, "position_id": position.position_id, "ticket": position.ticket})
+        elif event_type == "deal":
+            deal = event[2]
+            ignored_deal = _should_ignore_deal(deal)
+            event_meta.update({
+                "symbol": deal.symbol,
+                "deal_type": deal.deal_type,
+                "entry": deal.entry,
+                "ignored": ignored_deal,
+            })
+            if ignored_deal:
+                if deal.time_ms != payload.anchor_time_ms:
+                    balance = initial_balance
+                    if balance > peak_balance:
+                        peak_balance = balance
+            elif deal.entry == 0:
+                position = PositionPayload(
+                    ticket=deal.position_id,
+                    position_id=deal.position_id,
+                    symbol=deal.symbol,
+                    volume=deal.volume,
+                    open_price=deal.price,
+                    open_time_ms=deal.time_ms,
+                    type=deal.type,
+                )
                 key = position.position_id or position.ticket or f"{position.symbol}:{position.open_time_ms}"
                 open_positions[key] = position
                 open_time_map[key] = position.open_time_ms
-                event_meta.update({"symbol": position.symbol, "position_id": position.position_id, "ticket": position.ticket})
-            elif event_type == "deal":
-                deal = event[2]
-                ignored_deal = _should_ignore_deal(deal)
+                event_meta.update({"position_id": deal.position_id, "deal_id": deal.deal_id})
+            elif deal.entry == 1:
+                balance += _deal_net(deal)
+                if balance > peak_balance:
+                    peak_balance = balance
+                key = deal.position_id or deal.deal_id
+                if key in open_positions:
+                    open_positions.pop(key, None)
+                open_time = open_time_map.pop(key, None)
+                if open_time is not None:
+                    duration_min = (deal.time_ms - open_time) / 60000.0
+                    event_meta["duration_min"] = duration_min
                 event_meta.update({
-                    "symbol": deal.symbol,
-                    "deal_type": deal.deal_type,
-                    "entry": deal.entry,
-                    "ignored": ignored_deal,
+                    "position_id": deal.position_id,
+                    "deal_id": deal.deal_id,
+                    "profit": _deal_net(deal),
                 })
-                if ignored_deal:
-                    if deal.time_ms != payload.anchor_time_ms:
-                        balance = initial_balance
-                        if balance > peak_balance:
-                            peak_balance = balance
-                elif deal.entry == 0:
-                    position = PositionPayload(
-                        ticket=deal.position_id,
-                        position_id=deal.position_id,
-                        symbol=deal.symbol,
-                        volume=deal.volume,
-                        open_price=deal.price,
-                        open_time_ms=deal.time_ms,
-                        type=deal.type,
-                    )
-                    key = position.position_id or position.ticket or f"{position.symbol}:{position.open_time_ms}"
-                    open_positions[key] = position
-                    open_time_map[key] = position.open_time_ms
-                    event_meta.update({"position_id": deal.position_id, "deal_id": deal.deal_id})
-                elif deal.entry == 1:
-                    balance += _deal_net(deal)
-                    if balance > peak_balance:
-                        peak_balance = balance
-                    key = deal.position_id or deal.deal_id
-                    if key in open_positions:
-                        open_positions.pop(key, None)
-                    open_time = open_time_map.pop(key, None)
-                    if open_time is not None:
-                        duration_min = (deal.time_ms - open_time) / 60000.0
-                        event_meta["duration_min"] = duration_min
-                    event_meta.update({
-                        "position_id": deal.position_id,
-                        "deal_id": deal.deal_id,
-                        "profit": _deal_net(deal),
-                    })
-            elif event_type == "tick":
-                symbol = event[2]
-                tick = event[3]
-                last_ticks[symbol] = tick
-                event_meta.update({"symbol": symbol})
+        elif event_type == "tick":
+            symbol = event[2]
+            tick = event[3]
+            last_ticks[symbol] = tick
+            event_meta.update({"symbol": symbol})
 
-            yield snapshot_at(time_ms, event_meta)
+        snapshot_at(time_ms, event_meta)
 
-        chunk_start_ms = chunk_end_ms + 1
+    return snapshots
 
 
 def calculate_result(session: ReplaySession) -> ReplayResult:
+    processing_started_at = now_iso()
     started_at = time.perf_counter()
     if not session.ea_payload:
         raise HTTPException(status_code=400, detail="EA payload not found for session")
@@ -723,7 +828,7 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
     replay = session.replay_input
 
     cycle_start, cycle_source, _cycle_start_ms = _resolve_cycle_start(payload)
-    time_limit_start_ms = _cycle_start_ms or payload.anchor_time_ms
+    time_limit_start_ms = _resolve_time_limit_start_ms(payload, _cycle_start_ms)
     symbols = sorted(
         {pos.symbol for pos in payload.positions}
         | {deal.symbol for deal in payload.closed_deals if not _should_ignore_deal(deal)}
@@ -738,6 +843,8 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
         print(
             f"[replay-risk] zero tick_value account={payload.account_number} symbols={zero_value_symbols}"
         )
+
+    ticks_by_symbol = _ticks_for_symbols(symbols, payload.anchor_time_ms, replay_anchor_end_ms(payload))
 
     peak_balance = replay.initial_balance
     daily_peak_balance = replay.initial_balance
@@ -756,7 +863,8 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
     daily_pnl_map: Dict[str, float] = {}
     replay_snapshot = getattr(replay, "snapshot", None)
     time_limit_hours = replay_snapshot.get("time_limit_hours") if isinstance(replay_snapshot, dict) else None
-    for snapshot in iter_timeline_snapshots(payload, meta_map, replay.initial_balance):
+    timeline = build_timeline(payload, ticks_by_symbol, meta_map, replay.initial_balance)
+    for snapshot in timeline:
         equity = snapshot["equity"]
         ts = snapshot["time_ms"]
         balance_snapshot = snapshot.get("balance", replay.initial_balance)
@@ -898,9 +1006,16 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
         passed = False
         pass_event = None
 
+    elapsed_ms = round((time.perf_counter() - started_at) * 1000, 2)
+    processed_at = now_iso()
+
     result = ReplayResult(
         session_id=session.session_id,
         account_number=session.account_number,
+        received_at=session.created_at,
+        processing_started_at=processing_started_at,
+        processed_at=processed_at,
+        processing_duration_ms=elapsed_ms,
         breach_reason=breach_reason,
         breach_balance=breach_balance,
         daily_breach_balance=daily_breach_balance,
@@ -927,9 +1042,8 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
         },
         passed=passed,
         profit_target_balance=profit_target_balance,
-        payload_received_at=session.updated_at,
+        payload_received_at=session.created_at,
     )
-    elapsed_ms = round((time.perf_counter() - started_at) * 1000, 2)
     print(
         f"[replay-risk] processed account={result.account_number} session={result.session_id} "
         f"duration_ms={elapsed_ms} breach_reason={result.breach_reason} passed={result.passed}"
@@ -940,10 +1054,8 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
 
 
 @app.post("/replay/ea", response_model=ReplayEnqueueResponse, status_code=202)
-def submit_ea_payload(payload: EAPayload):
-    if payload.current_balance <= 0 or payload.current_equity <= 0:
-        raise HTTPException(status_code=400, detail="Invalid MT5 snapshot: balance/equity must be > 0")
-
+async def submit_ea_payload(request: Request, payload: EAPayload):
+    await request.body()
     session_id = str(uuid4())
     timestamp = now_iso()
     session = ReplaySession(
@@ -955,6 +1067,7 @@ def submit_ea_payload(payload: EAPayload):
         updated_at=timestamp,
         status="queued",
     )
+    log_received_account(session=session)
     enqueue_session(session)
     response = ReplayEnqueueResponse(
         session_id=session_id,

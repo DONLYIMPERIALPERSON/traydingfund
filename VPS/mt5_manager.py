@@ -263,13 +263,6 @@ def send_metrics_from_file(account_number: str, account_meta: Dict[str, str] | N
         )
         return
 
-    if current_balance <= 0 or current_equity <= 0:
-        print(
-            f"[replay-mt5] Skipping metrics send for {account_number}; "
-            f"invalid snapshot balance={current_balance} equity={current_equity}"
-        )
-        return
-
     if account_meta:
         payload["account_type"] = account_meta.get("accountType") or account_meta.get("account_type")
         payload["challenge_type"] = account_meta.get("challengeType") or account_meta.get("challenge_type")

@@ -273,11 +273,10 @@ bool HasValidAccountSnapshot()
    if(balance <= 0 || equity <= 0)
    {
       PrintFormat(
-         "[ReplayMetricsEA] Skipping metrics capture: invalid snapshot balance=%.2f equity=%.2f.",
+         "[ReplayMetricsEA] Capturing zero/negative snapshot for logged-in account balance=%.2f equity=%.2f.",
          balance,
          equity
       );
-      return false;
    }
 
    return true;
