@@ -238,7 +238,68 @@ const CalendarPage: React.FC = () => {
           }
 
           .calendar-grid {
-            min-width: 720px;
+            min-width: 100%;
+            gap: 6px !important;
+          }
+
+          .calendar-weekday {
+            padding: 4px 2px !important;
+            font-size: 11px !important;
+            letter-spacing: 0.2px !important;
+          }
+
+          .calendar-day-card {
+            min-height: 78px !important;
+            padding: 8px !important;
+            border-radius: 12px !important;
+          }
+
+          .calendar-day-number {
+            font-size: 13px !important;
+          }
+
+          .calendar-day-status-label {
+            font-size: 9px !important;
+            margin-bottom: 4px !important;
+            letter-spacing: 0.2px !important;
+          }
+
+          .calendar-day-pnl {
+            font-size: 12px !important;
+            line-height: 1.15 !important;
+            word-break: break-word;
+          }
+
+          .calendar-day-footer {
+            display: none !important;
+          }
+
+          .calendar-main-card {
+            padding: 14px !important;
+          }
+
+          .calendar-main-card-header {
+            margin-bottom: 12px !important;
+            gap: 8px !important;
+          }
+
+          .calendar-main-card-title {
+            font-size: 18px !important;
+          }
+
+          .calendar-main-card-subtitle {
+            font-size: 12px !important;
+            margin: 4px 0 0 0 !important;
+          }
+
+          .calendar-legend {
+            gap: 6px !important;
+          }
+
+          .calendar-legend-item {
+            gap: 6px !important;
+            padding: 6px 8px !important;
+            font-size: 11px !important;
           }
 
           .calendar-hero-stats {
@@ -367,21 +428,21 @@ const CalendarPage: React.FC = () => {
         ) : (
           <>
             <div className="calendar-main-card" style={{ background: '#fff', borderRadius: '24px', padding: '24px', border: '1px solid #e7edf3', boxShadow: '0 18px 35px rgba(15,23,42,0.06)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+              <div className="calendar-main-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: '24px', color: '#111827' }}>{currentMonthLabel}</h2>
-                  <p style={{ margin: '6px 0 0 0', color: '#6b7280' }}>
+                  <h2 className="calendar-main-card-title" style={{ margin: 0, fontSize: '24px', color: '#111827' }}>{currentMonthLabel}</h2>
+                  <p className="calendar-main-card-subtitle" style={{ margin: '6px 0 0 0', color: '#6b7280' }}>
                     {(selectedAccount.mt5_account ?? selectedAccount.challenge_id)} • {selectedAccount.account_size} {selectedAccount.currency ?? 'USD'}
                   </p>
                 </div>
 
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <div className="calendar-legend" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                   {[
                     { label: 'No trade', color: '#ffffff', border: '#d9dee5' },
                     { label: 'Loss day', color: 'rgba(220, 53, 69, 0.2)', border: 'rgba(220, 53, 69, 0.45)' },
                     { label: 'Profit day', color: 'rgba(12, 179, 98, 0.22)', border: 'rgba(12, 179, 98, 0.4)' },
                   ].map((legend) => (
-                    <div key={legend.label} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '999px', background: '#f8fafc', border: '1px solid #edf2f7', color: '#4b5563', fontSize: '13px', fontWeight: 600 }}>
+                    <div className="calendar-legend-item" key={legend.label} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '999px', background: '#f8fafc', border: '1px solid #edf2f7', color: '#4b5563', fontSize: '13px', fontWeight: 600 }}>
                       <span style={{ width: '14px', height: '14px', borderRadius: '999px', background: legend.color, border: `1px solid ${legend.border}` }} />
                       {legend.label}
                     </div>
@@ -392,7 +453,7 @@ const CalendarPage: React.FC = () => {
               <div className="calendar-grid-scroll">
                 <div className="calendar-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '12px' }}>
                 {weekDays.map((day) => (
-                  <div key={day} style={{ padding: '8px 4px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: brandPrimary, letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+                  <div className="calendar-weekday" key={day} style={{ padding: '8px 4px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: brandPrimary, letterSpacing: '0.4px', textTransform: 'uppercase' }}>
                     {day}
                   </div>
                 ))}
@@ -401,6 +462,7 @@ const CalendarPage: React.FC = () => {
                   const styles = getStatusStyles(day.status, day.isCurrentMonth)
                   return (
                     <div
+                      className="calendar-day-card"
                       key={day.date.toISOString()}
                       style={{
                         minHeight: '120px',
@@ -413,7 +475,7 @@ const CalendarPage: React.FC = () => {
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '16px', fontWeight: 800, color: day.isCurrentMonth ? '#111827' : '#9ca3af' }}>{day.dayNumber}</span>
+                        <span className="calendar-day-number" style={{ fontSize: '16px', fontWeight: 800, color: day.isCurrentMonth ? '#111827' : '#9ca3af' }}>{day.dayNumber}</span>
                         {day.isCurrentMonth && (
                           <span style={{
                             width: '10px',
@@ -426,10 +488,10 @@ const CalendarPage: React.FC = () => {
                       </div>
 
                       <div>
-                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#6b7280', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-                          {day.isCurrentMonth ? (day.status === 'profit' ? 'Profit day' : day.status === 'loss' ? 'Loss day' : 'No trade') : 'Out of month'}
+                        <div className="calendar-day-status-label" style={{ fontSize: '12px', fontWeight: 700, color: '#6b7280', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                          {day.isCurrentMonth ? (day.status === 'profit' ? 'Profit' : day.status === 'loss' ? 'Loss' : 'No trade') : 'Out'}
                         </div>
-                        <div style={{
+                        <div className="calendar-day-pnl" style={{
                           fontSize: '18px',
                           fontWeight: 800,
                           color: day.status === 'profit' ? '#0a8f4f' : day.status === 'loss' ? '#c12d3d' : '#1f2937',
@@ -439,7 +501,7 @@ const CalendarPage: React.FC = () => {
                         </div>
                       </div>
 
-                      <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div className="calendar-day-footer" style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: 600 }}>MacheFunded</div>
                         <div style={{ width: '42px', height: '4px', borderRadius: '999px', background: `linear-gradient(90deg, ${brandPrimary}, ${brandGold})` }} />
                       </div>
