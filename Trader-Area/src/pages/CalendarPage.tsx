@@ -3,7 +3,12 @@ import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
 import ServiceUnavailableState from '../components/ServiceUnavailableState'
-import { fetchUserChallengeAccounts, type UserChallengeAccountListItem } from '../lib/traderAuth'
+import {
+  fetchUserChallengeAccounts,
+  fetchUserChallengeCalendar,
+  type UserChallengeAccountListItem,
+  type UserChallengeCalendarDay,
+} from '../lib/traderAuth'
 
 type DailyPnlStatus = 'neutral' | 'loss' | 'profit'
 
@@ -28,7 +33,10 @@ const formatCurrency = (value: number | null, currency = 'USD') => {
   }).format(value)
 }
 
-const buildCalendarDays = (selectedAccount: UserChallengeAccountListItem | null): CalendarDay[] => {
+const buildCalendarDays = (
+  selectedAccount: UserChallengeAccountListItem | null,
+  calendarEntries: UserChallengeCalendarDay[],
+): CalendarDay[] => {
   const now = new Date()
   const year = now.getFullYear()
   const month = now.getMonth()
@@ -50,26 +58,17 @@ const buildCalendarDays = (selectedAccount: UserChallengeAccountListItem | null)
     })
   }
 
-  const seedBase = (selectedAccount?.challenge_id ?? 'mache').split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)
+  const pnlByDate = new Map(calendarEntries.map((entry) => [entry.date, entry.pnl]))
 
   for (let day = 1; day <= totalDays; day += 1) {
-    const score = (seedBase + day * 17) % 9
-    let pnl: number | null = null
-    let status: DailyPnlStatus = 'neutral'
-
-    if (score <= 2) {
-      pnl = null
-      status = 'neutral'
-    } else if (score <= 4) {
-      pnl = -1 * (55 + ((seedBase + day * 11) % 210))
-      status = 'loss'
-    } else {
-      pnl = 70 + ((seedBase + day * 13) % 320)
-      status = 'profit'
-    }
+    const currentDate = new Date(year, month, day)
+    const dateKey = currentDate.toISOString().slice(0, 10)
+    const pnlValue = pnlByDate.get(dateKey)
+    const pnl = typeof pnlValue === 'number' ? pnlValue : null
+    const status: DailyPnlStatus = pnl == null ? 'neutral' : pnl < 0 ? 'loss' : 'profit'
 
     days.push({
-      date: new Date(year, month, day),
+      date: currentDate,
       dayNumber: day,
       pnl,
       status,
@@ -126,6 +125,7 @@ const getStatusStyles = (status: DailyPnlStatus, isCurrentMonth: boolean) => {
 const CalendarPage: React.FC = () => {
   const [accounts, setAccounts] = useState<UserChallengeAccountListItem[]>([])
   const [selectedChallengeId, setSelectedChallengeId] = useState('')
+  const [calendarEntries, setCalendarEntries] = useState<UserChallengeCalendarDay[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -134,7 +134,10 @@ const CalendarPage: React.FC = () => {
     [accounts, selectedChallengeId],
   )
 
-  const calendarDays = useMemo(() => buildCalendarDays(selectedAccount), [selectedAccount])
+  const calendarDays = useMemo(
+    () => buildCalendarDays(selectedAccount, calendarEntries),
+    [selectedAccount, calendarEntries],
+  )
 
   const summary = useMemo(() => {
     const profitDays = calendarDays.filter((day) => day.isCurrentMonth && day.status === 'profit').length
@@ -170,6 +173,21 @@ const CalendarPage: React.FC = () => {
   useEffect(() => {
     loadCalendarAccounts()
   }, [])
+
+  useEffect(() => {
+    if (!selectedAccount?.challenge_id) {
+      setCalendarEntries([])
+      return
+    }
+
+    fetchUserChallengeCalendar(selectedAccount.challenge_id)
+      .then((response) => {
+        setCalendarEntries(response.daily_pnl ?? [])
+      })
+      .catch(() => {
+        setCalendarEntries([])
+      })
+  }, [selectedAccount?.challenge_id])
 
   return (
     <div style={{ backgroundColor: '#f5f7fa', minHeight: '100vh', fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif' }}>

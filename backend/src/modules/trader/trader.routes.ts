@@ -5,6 +5,7 @@ import {
   getMe,
   listChallengeAccounts,
   getChallengeAccountDetail,
+  getChallengeCalendar,
   generateRewardCertificatePreview,
   generateOnboardingCertificatePreview,
   generatePassedChallengeCertificatePreview,
@@ -91,6 +92,7 @@ traderRouter.post('/certificates/onboarding-preview', generateOnboardingCertific
 traderRouter.post('/certificates/passed-challenge-preview', generatePassedChallengeCertificatePreview)
 traderRouter.get('/challenges', authenticate, requireRole('trader'), listChallengeAccounts)
 traderRouter.get('/challenges/:challengeId', authenticate, requireRole('trader'), getChallengeAccountDetail)
+traderRouter.get('/challenges/:challengeId/calendar', authenticate, requireRole('trader'), getChallengeCalendar)
 traderRouter.post('/challenges/refresh', authenticate, requireRole('trader'), validate({ body: challengeRefreshSchema }), requestChallengeRefresh)
 traderRouter.get('/orders', authenticate, requireRole('trader'), validate({ query: paginationSchema }), listOrders)
 traderRouter.get('/orders/:providerOrderId', authenticate, requireRole('trader'), getOrderStatus)

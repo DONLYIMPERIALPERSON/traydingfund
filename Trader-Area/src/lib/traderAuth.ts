@@ -202,6 +202,21 @@ export type UserChallengeAccountDetailResponse = {
   funded_user_payout_amount: number | null
 }
 
+export type UserChallengeCalendarDay = {
+  date: string
+  pnl: number
+}
+
+export type UserChallengeCalendarResponse = {
+  challenge_id: string
+  account_number: string
+  account_size: string
+  currency?: string
+  phase: string
+  challenge_type?: string
+  daily_pnl: UserChallengeCalendarDay[]
+}
+
 export type CertificateResponse = {
   id: number
   certificate_type: string
@@ -534,6 +549,10 @@ export async function fetchUserChallengeAccounts(): Promise<UserChallengeAccount
 
 export async function fetchUserChallengeAccountDetail(challengeId: string): Promise<UserChallengeAccountDetailResponse> {
   return apiFetch<UserChallengeAccountDetailResponse>(`/trader/challenges/${encodeURIComponent(challengeId)}`)
+}
+
+export async function fetchUserChallengeCalendar(challengeId: string): Promise<UserChallengeCalendarResponse> {
+  return apiFetch<UserChallengeCalendarResponse>(`/trader/challenges/${encodeURIComponent(challengeId)}/calendar`)
 }
 
 export async function fetchTradingObjectives(): Promise<TradingObjectivesResponse> {

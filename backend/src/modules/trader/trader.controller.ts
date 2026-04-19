@@ -683,6 +683,55 @@ export const getChallengeAccountDetail = async (
   }
 }
 
+export const getChallengeCalendar = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const user = ensureUser(req)
+    const scope = resolveChallengeScope(req)
+    const challengeId = String(req.params.challengeId ?? '').trim()
+    if (!challengeId) {
+      throw new ApiError('Challenge ID is required', 400)
+    }
+
+    const account = await prisma.cTraderAccount.findFirst({
+      where: {
+        userId: user.id,
+        challengeId,
+        ...(scope === 'attic'
+          ? { challengeType: 'attic' }
+          : { NOT: { challengeType: 'attic' } }),
+      },
+      include: {
+        dailyPnl: {
+          orderBy: { date: 'asc' },
+        },
+      },
+    })
+
+    if (!account) {
+      throw new ApiError('Account not found', 404)
+    }
+
+    res.json({
+      challenge_id: account.challengeId,
+      account_number: account.accountNumber,
+      account_size: account.accountSize,
+      currency: account.currency,
+      phase: account.phase,
+      challenge_type: normalizeChallengeType(account.challengeType),
+      daily_pnl: account.dailyPnl.map((entry) => ({
+        date: entry.date.toISOString().slice(0, 10),
+        pnl: entry.pnl,
+      })),
+    })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
 export const requestChallengeRefresh = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureUser(req)

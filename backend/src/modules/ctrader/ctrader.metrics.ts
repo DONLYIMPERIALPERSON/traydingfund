@@ -66,6 +66,21 @@ type MetricsPayload = {
   trade_duration_violations?: unknown
   passed?: boolean
   profit_target_balance?: number
+  daily_pnl_summary?: Array<{ date?: string; pnl?: number }>
+}
+
+const parseDailyPnlSummary = (value: unknown): Array<{ date: Date; pnl: number }> => {
+  if (!Array.isArray(value)) return []
+
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object') return []
+    const rawDate = (entry as { date?: unknown }).date
+    const rawPnl = (entry as { pnl?: unknown }).pnl
+    if (typeof rawDate !== 'string' || !Number.isFinite(rawPnl)) return []
+    const parsedDate = new Date(`${rawDate}T00:00:00.000Z`)
+    if (!Number.isFinite(parsedDate.getTime())) return []
+    return [{ date: parsedDate, pnl: Number(rawPnl) }]
+  })
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -182,6 +197,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
 
     const accountData = account as any
     const metricsData = (account as any).metrics
+    const dailyPnlSummary = parseDailyPnlSummary(payload.daily_pnl_summary)
 
     if (!accountData.challengeType || !accountData.phase) {
       throw new ApiError('Account challenge type/phase is missing', 400)
@@ -771,6 +787,27 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     }
 
     await prisma.$transaction(transactionSteps)
+
+    if (dailyPnlSummary.length > 0) {
+      await prisma.$transaction(
+        dailyPnlSummary.map((entry) => prisma.accountDailyPnl.upsert({
+          where: {
+            accountId_date: {
+              accountId: account.id,
+              date: entry.date,
+            },
+          },
+          create: {
+            accountId: account.id,
+            date: entry.date,
+            pnl: entry.pnl,
+          },
+          update: {
+            pnl: entry.pnl,
+          },
+        })),
+      )
+    }
 
     if (breached) {
       try {

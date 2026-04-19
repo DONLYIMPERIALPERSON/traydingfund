@@ -68,6 +68,7 @@ def notify_backend(result: ReplayResult) -> None:
         "trade_duration_violations": result.trade_duration_violations,
         "passed": result.passed,
         "profit_target_balance": result.profit_target_balance,
+        "daily_pnl_summary": result.daily_pnl_summary,
     }
     headers = {}
     if BACKEND_ENGINE_SECRET:
