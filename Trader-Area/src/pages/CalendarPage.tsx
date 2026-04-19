@@ -205,6 +205,27 @@ const CalendarPage: React.FC = () => {
             padding: 80px 12px 20px !important;
           }
 
+          .calendar-hero-top-row {
+            display: flex !important;
+            align-items: flex-start !important;
+            justify-content: space-between !important;
+            gap: 12px !important;
+          }
+
+          .calendar-hero-brand-wrap {
+            margin-bottom: 10px !important;
+          }
+
+          .calendar-hero-title {
+            font-size: 24px !important;
+            margin: 0 !important;
+          }
+
+          .calendar-hero-month {
+            margin-left: auto !important;
+            flex: 0 0 auto !important;
+          }
+
           .calendar-hero-card,
           .calendar-main-card {
             border-radius: 18px !important;
@@ -224,10 +245,19 @@ const CalendarPage: React.FC = () => {
             flex-wrap: nowrap !important;
             overflow-x: auto;
             padding-bottom: 4px;
+            width: 100%;
           }
 
           .calendar-hero-stat {
             flex: 0 0 auto;
+          }
+
+          .calendar-hero-stat--compact {
+            min-width: 104px;
+          }
+
+          .calendar-hero-stat--wide {
+            min-width: 148px;
           }
         }
       `}</style>
@@ -248,35 +278,40 @@ const CalendarPage: React.FC = () => {
         }}>
           <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at top right, rgba(255,215,0,0.22), transparent 30%)' }} />
           <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', gap: '20px', flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-                <img src="/logo.webp" alt="MacheFunded" style={{ width: '42px', height: '42px', borderRadius: '12px', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.22)' }} />
-                <div style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '0.4px' }}>
-                  <span style={{ color: '#ffffff' }}>MACHE</span>
-                  <span style={{ color: '#ffffff' }}>FUNDED</span>
+            <div style={{ flex: '1 1 420px', minWidth: 0 }}>
+              <div className="calendar-hero-top-row">
+                <div>
+                  <div className="calendar-hero-brand-wrap" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+                    <img src="/logo.webp" alt="MacheFunded" style={{ width: '42px', height: '42px', borderRadius: '12px', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.22)' }} />
+                    <div style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '0.4px' }}>
+                      <span style={{ color: '#ffffff' }}>MACHE</span>
+                      <span style={{ color: '#ffffff' }}>FUNDED</span>
+                    </div>
+                  </div>
+                  <h1 className="calendar-hero-title" style={{ color: '#fff', fontSize: '30px', margin: '0 0 8px 0' }}>Trading Calendar</h1>
                 </div>
-              </div>
-              <h1 style={{ color: '#fff', fontSize: '30px', margin: '0 0 8px 0' }}>Trading Calendar</h1>
-              <div className="calendar-hero-stats" style={{ display: 'flex', flexWrap: 'nowrap', gap: '8px', marginTop: '6px', alignItems: 'stretch' }}>
-                <div className="calendar-hero-stat" style={{ padding: '8px 10px', borderRadius: '12px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.16)' }}>
+                <div className="calendar-hero-stat calendar-hero-month calendar-hero-stat--compact" style={{ padding: '8px 10px', borderRadius: '12px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.16)', alignSelf: 'flex-start' }}>
                   <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.45px', color: 'rgba(255,255,255,0.7)', marginBottom: '3px', fontWeight: 700 }}>
                     Month
                   </div>
                   <div style={{ color: '#fff', fontSize: '14px', fontWeight: 800, whiteSpace: 'nowrap' }}>{currentMonthLabel}</div>
                 </div>
-                <div className="calendar-hero-stat" style={{ padding: '8px 10px', borderRadius: '12px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.16)' }}>
+              </div>
+
+              <div className="calendar-hero-stats" style={{ display: 'flex', flexWrap: 'nowrap', gap: '8px', marginTop: '6px', alignItems: 'stretch' }}>
+                <div className="calendar-hero-stat calendar-hero-stat--compact" style={{ padding: '8px 10px', borderRadius: '12px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.16)' }}>
                   <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.45px', color: 'rgba(255,255,255,0.7)', marginBottom: '3px', fontWeight: 700 }}>
                     Profitable Days
                   </div>
                   <div style={{ color: '#fff', fontSize: '14px', fontWeight: 800, whiteSpace: 'nowrap' }}>{summary.profitDays}</div>
                 </div>
-                <div className="calendar-hero-stat" style={{ padding: '8px 10px', borderRadius: '12px', background: 'rgba(220,53,69,0.16)', border: '1px solid rgba(220,53,69,0.28)' }}>
+                <div className="calendar-hero-stat calendar-hero-stat--compact" style={{ padding: '8px 10px', borderRadius: '12px', background: 'rgba(220,53,69,0.16)', border: '1px solid rgba(220,53,69,0.28)' }}>
                   <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.45px', color: 'rgba(255,255,255,0.7)', marginBottom: '3px', fontWeight: 700 }}>
                     Loss Days
                   </div>
                   <div style={{ color: '#fff', fontSize: '14px', fontWeight: 800, whiteSpace: 'nowrap' }}>{summary.lossDays}</div>
                 </div>
-                <div className="calendar-hero-stat" style={{ padding: '8px 10px', borderRadius: '12px', background: 'rgba(255,215,0,0.14)', border: '1px solid rgba(255,215,0,0.24)' }}>
+                <div className="calendar-hero-stat calendar-hero-stat--wide" style={{ padding: '8px 10px', borderRadius: '12px', background: 'rgba(255,215,0,0.14)', border: '1px solid rgba(255,215,0,0.24)' }}>
                   <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.45px', color: 'rgba(255,255,255,0.7)', marginBottom: '3px', fontWeight: 700 }}>
                     Total PnL
                   </div>
