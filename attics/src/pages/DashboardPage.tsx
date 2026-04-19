@@ -410,10 +410,11 @@ const DashboardPage: React.FC = () => {
 		?? null;
 
 	const activeInitialBalance = selectedAccountDetail?.initial_balance ?? activeAccountBalance ?? 0;
-	const activeAccountPnl = selectedAccountDetail?.metrics?.unrealized_pnl ?? null;
-	const passedAccountPnl = selectedAccountDetail?.metrics?.balance != null && activeInitialBalance > 0
+	const realizedAccountPnl = selectedAccountDetail?.metrics?.balance != null && activeInitialBalance > 0
 		? selectedAccountDetail.metrics.balance - activeInitialBalance
-		: activeAccountPnl;
+		: null;
+	const activeAccountPnl = realizedAccountPnl;
+	const passedAccountPnl = realizedAccountPnl;
 	const activeAccountLastUpdated = selectedAccountDetail?.last_feed_at ?? selectedAccountDetail?.last_refresh_requested_at ?? null;
 	const activeAccountTimeLeft = formatTimeLimitRemaining(
 		selectedAccountDetail?.metrics?.time_limit_status,
