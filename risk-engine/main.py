@@ -647,6 +647,12 @@ def _resolve_time_limit_start_ms(payload: EAPayload, cycle_start_ms: Optional[in
     return cycle_floor_ms
 
 
+def _is_attic_payload(payload: EAPayload) -> bool:
+    account_type = str(payload.account_type or "").strip().lower()
+    challenge_type = str(payload.challenge_type or "").strip().lower()
+    return account_type == "attic_phase_1" or challenge_type == "attic"
+
+
 def _symbol_meta_map(payload: EAPayload) -> Dict[str, SymbolMetaPayload]:
     return {meta.symbol: meta for meta in payload.symbols}
 
@@ -829,6 +835,11 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
 
     cycle_start, cycle_source, _cycle_start_ms = _resolve_cycle_start(payload)
     time_limit_start_ms = _resolve_time_limit_start_ms(payload, _cycle_start_ms)
+    reported_cycle_start = cycle_start
+    reported_cycle_source = cycle_source
+    if _is_attic_payload(payload) and time_limit_start_ms:
+        reported_cycle_start = datetime.utcfromtimestamp(time_limit_start_ms / 1000).isoformat() + "Z"
+        reported_cycle_source = "first_trade"
     symbols = sorted(
         {pos.symbol for pos in payload.positions}
         | {deal.symbol for deal in payload.closed_deals if not _should_ignore_deal(deal)}
@@ -1024,8 +1035,8 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
         peak_balance=peak_balance,
         drawdown_percent=drawdown_percent,
         daily_dd_percent=daily_dd_percent,
-        trading_cycle_start=cycle_start,
-        trading_cycle_source=cycle_source,
+        trading_cycle_start=reported_cycle_start,
+        trading_cycle_source=reported_cycle_source,
         breach_event=(breach_event or pass_event),
         trade_duration_violations=trade_duration_violations[:3],
         daily_peak_balance=daily_peak_balance,

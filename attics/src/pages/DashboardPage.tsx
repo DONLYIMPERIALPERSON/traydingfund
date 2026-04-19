@@ -63,11 +63,23 @@ const formatPnl = (amount: number | null | undefined) => {
 	return `${sign}${formatNaira(amount)}`;
 };
 
-const formatHoursRemaining = (elapsedHours?: number | null, totalHours = 24) => {
-	if (elapsedHours == null || !Number.isFinite(elapsedHours)) return '—';
-	const remaining = Math.max(0, totalHours - elapsedHours);
-	const wholeHours = Math.floor(remaining);
-	const minutes = Math.round((remaining - wholeHours) * 60);
+const formatTimeLimitRemaining = (
+	status?: string | null,
+	remainingHours?: number | null,
+	remainingMinutes?: number | null,
+) => {
+	if (status === 'not_started') return 'Not Started';
+	if (status === 'passed') return 'Passed';
+	if (status === 'expired') return 'Expired';
+	if (status === 'expired_pending_confirmation') return 'Awaiting Review';
+	if (status !== 'running') return '—';
+	if (remainingHours == null || !Number.isFinite(remainingHours)) return '—';
+
+	const safeMinutes = remainingMinutes != null && Number.isFinite(remainingMinutes)
+		? Math.max(0, remainingMinutes)
+		: Math.max(0, remainingHours * 60);
+	const wholeHours = Math.floor(safeMinutes / 60);
+	const minutes = Math.round(safeMinutes - wholeHours * 60);
 	if (wholeHours <= 0 && minutes <= 0) return 'Expired';
 	if (wholeHours <= 0) return `${minutes}m left`;
 	if (minutes <= 0) return `${wholeHours}h left`;
@@ -403,7 +415,11 @@ const DashboardPage: React.FC = () => {
 		? selectedAccountDetail.metrics.balance - activeInitialBalance
 		: activeAccountPnl;
 	const activeAccountLastUpdated = selectedAccountDetail?.last_feed_at ?? selectedAccountDetail?.last_refresh_requested_at ?? null;
-	const activeAccountTimeLeft = formatHoursRemaining(selectedAccountDetail?.metrics?.stage_elapsed_hours, 24);
+	const activeAccountTimeLeft = formatTimeLimitRemaining(
+		selectedAccountDetail?.metrics?.time_limit_status,
+		selectedAccountDetail?.metrics?.time_limit_remaining_hours,
+		selectedAccountDetail?.metrics?.time_limit_remaining_minutes,
+	);
 	const activeAccountLastUpdatedLabel = formatRelativeUpdate(activeAccountLastUpdated);
 	const showAccountRefresh = Boolean(displayAtticAccount?.challenge_id) && !isPassedAwaitingResetView && isOlderThanThirtyMinutes(selectedAccountDetail?.last_feed_at);
 	const activePnlValue = activeAccountPnl ?? 0;

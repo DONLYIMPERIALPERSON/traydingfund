@@ -84,6 +84,60 @@ const formatCurrency = (value: number, currency: string) => {
   }
 }
 
+const computeAtticTimeLimitInfo = (args: {
+  challengeType?: string | null
+  objectiveStatus: string
+  breachReason?: string | null
+  passedAt?: Date | null
+  tradingCycleStart?: Date | null
+}) => {
+  const normalizedChallengeType = String(args.challengeType ?? '').toLowerCase()
+  if (normalizedChallengeType !== 'attic') {
+    return {
+      status: null,
+      startAt: null,
+      expiresAt: null,
+      remainingHours: null,
+      remainingMinutes: null,
+    }
+  }
+
+  const startAt = args.tradingCycleStart ?? null
+  if (!startAt) {
+    return {
+      status: 'not_started',
+      startAt: null,
+      expiresAt: null,
+      remainingHours: null,
+      remainingMinutes: null,
+    }
+  }
+
+  const expiresAt = new Date(startAt.getTime() + (24 * 60 * 60 * 1000))
+  const now = new Date()
+  const remainingMs = expiresAt.getTime() - now.getTime()
+  const remainingHours = remainingMs / (60 * 60 * 1000)
+  const remainingMinutes = remainingMs / (60 * 1000)
+  const normalizedStatus = String(args.objectiveStatus ?? '').toLowerCase()
+  const normalizedBreachReason = String(args.breachReason ?? '').toUpperCase()
+
+  const status = normalizedBreachReason === 'TIME_LIMIT' || normalizedStatus === 'breached'
+    ? 'expired'
+    : args.passedAt || normalizedStatus === 'awaiting_reset'
+      ? 'passed'
+      : remainingMs <= 0
+        ? 'expired_pending_confirmation'
+        : 'running'
+
+  return {
+    status,
+    startAt: startAt.toISOString(),
+    expiresAt: expiresAt.toISOString(),
+    remainingHours,
+    remainingMinutes,
+  }
+}
+
 const splitFullName = (fullName?: string | null) => {
   const parts = (fullName ?? '').trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) {
@@ -516,6 +570,13 @@ export const getChallengeAccountDetail = async (
     }
 
     const pendingPayout = account.payouts?.[0] ?? null
+    const atticTimeLimit = computeAtticTimeLimitInfo({
+      challengeType: account.challengeType,
+      objectiveStatus: account.status,
+      breachReason,
+      passedAt: account.passedAt,
+      tradingCycleStart: metrics.tradingCycleStart ?? null,
+    })
     const credentials = platform === 'mt5'
       ? {
         server: account.mt5Server ?? account.brokerName,
@@ -596,6 +657,11 @@ export const getChallengeAccountDetail = async (
         trading_cycle_start: metrics.tradingCycleStart?.toISOString() ?? null,
         trading_cycle_source: metrics.tradingCycleSource ?? null,
         stage_elapsed_hours: metrics.stageElapsedHours,
+        time_limit_status: atticTimeLimit.status,
+        time_limit_start_at: atticTimeLimit.startAt,
+        time_limit_expires_at: atticTimeLimit.expiresAt,
+        time_limit_remaining_hours: atticTimeLimit.remainingHours,
+        time_limit_remaining_minutes: atticTimeLimit.remainingMinutes,
         scalping_violations_count: metrics.scalpingViolationsCount,
         duration_violations_count: durationViolationsCount,
         processed_trade_ids: Array.isArray((account.metrics as any)?.processedTradeIds)

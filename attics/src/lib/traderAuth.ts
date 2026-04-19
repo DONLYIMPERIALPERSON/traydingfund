@@ -106,6 +106,11 @@ export type UserChallengeMetrics = {
 	daily_low_equity?: number | null;
 	drawdown_percent?: number | null;
 	daily_dd_percent?: number | null;
+	time_limit_status?: 'not_started' | 'running' | 'expired' | 'expired_pending_confirmation' | 'passed' | null;
+	time_limit_start_at?: string | null;
+	time_limit_expires_at?: string | null;
+	time_limit_remaining_hours?: number | null;
+	time_limit_remaining_minutes?: number | null;
 };
 
 export type UserChallengeObjectiveStatus = {
