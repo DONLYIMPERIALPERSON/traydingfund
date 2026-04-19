@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from datetime import datetime
 import os
-from pathlib import Path
 from threading import Event, Lock, Thread
 import time
 from typing import Dict, List, Optional
@@ -32,7 +31,6 @@ EVENT_ORDER = {"open": 0, "deal": 1, "tick": 2}
 redis_client: Optional[redis.Redis] = None
 worker_stop_event = Event()
 worker_threads: List[Thread] = []
-log_write_lock = Lock()
 account_lock_registry: Dict[str, Lock] = {}
 account_lock_registry_guard = Lock()
 
@@ -73,48 +71,17 @@ def notify_backend(result: ReplayResult) -> None:
     headers = {}
     if BACKEND_ENGINE_SECRET:
         headers["X-ENGINE-SECRET"] = BACKEND_ENGINE_SECRET
-    send_attempted_at = now_iso()
     if not BACKEND_BASE_URL:
-        log_backend_result_send(
-            result=result,
-            payload=payload,
-            status="skipped",
-            send_attempted_at=send_attempted_at,
-            backend_response_at=send_attempted_at,
-            error="no_backend_base_url",
-        )
-        print(f"[replay-risk] processed account={result.account_number} backend=skipped reason=no_backend_base_url")
         return
     try:
-        response = requests.post(
+        requests.post(
             f"{BACKEND_BASE_URL.rstrip('/')}{BACKEND_REPLAY_ENDPOINT}",
             json=payload,
             headers=headers,
             timeout=10,
         )
-        log_backend_result_send(
-            result=result,
-            payload=payload,
-            status="sent",
-            send_attempted_at=send_attempted_at,
-            backend_response_at=now_iso(),
-            backend_status_code=response.status_code,
-            backend_response_text=response.text[:1000],
-        )
-        print(
-            f"[replay-risk] sent result account={result.account_number} "
-            f"backend_status={response.status_code} breach_reason={result.breach_reason} passed={result.passed}"
-        )
-    except Exception as exc:
-        log_backend_result_send(
-            result=result,
-            payload=payload,
-            status="failed",
-            send_attempted_at=send_attempted_at,
-            backend_response_at=now_iso(),
-            error=str(exc),
-        )
-        print(f"[replay-risk] backend send failed account={result.account_number} error={exc}")
+    except Exception:
+        return
 
 
 class PositionPayload(BaseModel):
@@ -238,89 +205,6 @@ class ReplayStatusResponse(BaseModel):
 
 
 SESSIONS: Dict[str, ReplaySession] = {}
-BASE_DIR = Path(__file__).resolve().parent
-OUTPUTS_DIR = BASE_DIR / "output"
-OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
-BACKEND_RESULTS_LOG = OUTPUTS_DIR / "sent-backend-results.jsonl"
-RECEIVED_ACCOUNTS_LOG = OUTPUTS_DIR / "received-accounts.jsonl"
-PROCESSED_ACCOUNTS_LOG = OUTPUTS_DIR / "processed-accounts.jsonl"
-
-BACKEND_RESULTS_LOG.touch(exist_ok=True)
-RECEIVED_ACCOUNTS_LOG.touch(exist_ok=True)
-PROCESSED_ACCOUNTS_LOG.touch(exist_ok=True)
-
-
-def append_json_log(path: Path, record: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with log_write_lock:
-        sequence = 1
-        if path.exists():
-            try:
-                with path.open("r", encoding="utf-8") as existing:
-                    sequence = sum(1 for line in existing if line.strip()) + 1
-            except Exception:
-                sequence = 1
-        payload = {"sequence": sequence, **record}
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
-
-
-def log_received_account(*, session: ReplaySession) -> None:
-    append_json_log(
-        RECEIVED_ACCOUNTS_LOG,
-        {
-            "logged_at": now_iso(),
-            "type": "received_account",
-            "account_number": session.account_number,
-            "session_id": session.session_id,
-            "received_at": session.created_at,
-            "status": session.status,
-        },
-    )
-
-
-def log_processed_account(*, result: ReplayResult, send_status: str, backend_status_code: Optional[int] = None) -> None:
-    append_json_log(
-        PROCESSED_ACCOUNTS_LOG,
-        {
-            "logged_at": now_iso(),
-            "type": "processed_account",
-            "account_number": result.account_number,
-            "session_id": result.session_id,
-            "received_at": result.received_at,
-            "processed_at": result.processed_at,
-            "processing_duration_ms": result.processing_duration_ms,
-            "send_status": send_status,
-            "backend_status_code": backend_status_code,
-        },
-    )
-
-
-def log_backend_result_send(
-    *,
-    result: ReplayResult,
-    payload: dict,
-    status: str,
-    send_attempted_at: str,
-    backend_response_at: Optional[str] = None,
-    backend_status_code: Optional[int] = None,
-    backend_response_text: Optional[str] = None,
-    error: Optional[str] = None,
-) -> None:
-    append_json_log(
-        BACKEND_RESULTS_LOG,
-        {
-            "logged_at": now_iso(),
-            "account_number": result.account_number,
-            "time": backend_response_at or send_attempted_at,
-            "backend_status_code": backend_status_code,
-        },
-    )
-    log_processed_account(
-        result=result,
-        send_status=status,
-        backend_status_code=backend_status_code,
-    )
 
 
 def get_account_processing_lock(account_number: str) -> Lock:
@@ -345,8 +229,7 @@ def get_redis_client() -> Optional[redis.Redis]:
         redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
         redis_client.ping()
         return redis_client
-    except Exception as exc:
-        print(f"[replay-queue] Redis unavailable: {exc}")
+    except Exception:
         redis_client = None
         return None
 
@@ -420,7 +303,6 @@ def replay_worker_loop() -> None:
                 result = calculate_result(session)
                 save_session_record(session, status="completed", result=result)
         except Exception as exc:
-            print(f"[replay-queue] Worker error: {exc}")
             try:
                 if 'session' in locals():
                     save_session_record(session, status="failed", error=str(exc))
@@ -452,12 +334,8 @@ def build_replay_input_from_payload(payload: EAPayload) -> ReplayInputPayload:
 
 @app.on_event("startup")
 def startup_event() -> None:
-    print(
-        f"[replay-queue] log file sent={BACKEND_RESULTS_LOG}"
-    )
     client = get_redis_client()
     if not client:
-        print("[replay-queue] Startup without Redis queue")
         return
     worker_stop_event.clear()
     worker_threads.clear()
@@ -465,7 +343,7 @@ def startup_event() -> None:
         worker = Thread(target=replay_worker_loop, name=f"replay-worker-{index + 1}", daemon=True)
         worker.start()
         worker_threads.append(worker)
-    print(f"[replay-queue] started workers count={REPLAY_WORKER_COUNT}")
+    return
 
 
 @app.on_event("shutdown")
@@ -851,11 +729,6 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
         for symbol, meta in meta_map.items()
         if meta.tick_value == 0
     ]
-    if zero_value_symbols:
-        print(
-            f"[replay-risk] zero tick_value account={payload.account_number} symbols={zero_value_symbols}"
-        )
-
     ticks_by_symbol = _ticks_for_symbols(symbols, payload.anchor_time_ms, replay_anchor_end_ms(payload))
 
     peak_balance = replay.initial_balance
@@ -1056,11 +929,6 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
         profit_target_balance=profit_target_balance,
         payload_received_at=session.created_at,
     )
-    print(
-        f"[replay-risk] processed account={result.account_number} session={result.session_id} "
-        f"duration_ms={elapsed_ms} breach_reason={result.breach_reason} passed={result.passed}"
-    )
-    # Replay results are sent to backend; local JSON output disabled.
     notify_backend(result)
     return result
 
@@ -1079,7 +947,6 @@ async def submit_ea_payload(request: Request, payload: EAPayload):
         updated_at=timestamp,
         status="queued",
     )
-    log_received_account(session=session)
     enqueue_session(session)
     response = ReplayEnqueueResponse(
         session_id=session_id,

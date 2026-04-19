@@ -198,10 +198,6 @@ const CalendarPage: React.FC = () => {
             width: 100% !important;
             padding: 84px 16px 24px !important;
           }
-
-          .calendar-summary-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-          }
         }
 
         @media (max-width: 768px) {
@@ -213,10 +209,6 @@ const CalendarPage: React.FC = () => {
           .calendar-main-card {
             border-radius: 18px !important;
             padding: 18px !important;
-          }
-
-          .calendar-summary-grid {
-            grid-template-columns: 1fr !important;
           }
 
           .calendar-grid-scroll {
@@ -247,7 +239,9 @@ const CalendarPage: React.FC = () => {
           background: 'linear-gradient(135deg, rgba(0,142,164,0.98), rgba(10,41,52,0.98))',
           borderRadius: '24px',
           padding: '28px',
-          position: 'relative',
+          position: 'sticky',
+          top: '84px',
+          zIndex: 10,
           overflow: 'hidden',
           marginBottom: '24px',
           boxShadow: '0 20px 45px rgba(3, 34, 43, 0.18)',
@@ -275,6 +269,12 @@ const CalendarPage: React.FC = () => {
                     Profitable Days
                   </div>
                   <div style={{ color: '#fff', fontSize: '14px', fontWeight: 800, whiteSpace: 'nowrap' }}>{summary.profitDays}</div>
+                </div>
+                <div className="calendar-hero-stat" style={{ padding: '8px 10px', borderRadius: '12px', background: 'rgba(220,53,69,0.16)', border: '1px solid rgba(220,53,69,0.28)' }}>
+                  <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.45px', color: 'rgba(255,255,255,0.7)', marginBottom: '3px', fontWeight: 700 }}>
+                    Loss Days
+                  </div>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 800, whiteSpace: 'nowrap' }}>{summary.lossDays}</div>
                 </div>
                 <div className="calendar-hero-stat" style={{ padding: '8px 10px', borderRadius: '12px', background: 'rgba(255,215,0,0.14)', border: '1px solid rgba(255,215,0,0.24)' }}>
                   <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.45px', color: 'rgba(255,255,255,0.7)', marginBottom: '3px', fontWeight: 700 }}>
@@ -331,21 +331,6 @@ const CalendarPage: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="calendar-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '16px', marginBottom: '24px' }}>
-              {[
-                { label: 'Profit Days', value: summary.profitDays, accent: '#0cb362' },
-                { label: 'Loss Days', value: summary.lossDays, accent: '#dc3545' },
-                { label: 'No Trade Days', value: summary.noTradeDays, accent: '#a7b0ba' },
-                { label: 'Month PnL', value: formatCurrency(summary.totalPnl, selectedAccount.currency ?? 'USD'), accent: brandPrimary },
-              ].map((item) => (
-                <div key={item.label} style={{ background: '#fff', borderRadius: '18px', padding: '18px', border: '1px solid #e7edf3', boxShadow: '0 10px 30px rgba(15,23,42,0.04)' }}>
-                  <div style={{ width: '40px', height: '4px', borderRadius: '999px', backgroundColor: item.accent, marginBottom: '14px' }} />
-                  <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '8px', fontWeight: 600 }}>{item.label}</div>
-                  <div style={{ fontSize: '26px', color: '#111827', fontWeight: 800 }}>{item.value}</div>
-                </div>
-              ))}
-            </div>
-
             <div className="calendar-main-card" style={{ background: '#fff', borderRadius: '24px', padding: '24px', border: '1px solid #e7edf3', boxShadow: '0 18px 35px rgba(15,23,42,0.06)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
