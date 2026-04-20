@@ -110,7 +110,21 @@ def ensure_replay_inputs_are_complete(
             "contract_size": meta.contract_size,
         }
         for symbol, meta in meta_map.items()
-        if symbol in symbols and (meta.tick_value <= 0 or meta.tick_size <= 0 or meta.contract_size <= 0)
+        if symbol in symbols and (
+            meta.tick_size <= 0
+            or (meta.tick_value <= 0 and meta.contract_size <= 0)
+        )
+    ], key=lambda item: item["symbol"])
+    fallback_meta = sorted([
+        {
+            "symbol": symbol,
+            "tick_value": meta.tick_value,
+            "tick_size": meta.tick_size,
+            "contract_size": meta.contract_size,
+            "fallback": "contract_size_price_diff",
+        }
+        for symbol, meta in meta_map.items()
+        if symbol in symbols and meta.tick_value <= 0 and meta.tick_size > 0 and meta.contract_size > 0
     ], key=lambda item: item["symbol"])
     missing_ticks = sorted([
         symbol for symbol in symbols
@@ -124,6 +138,7 @@ def ensure_replay_inputs_are_complete(
         "symbols": symbols,
         "missing_meta": missing_meta,
         "invalid_meta": invalid_meta,
+        "fallback_meta": fallback_meta,
         "missing_ticks": missing_ticks,
         "tick_fetch_issues": tick_fetch_issues,
         "anchor_time_ms": payload.anchor_time_ms,
@@ -669,10 +684,16 @@ def _pnl_from_ticks(
     if price is None:
         return 0.0
     price_diff = price - position.open_price if position.type == 0 else position.open_price - price
+    if meta.tick_value > 0 and meta.tick_size > 0:
+        ticks = price_diff / meta.tick_size
+        return ticks * meta.tick_value * position.volume
+
+    if meta.contract_size > 0:
+        return price_diff * meta.contract_size * position.volume
+
     if meta.tick_size == 0:
         return 0.0
-    ticks = price_diff / meta.tick_size
-    return ticks * meta.tick_value * position.volume
+    return 0.0
 
 
 def _ticks_for_symbols(symbols: List[str], start_ms: int, end_ms: int) -> tuple[Dict[str, List[dict]], Dict[str, dict]]:
@@ -1052,6 +1073,8 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
                 if breach_event is not None:
                     breach_event["equity"] = equity
                     breach_event["balance"] = balance_snapshot
+                    if snapshot.get("largest_loss_trade") is not None:
+                        breach_event["largest_loss_trade"] = snapshot.get("largest_loss_trade")
                 break
             if equity < breach_balance:
                 breach_reason = "MAX_DRAWDOWN"
@@ -1059,6 +1082,8 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
                 if breach_event is not None:
                     breach_event["equity"] = equity
                     breach_event["balance"] = balance_snapshot
+                    if snapshot.get("largest_loss_trade") is not None:
+                        breach_event["largest_loss_trade"] = snapshot.get("largest_loss_trade")
                 break
             # Profit target is only evaluated on realized PnL (closed deals), not floating equity.
 
