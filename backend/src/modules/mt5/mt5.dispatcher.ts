@@ -91,7 +91,7 @@ export const listAssignedMt5Accounts = async (req: Request, res: Response, next:
       SELECT "accountNumber", "mt5Login", "mt5Password", "mt5Server"
       FROM "CTraderAccount"
       WHERE lower("platform") = 'mt5'
-        AND lower("status") IN ('active', 'assigned', 'assigned_pending_access', 'funded', 'admin_checking')
+        AND lower("status") = 'admin_checking'
         AND "userId" IS NOT NULL
       ORDER BY "updatedAt" ASC
     `

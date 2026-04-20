@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 import os
+from pathlib import Path
 from threading import Event, Lock, Thread
 import time
 from typing import Dict, List, Optional
@@ -33,6 +34,108 @@ worker_stop_event = Event()
 worker_threads: List[Thread] = []
 account_lock_registry: Dict[str, Lock] = {}
 account_lock_registry_guard = Lock()
+diagnostic_log_lock = Lock()
+BASE_DIR = Path(__file__).resolve().parent
+OUTPUTS_DIR = BASE_DIR / "output"
+OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+REPLAY_DIAGNOSTICS_LOG = OUTPUTS_DIR / "replay-diagnostics.jsonl"
+REPLAY_SUCCESS_LOG = OUTPUTS_DIR / "replay-successful-metrics.jsonl"
+REPLAY_BACKEND_FAILURE_LOG = OUTPUTS_DIR / "replay-backend-failures.jsonl"
+
+
+def log_replay_diagnostic(*, account_number: str, issue: str, details: dict) -> None:
+    record = {
+        "logged_at": now_iso(),
+        "account_number": account_number,
+        "issue": issue,
+        "details": details,
+    }
+    with diagnostic_log_lock:
+        with REPLAY_DIAGNOSTICS_LOG.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def log_successful_metric_send(*, result: ReplayResult, backend_status_code: Optional[int] = None) -> None:
+    record = {
+        "logged_at": now_iso(),
+        "account_number": result.account_number,
+        "session_id": result.session_id,
+        "processed_at": result.processed_at,
+        "breach_reason": result.breach_reason,
+        "passed": result.passed,
+        "backend_status_code": backend_status_code,
+    }
+    with diagnostic_log_lock:
+        with REPLAY_SUCCESS_LOG.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def log_backend_failure(
+    *,
+    result: ReplayResult,
+    backend_status_code: Optional[int] = None,
+    response_text: Optional[str] = None,
+    error: Optional[str] = None,
+) -> None:
+    record = {
+        "logged_at": now_iso(),
+        "account_number": result.account_number,
+        "session_id": result.session_id,
+        "processed_at": result.processed_at,
+        "breach_reason": result.breach_reason,
+        "passed": result.passed,
+        "backend_status_code": backend_status_code,
+        "response_text": response_text,
+        "error": error,
+    }
+    with diagnostic_log_lock:
+        with REPLAY_BACKEND_FAILURE_LOG.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def ensure_replay_inputs_are_complete(
+    *,
+    payload: EAPayload,
+    symbols: List[str],
+    meta_map: Dict[str, SymbolMetaPayload],
+    ticks_by_symbol: Dict[str, List[dict]],
+    tick_fetch_issues: Dict[str, dict],
+) -> None:
+    missing_meta = sorted([symbol for symbol in symbols if symbol not in meta_map])
+    invalid_meta = sorted([
+        {
+            "symbol": symbol,
+            "tick_value": meta.tick_value,
+            "tick_size": meta.tick_size,
+            "contract_size": meta.contract_size,
+        }
+        for symbol, meta in meta_map.items()
+        if symbol in symbols and (meta.tick_value <= 0 or meta.tick_size <= 0 or meta.contract_size <= 0)
+    ], key=lambda item: item["symbol"])
+    missing_ticks = sorted([
+        symbol for symbol in symbols
+        if not ticks_by_symbol.get(symbol)
+    ])
+
+    if not missing_meta and not invalid_meta and not missing_ticks:
+        return
+
+    details = {
+        "symbols": symbols,
+        "missing_meta": missing_meta,
+        "invalid_meta": invalid_meta,
+        "missing_ticks": missing_ticks,
+        "tick_fetch_issues": tick_fetch_issues,
+        "anchor_time_ms": payload.anchor_time_ms,
+        "positions_count": len(payload.positions),
+        "closed_deals_count": len(payload.closed_deals),
+    }
+    log_replay_diagnostic(
+        account_number=payload.account_number,
+        issue="replay_input_incomplete",
+        details=details,
+    )
+    raise HTTPException(status_code=422, detail="Replay reconstruction inputs incomplete")
 
 def notify_backend(result: ReplayResult) -> None:
     payload = {
@@ -74,13 +177,22 @@ def notify_backend(result: ReplayResult) -> None:
     if not BACKEND_BASE_URL:
         return
     try:
-        requests.post(
+        response = requests.post(
             f"{BACKEND_BASE_URL.rstrip('/')}{BACKEND_REPLAY_ENDPOINT}",
             json=payload,
             headers=headers,
             timeout=10,
         )
-    except Exception:
+        if 200 <= response.status_code < 300:
+            log_successful_metric_send(result=result, backend_status_code=response.status_code)
+            return
+        log_backend_failure(
+            result=result,
+            backend_status_code=response.status_code,
+            response_text=response.text[:4000],
+        )
+    except Exception as exc:
+        log_backend_failure(result=result, error=str(exc))
         return
 
 
@@ -540,6 +652,10 @@ def _deal_net(deal: ClosedDealPayload) -> float:
     return deal.profit + deal.commission + deal.swap
 
 
+def _position_key(position_id: Optional[str], ticket: Optional[str], symbol: str, open_time_ms: int) -> str:
+    return position_id or ticket or f"{symbol}:{open_time_ms}"
+
+
 def _deal_affects_balance(deal: ClosedDealPayload) -> bool:
     return _deal_is_deposit(deal) or _deal_is_withdrawal(deal)
 
@@ -559,20 +675,35 @@ def _pnl_from_ticks(
     return ticks * meta.tick_value * position.volume
 
 
-def _ticks_for_symbols(symbols: List[str], start_ms: int, end_ms: int) -> Dict[str, List[dict]]:
+def _ticks_for_symbols(symbols: List[str], start_ms: int, end_ms: int) -> tuple[Dict[str, List[dict]], Dict[str, dict]]:
     ticks_by_symbol: Dict[str, List[dict]] = {}
+    fetch_issues: Dict[str, dict] = {}
     for symbol in symbols:
         try:
             response = requests.get(
                 f"{TICK_SERVICE_URL}/get_ticks",
                 params={"symbol": symbol, "start": start_ms, "end": end_ms},
-                timeout=15,
+                timeout=180,
             )
             response.raise_for_status()
             ticks_by_symbol[symbol] = response.json()
-        except requests.RequestException:
+        except requests.Timeout as exc:
             ticks_by_symbol[symbol] = []
-    return ticks_by_symbol
+            fetch_issues[symbol] = {
+                "type": "timeout",
+                "message": str(exc),
+                "start_ms": start_ms,
+                "end_ms": end_ms,
+            }
+        except requests.RequestException as exc:
+            ticks_by_symbol[symbol] = []
+            fetch_issues[symbol] = {
+                "type": "request_error",
+                "message": str(exc),
+                "start_ms": start_ms,
+                "end_ms": end_ms,
+            }
+    return ticks_by_symbol, fetch_issues
 
 
 def replay_anchor_end_ms(payload: EAPayload) -> int:
@@ -613,7 +744,7 @@ def build_timeline(
     open_time_map: Dict[str, int] = {}
     for position in payload.positions:
         if position.open_time_ms <= payload.anchor_time_ms:
-            key = position.position_id or position.ticket or f"{position.symbol}:{position.open_time_ms}"
+            key = _position_key(position.position_id, position.ticket, position.symbol, position.open_time_ms)
             open_positions[key] = position
             open_time_map[key] = position.open_time_ms
 
@@ -625,12 +756,34 @@ def build_timeline(
 
     def snapshot_at(time_ms: int, event: Optional[dict] = None) -> None:
         equity = balance
+        position_contributions: List[dict] = []
         for position in open_positions.values():
             tick = last_ticks.get(position.symbol)
             meta = meta_map.get(position.symbol)
             if tick and meta:
-                equity += _pnl_from_ticks(position, tick, meta)
-        snapshots.append({"time_ms": time_ms, "equity": equity, "balance": balance, "event": event})
+                pnl = _pnl_from_ticks(position, tick, meta)
+                equity += pnl
+                position_contributions.append(
+                    {
+                        "position_id": position.position_id,
+                        "ticket": position.ticket,
+                        "symbol": position.symbol,
+                        "open_time_ms": position.open_time_ms,
+                        "floating_pnl": pnl,
+                    }
+                )
+        largest_loss_trade = None
+        if position_contributions:
+            largest_loss_trade = min(position_contributions, key=lambda item: item["floating_pnl"])
+        snapshots.append(
+            {
+                "time_ms": time_ms,
+                "equity": equity,
+                "balance": balance,
+                "event": event,
+                "largest_loss_trade": largest_loss_trade,
+            }
+        )
 
     snapshot_at(payload.anchor_time_ms, {"type": "anchor"})
 
@@ -642,7 +795,7 @@ def build_timeline(
         event_meta: dict = {"type": event_type, "time_ms": time_ms}
         if event_type == "open":
             position = event[2]
-            key = position.position_id or position.ticket or f"{position.symbol}:{position.open_time_ms}"
+            key = _position_key(position.position_id, position.ticket, position.symbol, position.open_time_ms)
             open_positions[key] = position
             open_time_map[key] = position.open_time_ms
             event_meta.update({"symbol": position.symbol, "position_id": position.position_id, "ticket": position.ticket})
@@ -670,7 +823,7 @@ def build_timeline(
                     open_time_ms=deal.time_ms,
                     type=deal.type,
                 )
-                key = position.position_id or position.ticket or f"{position.symbol}:{position.open_time_ms}"
+                key = _position_key(position.position_id, position.ticket, position.symbol, position.open_time_ms)
                 open_positions[key] = position
                 open_time_map[key] = position.open_time_ms
                 event_meta.update({"position_id": deal.position_id, "deal_id": deal.deal_id})
@@ -701,6 +854,60 @@ def build_timeline(
     return snapshots
 
 
+def enrich_breach_trade_details(*, payload: EAPayload, breach_event: Optional[dict]) -> Optional[dict]:
+    if not breach_event:
+        return breach_event
+
+    breach_time_ms = breach_event.get("time_ms")
+    loss_trade = breach_event.get("largest_loss_trade")
+    if not breach_time_ms or not isinstance(loss_trade, dict):
+        return breach_event
+
+    position_id = loss_trade.get("position_id")
+    ticket = loss_trade.get("ticket")
+    symbol = loss_trade.get("symbol")
+    open_time_ms = loss_trade.get("open_time_ms")
+
+    if open_time_ms is not None:
+        breach_event["breach_trade_duration_min"] = round((breach_time_ms - open_time_ms) / 60000.0, 4)
+
+    breach_event["breach_trade"] = {
+        "position_id": position_id,
+        "ticket": ticket,
+        "symbol": symbol,
+        "open_time_ms": open_time_ms,
+        "floating_pnl_at_breach": loss_trade.get("floating_pnl"),
+    }
+
+    matching_close = None
+    for deal in payload.closed_deals:
+        if deal.entry != 1 or _should_ignore_deal(deal):
+            continue
+        if position_id and deal.position_id == position_id and deal.time_ms >= breach_time_ms:
+            matching_close = deal
+            break
+        if not position_id and ticket and deal.position_id == ticket and deal.time_ms >= breach_time_ms:
+            matching_close = deal
+            break
+
+    if matching_close:
+        minutes_after_breach = (matching_close.time_ms - breach_time_ms) / 60000.0
+        breach_event["breach_trade_close"] = {
+            "deal_id": matching_close.deal_id,
+            "closed_time_ms": matching_close.time_ms,
+            "minutes_after_breach": round(minutes_after_breach, 4),
+            "closed_at_breach": abs(matching_close.time_ms - breach_time_ms) <= 60_000,
+        }
+    else:
+        breach_event["breach_trade_close"] = {
+            "closed_at_breach": False,
+            "closed_after_breach": False,
+        }
+
+    breach_event.pop("largest_loss_trade", None)
+    return breach_event
+
+
 def calculate_result(session: ReplaySession) -> ReplayResult:
     processing_started_at = now_iso()
     started_at = time.perf_counter()
@@ -724,12 +931,14 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
         | {deal.symbol for deal in payload.closed_deals if not _should_ignore_deal(deal)}
     )
     meta_map = _symbol_meta_map(payload)
-    zero_value_symbols = [
-        f"{symbol}:tick_size={meta.tick_size},tick_value={meta.tick_value},contract_size={meta.contract_size}"
-        for symbol, meta in meta_map.items()
-        if meta.tick_value == 0
-    ]
-    ticks_by_symbol = _ticks_for_symbols(symbols, payload.anchor_time_ms, replay_anchor_end_ms(payload))
+    ticks_by_symbol, tick_fetch_issues = _ticks_for_symbols(symbols, payload.anchor_time_ms, replay_anchor_end_ms(payload))
+    ensure_replay_inputs_are_complete(
+        payload=payload,
+        symbols=symbols,
+        meta_map=meta_map,
+        ticks_by_symbol=ticks_by_symbol,
+        tick_fetch_issues=tick_fetch_issues,
+    )
 
     peak_balance = replay.initial_balance
     daily_peak_balance = replay.initial_balance
@@ -837,15 +1046,15 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
         if replay.daily_dd_amount is not None and replay.daily_dd_amount > 0:
             daily_breach_balance = daily_start_balance - replay.daily_dd_amount
         if breach_reason is None:
-            if equity < breach_balance:
-                breach_reason = "MAX_DRAWDOWN"
+            if daily_breach_balance is not None and equity < daily_breach_balance:
+                breach_reason = "DAILY_DRAWDOWN"
                 breach_event = snapshot.get("event")
                 if breach_event is not None:
                     breach_event["equity"] = equity
                     breach_event["balance"] = balance_snapshot
                 break
-            if daily_breach_balance is not None and equity < daily_breach_balance:
-                breach_reason = "DAILY_DRAWDOWN"
+            if equity < breach_balance:
+                breach_reason = "MAX_DRAWDOWN"
                 breach_event = snapshot.get("event")
                 if breach_event is not None:
                     breach_event["equity"] = equity
@@ -880,7 +1089,40 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
 
     if breach_reason is None:
         end_breach_balance = peak_balance - replay.max_dd_amount
-        if payload.current_equity < end_breach_balance:
+        end_daily_breach_balance = None
+        if replay.daily_dd_amount is not None and replay.daily_dd_amount > 0:
+            end_daily_breach_balance = daily_start_balance - replay.daily_dd_amount
+
+        if end_daily_breach_balance is not None and payload.current_equity < end_daily_breach_balance:
+            log_replay_diagnostic(
+                account_number=payload.account_number,
+                issue="final_snapshot_daily_breach",
+                details={
+                    "equity": payload.current_equity,
+                    "balance": payload.current_balance,
+                    "daily_breach_balance": end_daily_breach_balance,
+                    "daily_start_balance": daily_start_balance,
+                    "timeline_events": len(timeline),
+                },
+            )
+            breach_reason = "DAILY_DRAWDOWN"
+            breach_event = {
+                "type": "final_snapshot",
+                "equity": payload.current_equity,
+                "balance": payload.current_balance,
+            }
+        elif payload.current_equity < end_breach_balance:
+            log_replay_diagnostic(
+                account_number=payload.account_number,
+                issue="final_snapshot_max_breach",
+                details={
+                    "equity": payload.current_equity,
+                    "balance": payload.current_balance,
+                    "breach_balance": end_breach_balance,
+                    "peak_balance": peak_balance,
+                    "timeline_events": len(timeline),
+                },
+            )
             breach_reason = "MAX_DRAWDOWN"
             breach_event = {
                 "type": "final_snapshot",
@@ -890,6 +1132,8 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
     if breach_reason is not None:
         passed = False
         pass_event = None
+
+    breach_event = enrich_breach_trade_details(payload=payload, breach_event=breach_event)
 
     elapsed_ms = round((time.perf_counter() - started_at) * 1000, 2)
     processed_at = now_iso()
