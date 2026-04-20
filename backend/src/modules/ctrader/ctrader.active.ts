@@ -14,9 +14,12 @@ export const listActiveCTraderAccounts = async (req: Request, res: Response, nex
       throw new ApiError('Unauthorized engine request', 401)
     }
 
+    const isMt5Request = secret === env.mt5EngineSecret
+    const requestedStatuses = isMt5Request ? ['admin_checking'] : ACTIVE_STATUSES
+
     const accounts = await prisma.cTraderAccount.findMany({
       where: {
-        status: { in: ACTIVE_STATUSES, mode: 'insensitive' },
+        status: { in: requestedStatuses, mode: 'insensitive' },
         platform: { equals: 'mt5', mode: 'insensitive' },
       },
       include: { metrics: { select: { balance: true } } },
