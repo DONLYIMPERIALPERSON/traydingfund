@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../config/prisma'
 import { ApiError } from '../../common/errors'
-import { assignReadyAccountFromPool, buildBaseChallengeId } from '../ctrader/ctrader.assignment'
+import { assignReadyAccountFromPool, buildBaseChallengeId, resolveChallengeCurrency } from '../ctrader/ctrader.assignment'
 import { buildObjectiveFields } from '../ctrader/ctrader.objectives'
 import { requestAccountAccess } from '../../services/accessEngine.service'
 import { createOnboardingCertificate } from '../../services/certificate.service'
@@ -18,6 +18,38 @@ const formatCurrency = (amountKobo: number) =>
 const buildEmailSubject = (base: string) => {
   const suffix = Math.random().toString(36).slice(2, 7).toUpperCase()
   return `${base} #${suffix}`
+}
+
+const normalizePoolAccountSizeDigits = (value: string) => value.replace(/\D/g, '')
+
+const countMatchingReadyAccounts = async (params: {
+  accountSize: string
+  challengeType?: string | null
+  currency?: string | null
+  platform?: string | null
+}) => {
+  const resolvedCurrency = resolveChallengeCurrency(params.challengeType, params.currency ?? null)
+  const resolvedPlatform = String(params.platform ?? 'ctrader').toLowerCase()
+  const normalizedDigits = normalizePoolAccountSizeDigits(params.accountSize)
+
+  const rows = await prisma.$queryRaw<Array<{ count: bigint | number }>>`
+    SELECT COUNT(*)::bigint AS count
+    FROM "CTraderAccount"
+    WHERE lower(status) = 'ready'
+      AND "userId" IS NULL
+      AND lower("currency") = lower(${resolvedCurrency})
+      AND lower("platform") = lower(${resolvedPlatform})
+      AND regexp_replace(lower("accountSize"), '[^0-9]', '', 'g') = ${normalizedDigits}
+      AND (
+        lower(${resolvedPlatform}) <> 'mt5'
+        OR (
+          "mt5Server" IS NOT NULL
+          AND "mt5Password" IS NOT NULL
+        )
+      )
+  `
+
+  return Number(rows[0]?.count ?? 0)
 }
 
 const toUsdKobo = (amountKobo: number, currency?: string | null, rate?: number) => {
@@ -175,14 +207,26 @@ export const listPendingAssignments = async (_req: Request, res: Response, next:
       orderBy: { createdAt: 'asc' },
     }) as OrderWithUser[]
 
-    res.json({
-      orders: orders.map((order) => ({
+    const ordersWithAvailability = await Promise.all(orders.map(async (order) => {
+      const platform = (order.metadata as { platform?: string } | null)?.platform ?? 'ctrader'
+      const readyMatches = await countMatchingReadyAccounts({
+        accountSize: order.accountSize,
+        challengeType: order.challengeType,
+        currency: order.currency,
+        platform,
+      })
+
+      return {
         id: order.id,
         provider_order_id: order.providerOrderId,
         status: order.status,
         assignment_status: order.assignmentStatus,
         account_size: order.accountSize,
         currency: order.currency,
+        challenge_type: order.challengeType,
+        phase: order.phase,
+        platform,
+        ready_matches: readyMatches,
         net_amount_formatted: formatCurrency(toUsdKobo(order.netAmountKobo, order.currency, usdNgnRate)),
         created_at: order.createdAt,
         paid_at: order.paidAt,
@@ -191,8 +235,10 @@ export const listPendingAssignments = async (_req: Request, res: Response, next:
         crypto_currency: order.cryptoCurrency,
         crypto_address: order.cryptoAddress,
         user: { id: order.userId, name: order.user.fullName ?? 'Trader', email: order.user.email },
-      })),
-    })
+      }
+    }))
+
+    res.json({ orders: ordersWithAvailability })
   } catch (err) {
     next(err as Error)
   }
@@ -211,13 +257,20 @@ export const retryPendingAssignments = async (_req: Request, res: Response, next
 
     for (const order of pendingOrders) {
       const platform = (order.metadata as { platform?: string } | null)?.platform ?? 'ctrader'
+      const readyMatchesBeforeAssign = await countMatchingReadyAccounts({
+        accountSize: order.accountSize,
+        challengeType: order.challengeType,
+        currency: order.currency,
+        platform,
+      })
+      const resolvedCurrency = resolveChallengeCurrency(order.challengeType, order.currency ?? null)
 
       const assigned = await assignReadyAccountFromPool({
         userId: order.userId,
         challengeType: order.challengeType ?? 'two_step',
         phase: order.phase ?? 'phase_1',
         accountSize: order.accountSize,
-        currency: order.currency ?? 'USD',
+        currency: resolvedCurrency,
         platform,
         baseChallengeId: buildBaseChallengeId(order.id),
       })
@@ -226,7 +279,7 @@ export const retryPendingAssignments = async (_req: Request, res: Response, next
         skipped.push({
           orderId: order.id,
           providerOrderId: order.providerOrderId,
-          reason: 'no_ready_account_matched',
+          reason: readyMatchesBeforeAssign > 0 ? 'ready_available_but_assignment_failed' : 'no_ready_account_matched',
         })
         continue
       }

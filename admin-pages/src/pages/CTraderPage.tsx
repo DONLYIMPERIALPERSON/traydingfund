@@ -11,6 +11,7 @@ import {
   forceAssignNextStage,
   deleteMT5Account,
   logCTraderCredentialView,
+  retryPendingAssignments,
   type MT5Account,
   type Order,
   uploadMT5AccountsTxt,
@@ -65,6 +66,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
   const [pendingSizeFilter, setPendingSizeFilter] = useState('')
   const [deletingAccountId, setDeletingAccountId] = useState<number | null>(null)
   const [assigningNextStageId, setAssigningNextStageId] = useState<number | null>(null)
+  const [retryingPendingAssignments, setRetryingPendingAssignments] = useState(false)
 
   const [selectedAccount, setSelectedAccount] = useState<MT5Account | null>(null)
   const [assignmentStage, setAssignmentStage] = useState<'Phase 1' | 'Phase 2' | 'Funded'>('Phase 1')
@@ -269,6 +271,25 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
       setError(err instanceof Error ? err.message : 'Failed to assign next stage')
     } finally {
       setAssigningNextStageId(null)
+    }
+  }
+
+  const handleRetryPendingAssignments = async () => {
+    setRetryingPendingAssignments(true)
+    setError('')
+    setFormSuccess('')
+    try {
+      const result = await retryPendingAssignments()
+      const skippedWithReady = result.skipped.filter((item) => item.reason === 'ready_available_but_assignment_failed').length
+      const summaryMessage = skippedWithReady > 0
+        ? `${result.assigned} assignment(s) processed. ${skippedWithReady} still have matching ready account(s) but failed assignment.`
+        : `${result.assigned} assignment(s) processed successfully.`
+      setFormSuccess(summaryMessage)
+      await loadData()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to force pending assignments')
+    } finally {
+      setRetryingPendingAssignments(false)
     }
   }
 
@@ -674,6 +695,24 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
                 <option key={`pending-${size.value}`} value={size.value}>{size.label}</option>
               ))}
             </select>
+            <button
+              type="button"
+              onClick={() => void handleRetryPendingAssignments()}
+              disabled={retryingPendingAssignments || filteredPendingAssignments.length === 0}
+              style={{
+                border: '1px solid #10b981',
+                background: 'rgba(16,185,129,0.12)',
+                color: '#6ee7b7',
+                borderRadius: 10,
+                padding: '8px 12px',
+                fontWeight: 700,
+                fontSize: 12,
+                cursor: retryingPendingAssignments || filteredPendingAssignments.length === 0 ? 'not-allowed' : 'pointer',
+                opacity: retryingPendingAssignments || filteredPendingAssignments.length === 0 ? 0.7 : 1,
+              }}
+            >
+              {retryingPendingAssignments ? 'Force Assigning...' : 'Force Assign Ready Accounts'}
+            </button>
           </div>
         )}
 
@@ -954,8 +993,12 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
                 <th>Order ID</th>
                 <th>User</th>
                 <th>Email</th>
+                <th>Challenge Type</th>
+                <th>Phase</th>
                 <th>Account Size</th>
                 <th>Currency</th>
+                <th>Platform</th>
+                <th>Ready Matches</th>
                 <th>Amount</th>
                 <th>Paid At</th>
                 <th>Status</th>
@@ -967,8 +1010,26 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
                   <td>{order.provider_order_id}</td>
                   <td>{order.user.name}</td>
                   <td>{order.user.email}</td>
+                  <td>{order.challenge_type ?? '-'}</td>
+                  <td>{order.phase ?? '-'}</td>
                   <td>{order.account_size}</td>
                   <td>{order.currency ?? '-'}</td>
+                  <td>{(order.platform ?? 'ctrader').toUpperCase()}</td>
+                  <td>
+                    <span
+                      style={{
+                        border: `1px solid ${((order.ready_matches ?? 0) > 0) ? 'rgba(34,197,94,0.5)' : 'rgba(107,114,128,0.5)'}`,
+                        background: ((order.ready_matches ?? 0) > 0) ? 'rgba(34,197,94,0.16)' : 'rgba(107,114,128,0.12)',
+                        color: ((order.ready_matches ?? 0) > 0) ? '#86efac' : '#d1d5db',
+                        borderRadius: 999,
+                        padding: '4px 10px',
+                        fontSize: 12,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {order.ready_matches ?? 0}
+                    </span>
+                  </td>
                   <td>{order.net_amount_formatted}</td>
                   <td>{new Date(order.paid_at || '').toLocaleDateString()}</td>
                   <td>

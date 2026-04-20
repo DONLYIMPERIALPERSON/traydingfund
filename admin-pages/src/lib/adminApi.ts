@@ -134,6 +134,10 @@ export type Order = {
   assignment_status: string
   account_size: string
   currency?: string | null
+  challenge_type?: string | null
+  phase?: string | null
+  platform?: string | null
+  ready_matches?: number
   net_amount_formatted: string
   created_at: string
   paid_at: string | null
@@ -617,6 +621,14 @@ export const fetchOrders = async (
 
 export const fetchPendingAssignments = async () =>
   apiFetch<{ orders: Order[] }>('/admin/orders/pending-assign')
+
+export const retryPendingAssignments = async () =>
+  apiFetch<{ message: string; total: number; assigned: number; skipped: Array<{ orderId: number; providerOrderId: string | null; reason: string }> }>(
+    '/admin/orders/pending-assign/retry',
+    {
+      method: 'POST',
+    },
+  )
 
 export const approveCryptoOrder = async (orderId: number) =>
   apiFetch<{ id: number; status: string; message: string }>(`/admin/orders/${orderId}/approve`, { method: 'POST' })
