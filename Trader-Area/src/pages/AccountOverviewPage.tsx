@@ -200,15 +200,15 @@ const AccountOverviewPage: React.FC = () => {
     if (!challengeId || isDownloadingBreachReport) return
     try {
       setIsDownloadingBreachReport(true)
-      const blob = await downloadBreachReport(challengeId)
-      const url = window.URL.createObjectURL(blob)
+      const { download_url, filename } = await downloadBreachReport(challengeId)
       const link = document.createElement('a')
-      link.href = url
-      link.download = `breach-report-${accountData?.mt5_account ?? challengeId}.pdf`
+      link.href = download_url
+      link.target = '_blank'
+      link.rel = 'noopener noreferrer'
+      link.download = filename ?? `breach-report-${accountData?.mt5_account ?? challengeId}.pdf`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
     } catch (err) {
       console.error('Failed to download breach report', err)
       window.alert(err instanceof Error ? err.message : 'Failed to download breach report')

@@ -906,7 +906,10 @@ export const downloadBreachReport = async (req: AuthRequest, res: Response, next
       report: payload,
     })
 
-    res.redirect(reportRecord.certificateUrl)
+    res.json({
+      download_url: reportRecord.certificateUrl,
+      filename: `breach-report-${account.accountNumber}.pdf`,
+    })
   } catch (err) {
     next(err as Error)
   }
