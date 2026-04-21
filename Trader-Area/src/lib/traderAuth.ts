@@ -552,7 +552,37 @@ export async function fetchUserChallengeAccountDetail(challengeId: string): Prom
 }
 
 export async function downloadBreachReport(challengeId: string): Promise<{ download_url: string; filename?: string }> {
-  return apiFetch<{ download_url: string; filename?: string }>(`/trader/challenges/${encodeURIComponent(challengeId)}/breach-report`)
+  const baseUrl = import.meta.env.VITE_API_BASE_URL as string
+  const token = localStorage.getItem('supabase_access_token')
+  const affiliateId = localStorage.getItem('affiliate_referrer_id')
+
+  let response: Response
+  try {
+    response = await fetch(`${baseUrl}/trader/challenges/${encodeURIComponent(challengeId)}/breach-report`, {
+      method: 'GET',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(affiliateId ? { 'x-affiliate-id': affiliateId } : {}),
+      },
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Network error'
+    throw new Error(message || 'Failed to request breach report')
+  }
+
+  const text = await response.text()
+  if (!response.ok) {
+    let message = text || `Request failed (${response.status})`
+    try {
+      const parsed = JSON.parse(text) as { message?: string; error?: string; detail?: string }
+      message = parsed.message || parsed.error || parsed.detail || message
+    } catch {
+      // keep raw text fallback
+    }
+    throw new Error(message)
+  }
+
+  return JSON.parse(text) as { download_url: string; filename?: string }
 }
 
 export async function fetchUserChallengeCalendar(challengeId: string): Promise<UserChallengeCalendarResponse> {
