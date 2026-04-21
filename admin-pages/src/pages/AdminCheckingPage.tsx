@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import {
+  adminReplaceAccount,
   adminUpdateMt5Password,
   adminResetAccount,
   lookupChallengeAccount,
@@ -111,9 +112,12 @@ const AdminCheckingPage = () => {
   const [loading, setLoading] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [updatingPassword, setUpdatingPassword] = useState(false)
+  const [replacingAccount, setReplacingAccount] = useState(false)
   const [error, setError] = useState('')
   const [reportOpen, setReportOpen] = useState(false)
   const [newMt5Password, setNewMt5Password] = useState('')
+  const [replacementPlatform, setReplacementPlatform] = useState<'mt5' | 'ctrader'>('mt5')
+  const [replaceToNextPhase, setReplaceToNextPhase] = useState(false)
 
   const formatCurrency = (value: number | null | undefined, currency?: string | null) => {
     if (value == null) return '—'
@@ -211,6 +215,26 @@ const AdminCheckingPage = () => {
     }
   }
 
+  const handleReplaceAccount = async () => {
+    if (!account) return
+    setReplacingAccount(true)
+    setError('')
+    try {
+      await adminReplaceAccount({
+        account_id: account.id,
+        account_number: account.account_number,
+        platform: replacementPlatform,
+        next_phase: replaceToNextPhase,
+      })
+      const refreshed = await lookupChallengeAccount(account.account_number)
+      setAccount(refreshed.account)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Replace account failed')
+    } finally {
+      setReplacingAccount(false)
+    }
+  }
+
   return (
     <section className="admin-page-stack">
       <div className="admin-dashboard-card">
@@ -268,6 +292,41 @@ const AdminCheckingPage = () => {
             </div>
 
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <select
+                value={replacementPlatform}
+                onChange={(event) => setReplacementPlatform(event.target.value as 'mt5' | 'ctrader')}
+                style={{
+                  border: '1px solid #2a2f3a',
+                  background: '#0f172a',
+                  color: '#e5e7eb',
+                  borderRadius: 10,
+                  padding: '10px 12px',
+                  minWidth: 140,
+                }}
+              >
+                <option value="mt5">mt5</option>
+                <option value="ctrader">ctrader</option>
+              </select>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: '#cbd5f5', fontSize: 14 }}>
+                <input
+                  type="checkbox"
+                  checked={replaceToNextPhase}
+                  onChange={(event) => setReplaceToNextPhase(event.target.checked)}
+                />
+                Next Phase
+              </label>
+              <button
+                type="button"
+                onClick={handleReplaceAccount}
+                disabled={replacingAccount}
+                style={{
+                  background: '#111827',
+                  border: '1px solid #334155',
+                  color: '#fda4af',
+                }}
+              >
+                {replacingAccount ? 'Replacing...' : 'Replace Account'}
+              </button>
               {String(account.platform ?? '').toLowerCase() === 'mt5' && (
                 <>
                   <input

@@ -3,7 +3,7 @@ import { getAdminMe, getDashboardStats, listActiveChallengeAccounts, listAdminUs
 import { approveCryptoOrder, declineCryptoOrder, getOrderStats, listOrders, listPendingAssignments, retryPendingAssignments } from './admin.orders.controller'
 import { authenticate, requireRole } from '../../common/auth'
 import { createAllowlistEntry, deleteAllowlistEntry, listAllowlist, updateAllowlistEntry } from './admin.allowlist.controller'
-import { adminResetAccount, deleteReadyCTraderAccount, downloadCTraderTemplate, forceAssignNextStage, getCTraderSummary, listCTraderAccounts, logCTraderCredentialView, updateMt5Password, uploadCTraderAccounts } from './ctrader.controller'
+import { adminResetAccount, deleteReadyCTraderAccount, downloadCTraderTemplate, forceAssignNextStage, getCTraderSummary, listCTraderAccounts, logCTraderCredentialView, replaceUserAccount, updateMt5Password, uploadCTraderAccounts } from './ctrader.controller'
 import { listAdminKycProfiles, listAdminKycRequests, reviewKycRequest } from '../kyc/kyc.admin.controller'
 import { createCouponAdmin, deleteCouponAdmin, listCouponsAdmin, updateCouponChallengeTypeAdmin, updateCouponPlanAdmin, updateCouponStatusAdmin } from '../coupons/coupon.controller'
 import {
@@ -38,6 +38,7 @@ adminRouter.get('/ctrader/accounts', authenticate, requireRole(['admin', 'super_
 adminRouter.post('/ctrader/accounts/credential-views', authenticate, requireRole(['admin', 'super_admin']), logCTraderCredentialView)
 adminRouter.post('/ctrader/accounts/reset', authenticate, requireRole(['admin', 'super_admin']), adminResetAccount)
 adminRouter.post('/ctrader/accounts/update-password', authenticate, requireRole(['admin', 'super_admin']), updateMt5Password)
+adminRouter.post('/ctrader/accounts/replace', authenticate, requireRole(['admin', 'super_admin']), replaceUserAccount)
 adminRouter.post('/ctrader/accounts/force-next-stage', authenticate, requireRole(['admin', 'super_admin']), forceAssignNextStage)
 adminRouter.get('/ctrader/summary', authenticate, requireRole(['admin', 'super_admin']), getCTraderSummary)
 adminRouter.get('/allowlist', authenticate, requireRole(['super_admin']), listAllowlist)

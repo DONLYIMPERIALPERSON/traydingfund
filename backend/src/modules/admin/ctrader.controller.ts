@@ -5,7 +5,8 @@ import { Prisma } from '@prisma/client'
 import { requestAccountAccess } from '../../services/accessEngine.service'
 import { pushActiveAccountAdd } from '../../services/ctraderEngine.service'
 import { recordCredentialView } from '../../services/emailLog.service'
-import { assignReadyAccountFromPool, buildBaseChallengeId, normalizeChallengeBase, resolveChallengeCurrency } from '../ctrader/ctrader.assignment'
+import { buildObjectiveFields } from '../ctrader/ctrader.objectives'
+import { assignReadyAccountFromPool, buildBaseChallengeId, buildChallengeIdForPhase, normalizeAccountSize, normalizeChallengeBase, resolveChallengeCurrency } from '../ctrader/ctrader.assignment'
 
 type UploadAccountPayload = {
   account_number: string
@@ -57,7 +58,14 @@ type UpdateMt5PasswordPayload = {
   mt5_password?: string
 }
 
-const normalizeAccountSize = (raw: string) => {
+type ReplaceAccountPayload = {
+  account_id?: number
+  account_number?: string
+  platform?: 'mt5' | 'ctrader'
+  next_phase?: boolean
+}
+
+const normalizeUploadAccountSize = (raw: string) => {
   const digits = raw.replace(/[^\d]/g, '')
   if (!digits) return raw
   let value = Number(digits)
@@ -66,6 +74,27 @@ const normalizeAccountSize = (raw: string) => {
   }
   if (!Number.isFinite(value) || value <= 0) return raw
   return `$${value.toLocaleString('en-US')}`
+}
+
+const resolveReplacementPhase = (challengeType: string, phase: string, nextPhase: boolean) => {
+  const normalizedChallengeType = String(challengeType ?? 'two_step').toLowerCase()
+  const normalizedPhase = String(phase ?? 'phase_1').toLowerCase()
+
+  if (!nextPhase) return normalizedPhase
+
+  if (normalizedChallengeType === 'instant_funded' || normalizedPhase === 'funded') {
+    return null
+  }
+
+  if (normalizedChallengeType === 'two_step') {
+    return normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null
+  }
+
+  if (['one_step', 'ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)) {
+    return normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null
+  }
+
+  return null
 }
 
 export const uploadCTraderAccounts = async (req: Request, res: Response, next: NextFunction) => {
@@ -81,7 +110,7 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
       return {
         accountNumber,
         brokerName: String(account.broker ?? '').trim(),
-        accountSize: normalizeAccountSize(String(account.account_size ?? '').trim()),
+        accountSize: normalizeUploadAccountSize(String(account.account_size ?? '').trim()),
         status: String(account.status ?? 'Ready').trim(),
         currency: String(account.currency ?? 'USD').trim().toUpperCase(),
         platform,
@@ -428,6 +457,144 @@ export const updateMt5Password = async (req: Request, res: Response, next: NextF
       account_number: updated.accountNumber,
       mt5_login: updated.mt5Login ?? updated.accountNumber,
       mt5_server: updated.mt5Server ?? null,
+    })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const replaceUserAccount = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { account_id, account_number, platform, next_phase } = req.body as ReplaceAccountPayload
+    const accountId = account_id != null ? Number(account_id) : null
+    const accountNumber = account_number ? String(account_number).trim() : null
+    const targetPlatform = String(platform ?? '').trim().toLowerCase()
+    const advanceToNextPhase = Boolean(next_phase)
+
+    if (!accountId && !accountNumber) {
+      throw new ApiError('account_id or account_number is required', 400)
+    }
+
+    if (!['mt5', 'ctrader'].includes(targetPlatform)) {
+      throw new ApiError('platform must be mt5 or ctrader', 400)
+    }
+
+    const account = await prisma.cTraderAccount.findFirst({
+      where: accountId ? { id: accountId } : { accountNumber: accountNumber ?? '' },
+      include: { user: true },
+    })
+
+    if (!account) {
+      throw new ApiError('Account not found', 404)
+    }
+
+    if (!account.userId) {
+      throw new ApiError('Account has no assigned user', 400)
+    }
+
+    const targetPhase = resolveReplacementPhase(account.challengeType ?? 'two_step', account.phase, advanceToNextPhase)
+    if (!targetPhase) {
+      throw new ApiError('This account cannot be moved to the requested replacement phase', 400)
+    }
+
+    const resolvedCurrency = resolveChallengeCurrency(account.challengeType, account.currency ?? null)
+    const normalizedAccountSizeDigits = normalizeAccountSize(account.accountSize).replace(/\D/g, '')
+    const baseChallengeId = normalizeChallengeBase(account.challengeId)
+    const targetChallengeId = buildChallengeIdForPhase(baseChallengeId, targetPhase)
+    const archivedChallengeId = `${account.challengeId}-replaced-${Date.now()}`
+    const objectiveFields = await buildObjectiveFields({
+      accountSize: account.accountSize,
+      challengeType: account.challengeType ?? 'two_step',
+      phase: targetPhase,
+    })
+
+    const assignedAccount = await prisma.$transaction(async (tx) => {
+      const readyAccounts = await tx.$queryRaw<{ id: number; accountNumber: string; mt5Login: string | null }[]>`
+        SELECT id, "accountNumber", "mt5Login"
+        FROM "CTraderAccount"
+        WHERE lower(status) = 'ready'
+          AND "userId" IS NULL
+          AND lower("currency") = lower(${resolvedCurrency})
+          AND lower("platform") = lower(${targetPlatform})
+          AND regexp_replace(lower("accountSize"), '[^0-9]', '', 'g') = ${normalizedAccountSizeDigits}
+          AND (
+            lower(${targetPlatform}) <> 'mt5'
+            OR (
+              "mt5Server" IS NOT NULL
+              AND "mt5Password" IS NOT NULL
+            )
+          )
+        ORDER BY "createdAt" ASC
+        LIMIT 1
+        FOR UPDATE
+      `
+
+      const ready = readyAccounts[0]
+      if (!ready) {
+        throw new ApiError('No matching ready account found for replacement', 409)
+      }
+
+      await tx.cTraderAccount.update({
+        where: { id: account.id },
+        data: {
+          status: 'completed',
+          challengeId: archivedChallengeId,
+        },
+      })
+
+      const existingChallenge = await tx.cTraderAccount.findFirst({
+        where: { challengeId: targetChallengeId },
+        select: { id: true },
+      })
+      if (existingChallenge) {
+        throw new ApiError(`Target challenge ID already exists: ${targetChallengeId}`, 409)
+      }
+
+      const updateData = {
+        challengeId: targetChallengeId,
+        userId: account.userId,
+        challengeType: account.challengeType,
+        phase: targetPhase,
+        currency: resolvedCurrency,
+        ...objectiveFields,
+        status: 'assigned_pending_access',
+        accessStatus: 'pending',
+        assignedAt: new Date(),
+      } as Prisma.CTraderAccountUncheckedUpdateInput
+
+      if (targetPlatform === 'mt5') {
+        updateData.mt5Login = ready.mt5Login ?? ready.accountNumber
+      }
+
+      return tx.cTraderAccount.update({
+        where: { id: ready.id },
+        data: updateData,
+      })
+    })
+
+    try {
+      await pushActiveAccountAdd({
+        accountNumber: assignedAccount.accountNumber,
+        phase: assignedAccount.phase,
+        status: assignedAccount.status,
+        challengeType: assignedAccount.challengeType,
+      })
+    } catch (error) {
+      console.error('Failed to push replacement account active state', error)
+    }
+
+    res.json({
+      message: 'Replacement account assigned successfully',
+      completed_account_id: account.id,
+      completed_account_number: account.accountNumber,
+      completed_challenge_id: archivedChallengeId,
+      assigned_account_id: assignedAccount.id,
+      assigned_account_number: assignedAccount.accountNumber,
+      assigned_challenge_id: assignedAccount.challengeId,
+      assigned_phase: assignedAccount.phase,
+      assigned_challenge_type: assignedAccount.challengeType,
+      assigned_platform: assignedAccount.platform,
+      assigned_status: assignedAccount.status,
     })
   } catch (err) {
     next(err as Error)
