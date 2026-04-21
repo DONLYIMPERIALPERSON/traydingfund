@@ -290,7 +290,10 @@ export const createOverallRewardCertificate = async (payload: {
 
 export const listUserCertificates = async (userId: number) => {
   const certificates = await prisma.certificate.findMany({
-    where: { userId },
+    where: {
+      userId,
+      type: { not: 'breach_report' },
+    },
     orderBy: { generatedAt: 'desc' },
   })
 
