@@ -108,6 +108,17 @@ const percentLabel = (used: number, total: number) => {
   return `${Math.max(0, (used / total) * 100).toFixed(2)}% used`
 }
 
+const readNumeric = (...values: unknown[]) => {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value
+    if (typeof value === 'string') {
+      const parsed = Number(value)
+      if (Number.isFinite(parsed)) return parsed
+    }
+  }
+  return null
+}
+
 const buildBreachReportPayload = (args: {
   account: CTraderAccount & { metrics: CTraderAccountMetric | null }
   userEmail: string
@@ -127,7 +138,25 @@ const buildBreachReportPayload = (args: {
   })()
   const peak = metrics?.highestBalance ?? account.initialBalance ?? 0
   const equityAtBreach = metrics?.minEquity ?? metrics?.dailyLowEquity ?? metrics?.equity ?? metrics?.balance ?? account.initialBalance ?? 0
-  const balanceBeforeTrade = metrics?.balance ?? account.initialBalance ?? 0
+  const balanceBeforeTrade = (() => {
+    const eventBalance = readNumeric(
+      breachEvent?.balance_before_trade,
+      breachEvent?.balance_before_breach,
+      breachEvent?.balance_before,
+      breachEvent?.balance_at_open,
+      breachEvent?.balance_at_breach,
+      breachEvent?.balance,
+    )
+
+    if (eventBalance != null) return eventBalance
+    if (breachReason === 'DAILY_DRAWDOWN') {
+      return readNumeric(metrics?.dailyHighBalance, account.initialBalance, metrics?.balance) ?? 0
+    }
+    if (breachReason === 'MAX_DRAWDOWN') {
+      return readNumeric(metrics?.highestBalance, account.initialBalance, metrics?.balance) ?? 0
+    }
+    return readNumeric(account.initialBalance, metrics?.balance) ?? 0
+  })()
   const dailyLimitValue = metrics?.dailyBreachBalance ?? null
   const maxLimitValue = metrics?.breachBalance ?? null
   const maxLossUsed = Math.max(0, peak - equityAtBreach)
