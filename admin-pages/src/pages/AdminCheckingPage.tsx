@@ -118,6 +118,8 @@ const AdminCheckingPage = () => {
   const [newMt5Password, setNewMt5Password] = useState('')
   const [replacementPlatform, setReplacementPlatform] = useState<'mt5' | 'ctrader'>('mt5')
   const [replaceToNextPhase, setReplaceToNextPhase] = useState(false)
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [showReplaceModal, setShowReplaceModal] = useState(false)
 
   const formatCurrency = (value: number | null | undefined, currency?: string | null) => {
     if (value == null) return '—'
@@ -206,6 +208,7 @@ const AdminCheckingPage = () => {
         mt5_password: password,
       })
       setNewMt5Password('')
+      setShowPasswordModal(false)
       const refreshed = await lookupChallengeAccount(account.account_number)
       setAccount(refreshed.account)
     } catch (err) {
@@ -226,6 +229,7 @@ const AdminCheckingPage = () => {
         platform: replacementPlatform,
         next_phase: replaceToNextPhase,
       })
+      setShowReplaceModal(false)
       const refreshed = await lookupChallengeAccount(account.account_number)
       setAccount(refreshed.account)
     } catch (err) {
@@ -292,70 +296,29 @@ const AdminCheckingPage = () => {
             </div>
 
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <select
-                value={replacementPlatform}
-                onChange={(event) => setReplacementPlatform(event.target.value as 'mt5' | 'ctrader')}
-                style={{
-                  border: '1px solid #2a2f3a',
-                  background: '#0f172a',
-                  color: '#e5e7eb',
-                  borderRadius: 10,
-                  padding: '10px 12px',
-                  minWidth: 140,
-                }}
-              >
-                <option value="mt5">mt5</option>
-                <option value="ctrader">ctrader</option>
-              </select>
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: '#cbd5f5', fontSize: 14 }}>
-                <input
-                  type="checkbox"
-                  checked={replaceToNextPhase}
-                  onChange={(event) => setReplaceToNextPhase(event.target.checked)}
-                />
-                Next Phase
-              </label>
               <button
                 type="button"
-                onClick={handleReplaceAccount}
-                disabled={replacingAccount}
+                onClick={() => setShowReplaceModal(true)}
                 style={{
                   background: '#111827',
                   border: '1px solid #334155',
                   color: '#fda4af',
                 }}
               >
-                {replacingAccount ? 'Replacing...' : 'Replace Account'}
+                Replace Account
               </button>
               {String(account.platform ?? '').toLowerCase() === 'mt5' && (
-                <>
-                  <input
-                    type="text"
-                    placeholder="Enter new MT5 password"
-                    value={newMt5Password}
-                    onChange={(event) => setNewMt5Password(event.target.value)}
-                    style={{
-                      border: '1px solid #2a2f3a',
-                      background: '#0f172a',
-                      color: '#e5e7eb',
-                      borderRadius: 10,
-                      padding: '10px 12px',
-                      minWidth: 220,
-                    }}
-                  />
                   <button
                     type="button"
-                    onClick={handleUpdateMt5Password}
-                    disabled={updatingPassword}
+                    onClick={() => setShowPasswordModal(true)}
                     style={{
                       background: '#111827',
                       border: '1px solid #334155',
                       color: '#93c5fd',
                     }}
                   >
-                    {updatingPassword ? 'Updating...' : 'Update MT5 Password'}
+                    Update MT5 Password
                   </button>
-                </>
               )}
               {account.breach_report_url && (
                 <button
@@ -440,6 +403,59 @@ const AdminCheckingPage = () => {
           </div>
         )}
       </div>
+
+      {showPasswordModal && account && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(2,6,23,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ width: 'min(460px, 92vw)', background: '#0b1220', border: '1px solid #334155', borderRadius: 14, padding: 20, display: 'grid', gap: 14 }}>
+            <h3 style={{ margin: 0, color: '#f8fafc' }}>Update MT5 Password</h3>
+            <p style={{ margin: 0, color: '#cbd5e1', fontSize: 14 }}>Set a new MT5 password for account <strong>{account.account_number}</strong>.</p>
+            <input
+              type="text"
+              placeholder="Enter new MT5 password"
+              value={newMt5Password}
+              onChange={(event) => setNewMt5Password(event.target.value)}
+              style={{ border: '1px solid #2a2f3a', background: '#0f172a', color: '#e5e7eb', borderRadius: 10, padding: '10px 12px' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button type="button" onClick={() => setShowPasswordModal(false)} style={{ background: '#111827', border: '1px solid #334155', color: '#cbd5e1' }}>Cancel</button>
+              <button type="button" onClick={handleUpdateMt5Password} disabled={updatingPassword} style={{ background: '#111827', border: '1px solid #334155', color: '#93c5fd' }}>
+                {updatingPassword ? 'Updating...' : 'Save Password'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReplaceModal && account && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(2,6,23,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ width: 'min(500px, 92vw)', background: '#0b1220', border: '1px solid #334155', borderRadius: 14, padding: 20, display: 'grid', gap: 14 }}>
+            <h3 style={{ margin: 0, color: '#f8fafc' }}>Replace Account</h3>
+            <p style={{ margin: 0, color: '#cbd5e1', fontSize: 14 }}>Assign a ready replacement for <strong>{account.account_number}</strong> with the same size/type. You can optionally move the user to the next phase.</p>
+            <select
+              value={replacementPlatform}
+              onChange={(event) => setReplacementPlatform(event.target.value as 'mt5' | 'ctrader')}
+              style={{ border: '1px solid #2a2f3a', background: '#0f172a', color: '#e5e7eb', borderRadius: 10, padding: '10px 12px' }}
+            >
+              <option value="mt5">mt5</option>
+              <option value="ctrader">ctrader</option>
+            </select>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: '#cbd5f5', fontSize: 14 }}>
+              <input
+                type="checkbox"
+                checked={replaceToNextPhase}
+                onChange={(event) => setReplaceToNextPhase(event.target.checked)}
+              />
+              Next Phase
+            </label>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button type="button" onClick={() => setShowReplaceModal(false)} style={{ background: '#111827', border: '1px solid #334155', color: '#cbd5e1' }}>Cancel</button>
+              <button type="button" onClick={handleReplaceAccount} disabled={replacingAccount} style={{ background: '#111827', border: '1px solid #334155', color: '#fda4af' }}>
+                {replacingAccount ? 'Replacing...' : 'Confirm Replace'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }
