@@ -69,8 +69,56 @@ const AccountOverviewPage: React.FC = () => {
     if (value == null) return 'N/A'
     const parsed = new Date(value)
     if (Number.isNaN(parsed.getTime())) return String(value)
-    return parsed.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+    return parsed.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
   }
+
+  const isPlainObject = (value: unknown): value is Record<string, unknown> => (
+    typeof value === 'object' && value !== null && !Array.isArray(value)
+  )
+
+  const renderDetailValue = (key: string, value: unknown): string => {
+    if (value == null) return 'N/A'
+    if ((key === 'time_ms' || key === 'closed_time_ms' || key.endsWith('_time_ms')) && typeof value === 'number') {
+      return formatDateTime(value)
+    }
+    if ((key === 'duration_min' || key === 'minutes_after_breach' || key.endsWith('_duration_min')) && typeof value === 'number') {
+      return value.toFixed(4)
+    }
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+    if (typeof value === 'object') return JSON.stringify(value)
+    return String(value)
+  }
+
+  const renderDetailEntries = (data: Record<string, unknown>) => (
+    <>
+      {Object.entries(data).map(([key, value]) => {
+        if (isPlainObject(value)) {
+          return (
+            <div key={key} style={{ marginTop: 8 }}>
+              <strong>{key.replace(/_/g, ' ')}:</strong>
+              <div style={{ marginLeft: 12, marginTop: 4 }}>
+                {renderDetailEntries(value)}
+              </div>
+            </div>
+          )
+        }
+
+        if (Array.isArray(value)) {
+          return (
+            <div key={key}>
+              <strong>{key.replace(/_/g, ' ')}:</strong> {value.map((item) => String(item)).join(', ')}
+            </div>
+          )
+        }
+
+        return (
+          <div key={key}>
+            <strong>{key.replace(/_/g, ' ')}:</strong> {renderDetailValue(key, value)}
+          </div>
+        )
+      })}
+    </>
+  )
   const parseAccountSize = (value: string) => {
     const normalized = value
       .toLowerCase()
@@ -649,11 +697,9 @@ const AccountOverviewPage: React.FC = () => {
                 <div className="breach-trades">
                   <h4>Drawdown Breach Snapshot</h4>
                   <div className="breach-trade-card">
-                    {Object.entries(breachDetails as Record<string, unknown>).map(([key, value]) => (
-                      <div key={key}>
-                        <strong>{key.replace(/_/g, ' ')}:</strong> {String(value)}
-                      </div>
-                    ))}
+                    {isPlainObject(breachDetails)
+                      ? renderDetailEntries(breachDetails)
+                      : String(breachDetails)}
                   </div>
                 </div>
               )}

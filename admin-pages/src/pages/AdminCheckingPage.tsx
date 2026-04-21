@@ -13,6 +13,55 @@ const formatDateTime = (value?: string | null) => {
   return date.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> => (
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+)
+
+const renderValue = (key: string, value: unknown): string => {
+  if (value == null) return '—'
+
+  if ((key === 'time_ms' || key === 'closed_time_ms' || key.endsWith('_time_ms')) && typeof value === 'number') {
+    return formatDateTime(new Date(value).toISOString())
+  }
+
+  if ((key === 'minutes_after_breach' || key === 'duration_min' || key.endsWith('_duration_min')) && typeof value === 'number') {
+    return value.toFixed(4)
+  }
+
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+  if (typeof value === 'object') return JSON.stringify(value)
+  return String(value)
+}
+
+const renderKeyValueBlock = (data: Record<string, unknown>) => (
+  <div style={{ marginTop: 6, display: 'grid', gap: 4 }}>
+    {Object.entries(data).map(([key, value]) => {
+      if (isPlainObject(value)) {
+        return (
+          <div key={key} style={{ fontSize: 13, padding: 8, borderRadius: 8, background: '#111827' }}>
+            <div style={{ color: '#93c5fd', marginBottom: 4 }}>{key.replace(/_/g, ' ')}</div>
+            {renderKeyValueBlock(value)}
+          </div>
+        )
+      }
+
+      if (Array.isArray(value)) {
+        return (
+          <div key={key} style={{ fontSize: 13 }}>
+            <span style={{ color: '#93c5fd' }}>{key.replace(/_/g, ' ')}:</span> {value.map((item) => String(item)).join(', ')}
+          </div>
+        )
+      }
+
+      return (
+        <div key={key} style={{ fontSize: 13 }}>
+          <span style={{ color: '#93c5fd' }}>{key.replace(/_/g, ' ')}:</span> {renderValue(key, value)}
+        </div>
+      )
+    })}
+  </div>
+)
+
 const resolveResetStatus = (account?: AdminLookupAccount | null) => {
   if (!account) return '—'
   if (account.status?.toLowerCase() === 'admin_checking') return 'Pending'
@@ -187,13 +236,9 @@ const AdminCheckingPage = () => {
                 {account.breach_event && (
                   <div style={{ marginTop: 10 }}>
                     <strong>Trigger Event</strong>
-                    <div style={{ marginTop: 6, display: 'grid', gap: 4 }}>
-                      {Object.entries(account.breach_event).map(([key, value]) => (
-                        <div key={key} style={{ fontSize: 13 }}>
-                          <span style={{ color: '#93c5fd' }}>{key.replace(/_/g, ' ')}:</span> {String(value)}
-                        </div>
-                      ))}
-                    </div>
+                    {isPlainObject(account.breach_event)
+                      ? renderKeyValueBlock(account.breach_event)
+                      : <div style={{ marginTop: 6, fontSize: 13 }}>{String(account.breach_event)}</div>}
                   </div>
                 )}
                 {Array.isArray(account.trade_duration_violations) && account.trade_duration_violations.length > 0 && (
@@ -202,11 +247,9 @@ const AdminCheckingPage = () => {
                     <div style={{ marginTop: 6, display: 'grid', gap: 8 }}>
                       {account.trade_duration_violations.slice(0, 3).map((violation, index) => (
                         <div key={`violation-${index}`} style={{ fontSize: 13, padding: 8, borderRadius: 8, background: '#111827' }}>
-                          {Object.entries(violation).map(([key, value]) => (
-                            <div key={key}>
-                              <span style={{ color: '#93c5fd' }}>{key.replace(/_/g, ' ')}:</span> {String(value)}
-                            </div>
-                          ))}
+                          {isPlainObject(violation)
+                            ? renderKeyValueBlock(violation)
+                            : String(violation)}
                         </div>
                       ))}
                     </div>

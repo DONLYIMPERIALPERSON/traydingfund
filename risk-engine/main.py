@@ -41,6 +41,31 @@ OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
 REPLAY_DIAGNOSTICS_LOG = OUTPUTS_DIR / "replay-diagnostics.jsonl"
 REPLAY_SUCCESS_LOG = OUTPUTS_DIR / "replay-successful-metrics.jsonl"
 REPLAY_BACKEND_FAILURE_LOG = OUTPUTS_DIR / "replay-backend-failures.jsonl"
+SUPPORTED_MARKET_SYMBOLS = {
+    "EURUSDm",
+    "GBPUSDm",
+    "AUDUSDm",
+    "NZDUSDm",
+    "USDJPYm",
+    "USDCADm",
+    "USDCHFm",
+    "EURGBPm",
+    "EURJPYm",
+    "GBPJPYm",
+    "AUDJPYm",
+    "NZDJPYm",
+    "XAUUSDm",
+    "XAGUSDm",
+    "US30m",
+    "US500m",
+    "USTECm",
+    "UK100m",
+    "DE30m",
+    "BTCUSDm",
+    "ETHUSDm",
+    "USOILm",
+    "UKOILm",
+}
 
 
 def log_replay_diagnostic(*, account_number: str, issue: str, details: dict) -> None:
@@ -663,6 +688,10 @@ def _symbol_meta_map(payload: EAPayload) -> Dict[str, SymbolMetaPayload]:
     return {meta.symbol: meta for meta in payload.symbols}
 
 
+def _unsupported_symbols(symbols: List[str]) -> List[str]:
+    return sorted(symbol for symbol in symbols if symbol not in SUPPORTED_MARKET_SYMBOLS)
+
+
 def _deal_net(deal: ClosedDealPayload) -> float:
     return deal.profit + deal.commission + deal.swap
 
@@ -951,6 +980,50 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
         {pos.symbol for pos in payload.positions}
         | {deal.symbol for deal in payload.closed_deals if not _should_ignore_deal(deal)}
     )
+    unsupported_symbols = _unsupported_symbols(symbols)
+    if unsupported_symbols:
+        processed_at = now_iso()
+        result = ReplayResult(
+            session_id=session.session_id,
+            account_number=session.account_number,
+            received_at=session.created_at,
+            processing_started_at=processing_started_at,
+            processed_at=processed_at,
+            processing_duration_ms=round((time.perf_counter() - started_at) * 1000, 2),
+            breach_reason="UNSUPPORTED_SYMBOL",
+            breach_balance=replay.initial_balance - replay.max_dd_amount,
+            daily_breach_balance=(replay.initial_balance - replay.daily_dd_amount) if replay.daily_dd_amount is not None and replay.daily_dd_amount > 0 else None,
+            min_equity=payload.current_equity,
+            equity_low=payload.current_equity,
+            peak_balance=replay.initial_balance,
+            drawdown_percent=((replay.initial_balance - payload.current_equity) / replay.initial_balance) * 100 if replay.initial_balance > 0 else None,
+            daily_dd_percent=((replay.initial_balance - payload.current_equity) / replay.initial_balance) * 100 if replay.initial_balance > 0 and replay.daily_dd_amount is not None and replay.daily_dd_amount > 0 else None,
+            trading_cycle_start=reported_cycle_start,
+            trading_cycle_source=reported_cycle_source,
+            breach_event={
+                "type": "unsupported_symbol",
+                "symbols": unsupported_symbols,
+                "time_ms": payload.anchor_time_ms,
+            },
+            trade_duration_violations=[],
+            daily_peak_balance=replay.initial_balance,
+            daily_low_equity=payload.current_equity,
+            daily_pnl_summary=[],
+            profit=0.0,
+            snapshot={
+                "balance": payload.current_balance,
+                "equity": payload.current_equity,
+                "peak_balance": replay.initial_balance,
+                "min_equity": payload.current_equity,
+                "daily_peak_balance": replay.initial_balance,
+                "daily_low_equity": payload.current_equity,
+            },
+            passed=False,
+            profit_target_balance=(replay.initial_balance + replay.profit_target_amount) if replay.profit_target_amount is not None else None,
+            payload_received_at=session.created_at,
+        )
+        notify_backend(result)
+        return result
     meta_map = _symbol_meta_map(payload)
     ticks_by_symbol, tick_fetch_issues = _ticks_for_symbols(symbols, payload.anchor_time_ms, replay_anchor_end_ms(payload))
     ensure_replay_inputs_are_complete(

@@ -26,6 +26,7 @@ BACKEND_BASE_URL = settings.get("BACKEND_BASE_URL", "").rstrip("/")
 BACKEND_ACTIVE_ACCOUNTS_ENDPOINT = settings.get("BACKEND_ACTIVE_ACCOUNTS_ENDPOINT", "/v1/mt5/active-accounts")
 BACKEND_ENGINE_SECRET = settings.get("BACKEND_ENGINE_SECRET", "")
 SYNC_INTERVAL_SECONDS = int(settings.get("SYNC_INTERVAL_SECONDS", 30))
+ACCOUNT_COOLDOWN_SECONDS = int(settings.get("ACCOUNT_COOLDOWN_SECONDS", 300))
 COMMON_FILES_DIR = os.path.join(
     os.environ.get("APPDATA", ""),
     "MetaQuotes",
@@ -33,7 +34,24 @@ COMMON_FILES_DIR = os.path.join(
     "Common",
     "Files",
 )
+LOGS_DIR = os.path.join(BASE_FOLDER, "logs")
+os.makedirs(LOGS_DIR, exist_ok=True)
+MANAGER_FAILURE_LOG = os.path.join(LOGS_DIR, "mt5-manager-failures.jsonl")
 round_robin_cursor = 0
+
+
+def log_manager_failure(account_number: str, reason: str, details: Optional[Dict[str, object]] = None) -> None:
+    record = {
+        "logged_at": datetime.utcnow().isoformat() + "Z",
+        "account_number": str(account_number),
+        "reason": reason,
+        "details": details or {},
+    }
+    try:
+        with open(MANAGER_FAILURE_LOG, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+    except Exception as exc:
+        print(f"[replay-mt5] Failed to write manager failure log: {exc}")
 
 
 def load_accounts() -> List[Dict[str, str]]:
@@ -216,7 +234,7 @@ def get_due_accounts(
             continue
 
         last_seen = last_processed_at.get(account_number, 0)
-        if now - last_seen >= 60:
+        if now - last_seen >= ACCOUNT_COOLDOWN_SECONDS:
             due_accounts.append(account)
 
     return due_accounts
@@ -239,6 +257,7 @@ def send_metrics_from_file(account_number: str, account_meta: Dict[str, str] | N
     file_path = os.path.join(COMMON_FILES_DIR, filename)
 
     if not os.path.exists(file_path):
+        log_manager_failure(account_number, "metrics_file_missing", {"file_path": file_path})
         return
 
     try:
@@ -246,6 +265,7 @@ def send_metrics_from_file(account_number: str, account_meta: Dict[str, str] | N
             payload = json.load(file)
     except Exception as exc:
         print(f"[replay-mt5] Failed reading metrics file {filename}: {exc}")
+        log_manager_failure(account_number, "metrics_file_read_failed", {"file_path": file_path, "error": str(exc)})
         return
 
     try:
@@ -254,6 +274,7 @@ def send_metrics_from_file(account_number: str, account_meta: Dict[str, str] | N
         current_equity = float(payload.get("current_equity"))
     except Exception:
         print(f"[replay-mt5] Skipping metrics send for {account_number}; invalid payload structure")
+        log_manager_failure(account_number, "invalid_metrics_payload", {"file_path": file_path})
         return
 
     if payload_account != str(account_number):
@@ -261,6 +282,7 @@ def send_metrics_from_file(account_number: str, account_meta: Dict[str, str] | N
             f"[replay-mt5] Skipping metrics send for {account_number}; "
             f"payload account mismatch ({payload_account})"
         )
+        log_manager_failure(account_number, "payload_account_mismatch", {"payload_account": payload_account})
         return
 
     if account_meta:
@@ -287,10 +309,16 @@ def send_metrics_from_file(account_number: str, account_meta: Dict[str, str] | N
                 print(f"[replay-mt5] Replay response body: {response.text}")
             except Exception:
                 pass
+            log_manager_failure(
+                account_number,
+                "replay_send_failed",
+                {"status_code": response.status_code, "response_text": response.text[:4000]},
+            )
         if response.status_code in (200, 202):
             os.remove(file_path)
     except Exception as exc:
         print(f"[replay-mt5] Error sending metrics for {account_number}: {exc}")
+        log_manager_failure(account_number, "replay_send_exception", {"error": str(exc)})
 
 
 def run_loop() -> None:
