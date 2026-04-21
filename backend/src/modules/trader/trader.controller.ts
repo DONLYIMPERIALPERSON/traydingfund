@@ -669,6 +669,15 @@ export const getChallengeAccountDetail = async (
     }
 
     const pendingPayout = account.payouts?.[0] ?? null
+    const existingBreachReport = String(account.status).toLowerCase() === 'breached'
+      ? await prisma.certificate.findFirst({
+          where: {
+            userId: user.id,
+            type: 'breach_report',
+            relatedEntityId: account.challengeId,
+          },
+        })
+      : null
     const atticTimeLimit = computeAtticTimeLimitInfo({
       challengeType: account.challengeType,
       objectiveStatus: account.status,
@@ -719,6 +728,7 @@ export const getChallengeAccountDetail = async (
       breached_at: account.breachedAt?.toISOString() ?? null,
       passed_at: account.passedAt?.toISOString() ?? null,
       mt5_account: account.accountNumber,
+      breach_report_url: existingBreachReport?.certificateUrl ?? null,
       last_feed_at: account.metrics?.capturedAt?.toISOString() ?? null,
       last_refresh_requested_at: (account as { lastRefreshRequestedAt?: Date | null }).lastRefreshRequestedAt?.toISOString() ?? null,
       metrics: {

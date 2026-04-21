@@ -186,6 +186,7 @@ export type UserChallengeAccountDetailResponse = {
   has_pending_withdrawal?: boolean
   pending_withdrawal_amount?: number | null
   breached_reason: string | null
+  breach_report_url?: string | null
   started_at: string | null
   breached_at: string | null
   passed_at: string | null

@@ -197,14 +197,19 @@ const AccountOverviewPage: React.FC = () => {
   }, [challengeId, isRefreshing, loadAccountData])
 
   const handleDownloadBreachReport = useCallback(async () => {
-    if (!challengeId || isDownloadingBreachReport) return
+    if (isDownloadingBreachReport) return
     try {
       setIsDownloadingBreachReport(true)
-      const { download_url, filename } = await downloadBreachReport(challengeId)
-      void filename
-      const opened = window.open(download_url, '_blank', 'noopener,noreferrer')
+      const resolvedUrl = accountData?.breach_report_url
+        ?? (challengeId ? (await downloadBreachReport(challengeId)).download_url : null)
+
+      if (!resolvedUrl) {
+        throw new Error('Breach report is not available yet. Please try again in a moment.')
+      }
+
+      const opened = window.open(resolvedUrl, '_blank', 'noopener,noreferrer')
       if (!opened) {
-        window.location.assign(download_url)
+        window.location.assign(resolvedUrl)
       }
     } catch (err) {
       console.error('Failed to download breach report', err)
@@ -212,7 +217,7 @@ const AccountOverviewPage: React.FC = () => {
     } finally {
       setIsDownloadingBreachReport(false)
     }
-  }, [accountData?.mt5_account, challengeId, isDownloadingBreachReport])
+  }, [accountData?.breach_report_url, challengeId, isDownloadingBreachReport])
 
   useEffect(() => {
     if (!challengeId) {
