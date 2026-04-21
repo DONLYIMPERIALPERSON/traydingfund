@@ -36,15 +36,34 @@ export const hasRecentEmailLog = async ({ type, accountId, userId }: EmailLogPay
 export const sendEmailOnce = async ({ type, accountId, userId, send }: ShouldSendEmailPayload) => {
   const normalizedAccountId = accountId ?? null
   const normalizedUserId = userId ?? null
-  const alreadySent = await hasRecentEmailLog({
-    type,
-    accountId: normalizedAccountId,
-    userId: normalizedUserId,
+
+  return prisma.$transaction(async (tx) => {
+    const lockKey = `${type}:${normalizedAccountId ?? 'null'}:${normalizedUserId ?? 'null'}`
+
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`
+
+    const alreadySent = await tx.emailLog.findFirst({
+      where: {
+        type,
+        ...(normalizedAccountId != null ? { accountId: normalizedAccountId } : {}),
+        ...(normalizedUserId != null ? { userId: normalizedUserId } : {}),
+      },
+    })
+
+    if (alreadySent) return false
+
+    await send()
+
+    await tx.emailLog.create({
+      data: {
+        type,
+        accountId: normalizedAccountId,
+        userId: normalizedUserId,
+      },
+    })
+
+    return true
   })
-  if (alreadySent) return false
-  await send()
-  await recordEmailLog({ type, accountId: normalizedAccountId, userId: normalizedUserId })
-  return true
 }
 
 export const recordCredentialView = async ({

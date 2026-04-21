@@ -849,38 +849,45 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     const shouldIssueCertificate = nextPhaseKey === 'funded'
     if (passed && !breached && accountData.user?.email && !wasPassed) {
       try {
-        let attachments: Array<{ filename: string; content: Buffer; contentType?: string }> | undefined
-        if (shouldIssueCertificate) {
-          const certificate = await createPassedChallengeCertificate({
-            userId: accountData.userId,
-            accountId: account.id,
-            challengeId: accountData.challengeId,
-            phase: accountData.phase,
-            challengeType: accountData.challengeType,
-            accountSize: accountData.accountSize,
-          })
-          attachments = certificate.certificateUrl
-            ? [
-              await fetchRemoteAttachment({
-                url: certificate.certificateUrl,
-                filename: 'challenge-passed-certificate.png',
-                contentType: 'image/png',
-              }),
-            ]
-            : undefined
-        }
+        await sendEmailOnce({
+          type: 'PHASE_PASS',
+          accountId: account.id,
+          userId: accountData.userId ?? undefined,
+          send: async () => {
+            let attachments: Array<{ filename: string; content: Buffer; contentType?: string }> | undefined
+            if (shouldIssueCertificate) {
+              const certificate = await createPassedChallengeCertificate({
+                userId: accountData.userId,
+                accountId: account.id,
+                challengeId: accountData.challengeId,
+                phase: accountData.phase,
+                challengeType: accountData.challengeType,
+                accountSize: accountData.accountSize,
+              })
+              attachments = certificate.certificateUrl
+                ? [
+                  await fetchRemoteAttachment({
+                    url: certificate.certificateUrl,
+                    filename: 'challenge-passed-certificate.png',
+                    contentType: 'image/png',
+                  }),
+                ]
+                : undefined
+            }
 
-        await sendUnifiedEmail({
-          to: accountData.user.email,
-          subject: '🎉 Phase Passed – Action in Progress',
-          title: 'Phase Passed',
-          subtitle: 'Your account is being prepared for the next phase',
-          content: isAttic
-            ? 'Congratulations! You have passed the Attic phase. Your account is being prepared for the ₦200,000 NGN Standard Challenge (Phase 1). No action is required, and your existing login credentials will remain the same.'
-            : `Congratulations! You have passed this phase. Your account is being prepared for the next phase (${nextPhaseKey.replace('_', ' ')}). No action is required, and your existing login credentials will remain the same.`,
-          buttonText: 'View Dashboard',
-          infoBox: `Account Size: ${accountData.accountSize}<br>Challenge: ${accountData.challengeType}<br>Phase: ${accountData.phase}<br>Account Number: ${account.accountNumber}`,
-          ...(attachments ? { attachments } : {}),
+            await sendUnifiedEmail({
+              to: accountData.user.email,
+              subject: '🎉 Phase Passed – Action in Progress',
+              title: 'Phase Passed',
+              subtitle: 'Your account is being prepared for the next phase',
+              content: isAttic
+                ? 'Congratulations! You have passed the Attic phase. Your account is being prepared for the ₦200,000 NGN Standard Challenge (Phase 1). No action is required, and your existing login credentials will remain the same.'
+                : `Congratulations! You have passed this phase. Your account is being prepared for the next phase (${nextPhaseKey.replace('_', ' ')}). No action is required, and your existing login credentials will remain the same.`,
+              buttonText: 'View Dashboard',
+              infoBox: `Account Size: ${accountData.accountSize}<br>Challenge: ${accountData.challengeType}<br>Phase: ${accountData.phase}<br>Account Number: ${account.accountNumber}`,
+              ...(attachments ? { attachments } : {}),
+            })
+          },
         })
       } catch (error) {
         console.error('Failed to send phase passed email', error)
