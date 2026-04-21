@@ -104,9 +104,26 @@ const AccountOverviewPage: React.FC = () => {
         }
 
         if (Array.isArray(value)) {
+        const objectItems = value.filter(isPlainObject)
+        if (objectItems.length === value.length) {
+          return (
+            <div key={key} style={{ marginTop: 8 }}>
+              <strong>{key.replace(/_/g, ' ')}:</strong>
+              <div style={{ marginLeft: 12, marginTop: 4, display: 'grid', gap: 8 }}>
+                {objectItems.map((item, index) => (
+                  <div key={`${key}-${index}`} style={{ paddingLeft: 8, borderLeft: '2px solid rgba(148, 163, 184, 0.35)' }}>
+                    <div style={{ color: '#94a3b8', marginBottom: 4 }}>#{index + 1}</div>
+                    {renderDetailEntries(item)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        }
+
           return (
             <div key={key}>
-              <strong>{key.replace(/_/g, ' ')}:</strong> {value.map((item) => String(item)).join(', ')}
+            <strong>{key.replace(/_/g, ' ')}:</strong> {value.map((item) => renderDetailValue(key, item)).join(', ')}
             </div>
           )
         }

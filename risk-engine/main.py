@@ -832,6 +832,7 @@ def build_timeline(
                 "balance": balance,
                 "event": event,
                 "largest_loss_trade": largest_loss_trade,
+                "open_positions_snapshot": position_contributions,
             }
         )
 
@@ -1148,6 +1149,9 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
                     breach_event["balance"] = balance_snapshot
                     if snapshot.get("largest_loss_trade") is not None:
                         breach_event["largest_loss_trade"] = snapshot.get("largest_loss_trade")
+                    open_positions_snapshot = snapshot.get("open_positions_snapshot") or []
+                    breach_event["open_positions_at_breach_count"] = len(open_positions_snapshot)
+                    breach_event["open_positions_at_breach"] = open_positions_snapshot
                 break
             if equity < breach_balance:
                 breach_reason = "MAX_DRAWDOWN"
@@ -1157,6 +1161,9 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
                     breach_event["balance"] = balance_snapshot
                     if snapshot.get("largest_loss_trade") is not None:
                         breach_event["largest_loss_trade"] = snapshot.get("largest_loss_trade")
+                    open_positions_snapshot = snapshot.get("open_positions_snapshot") or []
+                    breach_event["open_positions_at_breach_count"] = len(open_positions_snapshot)
+                    breach_event["open_positions_at_breach"] = open_positions_snapshot
                 break
             # Profit target is only evaluated on realized PnL (closed deals), not floating equity.
 

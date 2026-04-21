@@ -46,9 +46,26 @@ const renderKeyValueBlock = (data: Record<string, unknown>) => (
       }
 
       if (Array.isArray(value)) {
+        const objectItems = value.filter(isPlainObject)
+        if (objectItems.length === value.length) {
+          return (
+            <div key={key} style={{ fontSize: 13, padding: 8, borderRadius: 8, background: '#111827' }}>
+              <div style={{ color: '#93c5fd', marginBottom: 4 }}>{key.replace(/_/g, ' ')}</div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {objectItems.map((item, index) => (
+                  <div key={`${key}-${index}`} style={{ paddingLeft: 8, borderLeft: '2px solid #334155' }}>
+                    <div style={{ color: '#cbd5f5', marginBottom: 4 }}>#{index + 1}</div>
+                    {renderKeyValueBlock(item)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        }
+
         return (
           <div key={key} style={{ fontSize: 13 }}>
-            <span style={{ color: '#93c5fd' }}>{key.replace(/_/g, ' ')}:</span> {value.map((item) => String(item)).join(', ')}
+            <span style={{ color: '#93c5fd' }}>{key.replace(/_/g, ' ')}:</span> {value.map((item) => renderValue(key, item)).join(', ')}
           </div>
         )
       }
