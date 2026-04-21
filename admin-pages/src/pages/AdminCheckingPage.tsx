@@ -57,12 +57,22 @@ const renderKeyValueBlock = (data: Record<string, unknown>) => (
         const objectItems = value.filter(isPlainObject)
         if (objectItems.length === value.length) {
           return (
-            <div key={key} style={{ fontSize: 13, padding: 8, borderRadius: 8, background: '#111827' }}>
-              <div style={{ color: '#93c5fd', marginBottom: 4 }}>{key.replace(/_/g, ' ')}</div>
-              <div style={{ display: 'grid', gap: 8 }}>
+            <div key={key} style={{ fontSize: 13, padding: 10, borderRadius: 10, background: '#0f172a', border: '1px solid #1e293b' }}>
+              <div style={{ color: '#93c5fd', marginBottom: 8, fontWeight: 700 }}>{key.replace(/_/g, ' ')}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                 {objectItems.map((item, index) => (
-                  <div key={`${key}-${index}`} style={{ paddingLeft: 8, borderLeft: '2px solid #334155' }}>
-                    <div style={{ color: '#cbd5f5', marginBottom: 4 }}>#{index + 1}</div>
+                  <div
+                    key={`${key}-${index}`}
+                    style={{
+                      minWidth: 180,
+                      flex: '1 1 220px',
+                      padding: 10,
+                      borderRadius: 10,
+                      background: '#111827',
+                      border: '1px solid #334155',
+                    }}
+                  >
+                    <div style={{ color: '#cbd5f5', marginBottom: 6, fontWeight: 700 }}>#{index + 1}</div>
                     {renderKeyValueBlock(item)}
                   </div>
                 ))}
@@ -248,18 +258,33 @@ const AdminCheckingPage = () => {
                 borderTop: '1px solid #1f2937',
                 paddingTop: 12,
                 color: '#e2e8f0',
+                display: 'grid',
+                gap: 12,
               }}>
-                <div style={{ display: 'grid', gap: 6 }}>
-                  <div><strong>Reason:</strong> {account.breach_reason ?? 'No breach recorded'}</div>
-                  <div><strong>Breach Time:</strong> {formatBreachTime(account)}</div>
-                  <div><strong>Account Peak:</strong> {formatCurrency(account.highest_balance, account.currency)}</div>
-                  <div><strong>Equity Low:</strong> {formatCurrency(account.daily_low_equity ?? account.min_equity, account.currency)}</div>
-                  <div><strong>Daily High:</strong> {formatCurrency(account.daily_high_balance, account.currency)}</div>
-                  <div><strong>Daily Breach Balance:</strong> {formatCurrency(account.daily_breach_balance, account.currency)}</div>
-                  <div><strong>Max Breach Balance:</strong> {formatCurrency(account.breach_balance, account.currency)}</div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                    gap: 10,
+                  }}
+                >
+                  {[
+                    ['Reason', account.breach_reason ?? 'No breach recorded'],
+                    ['Breach Time', formatBreachTime(account)],
+                    ['Account Peak', formatCurrency(account.highest_balance, account.currency)],
+                    ['Equity Low', formatCurrency(account.daily_low_equity ?? account.min_equity, account.currency)],
+                    ['Daily High', formatCurrency(account.daily_high_balance, account.currency)],
+                    ['Daily Breach Balance', formatCurrency(account.daily_breach_balance, account.currency)],
+                    ['Max Breach Balance', formatCurrency(account.breach_balance, account.currency)],
+                  ].map(([label, value]) => (
+                    <div key={label} style={{ background: '#111827', border: '1px solid #334155', borderRadius: 10, padding: 10 }}>
+                      <div style={{ color: '#93c5fd', fontSize: 12, marginBottom: 4 }}>{label}</div>
+                      <div style={{ fontWeight: 700 }}>{value}</div>
+                    </div>
+                  ))}
                 </div>
                 {account.breach_event && (
-                  <div style={{ marginTop: 10 }}>
+                  <div>
                     <strong>Trigger Event</strong>
                     {isPlainObject(account.breach_event)
                       ? renderKeyValueBlock(account.breach_event)
@@ -267,11 +292,11 @@ const AdminCheckingPage = () => {
                   </div>
                 )}
                 {Array.isArray(account.trade_duration_violations) && account.trade_duration_violations.length > 0 && (
-                  <div style={{ marginTop: 10 }}>
+                  <div>
                     <strong>Trade Duration Violations</strong>
-                    <div style={{ marginTop: 6, display: 'grid', gap: 8 }}>
+                    <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                       {account.trade_duration_violations.slice(0, 3).map((violation, index) => (
-                        <div key={`violation-${index}`} style={{ fontSize: 13, padding: 8, borderRadius: 8, background: '#111827' }}>
+                        <div key={`violation-${index}`} style={{ fontSize: 13, padding: 10, borderRadius: 10, background: '#111827', border: '1px solid #334155', minWidth: 220, flex: '1 1 240px' }}>
                           {isPlainObject(violation)
                             ? renderKeyValueBlock(violation)
                             : String(violation)}
