@@ -93,6 +93,14 @@ export type AdminResetAccountResponse = {
   account_number: string
 }
 
+export type AdminUpdateMt5PasswordResponse = {
+  message: string
+  account_id: number
+  account_number: string
+  mt5_login: string
+  mt5_server: string | null
+}
+
 export type ChallengeBreachListItem = {
   challenge_id: string
   user_id?: number | null
@@ -537,6 +545,12 @@ export const fetchAtticChallengeAccounts = async (
 
 export const adminResetAccount = async (payload: { account_id?: number; account_number?: string }) =>
   apiFetch<AdminResetAccountResponse>('/admin/ctrader/accounts/reset', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+
+export const adminUpdateMt5Password = async (payload: { account_id?: number; account_number?: string; mt5_password: string }) =>
+  apiFetch<AdminUpdateMt5PasswordResponse>('/admin/ctrader/accounts/update-password', {
     method: 'POST',
     body: JSON.stringify(payload),
   })

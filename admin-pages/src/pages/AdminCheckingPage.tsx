@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import {
+  adminUpdateMt5Password,
   adminResetAccount,
   lookupChallengeAccount,
   type AdminLookupAccount,
@@ -109,8 +110,10 @@ const AdminCheckingPage = () => {
   const [account, setAccount] = useState<AdminLookupAccount | null>(null)
   const [loading, setLoading] = useState(false)
   const [resetting, setResetting] = useState(false)
+  const [updatingPassword, setUpdatingPassword] = useState(false)
   const [error, setError] = useState('')
   const [reportOpen, setReportOpen] = useState(false)
+  const [newMt5Password, setNewMt5Password] = useState('')
 
   const formatCurrency = (value: number | null | undefined, currency?: string | null) => {
     if (value == null) return '—'
@@ -183,6 +186,31 @@ const AdminCheckingPage = () => {
     }
   }
 
+  const handleUpdateMt5Password = async () => {
+    if (!account) return
+    const password = newMt5Password.trim()
+    if (!password) {
+      setError('Enter the new MT5 password first.')
+      return
+    }
+    setUpdatingPassword(true)
+    setError('')
+    try {
+      await adminUpdateMt5Password({
+        account_id: account.id,
+        account_number: account.account_number,
+        mt5_password: password,
+      })
+      setNewMt5Password('')
+      const refreshed = await lookupChallengeAccount(account.account_number)
+      setAccount(refreshed.account)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Password update failed')
+    } finally {
+      setUpdatingPassword(false)
+    }
+  }
+
   return (
     <section className="admin-page-stack">
       <div className="admin-dashboard-card">
@@ -240,6 +268,36 @@ const AdminCheckingPage = () => {
             </div>
 
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              {String(account.platform ?? '').toLowerCase() === 'mt5' && (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Enter new MT5 password"
+                    value={newMt5Password}
+                    onChange={(event) => setNewMt5Password(event.target.value)}
+                    style={{
+                      border: '1px solid #2a2f3a',
+                      background: '#0f172a',
+                      color: '#e5e7eb',
+                      borderRadius: 10,
+                      padding: '10px 12px',
+                      minWidth: 220,
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleUpdateMt5Password}
+                    disabled={updatingPassword}
+                    style={{
+                      background: '#111827',
+                      border: '1px solid #334155',
+                      color: '#93c5fd',
+                    }}
+                  >
+                    {updatingPassword ? 'Updating...' : 'Update MT5 Password'}
+                  </button>
+                </>
+              )}
               {account.breach_report_url && (
                 <button
                   type="button"

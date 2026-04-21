@@ -51,6 +51,12 @@ type AdminResetPayload = {
   account_number?: string
 }
 
+type UpdateMt5PasswordPayload = {
+  account_id?: number
+  account_number?: string
+  mt5_password?: string
+}
+
 const normalizeAccountSize = (raw: string) => {
   const digits = raw.replace(/[^\d]/g, '')
   if (!digits) return raw
@@ -377,6 +383,51 @@ export const adminResetAccount = async (req: Request, res: Response, next: NextF
       message: 'Account reset initiated. Awaiting fresh metrics.',
       account_id: account.id,
       account_number: account.accountNumber,
+    })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const updateMt5Password = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { account_id, account_number, mt5_password } = req.body as UpdateMt5PasswordPayload
+    const accountId = account_id != null ? Number(account_id) : null
+    const accountNumber = account_number ? String(account_number).trim() : null
+    const newPassword = String(mt5_password ?? '').trim()
+
+    if (!accountId && !accountNumber) {
+      throw new ApiError('account_id or account_number is required', 400)
+    }
+
+    if (!newPassword) {
+      throw new ApiError('mt5_password is required', 400)
+    }
+
+    const account = await prisma.cTraderAccount.findFirst({
+      where: accountId ? { id: accountId } : { accountNumber: accountNumber ?? '' },
+      include: { user: true },
+    })
+
+    if (!account) {
+      throw new ApiError('Account not found', 404)
+    }
+
+    if (String(account.platform ?? '').toLowerCase() !== 'mt5') {
+      throw new ApiError('Password update is only supported for MT5 accounts', 400)
+    }
+
+    const updated = await prisma.cTraderAccount.update({
+      where: { id: account.id },
+      data: { mt5Password: newPassword },
+    })
+
+    res.json({
+      message: 'MT5 password updated successfully',
+      account_id: updated.id,
+      account_number: updated.accountNumber,
+      mt5_login: updated.mt5Login ?? updated.accountNumber,
+      mt5_server: updated.mt5Server ?? null,
     })
   } catch (err) {
     next(err as Error)
