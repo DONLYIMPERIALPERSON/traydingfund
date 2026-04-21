@@ -207,10 +207,13 @@ const AccountOverviewPage: React.FC = () => {
         throw new Error('Breach report is not available yet. Please try again in a moment.')
       }
 
-      const opened = window.open(resolvedUrl, '_blank', 'noopener,noreferrer')
-      if (!opened) {
-        window.location.assign(resolvedUrl)
-      }
+      const link = document.createElement('a')
+      link.href = resolvedUrl
+      link.target = '_blank'
+      link.rel = 'noopener noreferrer'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
     } catch (err) {
       console.error('Failed to download breach report', err)
       window.alert(err instanceof Error ? err.message : 'Failed to download breach report')
