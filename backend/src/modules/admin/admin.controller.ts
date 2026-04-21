@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import { prisma } from '../../config/prisma'
 import { ApiError } from '../../common/errors'
 import { getFxRatesConfig } from '../fxRates/fxRates.service'
+import { buildBreachNarrative, getOrCreateBreachReport, type BreachReportPayload } from '../../services/breachReport.service'
 
 export const getAdminMe = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -46,6 +47,59 @@ const toUsdKobo = (amountKobo: number, currency?: string | null, rate?: number) 
     return Math.round((amount / divider) * 100)
   }
   return amountKobo
+}
+
+const formatCurrencyValue = (value: number, currency?: string | null) => {
+  const normalized = String(currency ?? 'USD').toUpperCase() === 'NGN' ? 'NGN' : 'USD'
+  if (normalized === 'NGN') {
+    return `₦${value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  }
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value)
+}
+
+const buildAdminBreachReportPayload = (account: any): BreachReportPayload => {
+  const metrics = account.metrics
+  const breachReason = String(metrics?.breachReason ?? 'UNKNOWN')
+  const { title, narrative } = buildBreachNarrative(breachReason)
+  const currency = account.currency ?? 'USD'
+  return {
+    accountNumber: account.accountNumber,
+    challengeId: account.challengeId,
+    traderName: account.user?.fullName ?? account.user?.email ?? 'Trader',
+    traderEmail: account.user?.email ?? '',
+    accountSize: account.accountSize,
+    phase: account.phase,
+    challengeType: account.challengeType ?? 'two_step',
+    platform: account.platform ?? 'ctrader',
+    currency,
+    status: account.status,
+    generatedAt: new Date(),
+    breachReason,
+    breachReasonLabel: title,
+    breachNarrative: narrative,
+    breachTimeLabel: account.breachedAt ? new Date(account.breachedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
+    peakBalance: formatCurrencyValue(metrics?.highestBalance ?? account.initialBalance ?? 0, currency),
+    balanceBeforeTrade: formatCurrencyValue(metrics?.dailyHighBalance ?? metrics?.highestBalance ?? account.initialBalance ?? 0, currency),
+    equityAtBreach: formatCurrencyValue(metrics?.minEquity ?? metrics?.dailyLowEquity ?? metrics?.equity ?? 0, currency),
+    dailyLimit: metrics?.dailyBreachBalance != null ? formatCurrencyValue(metrics.dailyBreachBalance, currency) : null,
+    maxLimit: metrics?.breachBalance != null ? formatCurrencyValue(metrics.breachBalance, currency) : null,
+    dailyDrawdownUsageLabel: null,
+    maxDrawdownUsageLabel: null,
+    breachDetails: [],
+    openPositions: [],
+    analysisParagraph: 'This report was generated from the saved breach state for admin review.',
+    guidance: [
+      'Review the breach reason and breach event details.',
+      'Confirm whether the user needs a support response.',
+      'Send the generated report to the user if required.',
+      'Escalate any dispute with the saved breach record.',
+    ],
+  }
 }
 
 export const listAdminUsers = async (_req: Request, res: Response, next: NextFunction) => {
@@ -419,6 +473,15 @@ export const lookupChallengeAccount = async (req: Request, res: Response, next: 
       throw new ApiError('Account not found', 404)
     }
 
+    const ensuredBreachReport = (String(account.status).toLowerCase() === 'breached' && account.userId)
+      ? await getOrCreateBreachReport({
+          userId: account.userId,
+          accountId: account.id,
+          challengeId: account.challengeId,
+          report: buildAdminBreachReportPayload(account),
+        })
+      : null
+
     res.json({
       account: {
         id: account.id,
@@ -442,15 +505,7 @@ export const lookupChallengeAccount = async (req: Request, res: Response, next: 
         min_equity: account.metrics?.minEquity ?? null,
         highest_balance: account.metrics?.highestBalance ?? null,
         last_feed_at: account.metrics?.capturedAt?.toISOString() ?? null,
-        breach_report_url: account.userId
-          ? ((await prisma.certificate.findFirst({
-              where: {
-                userId: account.userId,
-                type: 'breach_report',
-                relatedEntityId: account.challengeId,
-              },
-            }))?.certificateUrl ?? null)
-          : null,
+        breach_report_url: ensuredBreachReport?.certificateUrl ?? null,
       },
     })
   } catch (err) {
