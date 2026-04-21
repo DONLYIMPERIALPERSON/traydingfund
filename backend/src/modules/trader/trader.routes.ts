@@ -6,6 +6,8 @@ import {
   listChallengeAccounts,
   getChallengeAccountDetail,
   getChallengeCalendar,
+  downloadBreachReport,
+  generateBreachReportPreviews,
   generateRewardCertificatePreview,
   generateOnboardingCertificatePreview,
   generatePassedChallengeCertificatePreview,
@@ -90,9 +92,11 @@ traderRouter.get('/certificates', authenticate, requireRole('trader'), validate(
 traderRouter.post('/certificates/reward-preview', generateRewardCertificatePreview)
 traderRouter.post('/certificates/onboarding-preview', generateOnboardingCertificatePreview)
 traderRouter.post('/certificates/passed-challenge-preview', generatePassedChallengeCertificatePreview)
+traderRouter.post('/certificates/breach-report-previews', generateBreachReportPreviews)
 traderRouter.get('/challenges', authenticate, requireRole('trader'), listChallengeAccounts)
 traderRouter.get('/challenges/:challengeId', authenticate, requireRole('trader'), getChallengeAccountDetail)
 traderRouter.get('/challenges/:challengeId/calendar', authenticate, requireRole('trader'), getChallengeCalendar)
+traderRouter.get('/challenges/:challengeId/breach-report', authenticate, requireRole('trader'), downloadBreachReport)
 traderRouter.post('/challenges/refresh', authenticate, requireRole('trader'), validate({ body: challengeRefreshSchema }), requestChallengeRefresh)
 traderRouter.get('/orders', authenticate, requireRole('trader'), validate({ query: paginationSchema }), listOrders)
 traderRouter.get('/orders/:providerOrderId', authenticate, requireRole('trader'), getOrderStatus)

@@ -551,6 +551,22 @@ export async function fetchUserChallengeAccountDetail(challengeId: string): Prom
   return apiFetch<UserChallengeAccountDetailResponse>(`/trader/challenges/${encodeURIComponent(challengeId)}`)
 }
 
+export async function downloadBreachReport(challengeId: string): Promise<Blob> {
+  const token = localStorage.getItem('supabase_access_token')
+  const response = await fetch(`${(import.meta.env.VITE_API_BASE_URL as string)}/trader/challenges/${encodeURIComponent(challengeId)}/breach-report`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(text || `Request failed (${response.status})`)
+  }
+
+  return response.blob()
+}
+
 export async function fetchUserChallengeCalendar(challengeId: string): Promise<UserChallengeCalendarResponse> {
   return apiFetch<UserChallengeCalendarResponse>(`/trader/challenges/${encodeURIComponent(challengeId)}/calendar`)
 }

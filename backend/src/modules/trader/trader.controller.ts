@@ -12,6 +12,7 @@ import { listUserCertificates } from '../../services/certificate.service'
 import { buildCacheKey, getCached, setCached, clearCacheByPrefix } from '../../common/cache'
 import { recordCredentialView } from '../../services/emailLog.service'
 import { pushActiveAccountAdd } from '../../services/ctraderEngine.service'
+import { buildBreachNarrative, generateBreachReportPdfBuffer, getOrCreateBreachReport, writeBreachReportPreview, type BreachReportPayload } from '../../services/breachReport.service'
 
 type AuthRequest = Request & { user?: { id: number; email: string } }
 
@@ -81,6 +82,104 @@ const formatCurrency = (value: number, currency: string) => {
     }).format(value)
   } catch {
     return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  }
+}
+
+const formatCompactDate = (value?: Date | string | number | null) => {
+  if (!value) return 'N/A'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'N/A'
+  return parsed.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+const formatCompactTime = (value?: Date | string | number | null) => {
+  if (!value) return 'N/A'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'N/A'
+  return parsed.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+}
+
+const formatTitleCase = (value?: string | null) => String(value ?? '')
+  .replace(/_/g, ' ')
+  .replace(/\b\w/g, (char) => char.toUpperCase())
+
+const percentLabel = (used: number, total: number) => {
+  if (!Number.isFinite(used) || !Number.isFinite(total) || total <= 0) return null
+  return `${Math.max(0, (used / total) * 100).toFixed(2)}% used`
+}
+
+const buildBreachReportPayload = (args: {
+  account: CTraderAccount & { metrics: CTraderAccountMetric | null }
+  userEmail: string
+  userName: string
+  currency: string
+}) : BreachReportPayload => {
+  const { account, userEmail, userName, currency } = args
+  const metrics = account.metrics
+  const breachReason = String(metrics?.breachReason ?? 'UNKNOWN')
+  const { title, narrative } = buildBreachNarrative(breachReason)
+  const breachEvent = (metrics?.breachEvent as Record<string, unknown> | null) ?? null
+  const breachTime = (() => {
+    const eventTimeMs = breachEvent?.time_ms ?? breachEvent?.closed_time_ms ?? breachEvent?.timestamp_ms
+    if (typeof eventTimeMs === 'number') return new Date(eventTimeMs)
+    if (typeof eventTimeMs === 'string' && Number.isFinite(Number(eventTimeMs))) return new Date(Number(eventTimeMs))
+    return account.breachedAt ?? account.updatedAt
+  })()
+  const peak = metrics?.highestBalance ?? account.initialBalance ?? 0
+  const equityAtBreach = metrics?.minEquity ?? metrics?.dailyLowEquity ?? metrics?.equity ?? metrics?.balance ?? account.initialBalance ?? 0
+  const balanceBeforeTrade = metrics?.balance ?? account.initialBalance ?? 0
+  const dailyLimitValue = metrics?.dailyBreachBalance ?? null
+  const maxLimitValue = metrics?.breachBalance ?? null
+  const maxLossUsed = Math.max(0, peak - equityAtBreach)
+  const maxLossLimit = maxLimitValue != null ? Math.max(0, peak - maxLimitValue) : 0
+  const dailyLossUsed = Math.max(0, (metrics?.dailyHighBalance ?? peak) - equityAtBreach)
+  const dailyLossLimit = dailyLimitValue != null ? Math.max(0, (metrics?.dailyHighBalance ?? peak) - dailyLimitValue) : 0
+  const openPositionsAtBreach = Array.isArray((breachEvent as any)?.open_positions_at_breach)
+    ? ((breachEvent as any).open_positions_at_breach as Array<Record<string, unknown>>)
+    : []
+
+  return {
+    accountNumber: account.accountNumber,
+    challengeId: account.challengeId,
+    traderName: userName,
+    traderEmail: userEmail,
+    accountSize: account.accountSize,
+    phase: formatTitleCase(account.phase),
+    challengeType: formatTitleCase(account.challengeType),
+    platform: String(account.platform ?? 'ctrader'),
+    currency,
+    status: formatTitleCase(account.status),
+    generatedAt: new Date(),
+    breachReason,
+    breachReasonLabel: title,
+    breachNarrative: narrative,
+    breachTimeLabel: formatCompactDate(breachTime),
+    peakBalance: formatCurrency(peak, currency),
+    balanceBeforeTrade: formatCurrency(balanceBeforeTrade, currency),
+    equityAtBreach: formatCurrency(equityAtBreach, currency),
+    dailyLimit: dailyLimitValue != null ? formatCurrency(dailyLimitValue, currency) : null,
+    maxLimit: maxLimitValue != null ? formatCurrency(maxLimitValue, currency) : null,
+    dailyDrawdownUsageLabel: dailyLimitValue != null ? percentLabel(dailyLossUsed, dailyLossLimit) : null,
+    maxDrawdownUsageLabel: maxLimitValue != null ? percentLabel(maxLossUsed, maxLossLimit) : null,
+    breachDetails: [
+      { label: 'Reason', value: breachReason },
+      { label: 'Breach Time', value: `${formatCompactDate(breachTime)} ${formatCompactTime(breachTime)}` },
+      { label: 'Peak Balance', value: formatCurrency(peak, currency) },
+      { label: 'Equity Low', value: formatCurrency(equityAtBreach, currency) },
+    ],
+    openPositions: openPositionsAtBreach.slice(0, 6).map((position) => ({
+      symbol: String(position.symbol ?? '-'),
+      ticket: String(position.ticket ?? position.position_id ?? '-'),
+      floatingPnl: formatCurrency(Number(position.floating_pnl ?? 0), currency),
+      time: formatCompactTime(typeof position.open_time_ms === 'number' ? position.open_time_ms : breachTime),
+    })),
+    analysisParagraph: `Your account started from a protected balance profile and the system tracked equity, balance, and drawdown continuously. At the breach point, equity reached ${formatCurrency(equityAtBreach, currency)}, which triggered the ${title.toLowerCase()} condition according to your account rules.`,
+    guidance: [
+      'Always use stop-loss to control downside risk.',
+      'Avoid stacking multiple correlated or high-risk positions.',
+      'Monitor equity, not just balance, during open trades.',
+      'Reduce position size during volatile market conditions.',
+    ],
   }
 }
 
@@ -773,6 +872,143 @@ export const requestChallengeRefresh = async (req: AuthRequest, res: Response, n
     }
 
     res.json({ status: 'refresh_requested', requested_at: now.toISOString() })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const downloadBreachReport = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const user = ensureUser(req)
+    const challengeId = String(req.params.challengeId ?? '').trim()
+    if (!challengeId) throw new ApiError('Challenge ID is required', 400)
+
+    const account = await prisma.cTraderAccount.findFirst({
+      where: { userId: user.id, challengeId },
+      include: { metrics: true },
+    })
+    if (!account) throw new ApiError('Account not found', 404)
+    if (String(account.status).toLowerCase() !== 'breached') {
+      throw new ApiError('Breach report is only available for breached accounts', 400)
+    }
+
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
+    const payload = buildBreachReportPayload({
+      account,
+      userEmail: dbUser?.email ?? user.email,
+      userName: dbUser?.fullName?.trim() || dbUser?.nickName?.trim() || user.email,
+      currency: account.currency ?? 'USD',
+    })
+    const reportRecord = await getOrCreateBreachReport({
+      userId: user.id,
+      accountId: account.id,
+      challengeId: account.challengeId,
+      report: payload,
+    })
+
+    res.redirect(reportRecord.certificateUrl)
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const generateBreachReportPreviews = async (_req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const generatedAt = new Date('2026-04-21T00:00:00Z')
+    const samples: Array<[string, BreachReportPayload]> = [
+      ['breach-report-daily-dd.pdf', {
+        accountNumber: '435279648',
+        challengeId: 'CH-9001-funded',
+        traderName: 'Petruse Felator',
+        traderEmail: 'khpvc02@gmail.com',
+        accountSize: '$2,000',
+        phase: 'Funded',
+        challengeType: 'Two Step',
+        platform: 'mt5',
+        currency: 'USD',
+        status: 'Breached',
+        generatedAt,
+        breachReason: 'DAILY_DRAWDOWN',
+        breachReasonLabel: 'Daily Drawdown Breach',
+        breachNarrative: 'Your account exceeded the allowed daily loss limit. Once your equity dropped below the threshold, the system automatically marked the account as breached.',
+        breachTimeLabel: '21 Apr 2026',
+        peakBalance: '$2,000.00',
+        balanceBeforeTrade: '$1,938.09',
+        equityAtBreach: '$1,899.83',
+        dailyLimit: '$1,900.00',
+        maxLimit: '$1,780.00',
+        dailyDrawdownUsageLabel: '100.17% used',
+        maxDrawdownUsageLabel: '45.53% used',
+        breachDetails: [],
+        openPositions: [
+          { symbol: 'BTCUSDm', ticket: '2624286108', floatingPnl: '-$19.30', time: '21:45' },
+          { symbol: 'BTCUSDm', ticket: '2624286246', floatingPnl: '-$18.96', time: '21:45' },
+        ],
+        analysisParagraph: 'Your account started at a balance of $1,938.09. As your position moved into loss, your equity dropped due to floating drawdown. The allowed daily limit was $1,900.00. When your equity reached $1,899.83, it crossed the threshold and triggered a breach.',
+        guidance: ['Always use stop-loss to control downside risk', 'Avoid stacking multiple high-risk positions', 'Monitor equity, not just balance', 'Reduce lot size during volatile market conditions'],
+      }],
+      ['breach-report-max-dd.pdf', {
+        accountNumber: '435406663',
+        challengeId: 'CH-9012-ph2',
+        traderName: 'Ada Trader',
+        traderEmail: 'ada@example.com',
+        accountSize: '₦200,000',
+        phase: 'Phase 2',
+        challengeType: 'NGN Standard',
+        platform: 'mt5',
+        currency: 'NGN',
+        status: 'Breached',
+        generatedAt,
+        breachReason: 'MAX_DRAWDOWN',
+        breachReasonLabel: 'Maximum Drawdown Breach',
+        breachNarrative: 'Your account equity fell below the overall drawdown protection level calculated from your peak balance. The breach was permanent once that line was crossed.',
+        breachTimeLabel: '21 Apr 2026',
+        peakBalance: '₦240,000.00',
+        balanceBeforeTrade: '₦205,000.00',
+        equityAtBreach: '₦178,500.00',
+        dailyLimit: '₦193,000.00',
+        maxLimit: '₦178,600.00',
+        dailyDrawdownUsageLabel: '84.12% used',
+        maxDrawdownUsageLabel: '100.12% used',
+        breachDetails: [],
+        openPositions: [
+          { symbol: 'XAUUSDm', ticket: '9981272', floatingPnl: '-₦14,500.00', time: '13:22' },
+        ],
+        analysisParagraph: 'The account reached a strong peak first, but subsequent open losses reduced equity below the maximum drawdown floor. Once equity dropped to ₦178,500.00, the system registered a maximum drawdown breach.',
+        guidance: ['Lock profits after strong runs', 'Reduce size after peak-equity expansion', 'Avoid holding oversized losses', 'Review overall account exposure continuously'],
+      }],
+      ['breach-report-duration.pdf', {
+        accountNumber: '435366798',
+        challengeId: 'CH-9020',
+        traderName: 'Lucky Chi',
+        traderEmail: 'lucky@example.com',
+        accountSize: '$10,000',
+        phase: 'Phase 1',
+        challengeType: 'Two Step',
+        platform: 'mt5',
+        currency: 'USD',
+        status: 'Breached',
+        generatedAt,
+        breachReason: 'MIN_TRADE_DURATION',
+        breachReasonLabel: 'Minimum Trade Duration Breach',
+        breachNarrative: 'The account breached the minimum trade duration rule after multiple trades were closed too quickly. This triggered the automated violation threshold.',
+        breachTimeLabel: '21 Apr 2026',
+        peakBalance: '$10,080.00',
+        balanceBeforeTrade: '$10,012.00',
+        equityAtBreach: '$9,988.00',
+        dailyLimit: '$9,500.00',
+        maxLimit: '$8,900.00',
+        dailyDrawdownUsageLabel: '9.20% used',
+        maxDrawdownUsageLabel: '1.01% used',
+        breachDetails: [],
+        openPositions: [],
+        analysisParagraph: 'The account did not breach by drawdown; instead, repeated short-duration trades broke the minimum hold-time rule. This kind of breach is behavior-based rather than equity-based.',
+        guidance: ['Let trades develop before closing', 'Avoid ultra-short scalping patterns', 'Track hold time per trade', 'Review strategy execution discipline'],
+      }],
+    ]
+
+    const outputs = await Promise.all(samples.map(([filename, payload]) => writeBreachReportPreview(filename, payload)))
+    res.json({ output_paths: outputs })
   } catch (err) {
     next(err as Error)
   }

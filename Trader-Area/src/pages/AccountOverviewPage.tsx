@@ -4,7 +4,7 @@ import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
 import ServiceUnavailableState from '../components/ServiceUnavailableState'
-import { fetchUserChallengeAccountDetail, refreshChallengeAccount, type UserChallengeAccountDetailResponse } from '../lib/traderAuth'
+import { downloadBreachReport, fetchUserChallengeAccountDetail, refreshChallengeAccount, type UserChallengeAccountDetailResponse } from '../lib/traderAuth'
 import '../styles/DesktopAccountOverviewPage.css'
 
 const AccountOverviewPage: React.FC = () => {
@@ -14,6 +14,7 @@ const AccountOverviewPage: React.FC = () => {
   const [error, setError] = useState('')
   const [showBreachModal, setShowBreachModal] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isDownloadingBreachReport, setIsDownloadingBreachReport] = useState(false)
 
   const resolveCurrencyCode = (account: UserChallengeAccountDetailResponse) => {
     const currency = account.currency
@@ -195,6 +196,27 @@ const AccountOverviewPage: React.FC = () => {
     }
   }, [challengeId, isRefreshing, loadAccountData])
 
+  const handleDownloadBreachReport = useCallback(async () => {
+    if (!challengeId || isDownloadingBreachReport) return
+    try {
+      setIsDownloadingBreachReport(true)
+      const blob = await downloadBreachReport(challengeId)
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `breach-report-${accountData?.mt5_account ?? challengeId}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Failed to download breach report', err)
+      window.alert(err instanceof Error ? err.message : 'Failed to download breach report')
+    } finally {
+      setIsDownloadingBreachReport(false)
+    }
+  }, [accountData?.mt5_account, challengeId, isDownloadingBreachReport])
+
   useEffect(() => {
     if (!challengeId) {
       setError('Challenge ID is required')
@@ -301,13 +323,13 @@ const AccountOverviewPage: React.FC = () => {
                 </div>
                 <div className="breach-alert-text">
                   <span className="breach-alert-title">Your account has been breached</span>
-                  <span className="breach-alert-subtitle">See why this happened</span>
+                  <span className="breach-alert-subtitle">Download your breach report</span>
                 </div>
                 <button
                   className="breach-alert-button"
-                  onClick={() => setShowBreachModal(true)}
+                  onClick={() => void handleDownloadBreachReport()}
                 >
-                  View Details
+                  {isDownloadingBreachReport ? 'Preparing...' : 'Download PDF'}
                 </button>
               </div>
             )}
@@ -624,106 +646,6 @@ const AccountOverviewPage: React.FC = () => {
 
       {/* Footer */}
       <DesktopFooter />
-
-      {showBreachModal && (
-        <div className="breach-modal-overlay" onClick={() => setShowBreachModal(false)}>
-          <div className="breach-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="breach-modal-header">
-              <h3>Breach Details</h3>
-              <button
-                className="breach-modal-close"
-                onClick={() => setShowBreachModal(false)}
-              >
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-            <div className="breach-modal-body">
-              <div className="breach-summary">
-                <div>
-                  <span className="breach-label">Reason</span>
-                  <span className="breach-value">{accountData.breached_reason ?? 'Unknown'}</span>
-                </div>
-                <div>
-                  <span className="breach-label">Breach Time</span>
-                  <span className="breach-value">{formatDateTime(breachEventTimestamp)}</span>
-                </div>
-                {breachPeak != null && (
-                  <div>
-                    <span className="breach-label">Account Peak</span>
-                    <span className="breach-value">{formatCurrency(breachPeak, accountCurrency)}</span>
-                  </div>
-                )}
-                <div>
-                  <span className="breach-label">Equity Low</span>
-                  <span className="breach-value">
-                    {formatCurrency(breachDailyLow ?? accountData.metrics.min_equity ?? accountData.metrics.equity, accountCurrency)}
-                  </span>
-                </div>
-                {breachDailyHigh != null && (
-                  <div>
-                    <span className="breach-label">Daily High</span>
-                    <span className="breach-value">{formatCurrency(breachDailyHigh, accountCurrency)}</span>
-                  </div>
-                )}
-                {(normalizedBreachReason === 'daily_drawdown' && dailyBreachBalance != null) && (
-                  <div>
-                    <span className="breach-label">Daily Breach Balance</span>
-                    <span className="breach-value">{formatCurrency(dailyBreachBalance, accountCurrency)}</span>
-                  </div>
-                )}
-                {(normalizedBreachReason !== 'daily_drawdown' && breachBalance != null) && (
-                  <div>
-                    <span className="breach-label">Breach Balance</span>
-                    <span className="breach-value">{formatCurrency(breachBalance, accountCurrency)}</span>
-                  </div>
-                )}
-              </div>
-
-              {normalizedBreachReason === 'min_trade_duration' && tradeViolations.length > 0 && (
-                <div className="breach-trades">
-                  <h4>Trades that triggered violation</h4>
-                  <div className="breach-trades-grid">
-                    {tradeViolations.slice(0, 3).map((trade, index) => {
-                      const typed = trade as Record<string, unknown>
-                      const pair = typed.symbol
-                        ?? typed.pair
-                        ?? typed.instrument
-                        ?? (breachDetails && typeof breachDetails === 'object'
-                          ? (breachDetails as Record<string, unknown>).symbol
-                          : null)
-                        ?? '-'
-                      const closedAt = typed.closed_time_ms ?? typed.time_ms ?? typed.timestamp_ms ?? typed.closed_at ?? null
-                      return (
-                        <div className="breach-trade-card" key={`violation-${index}`}>
-                          <div><strong>Pair:</strong> {String(pair)}
-                          </div>
-                          <div><strong>Deal ID:</strong> {String(typed.deal_id ?? '-')}
-                          </div>
-                          <div><strong>Duration (min):</strong> {String(typed.duration_min ?? '-')}
-                          </div>
-                          <div><strong>Closed at:</strong> {formatDateTime(typeof closedAt === 'number' || typeof closedAt === 'string' ? closedAt : null)}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {(normalizedBreachReason === 'max_drawdown' || normalizedBreachReason === 'daily_drawdown') && breachDetails && (
-                <div className="breach-trades">
-                  <h4>Drawdown Breach Snapshot</h4>
-                  <div className="breach-trade-card">
-                    {isPlainObject(breachDetails)
-                      ? renderDetailEntries(breachDetails)
-                      : String(breachDetails)}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
