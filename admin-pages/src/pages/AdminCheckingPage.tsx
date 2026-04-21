@@ -28,6 +28,14 @@ const renderValue = (key: string, value: unknown): string => {
     return value.toFixed(4)
   }
 
+  if ((key === 'floating_pnl' || key === 'floating_pnl_at_breach' || key.endsWith('_pnl')) && typeof value === 'number') {
+    return value.toFixed(2)
+  }
+
+  if (typeof value === 'number') {
+    return Number.isInteger(value) ? String(value) : value.toFixed(2)
+  }
+
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
   if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
