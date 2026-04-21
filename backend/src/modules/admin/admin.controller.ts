@@ -62,42 +62,123 @@ const formatCurrencyValue = (value: number, currency?: string | null) => {
   }).format(value)
 }
 
+const formatCompactDate = (value?: Date | string | number | null) => {
+  if (!value) return 'N/A'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'N/A'
+  return parsed.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+const formatCompactTime = (value?: Date | string | number | null) => {
+  if (!value) return 'N/A'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'N/A'
+  return parsed.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+}
+
+const formatTitleCase = (value?: string | null) => String(value ?? '')
+  .replace(/_/g, ' ')
+  .replace(/\b\w/g, (char) => char.toUpperCase())
+
+const percentLabel = (used: number, total: number) => {
+  if (!Number.isFinite(used) || !Number.isFinite(total) || total <= 0) return null
+  return `${Math.max(0, (used / total) * 100).toFixed(2)}% used`
+}
+
+const readNumeric = (...values: unknown[]) => {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value
+    if (typeof value === 'string') {
+      const parsed = Number(value)
+      if (Number.isFinite(parsed)) return parsed
+    }
+  }
+  return null
+}
+
 const buildAdminBreachReportPayload = (account: any): BreachReportPayload => {
   const metrics = account.metrics
   const breachReason = String(metrics?.breachReason ?? 'UNKNOWN')
   const { title, narrative } = buildBreachNarrative(breachReason)
   const currency = account.currency ?? 'USD'
+  const breachEvent = (metrics?.breachEvent as Record<string, unknown> | null) ?? null
+  const breachTime = (() => {
+    const eventTimeMs = breachEvent?.time_ms ?? breachEvent?.closed_time_ms ?? breachEvent?.timestamp_ms
+    if (typeof eventTimeMs === 'number') return new Date(eventTimeMs)
+    if (typeof eventTimeMs === 'string' && Number.isFinite(Number(eventTimeMs))) return new Date(Number(eventTimeMs))
+    return account.breachedAt ?? account.updatedAt ?? new Date()
+  })()
+  const peak = metrics?.highestBalance ?? account.initialBalance ?? 0
+  const equityAtBreach = metrics?.minEquity ?? metrics?.dailyLowEquity ?? metrics?.equity ?? metrics?.balance ?? account.initialBalance ?? 0
+  const balanceBeforeTrade = (() => {
+    const eventBalance = readNumeric(
+      breachEvent?.balance_before_trade,
+      breachEvent?.balance_before_breach,
+      breachEvent?.balance_before,
+      breachEvent?.balance_at_open,
+      breachEvent?.balance_at_breach,
+      breachEvent?.balance,
+    )
+    if (eventBalance != null) return eventBalance
+    if (breachReason === 'DAILY_DRAWDOWN') {
+      return readNumeric(metrics?.dailyHighBalance, account.initialBalance, metrics?.balance) ?? 0
+    }
+    if (breachReason === 'MAX_DRAWDOWN') {
+      return readNumeric(metrics?.highestBalance, account.initialBalance, metrics?.balance) ?? 0
+    }
+    return readNumeric(account.initialBalance, metrics?.balance) ?? 0
+  })()
+  const dailyLimitValue = metrics?.dailyBreachBalance ?? null
+  const maxLimitValue = metrics?.breachBalance ?? null
+  const maxLossUsed = Math.max(0, peak - equityAtBreach)
+  const maxLossLimit = maxLimitValue != null ? Math.max(0, peak - maxLimitValue) : 0
+  const dailyLossUsed = Math.max(0, (metrics?.dailyHighBalance ?? peak) - equityAtBreach)
+  const dailyLossLimit = dailyLimitValue != null ? Math.max(0, (metrics?.dailyHighBalance ?? peak) - dailyLimitValue) : 0
+  const openPositionsAtBreach = Array.isArray((breachEvent as any)?.open_positions_at_breach)
+    ? ((breachEvent as any).open_positions_at_breach as Array<Record<string, unknown>>)
+    : []
+
   return {
     accountNumber: account.accountNumber,
     challengeId: account.challengeId,
     traderName: account.user?.fullName ?? account.user?.email ?? 'Trader',
     traderEmail: account.user?.email ?? '',
     accountSize: account.accountSize,
-    phase: account.phase,
-    challengeType: account.challengeType ?? 'two_step',
+    phase: formatTitleCase(account.phase),
+    challengeType: formatTitleCase(account.challengeType ?? 'two_step'),
     platform: account.platform ?? 'ctrader',
     currency,
-    status: account.status,
+    status: formatTitleCase(account.status),
     generatedAt: new Date(),
     breachReason,
     breachReasonLabel: title,
     breachNarrative: narrative,
-    breachTimeLabel: account.breachedAt ? new Date(account.breachedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
-    peakBalance: formatCurrencyValue(metrics?.highestBalance ?? account.initialBalance ?? 0, currency),
-    balanceBeforeTrade: formatCurrencyValue(metrics?.dailyHighBalance ?? metrics?.highestBalance ?? account.initialBalance ?? 0, currency),
-    equityAtBreach: formatCurrencyValue(metrics?.minEquity ?? metrics?.dailyLowEquity ?? metrics?.equity ?? 0, currency),
-    dailyLimit: metrics?.dailyBreachBalance != null ? formatCurrencyValue(metrics.dailyBreachBalance, currency) : null,
-    maxLimit: metrics?.breachBalance != null ? formatCurrencyValue(metrics.breachBalance, currency) : null,
-    dailyDrawdownUsageLabel: null,
-    maxDrawdownUsageLabel: null,
-    breachDetails: [],
-    openPositions: [],
-    analysisParagraph: 'This report was generated from the saved breach state for admin review.',
+    breachTimeLabel: formatCompactDate(breachTime),
+    peakBalance: formatCurrencyValue(peak, currency),
+    balanceBeforeTrade: formatCurrencyValue(balanceBeforeTrade, currency),
+    equityAtBreach: formatCurrencyValue(equityAtBreach, currency),
+    dailyLimit: dailyLimitValue != null ? formatCurrencyValue(dailyLimitValue, currency) : null,
+    maxLimit: maxLimitValue != null ? formatCurrencyValue(maxLimitValue, currency) : null,
+    dailyDrawdownUsageLabel: dailyLimitValue != null ? percentLabel(dailyLossUsed, dailyLossLimit) : null,
+    maxDrawdownUsageLabel: maxLimitValue != null ? percentLabel(maxLossUsed, maxLossLimit) : null,
+    breachDetails: [
+      { label: 'Reason', value: breachReason },
+      { label: 'Breach Time', value: `${formatCompactDate(breachTime)} ${formatCompactTime(breachTime)}` },
+      { label: 'Peak Balance', value: formatCurrencyValue(peak, currency) },
+      { label: 'Equity Low', value: formatCurrencyValue(equityAtBreach, currency) },
+    ],
+    openPositions: openPositionsAtBreach.slice(0, 6).map((position) => ({
+      symbol: String(position.symbol ?? '-'),
+      ticket: String(position.ticket ?? position.position_id ?? '-'),
+      floatingPnl: formatCurrencyValue(Number(position.floating_pnl ?? 0), currency),
+      time: formatCompactTime(typeof position.open_time_ms === 'number' ? position.open_time_ms : breachTime),
+    })),
+    analysisParagraph: `Your account started from a protected balance profile and the system tracked equity, balance, and drawdown continuously. At the breach point, equity reached ${formatCurrencyValue(equityAtBreach, currency)}, which triggered the ${title.toLowerCase()} condition according to your account rules.`,
     guidance: [
-      'Review the breach reason and breach event details.',
-      'Confirm whether the user needs a support response.',
-      'Send the generated report to the user if required.',
-      'Escalate any dispute with the saved breach record.',
+      'Always use stop-loss to control downside risk.',
+      'Avoid stacking multiple correlated or high-risk positions.',
+      'Monitor equity, not just balance, during open trades.',
+      'Reduce position size during volatile market conditions.',
     ],
   }
 }
