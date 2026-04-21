@@ -442,6 +442,15 @@ export const lookupChallengeAccount = async (req: Request, res: Response, next: 
         min_equity: account.metrics?.minEquity ?? null,
         highest_balance: account.metrics?.highestBalance ?? null,
         last_feed_at: account.metrics?.capturedAt?.toISOString() ?? null,
+        breach_report_url: account.userId
+          ? ((await prisma.certificate.findFirst({
+              where: {
+                userId: account.userId,
+                type: 'breach_report',
+                relatedEntityId: account.challengeId,
+              },
+            }))?.certificateUrl ?? null)
+          : null,
       },
     })
   } catch (err) {

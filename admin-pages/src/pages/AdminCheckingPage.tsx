@@ -240,6 +240,19 @@ const AdminCheckingPage = () => {
             </div>
 
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              {account.breach_report_url && (
+                <button
+                  type="button"
+                  onClick={() => window.open(account.breach_report_url ?? '', '_blank', 'noopener,noreferrer')}
+                  style={{
+                    background: '#111827',
+                    border: '1px solid #334155',
+                    color: '#86efac',
+                  }}
+                >
+                  Download Report
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setReportOpen((prev) => !prev)}

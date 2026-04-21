@@ -83,6 +83,7 @@ export type AdminLookupAccount = {
   min_equity?: number | null
   highest_balance?: number | null
   last_feed_at?: string | null
+  breach_report_url?: string | null
 }
 
 export type AdminResetAccountResponse = {
