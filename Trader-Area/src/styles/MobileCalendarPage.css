@@ -159,7 +159,7 @@
 .mobile-calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
+  gap: 4px;
   min-width: 100%;
 }
 
@@ -173,9 +173,9 @@
 }
 
 .mobile-calendar-day-card {
-  min-height: 64px;
+  min-height: 70px;
   border-radius: 12px;
-  padding: 6px;
+  padding: 7px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
