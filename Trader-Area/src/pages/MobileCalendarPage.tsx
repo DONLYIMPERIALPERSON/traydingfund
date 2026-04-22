@@ -182,7 +182,7 @@ const MobileCalendarPage: React.FC = () => {
         ) : !selectedAccount ? (
           <div className="mobile-calendar-empty">Selected account could not be found.</div>
         ) : (
-          <section className="mobile-calendar-main-card">
+          <section className="mobile-calendar-main-content">
             <div className="mobile-calendar-main-card__header">
               <div>
                 <h2>{currentMonthLabel}</h2>

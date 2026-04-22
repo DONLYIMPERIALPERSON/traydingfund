@@ -70,6 +70,10 @@
   padding: 18px;
 }
 
+.mobile-calendar-main-content {
+  margin: 0;
+}
+
 .mobile-calendar-empty {
   padding: 24px;
   text-align: center;
@@ -153,7 +157,7 @@
 }
 
 .mobile-calendar-grid-wrap {
-  overflow-x: auto;
+  overflow-x: visible;
 }
 
 .mobile-calendar-grid {
