@@ -216,6 +216,10 @@
   color: #9ca3af;
 }
 
+.mobile-calendar-day-card.loss .mobile-calendar-day-number {
+  color: #ffffff;
+}
+
 .mobile-calendar-day-dot {
   width: 7px;
   height: 7px;
