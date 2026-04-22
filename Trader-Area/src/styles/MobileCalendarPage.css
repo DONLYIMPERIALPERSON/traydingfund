@@ -166,7 +166,6 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-top: 14px;
-  align-items: stretch;
 }
 
 .mobile-calendar-stat-card {
@@ -193,14 +192,14 @@
 }
 
 .mobile-calendar-stat-card__label {
-  font-size: 10px;
-  line-height: 1.2;
+  font-size: 11px;
+  line-height: 1.35;
   color: #6b7280;
   font-weight: 600;
 }
 
 .mobile-calendar-stat-card__value {
-  font-size: 18px;
+  font-size: 22px;
   line-height: 1;
   font-weight: 800;
   color: #1f2937;
@@ -330,12 +329,6 @@
 
 @media (max-width: 420px) {
   .mobile-calendar-stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
-  }
-
-  .mobile-calendar-stat-card {
-    padding: 10px 8px;
-    gap: 6px;
+    grid-template-columns: 1fr;
   }
 }

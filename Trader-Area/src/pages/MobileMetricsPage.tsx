@@ -194,8 +194,7 @@ const MobileMetricsPage: React.FC = () => {
   const profitValue = accountData.metrics.balance - initialBalance
   const profitPercent = initialBalance > 0 ? (profitValue / initialBalance) * 100 : 0
   const latestUpdateTimestamp = accountData.last_feed_at ?? accountData.last_refresh_requested_at
-  const accountIsActive = isActiveAccount(accountData.objective_status)
-  const showForceRefreshButton = accountIsActive && isOlderThanThirtyMinutes(accountData.last_feed_at)
+  const showForceRefreshButton = isActiveAccount(accountData.objective_status) && isOlderThanThirtyMinutes(accountData.last_feed_at)
 
   return (
     <div className="mobile-metrics-page">
@@ -233,9 +232,9 @@ const MobileMetricsPage: React.FC = () => {
                 <button type="button" className="mobile-metrics-refresh" onClick={() => void handleForceRefresh()}>
                   {isRefreshing ? 'Updating...' : 'Refresh'}
                 </button>
-              ) : accountIsActive ? (
+              ) : (
                 <span>Last updated: {formatRelativeUpdate(latestUpdateTimestamp)}</span>
-              ) : null}
+              )}
             </div>
           </div>
 
@@ -251,11 +250,9 @@ const MobileMetricsPage: React.FC = () => {
             </div>
 
             <div className="mobile-metrics-balance-box mobile-metrics-balance-box--profit-loss">
-              <div className="mobile-metrics-balance-box__tag-row">
-                <span className={`mobile-metrics-profit-pill ${profitValue >= 0 ? 'is-positive' : 'is-negative'}`}>
-                  {profitValue >= 0 ? '+' : ''}{profitPercent.toFixed(2)}%
-                </span>
-              </div>
+              <span className={`mobile-metrics-profit-pill ${profitValue >= 0 ? 'is-positive' : 'is-negative'}`}>
+                {profitValue >= 0 ? '+' : ''}{profitPercent.toFixed(2)}%
+              </span>
               <div className="mobile-metrics-balance-box__header">
                 <i className="fas fa-chart-line" />
                 Profit/Loss
