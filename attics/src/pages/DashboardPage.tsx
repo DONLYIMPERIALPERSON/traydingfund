@@ -550,8 +550,10 @@ const DashboardPage: React.FC = () => {
 
 	const handleActivateAtticChallenge = () => {
 		setPaymentError(null);
+		setPaymentMessage('This program has been paused. Try again soon.');
 		setPromoCode('');
-		setIsPromoPromptOpen(true);
+		setIsPromoPromptOpen(false);
+		setIsBankTransferOpen(false);
 	};
 
 	const handleContinueWithoutPromo = () => {
@@ -721,10 +723,10 @@ const DashboardPage: React.FC = () => {
 							<div className="attics-dashboard-empty-state__icon">
 								<i className="fas fa-box-open" />
 							</div>
-							<p className="attics-dashboard-card-kicker">No Active Challenge</p>
-							<h2>You have no active Attic challenge</h2>
+							<p className="attics-dashboard-card-kicker">Program Paused</p>
+							<h2>This program has been paused</h2>
 							<p>
-								Activate an Attic challenge to get your account details, begin evaluation, and start tracking your progress.
+								This program has been paused. Try again soon.
 							</p>
 							{paymentError ? <p className="attics-dashboard-error-text">{paymentError}</p> : null}
 							{paymentMessage ? <p className="attics-dashboard-info-text">{paymentMessage}</p> : null}
@@ -732,9 +734,9 @@ const DashboardPage: React.FC = () => {
 								type="button"
 								className="attics-dashboard-activate-btn"
 								onClick={handleActivateAtticChallenge}
-								disabled={isCreatingOrder}
+								disabled
 							>
-								{isCreatingOrder ? 'Preparing Payment...' : 'Activate Attic Challenge'}
+								Program Paused
 							</button>
 						</>
 					)}
