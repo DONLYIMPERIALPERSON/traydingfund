@@ -243,12 +243,6 @@ const MobileCalendarPage: React.FC = () => {
                 ))}
               </div>
             </div>
-
-              <div className="mobile-calendar-inline-summary" aria-label="Calendar summary">
-                <span className="is-profit">Profit {summary.profitDays}</span>
-                <span className="is-loss">Loss {summary.lossDays}</span>
-                <span className="is-neutral">No trade {summary.noTradeDays}</span>
-              </div>
           </section>
         )}
       </div>
