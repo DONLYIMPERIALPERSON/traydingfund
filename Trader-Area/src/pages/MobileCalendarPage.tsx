@@ -43,6 +43,15 @@ const formatCompactPnl = (value: number | null) => {
   return formatted
 }
 
+const formatAccountSizeLabel = (accountSize?: string | null, currency = 'USD') => {
+  if (!accountSize) return currency.toUpperCase() === 'NGN' ? '₦0' : '$0'
+  const numeric = Number(String(accountSize).replace(/[^0-9.]/g, ''))
+  if (!Number.isFinite(numeric)) return accountSize
+  const normalizedCurrency = currency.toUpperCase()
+  const symbol = normalizedCurrency === 'NGN' ? '₦' : '$'
+  return `${symbol}${numeric.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+}
+
 const buildCalendarDays = (calendarEntries: UserChallengeCalendarDay[]): CalendarDay[] => {
   const now = new Date()
   const year = now.getFullYear()
@@ -177,7 +186,7 @@ const MobileCalendarPage: React.FC = () => {
             <div className="mobile-calendar-main-card__header">
               <div>
                 <h2>{currentMonthLabel}</h2>
-                <p>{(selectedAccount.mt5_account ?? selectedAccount.challenge_id)} • {selectedAccount.account_size} {selectedAccount.currency ?? 'USD'}</p>
+                <p>{(selectedAccount.mt5_account ?? selectedAccount.challenge_id)} • {formatAccountSizeLabel(selectedAccount.account_size, selectedAccount.currency ?? 'USD')} {selectedAccount.currency ?? 'USD'}</p>
               </div>
             </div>
 
