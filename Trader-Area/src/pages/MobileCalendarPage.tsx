@@ -243,21 +243,6 @@ const MobileCalendarPage: React.FC = () => {
                 ))}
               </div>
             </div>
-
-              <div className="mobile-calendar-stats" aria-label="Calendar summary">
-                <div className="mobile-calendar-stat-card">
-                  <span className="mobile-calendar-stat-card__label">Total no trade days</span>
-                  <strong className="mobile-calendar-stat-card__value">{summary.noTradeDays}</strong>
-                </div>
-                <div className="mobile-calendar-stat-card is-profit">
-                  <span className="mobile-calendar-stat-card__label">Total profitable days</span>
-                  <strong className="mobile-calendar-stat-card__value">{summary.profitDays}</strong>
-                </div>
-                <div className="mobile-calendar-stat-card is-loss">
-                  <span className="mobile-calendar-stat-card__label">Total loss days</span>
-                  <strong className="mobile-calendar-stat-card__value">{summary.lossDays}</strong>
-                </div>
-              </div>
           </section>
         )}
       </div>
