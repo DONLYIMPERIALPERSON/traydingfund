@@ -15,6 +15,7 @@ type CalendarDay = {
   date: Date
   dayNumber: number
   pnl: number | null
+  tradeCount: number | null
   status: DailyPnlStatus
   isCurrentMonth: boolean
 }
@@ -65,7 +66,7 @@ const buildCalendarDays = (calendarEntries: UserChallengeCalendarDay[]): Calenda
 
   for (let i = leadingDays; i > 0; i -= 1) {
     const prevDate = new Date(year, month, 1 - i)
-    days.push({ date: prevDate, dayNumber: prevDate.getDate(), pnl: null, status: 'neutral', isCurrentMonth: false })
+    days.push({ date: prevDate, dayNumber: prevDate.getDate(), pnl: null, tradeCount: null, status: 'neutral', isCurrentMonth: false })
   }
 
   const pnlByDate = new Map(calendarEntries.map((entry) => [entry.date, entry.pnl]))
@@ -77,12 +78,19 @@ const buildCalendarDays = (calendarEntries: UserChallengeCalendarDay[]): Calenda
     const pnl = typeof pnlValue === 'number' ? pnlValue : null
     const status: DailyPnlStatus = pnl == null ? 'neutral' : pnl < 0 ? 'loss' : 'profit'
 
-    days.push({ date: currentDate, dayNumber: day, pnl, status, isCurrentMonth: true })
+    days.push({
+      date: currentDate,
+      dayNumber: day,
+      pnl,
+      tradeCount: pnl == null ? null : 1,
+      status,
+      isCurrentMonth: true,
+    })
   }
 
   while (days.length % 7 !== 0) {
     const nextDate = new Date(year, month, totalDays + (days.length % 7) + 1)
-    days.push({ date: nextDate, dayNumber: nextDate.getDate(), pnl: null, status: 'neutral', isCurrentMonth: false })
+    days.push({ date: nextDate, dayNumber: nextDate.getDate(), pnl: null, tradeCount: null, status: 'neutral', isCurrentMonth: false })
   }
 
   return days
@@ -185,7 +193,6 @@ const MobileCalendarPage: React.FC = () => {
           <section className="mobile-calendar-main-content">
             <div className="mobile-calendar-main-card__header">
               <div>
-                <h2>{currentMonthLabel}</h2>
                 <p>{(selectedAccount.mt5_account ?? selectedAccount.challenge_id)} • {formatAccountSizeLabel(selectedAccount.account_size, selectedAccount.currency ?? 'USD')} {selectedAccount.currency ?? 'USD'}</p>
               </div>
             </div>
@@ -213,7 +220,12 @@ const MobileCalendarPage: React.FC = () => {
                   <div key={day.date.toISOString()} className={`mobile-calendar-day-card ${day.status} ${day.isCurrentMonth ? '' : 'out-month'}`}>
                     <div className="mobile-calendar-day-card__top">
                       <span className="mobile-calendar-day-number">{day.dayNumber}</span>
-                      {day.isCurrentMonth ? <span className="mobile-calendar-day-dot" /> : null}
+                      {day.isCurrentMonth ? (
+                        <div className="mobile-calendar-day-card__top-right">
+                          {day.tradeCount ? <span className="mobile-calendar-day-trade-count">{day.tradeCount}</span> : null}
+                          <span className="mobile-calendar-day-dot" />
+                        </div>
+                      ) : null}
                     </div>
                     <div>
                       <div className="mobile-calendar-day-status-label">
