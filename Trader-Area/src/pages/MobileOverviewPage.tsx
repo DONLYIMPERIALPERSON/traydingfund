@@ -371,11 +371,22 @@ const MobileOverviewPage: React.FC = () => {
         <ServiceUnavailableState onRetry={() => window.location.reload()} />
       ) : !hasAnyAccounts ? (
         <section className="mobile-overview-panel mobile-overview-empty-state">
+          <div className="mobile-overview-empty-state__badge">Start Here</div>
           <div className="mobile-overview-empty-state__icon">
-            <i className="fas fa-wallet" />
+            <i className="fas fa-chart-line" />
           </div>
-          <h2>No account yet</h2>
-          <p>You have not started any challenge account yet.</p>
+          <h2>No challenge account yet</h2>
+          <p>Buy your first account to unlock trading metrics, credentials, rewards, and the rest of your dashboard.</p>
+          <div className="mobile-overview-empty-state__highlights">
+            <div>
+              <strong>Instant setup</strong>
+              <span>Choose an account and get started fast.</span>
+            </div>
+            <div>
+              <strong>Track progress</strong>
+              <span>Monitor performance and milestones in one place.</span>
+            </div>
+          </div>
           <button type="button" onClick={() => navigate('/trading-accounts')}>
             Buy Account
           </button>
@@ -429,12 +440,16 @@ const MobileOverviewPage: React.FC = () => {
               ) : null}
             </>
           ) : (
-            <div className="mobile-overview-inline-empty">
-              <p>No active account right now.</p>
+            <section className="mobile-overview-inline-empty">
+              <div className="mobile-overview-inline-empty__icon">
+                <i className="fas fa-wallet" />
+              </div>
+              <strong>No visible account right now</strong>
+              <p>Your current account list is empty. Start a new challenge account to see cards here.</p>
               <button type="button" onClick={() => navigate('/trading-accounts')}>
                 Buy Account
               </button>
-            </div>
+            </section>
           )}
 
           <section className="mobile-overview-quick-actions">
