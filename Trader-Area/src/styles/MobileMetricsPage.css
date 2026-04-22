@@ -199,23 +199,12 @@
 
 .mobile-metrics-balance-box--profit-loss {
   position: relative;
-  margin-top: 12px;
-  overflow: visible;
 }
 
-.mobile-metrics-profit-pill-wrap {
+.mobile-metrics-balance-box__tag-row {
   display: flex;
   justify-content: flex-end;
-  position: absolute;
-  top: -12px;
-  right: 10px;
-  left: 10px;
-  pointer-events: none;
-}
-
-.mobile-metrics-profit-pill-wrap .mobile-metrics-profit-pill {
-  margin-left: auto;
-  pointer-events: auto;
+  margin-bottom: 2px;
 }
 
 .mobile-metrics-update-row {

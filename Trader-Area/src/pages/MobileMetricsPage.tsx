@@ -251,7 +251,7 @@ const MobileMetricsPage: React.FC = () => {
             </div>
 
             <div className="mobile-metrics-balance-box mobile-metrics-balance-box--profit-loss">
-              <div className="mobile-metrics-profit-pill-wrap">
+              <div className="mobile-metrics-balance-box__tag-row">
                 <span className={`mobile-metrics-profit-pill ${profitValue >= 0 ? 'is-positive' : 'is-negative'}`}>
                   {profitValue >= 0 ? '+' : ''}{profitPercent.toFixed(2)}%
                 </span>
