@@ -21,11 +21,26 @@ type CalendarDay = {
 
 const formatCurrency = (value: number | null, currency = 'USD') => {
   if (value === null) return 'No trade'
+  const normalizedCurrency = currency.toUpperCase()
+  if (normalizedCurrency === 'NGN') {
+    return `₦${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  }
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency,
+    currency: normalizedCurrency,
     maximumFractionDigits: 2,
   }).format(value)
+}
+
+const formatCompactPnl = (value: number | null) => {
+  if (value === null) return ''
+  const formatted = Math.abs(value).toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })
+  if (value > 0) return `+${formatted}`
+  if (value < 0) return `-${formatted}`
+  return formatted
 }
 
 const buildCalendarDays = (calendarEntries: UserChallengeCalendarDay[]): CalendarDay[] => {
@@ -199,7 +214,7 @@ const MobileCalendarPage: React.FC = () => {
                         {day.isCurrentMonth
                           ? day.pnl === null
                             ? ''
-                            : formatCurrency(day.pnl, selectedAccount.currency ?? 'USD')
+                            : formatCompactPnl(day.pnl)
                           : '—'}
                       </div>
                     </div>

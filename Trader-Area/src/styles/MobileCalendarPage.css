@@ -173,9 +173,9 @@
 }
 
 .mobile-calendar-day-card {
-  min-height: 66px;
+  min-height: 58px;
   border-radius: 12px;
-  padding: 7px;
+  padding: 6px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -207,7 +207,7 @@
 }
 
 .mobile-calendar-day-number {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   color: #111827;
 }
@@ -232,7 +232,7 @@
 }
 
 .mobile-calendar-day-status-label {
-  font-size: 8px;
+  font-size: 7px;
   font-weight: 700;
   text-transform: uppercase;
   color: #6b7280;
@@ -240,7 +240,7 @@
 }
 
 .mobile-calendar-day-pnl {
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 800;
   line-height: 1.1;
   color: #1f2937;
