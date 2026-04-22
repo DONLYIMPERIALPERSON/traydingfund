@@ -161,6 +161,56 @@
   overflow-x: visible;
 }
 
+.mobile-calendar-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.mobile-calendar-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
+}
+
+.mobile-calendar-stat-card.is-profit {
+  background: rgba(12, 179, 98, 0.12);
+  border-color: rgba(12, 179, 98, 0.25);
+}
+
+.mobile-calendar-stat-card.is-loss {
+  background: rgba(220, 53, 69, 0.12);
+  border-color: rgba(220, 53, 69, 0.25);
+}
+
+.mobile-calendar-stat-card__label {
+  font-size: 11px;
+  line-height: 1.35;
+  color: rgba(238, 247, 251, 0.74);
+  font-weight: 600;
+}
+
+.mobile-calendar-stat-card__value {
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.mobile-calendar-stat-card.is-profit .mobile-calendar-stat-card__value {
+  color: #7ef0b1;
+}
+
+.mobile-calendar-stat-card.is-loss .mobile-calendar-stat-card__value {
+  color: #ff9ea8;
+}
+
 .mobile-calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -273,4 +323,10 @@
 
 .mobile-calendar-day-card.loss .mobile-calendar-day-pnl {
   color: #c12d3d;
+}
+
+@media (max-width: 420px) {
+  .mobile-calendar-stats {
+    grid-template-columns: 1fr;
+  }
 }
