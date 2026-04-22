@@ -13,6 +13,7 @@ import { couponRouter } from '../modules/coupons/coupon.routes'
 import { planRouter } from '../modules/plans/plan.routes'
 import { financeRouter } from '../modules/finance/finance.routes'
 import { accountRecoveryRouter } from '../modules/accountRecovery/accountRecovery.routes'
+import { economicCalendarRouter } from '../modules/economicCalendar/economicCalendar.routes'
 
 export const router = Router()
 
@@ -34,3 +35,4 @@ router.use('/v1/coupons', couponRouter)
 router.use('/v1/support', supportRouter)
 router.use('/v1/public', planRouter)
 router.use('/v1/account-recovery', accountRecoveryRouter)
+router.use('/v1/calendar', economicCalendarRouter)

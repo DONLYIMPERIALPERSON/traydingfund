@@ -1,0 +1,197 @@
+.mobile-affiliate-page {
+  min-height: 100vh;
+  padding: 20px 16px 32px;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background:
+    radial-gradient(900px 500px at 8% 6%, rgba(127, 231, 247, 0.16), transparent 60%),
+    radial-gradient(700px 420px at 92% 12%, rgba(11, 142, 166, 0.14), transparent 60%),
+    linear-gradient(180deg, #06171d 0%, #0a2730 100%);
+  color: #eef7fb;
+}
+
+.mobile-affiliate-shell,
+.mobile-affiliate-empty {
+  max-width: 460px;
+  margin: 0 auto;
+}
+
+.mobile-affiliate-header {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: start;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.mobile-affiliate-header__icon {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
+}
+
+.mobile-affiliate-header__text {
+  text-align: center;
+}
+
+.mobile-affiliate-header__text h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.05;
+  font-weight: 800;
+}
+
+.mobile-affiliate-header__text p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: rgba(238, 247, 251, 0.72);
+}
+
+.mobile-affiliate-card,
+.mobile-affiliate-stat-card,
+.mobile-affiliate-empty {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(14px);
+  border-radius: 22px;
+}
+
+.mobile-affiliate-card {
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+.mobile-affiliate-card h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.mobile-affiliate-empty {
+  padding: 24px;
+  text-align: center;
+}
+
+.mobile-affiliate-referral-box {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+.mobile-affiliate-referral-box input {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  padding: 12px 14px;
+}
+
+.mobile-affiliate-referral-box button,
+.mobile-affiliate-request-box button {
+  border: none;
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-weight: 700;
+  background: linear-gradient(180deg, #7fe7f7 0%, #0b8ea6 100%);
+  color: #06212a;
+}
+
+.mobile-affiliate-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.mobile-affiliate-stat-card {
+  padding: 16px 12px;
+  text-align: center;
+}
+
+.mobile-affiliate-stat-card span {
+  display: block;
+  font-size: 11px;
+  color: rgba(238, 247, 251, 0.68);
+  margin-bottom: 8px;
+}
+
+.mobile-affiliate-stat-card strong {
+  font-size: 18px;
+  color: #ffffff;
+}
+
+.mobile-affiliate-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.mobile-affiliate-tabs button {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #eef7fb;
+  padding: 10px 8px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mobile-affiliate-tabs button.is-active {
+  border-color: rgba(127, 231, 247, 0.5);
+  background: rgba(127, 231, 247, 0.18);
+}
+
+.mobile-affiliate-list {
+  display: grid;
+  gap: 12px;
+}
+
+.mobile-affiliate-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mobile-affiliate-list-item strong {
+  display: block;
+  font-size: 14px;
+}
+
+.mobile-affiliate-list-item p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: rgba(238, 247, 251, 0.68);
+}
+
+.mobile-affiliate-list-item span {
+  font-size: 13px;
+  font-weight: 700;
+  color: #7fe7f7;
+}
+
+.mobile-affiliate-empty-inline,
+.mobile-affiliate-request-box p {
+  font-size: 13px;
+  color: rgba(238, 247, 251, 0.74);
+}
+
+.mobile-affiliate-request-box {
+  display: grid;
+  gap: 14px;
+}
+
+.mobile-affiliate-request-box p {
+  margin: 0;
+}

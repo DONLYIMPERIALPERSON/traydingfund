@@ -52,4 +52,5 @@ export const env = {
   sesFromName: process.env.AWS_SES_FROM_NAME ?? '',
   sesReplyToEmail: process.env.AWS_SES_REPLY_TO_EMAIL ?? '',
   sesDashboardUrl: process.env.AWS_SES_DASHBOARD_URL ?? 'https://trader.machefunded.com',
+  rapidApiKey: process.env.RAPID_API_KEY ?? '',
 }

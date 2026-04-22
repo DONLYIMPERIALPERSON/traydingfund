@@ -5,26 +5,44 @@ import { SidebarProvider } from './contexts/SidebarContext'
 import HomePage from './pages/HomePage'
 import AccountDetailsPage from './pages/AccountDetailsPage'
 import SupportPage from './pages/SupportPage'
+import MobileSupportPage from './pages/MobileSupportPage'
 import TradingAccountsPage from './pages/TradingAccountsPage'
+import MobileTradingAccountsPage from './pages/MobileTradingAccountsPage'
 import StartChallengePage from './pages/StartChallengePage'
+import MobileStartChallengePage from './pages/MobileStartChallengePage'
 import PayoutPage from './pages/PayoutPage'
+import MobileRewardPage from './pages/MobileRewardPage'
 import AffiliatePage from './pages/AffiliatePage'
+import MobileAffiliatePage from './pages/MobileAffiliatePage'
 import ContactPage from './pages/ContactPage'
+import MobileContactPage from './pages/MobileContactPage'
 import ProfilePage from './pages/ProfilePage'
+import MobileProfilePage from './pages/MobileProfilePage'
 import SettingsPage from './pages/SettingsPage'
+import MobileSettingsPage from './pages/MobileSettingsPage'
 import CertificatePage from './pages/CertificatePage'
+import MobileCertificatesPage from './pages/MobileCertificatesPage'
 import KYCPage from './pages/KYCPage'
+import MobileKYCPage from './pages/MobileKYCPage'
 import LeaderboardPage from './pages/LeaderboardPage'
 import AccountOverviewPage from './pages/AccountOverviewPage'
+import MobileMetricsPage from './pages/MobileMetricsPage'
 import StatisticsPage from './pages/StatisticsPage'
 import CredentialsPage from './pages/CredentialsPage'
+import MobileCredentialsPage from './pages/MobileCredentialsPage'
 import LoginPage from './pages/LoginPage'
 import OrdersPage from './pages/OrdersPage'
+import MobileOrdersPage from './pages/MobileOrdersPage'
+import MobileHistoryPage from './pages/MobileHistoryPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import CalendarPage from './pages/CalendarPage'
+import MobileCalendarPage from './pages/MobileCalendarPage'
+import MobileEconomicCalendarPage from './pages/MobileEconomicCalendarPage'
 import AccountRecoveryPage from './pages/AccountRecoveryPage'
+import MobileOverviewPage from './pages/MobileOverviewPage'
 
 const isAuthenticated = () => Boolean(localStorage.getItem('supabase_access_token'))
+const isMobileViewport = () => window.matchMedia('(max-width: 768px)').matches
 
 const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
   if (!isAuthenticated()) {
@@ -32,6 +50,23 @@ const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
   }
   return children
 }
+
+const OverviewEntryRoute = () => (isMobileViewport() ? <MobileOverviewPage /> : <HomePage />)
+const TradingAccountsEntryRoute = () => (isMobileViewport() ? <MobileTradingAccountsPage /> : <TradingAccountsPage />)
+const CredentialsEntryRoute = () => (isMobileViewport() ? <MobileCredentialsPage /> : <CredentialsPage />)
+const MetricsEntryRoute = () => (isMobileViewport() ? <MobileMetricsPage /> : <AccountOverviewPage />)
+const CalendarEntryRoute = () => (isMobileViewport() ? <MobileCalendarPage /> : <CalendarPage />)
+const StartChallengeEntryRoute = () => (isMobileViewport() ? <MobileStartChallengePage /> : <StartChallengePage />)
+const OrdersEntryRoute = () => (isMobileViewport() ? <MobileOrdersPage /> : <OrdersPage />)
+const CertificatesEntryRoute = () => (isMobileViewport() ? <MobileCertificatesPage /> : <CertificatePage />)
+const SettingsEntryRoute = () => (isMobileViewport() ? <MobileSettingsPage /> : <SettingsPage />)
+const KYCEntryRoute = () => (isMobileViewport() ? <MobileKYCPage /> : <KYCPage />)
+const SupportEntryRoute = () => (isMobileViewport() ? <MobileSupportPage /> : <SupportPage />)
+const ContactEntryRoute = () => (isMobileViewport() ? <MobileContactPage /> : <ContactPage />)
+const ProfileEntryRoute = () => (isMobileViewport() ? <MobileProfilePage /> : <ProfilePage />)
+const AffiliateEntryRoute = () => (isMobileViewport() ? <MobileAffiliatePage /> : <AffiliatePage />)
+const RewardEntryRoute = () => (isMobileViewport() ? <MobileRewardPage /> : <PayoutPage />)
+
 function App() {
   return (
     <SidebarProvider>
@@ -45,7 +80,7 @@ function App() {
             path="/"
             element={
               <ProtectedRoute>
-                <HomePage />
+                <OverviewEntryRoute />
               </ProtectedRoute>
             }
           />
@@ -61,7 +96,7 @@ function App() {
             path="/support"
             element={
               <ProtectedRoute>
-                <SupportPage />
+                <SupportEntryRoute />
               </ProtectedRoute>
             }
           />
@@ -69,7 +104,7 @@ function App() {
             path="/support/chat/:chatId"
             element={
               <ProtectedRoute>
-                <SupportPage />
+                <SupportEntryRoute />
               </ProtectedRoute>
             }
           />
@@ -77,7 +112,7 @@ function App() {
             path="/trading-accounts"
             element={
               <ProtectedRoute>
-                <TradingAccountsPage />
+                <TradingAccountsEntryRoute />
               </ProtectedRoute>
             }
           />
@@ -85,7 +120,15 @@ function App() {
             path="/start-challenge"
             element={
               <ProtectedRoute>
-                <StartChallengePage />
+                <StartChallengeEntryRoute />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mobile-start-challenge"
+            element={
+              <ProtectedRoute>
+                <MobileStartChallengePage />
               </ProtectedRoute>
             }
           />
@@ -93,7 +136,7 @@ function App() {
             path="/payout"
             element={
               <ProtectedRoute>
-                <PayoutPage />
+                <RewardEntryRoute />
               </ProtectedRoute>
             }
           />
@@ -101,7 +144,15 @@ function App() {
             path="/orders"
             element={
               <ProtectedRoute>
-                <OrdersPage />
+                <OrdersEntryRoute />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mobile-history"
+            element={
+              <ProtectedRoute>
+                <MobileHistoryPage />
               </ProtectedRoute>
             }
           />
@@ -109,7 +160,7 @@ function App() {
             path="/affiliate"
             element={
               <ProtectedRoute>
-                <AffiliatePage />
+                <AffiliateEntryRoute />
               </ProtectedRoute>
             }
           />
@@ -117,7 +168,7 @@ function App() {
             path="/contact"
             element={
               <ProtectedRoute>
-                <ContactPage />
+                <ContactEntryRoute />
               </ProtectedRoute>
             }
           />
@@ -125,7 +176,7 @@ function App() {
             path="/profile"
             element={
               <ProtectedRoute>
-                <ProfilePage />
+                <ProfileEntryRoute />
               </ProtectedRoute>
             }
           />
@@ -149,7 +200,7 @@ function App() {
             path="/settings"
             element={
               <ProtectedRoute>
-                <SettingsPage />
+                <SettingsEntryRoute />
               </ProtectedRoute>
             }
           />
@@ -157,7 +208,7 @@ function App() {
             path="/certificates"
             element={
               <ProtectedRoute>
-                <CertificatePage />
+                <CertificatesEntryRoute />
               </ProtectedRoute>
             }
           />
@@ -165,7 +216,7 @@ function App() {
             path="/kyc"
             element={
               <ProtectedRoute>
-                <KYCPage />
+                <KYCEntryRoute />
               </ProtectedRoute>
             }
           />
@@ -181,7 +232,7 @@ function App() {
             path="/account-overview"
             element={
               <ProtectedRoute>
-                <AccountOverviewPage />
+                <MetricsEntryRoute />
               </ProtectedRoute>
             }
           />
@@ -197,7 +248,7 @@ function App() {
             path="/credentials"
             element={
               <ProtectedRoute>
-                <CredentialsPage />
+                <CredentialsEntryRoute />
               </ProtectedRoute>
             }
           />
@@ -205,7 +256,23 @@ function App() {
             path="/calendar"
             element={
               <ProtectedRoute>
-                <CalendarPage />
+                <CalendarEntryRoute />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/economic-calendar"
+            element={
+              <ProtectedRoute>
+                <MobileEconomicCalendarPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mobile-overview"
+            element={
+              <ProtectedRoute>
+                <MobileOverviewPage />
               </ProtectedRoute>
             }
           />

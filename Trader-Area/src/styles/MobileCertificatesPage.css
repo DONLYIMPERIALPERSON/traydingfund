@@ -1,0 +1,181 @@
+.mobile-certificates-page {
+  min-height: 100vh;
+  padding: 20px 16px 32px;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background:
+    radial-gradient(900px 500px at 8% 6%, rgba(127, 231, 247, 0.16), transparent 60%),
+    radial-gradient(700px 420px at 92% 12%, rgba(11, 142, 166, 0.14), transparent 60%),
+    linear-gradient(180deg, #06171d 0%, #0a2730 100%);
+  color: #eef7fb;
+}
+
+.mobile-certificates-shell,
+.mobile-certificates-empty {
+  max-width: 460px;
+  margin: 0 auto;
+}
+
+.mobile-certificates-header {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: start;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.mobile-certificates-header__icon {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
+}
+
+.mobile-certificates-header__text {
+  text-align: center;
+}
+
+.mobile-certificates-header__text h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.05;
+  font-weight: 800;
+}
+
+.mobile-certificates-header__text p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: rgba(238, 247, 251, 0.72);
+}
+
+.mobile-certificates-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.mobile-certificates-tabs button {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #eef7fb;
+  padding: 10px 8px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mobile-certificates-tabs button.is-active {
+  border-color: rgba(127, 231, 247, 0.5);
+  background: rgba(127, 231, 247, 0.18);
+}
+
+.mobile-certificates-empty,
+.mobile-certificates-group-badge,
+.mobile-certificate-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(14px);
+  border-radius: 22px;
+}
+
+.mobile-certificates-empty {
+  padding: 24px;
+  text-align: center;
+}
+
+.mobile-certificates-group-badge {
+  width: 100%;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #ffffff;
+}
+
+.mobile-certificates-group-badge span {
+  display: block;
+  font-size: 12px;
+  color: rgba(238, 247, 251, 0.72);
+  margin-bottom: 4px;
+}
+
+.mobile-certificates-group-badge strong {
+  font-size: 26px;
+}
+
+.mobile-certificates-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.mobile-certificates-sublist {
+  display: grid;
+  gap: 12px;
+}
+
+.mobile-certificate-card {
+  overflow: hidden;
+}
+
+.mobile-certificate-card--featured {
+  border-color: rgba(127, 231, 247, 0.3);
+  box-shadow: 0 28px 70px rgba(7, 27, 34, 0.28);
+}
+
+.mobile-certificate-card--hero {
+  margin-bottom: 14px;
+}
+
+.mobile-certificate-card__preview img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.mobile-certificate-card__body {
+  padding: 14px;
+}
+
+.mobile-certificate-card__featured-label {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #7fe7f7;
+}
+
+.mobile-certificate-card__body strong {
+  display: block;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.mobile-certificate-card__body p {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: rgba(238, 247, 251, 0.7);
+}
+
+.mobile-certificate-card__body button {
+  width: 100%;
+  border: none;
+  border-radius: 14px;
+  padding: 12px 16px;
+  background: linear-gradient(180deg, #7fe7f7 0%, #0b8ea6 100%);
+  color: #06212a;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}

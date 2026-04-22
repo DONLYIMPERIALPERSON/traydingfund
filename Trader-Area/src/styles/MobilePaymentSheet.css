@@ -1,0 +1,216 @@
+.mobile-payment-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 8, 13, 0.56);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 9999;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.mobile-payment-sheet {
+  width: 100%;
+  max-width: 520px;
+  background: linear-gradient(180deg, #f8fbfc 0%, #edf5f7 100%);
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.2);
+  padding: 10px 16px 24px;
+  min-height: 72vh;
+  max-height: 92vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: mobileSheetUp 0.28s ease-out;
+}
+
+@keyframes mobileSheetUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.mobile-payment-sheet__grabber {
+  width: 46px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.18);
+  margin: 2px auto 14px;
+}
+
+.mobile-payment-sheet__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.mobile-payment-sheet__header.is-centered {
+  justify-content: center;
+  text-align: center;
+}
+
+.mobile-payment-sheet__header h2 {
+  margin: 0;
+  font-size: 22px;
+  color: #0f172a;
+}
+
+.mobile-payment-sheet__header p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.mobile-payment-sheet__close {
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  color: #475569;
+}
+
+.mobile-payment-sheet__status,
+.mobile-payment-sheet__notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  margin-bottom: 14px;
+  font-size: 13px;
+}
+
+.mobile-payment-sheet__status {
+  background: rgba(11, 159, 184, 0.1);
+  color: #0b5f6b;
+}
+
+.mobile-payment-sheet__notice {
+  background: rgba(255, 193, 7, 0.12);
+  color: #7a5610;
+}
+
+.mobile-payment-sheet__list {
+  display: grid;
+  gap: 12px;
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+
+.mobile-payment-sheet__item {
+  background: #ffffff;
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.mobile-payment-sheet__item--amount {
+  border-color: rgba(11, 159, 184, 0.34);
+  background: rgba(236, 254, 255, 0.95);
+}
+
+.mobile-payment-sheet__item label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.mobile-payment-sheet__value-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mobile-payment-sheet__value-row.is-column {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.mobile-payment-sheet__value-row strong {
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.mobile-payment-sheet__value-row strong.is-code {
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+}
+
+.mobile-payment-sheet__value-row strong.is-amount {
+  color: #0b9fb8;
+  font-size: 18px;
+}
+
+.mobile-payment-sheet__value-row button {
+  border: none;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.06);
+  color: #334155;
+  padding: 10px 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mobile-payment-sheet__copied {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0b9fb8;
+}
+
+.mobile-payment-sheet__footer {
+  margin-top: 18px;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);
+}
+
+.mobile-payment-sheet__primary {
+  width: 100%;
+  border: none;
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, #0b9fb8 0%, #08788d 100%);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.mobile-payment-sheet__big-status {
+  text-align: center;
+  padding: 18px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  justify-content: center;
+}
+
+.mobile-payment-sheet__big-status i {
+  font-size: 40px;
+  color: #0b9fb8;
+}
+
+.mobile-payment-sheet__big-status.is-success i {
+  color: #0cb362;
+}
+
+.mobile-payment-sheet__big-status strong {
+  color: #0f172a;
+  font-size: 22px;
+}
+
+.mobile-payment-sheet__big-status span {
+  color: #64748b;
+  font-size: 14px;
+}

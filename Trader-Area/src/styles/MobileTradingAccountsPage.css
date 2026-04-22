@@ -1,0 +1,136 @@
+.mobile-trading-accounts-page {
+  min-height: 100vh;
+  padding: 20px 16px 32px;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background:
+    radial-gradient(900px 500px at 8% 6%, rgba(127, 231, 247, 0.16), transparent 60%),
+    radial-gradient(700px 420px at 92% 12%, rgba(11, 142, 166, 0.14), transparent 60%),
+    linear-gradient(180deg, #06171d 0%, #0a2730 100%);
+  color: #eef7fb;
+}
+
+.mobile-trading-accounts-shell {
+  max-width: 460px;
+  margin: 0 auto;
+}
+
+.mobile-trading-accounts-header {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: start;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.mobile-trading-accounts-header__icon {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
+
+.mobile-trading-accounts-header__text {
+  text-align: center;
+}
+
+.mobile-trading-accounts-header__text h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.05;
+  font-weight: 800;
+}
+
+.mobile-trading-accounts-header__text p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: rgba(238, 247, 251, 0.72);
+}
+
+.mobile-trading-accounts-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.mobile-trading-accounts-tabs button {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #eef7fb;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.mobile-trading-accounts-tabs button.is-active {
+  border-color: rgba(127, 231, 247, 0.5);
+  background: rgba(127, 231, 247, 0.18);
+  color: #ffffff;
+}
+
+.mobile-trading-accounts-list {
+  display: grid;
+  gap: 14px;
+}
+
+.mobile-trading-account-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(14px);
+  border-radius: 22px;
+  padding: 18px;
+}
+
+.mobile-trading-account-card__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.mobile-trading-account-card__top strong {
+  font-size: 22px;
+}
+
+.mobile-trading-account-card__top span {
+  font-size: 18px;
+  font-weight: 700;
+  color: #7fe7f7;
+}
+
+.mobile-trading-account-card__details {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.mobile-trading-account-card__detail {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(238, 247, 251, 0.8);
+}
+
+.mobile-trading-account-card__bullet {
+  color: #7fe7f7;
+}
+
+.mobile-trading-account-card__button {
+  width: 100%;
+  border: none;
+  border-radius: 14px;
+  padding: 12px 16px;
+  background: linear-gradient(180deg, #7fe7f7 0%, #0b8ea6 100%);
+  color: #06212a;
+  font-weight: 700;
+}

@@ -1,0 +1,221 @@
+.mobile-start-challenge-page {
+  min-height: 100vh;
+  padding: 20px 16px 32px;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background:
+    radial-gradient(900px 500px at 8% 6%, rgba(127, 231, 247, 0.16), transparent 60%),
+    radial-gradient(700px 420px at 92% 12%, rgba(11, 142, 166, 0.14), transparent 60%),
+    linear-gradient(180deg, #06171d 0%, #0a2730 100%);
+  color: #eef7fb;
+}
+
+.mobile-start-challenge-shell,
+.mobile-start-challenge-empty {
+  max-width: 460px;
+  margin: 0 auto;
+}
+
+.mobile-start-challenge-header {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: start;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.mobile-start-challenge-header__icon {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
+
+.mobile-start-challenge-header__text {
+  text-align: center;
+}
+
+.mobile-start-challenge-header__text h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.05;
+  font-weight: 800;
+}
+
+.mobile-start-challenge-header__text p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: rgba(238, 247, 251, 0.72);
+}
+
+.mobile-start-challenge-card,
+.mobile-start-challenge-empty {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(14px);
+  border-radius: 22px;
+}
+
+.mobile-start-challenge-card {
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+.mobile-start-challenge-empty {
+  padding: 24px;
+  text-align: center;
+}
+
+.mobile-start-challenge-card h2,
+.mobile-start-challenge-payment-block h3 {
+  margin: 0 0 14px;
+  font-size: 18px;
+}
+
+.mobile-start-challenge-summary-list {
+  display: grid;
+  gap: 12px;
+}
+
+.mobile-start-challenge-summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.mobile-start-challenge-summary-row span {
+  color: rgba(238, 247, 251, 0.7);
+}
+
+.mobile-start-challenge-summary-row strong {
+  color: #ffffff;
+  text-align: right;
+}
+
+.mobile-start-challenge-summary-row--total {
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mobile-start-challenge-platform-options,
+.mobile-start-challenge-payment-options,
+.mobile-start-challenge-network-options {
+  display: grid;
+  gap: 10px;
+}
+
+.mobile-start-challenge-platform,
+.mobile-start-challenge-payment-options button,
+.mobile-start-challenge-network-options button,
+.mobile-start-challenge-promo-row button,
+.mobile-start-challenge-continue {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #eef7fb;
+  cursor: pointer;
+}
+
+.mobile-start-challenge-platform,
+.mobile-start-challenge-payment-options button,
+.mobile-start-challenge-network-options button {
+  padding: 12px 14px;
+  text-align: left;
+  font-weight: 700;
+}
+
+.mobile-start-challenge-platform.is-active,
+.mobile-start-challenge-payment-options button.is-active,
+.mobile-start-challenge-network-options button.is-active {
+  border-color: rgba(127, 231, 247, 0.5);
+  background: rgba(127, 231, 247, 0.14);
+}
+
+.mobile-start-challenge-platform:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.mobile-start-challenge-promo-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+.mobile-start-challenge-promo-row input {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  padding: 12px 14px;
+}
+
+.mobile-start-challenge-promo-row input::placeholder {
+  color: rgba(238, 247, 251, 0.42);
+}
+
+.mobile-start-challenge-promo-row button,
+.mobile-start-challenge-continue {
+  padding: 12px 16px;
+  font-weight: 700;
+}
+
+.mobile-start-challenge-payment-block {
+  margin-top: 16px;
+}
+
+.mobile-start-challenge-crypto-picker {
+  margin-top: 12px;
+}
+
+.mobile-start-challenge-crypto-picker p {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+
+.mobile-start-challenge-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 18px 0 16px;
+  font-size: 13px;
+  color: rgba(238, 247, 251, 0.82);
+}
+
+.mobile-start-challenge-checkbox a {
+  color: #7fe7f7;
+  font-weight: 700;
+}
+
+.mobile-start-challenge-continue {
+  width: 100%;
+  background: linear-gradient(180deg, #7fe7f7 0%, #0b8ea6 100%);
+  color: #06212a;
+  border: none;
+}
+
+.mobile-start-challenge-continue:disabled,
+.mobile-start-challenge-promo-row button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mobile-start-challenge-error {
+  margin: 10px 0 0;
+  color: #ff9ea5;
+  font-size: 13px;
+}
+
+.mobile-start-challenge-success {
+  margin: 10px 0 0;
+  color: #7ef0b1;
+  font-size: 13px;
+}

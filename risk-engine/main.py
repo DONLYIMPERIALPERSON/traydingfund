@@ -27,6 +27,7 @@ BACKEND_ENGINE_SECRET = os.environ.get("BACKEND_ENGINE_SECRET", "")
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
 REPLAY_QUEUE_KEY = os.environ.get("REPLAY_QUEUE_KEY", "mf:replay:queue")
 REPLAY_SESSION_PREFIX = os.environ.get("REPLAY_SESSION_PREFIX", "mf:replay:session:")
+REPLAY_LATEST_SESSION_PREFIX = os.environ.get("REPLAY_LATEST_SESSION_PREFIX", "mf:replay:latest:")
 REPLAY_WORKER_COUNT = max(1, int(os.environ.get("REPLAY_WORKER_COUNT", "2")))
 EVENT_ORDER = {"open": 0, "deal": 1, "tick": 2}
 redis_client: Optional[redis.Redis] = None
@@ -373,6 +374,10 @@ def _session_key(session_id: str) -> str:
     return f"{REPLAY_SESSION_PREFIX}{session_id}"
 
 
+def _latest_session_key(account_number: str) -> str:
+    return f"{REPLAY_LATEST_SESSION_PREFIX}{account_number}"
+
+
 def get_redis_client() -> Optional[redis.Redis]:
     global redis_client
     if redis_client is not None:
@@ -430,9 +435,21 @@ def enqueue_session(session: ReplaySession) -> None:
     save_session_record(session, status="queued")
     client = get_redis_client()
     if client:
+        client.set(_latest_session_key(session.account_number), session.session_id)
         client.lpush(REPLAY_QUEUE_KEY, session.session_id)
     else:
         raise HTTPException(status_code=503, detail="Replay queue is unavailable")
+
+
+def is_latest_session_for_account(session: ReplaySession) -> bool:
+    client = get_redis_client()
+    if not client:
+        return True
+    try:
+        latest_session_id = client.get(_latest_session_key(session.account_number))
+        return not latest_session_id or latest_session_id == session.session_id
+    except Exception:
+        return True
 
 
 def replay_worker_loop() -> None:
@@ -451,6 +468,9 @@ def replay_worker_loop() -> None:
             session = ReplaySession.model_validate(record["session"])
             account_lock = get_account_processing_lock(session.account_number)
             with account_lock:
+                if not is_latest_session_for_account(session):
+                    save_session_record(session, status="failed", error="superseded_by_newer_session")
+                    continue
                 save_session_record(session, status="processing")
                 result = calculate_result(session)
                 save_session_record(session, status="completed", result=result)

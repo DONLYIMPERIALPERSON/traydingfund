@@ -218,6 +218,22 @@ export type UserChallengeCalendarResponse = {
   daily_pnl: UserChallengeCalendarDay[]
 }
 
+export type EconomicCalendarItem = {
+  event: string
+  country: string
+  date: string
+  impact: 'High' | 'Medium' | 'Low' | string
+  actual: string | null
+  forecast: string | null
+  previous: string | null
+}
+
+export type EconomicCalendarResponse = {
+  success: boolean
+  count: number
+  data: EconomicCalendarItem[]
+}
+
 export type CertificateResponse = {
   id: number
   certificate_type: string
@@ -558,6 +574,11 @@ export async function downloadBreachReport(challengeId: string): Promise<{ downl
 
 export async function fetchUserChallengeCalendar(challengeId: string): Promise<UserChallengeCalendarResponse> {
   return apiFetch<UserChallengeCalendarResponse>(`/trader/challenges/${encodeURIComponent(challengeId)}/calendar`)
+}
+
+export async function fetchEconomicCalendar(impact?: string): Promise<EconomicCalendarResponse> {
+  const query = impact && impact !== 'All' ? `?impact=${encodeURIComponent(impact)}` : ''
+  return apiFetch<EconomicCalendarResponse>(`/calendar${query}`)
 }
 
 export async function fetchTradingObjectives(): Promise<TradingObjectivesResponse> {

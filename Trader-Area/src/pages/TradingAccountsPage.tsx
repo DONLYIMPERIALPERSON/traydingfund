@@ -347,7 +347,10 @@ const DesktopTradingAccountsPage: React.FC = () => {
                 </div>
                 <button
                   className="pricing-tier-button"
-                  onClick={() => navigate('/start-challenge', { state: accounts[index] })}
+                  onClick={() => navigate(
+                    window.matchMedia('(max-width: 768px)').matches ? '/mobile-start-challenge' : '/start-challenge',
+                    { state: accounts[index] },
+                  )}
                 >
                   Start Now
                 </button>
