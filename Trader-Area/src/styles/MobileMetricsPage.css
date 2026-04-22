@@ -123,11 +123,13 @@
 }
 
 .mobile-metrics-profit-pill {
-  padding: 8px 10px;
+  padding: 6px 10px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
   align-self: flex-start;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .mobile-metrics-profit-pill.is-positive,
@@ -197,6 +199,12 @@
 
 .mobile-metrics-balance-box--profit-loss {
   position: relative;
+}
+
+.mobile-metrics-balance-box__tag-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 2px;
 }
 
 .mobile-metrics-update-row {
