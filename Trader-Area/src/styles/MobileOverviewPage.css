@@ -108,6 +108,7 @@
 .mobile-overview-slider--standalone {
   max-width: 460px;
   margin: 0 auto;
+  padding-right: 0;
 }
 
 .mobile-overview-slider::-webkit-scrollbar {
@@ -115,7 +116,7 @@
 }
 
 .mobile-overview-slide {
-  flex: 0 0 calc(100% - 24px);
+  flex: 0 0 100%;
   scroll-snap-align: start;
 }
 
