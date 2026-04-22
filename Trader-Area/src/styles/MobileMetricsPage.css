@@ -122,21 +122,13 @@
   color: #ffffff;
 }
 
-.mobile-metrics-profit-pill {
-  padding: 8px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  align-self: flex-start;
-}
-
-.mobile-metrics-profit-pill.is-positive,
+.mobile-metrics-profit-outline-tag.is-positive,
 .mobile-metrics-mini-card .is-positive,
 .mobile-metrics-objective-item em.is-passed {
   color: #7ef0b1;
 }
 
-.mobile-metrics-profit-pill.is-negative,
+.mobile-metrics-profit-outline-tag.is-negative,
 .mobile-metrics-mini-card .is-negative,
 .mobile-metrics-objective-item em.is-breached {
   color: #ff8f8f;
@@ -197,6 +189,21 @@
 
 .mobile-metrics-balance-box--profit-loss {
   position: relative;
+  overflow: visible;
+}
+
+.mobile-metrics-profit-outline-tag {
+  position: absolute;
+  top: -10px;
+  right: 12px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  background: #0a2730;
+  border: 1px solid currentColor;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.18);
 }
 
 .mobile-metrics-update-row {

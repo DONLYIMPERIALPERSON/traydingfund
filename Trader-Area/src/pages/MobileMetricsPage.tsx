@@ -195,6 +195,7 @@ const MobileMetricsPage: React.FC = () => {
   const profitPercent = initialBalance > 0 ? (profitValue / initialBalance) * 100 : 0
   const latestUpdateTimestamp = accountData.last_feed_at ?? accountData.last_refresh_requested_at
   const showForceRefreshButton = isActiveAccount(accountData.objective_status) && isOlderThanThirtyMinutes(accountData.last_feed_at)
+  const showLastUpdated = isActiveAccount(accountData.objective_status)
 
   return (
     <div className="mobile-metrics-page">
@@ -232,9 +233,9 @@ const MobileMetricsPage: React.FC = () => {
                 <button type="button" className="mobile-metrics-refresh" onClick={() => void handleForceRefresh()}>
                   {isRefreshing ? 'Updating...' : 'Refresh'}
                 </button>
-              ) : (
+              ) : showLastUpdated ? (
                 <span>Last updated: {formatRelativeUpdate(latestUpdateTimestamp)}</span>
-              )}
+              ) : null}
             </div>
           </div>
 
@@ -250,7 +251,7 @@ const MobileMetricsPage: React.FC = () => {
             </div>
 
             <div className="mobile-metrics-balance-box mobile-metrics-balance-box--profit-loss">
-              <span className={`mobile-metrics-profit-pill ${profitValue >= 0 ? 'is-positive' : 'is-negative'}`}>
+              <span className={`mobile-metrics-profit-outline-tag ${profitValue >= 0 ? 'is-positive' : 'is-negative'}`}>
                 {profitValue >= 0 ? '+' : ''}{profitPercent.toFixed(2)}%
               </span>
               <div className="mobile-metrics-balance-box__header">
