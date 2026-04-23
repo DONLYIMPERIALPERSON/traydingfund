@@ -335,6 +335,8 @@ const MobileOverviewPage: React.FC = () => {
     scrollToIndex(Math.min(activeIndex + 1, allAccounts.length - 1))
   }
 
+  const hasSingleVisibleAccount = hasAnyAccounts && allAccounts.length === 1
+
   return (
     <div className="mobile-overview-page">
       <header className="mobile-overview-header">
@@ -370,15 +372,38 @@ const MobileOverviewPage: React.FC = () => {
       ) : accountLoadError ? (
         <ServiceUnavailableState onRetry={() => window.location.reload()} />
       ) : !hasAnyAccounts ? (
-        <section className="mobile-overview-panel mobile-overview-empty-state">
-          <h2>No challenge account yet</h2>
-          <p>Buy your first account to unlock trading metrics, credentials, rewards, and the rest of your dashboard.</p>
-        </section>
+        <div className="mobile-overview-slider mobile-overview-slider--standalone mobile-overview-slider--empty-state">
+          <div className="mobile-overview-slide">
+            <article className="mobile-overview-slide-card mobile-overview-slide-card--empty-state">
+              <div className="mobile-overview-slide-card__top">
+                <div className="mobile-overview-slide-card__identity">
+                  <span className="mobile-overview-slide-card__challenge-type">
+                    No challenge account yet
+                  </span>
+                  <span className="mobile-overview-slide-card__account-line">
+                    Your dashboard is ready when you are
+                  </span>
+                </div>
+              </div>
+
+              <div className="mobile-overview-slide-card__balance-wrap mobile-overview-slide-card__balance-wrap--empty-state">
+                <span className="mobile-overview-slide-card__balance-label">Account Status</span>
+                <div className="mobile-overview-slide-card__balance-row">
+                  <strong>No active account</strong>
+                </div>
+              </div>
+
+              <div className="mobile-overview-slide-card__empty-copy">
+                Buy your first account to unlock trading metrics, credentials, rewards, and the rest of your dashboard.
+              </div>
+            </article>
+          </div>
+        </div>
       ) : (
         <>
           {allAccounts.length > 0 ? (
             <>
-              <div className="mobile-overview-slider mobile-overview-slider--standalone" ref={sliderRef}>
+              <div className={`mobile-overview-slider mobile-overview-slider--standalone${hasSingleVisibleAccount ? ' mobile-overview-slider--single' : ''}`} ref={sliderRef}>
                 {allAccounts.map((account) => (
                   <div key={account.challenge_id} className="mobile-overview-slide">
                     <SlideCard account={account} onHideBreached={handleHideBreachedAccount} />
