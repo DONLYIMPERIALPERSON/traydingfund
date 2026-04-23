@@ -371,25 +371,8 @@ const MobileOverviewPage: React.FC = () => {
         <ServiceUnavailableState onRetry={() => window.location.reload()} />
       ) : !hasAnyAccounts ? (
         <section className="mobile-overview-panel mobile-overview-empty-state">
-          <div className="mobile-overview-empty-state__badge">Start Here</div>
-          <div className="mobile-overview-empty-state__icon">
-            <i className="fas fa-chart-line" />
-          </div>
           <h2>No challenge account yet</h2>
           <p>Buy your first account to unlock trading metrics, credentials, rewards, and the rest of your dashboard.</p>
-          <div className="mobile-overview-empty-state__highlights">
-            <div>
-              <strong>Instant setup</strong>
-              <span>Choose an account and get started fast.</span>
-            </div>
-            <div>
-              <strong>Track progress</strong>
-              <span>Monitor performance and milestones in one place.</span>
-            </div>
-          </div>
-          <button type="button" onClick={() => navigate('/trading-accounts')}>
-            Buy Account
-          </button>
         </section>
       ) : (
         <>
@@ -451,31 +434,32 @@ const MobileOverviewPage: React.FC = () => {
               </button>
             </section>
           )}
-
-          <section className="mobile-overview-quick-actions">
-            {quickActionItems.map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                className="mobile-overview-quick-action"
-                onClick={() => {
-                  if (item.label === 'More') {
-                    setShowMoreMenu(true)
-                    return
-                  }
-                  navigate(item.href)
-                }}
-              >
-                <span className="mobile-overview-quick-action__icon">
-                  <i className={`fas ${item.icon}`} />
-                </span>
-                <span className="mobile-overview-quick-action__label">{item.label}</span>
-              </button>
-            ))}
-          </section>
-
         </>
       )}
+
+      {!loadingAccounts && !accountLoadError ? (
+        <section className="mobile-overview-quick-actions">
+          {quickActionItems.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              className="mobile-overview-quick-action"
+              onClick={() => {
+                if (item.label === 'More') {
+                  setShowMoreMenu(true)
+                  return
+                }
+                navigate(item.href)
+              }}
+            >
+              <span className="mobile-overview-quick-action__icon">
+                <i className={`fas ${item.icon}`} />
+              </span>
+              <span className="mobile-overview-quick-action__label">{item.label}</span>
+            </button>
+          ))}
+        </section>
+      ) : null}
 
       <nav className="mobile-overview-bottom-nav" aria-label="Mobile overview navigation">
         {bottomNavItems.map((item) => (

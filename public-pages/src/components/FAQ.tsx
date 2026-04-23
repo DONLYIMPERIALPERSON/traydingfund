@@ -60,6 +60,11 @@ const faqs = [
       'Withdrawals are processed on the schedule defined for each challenge type. Payouts are fast once approved.',
   },
   {
+    question: 'What happens if I trade during review windows?',
+    answer:
+      'Review windows include events such as withdrawal requests and next-phase resets. During these periods, our system does not monitor accounts. If you trade during a withdrawal review window, any profits made may be deducted and the withdrawal may be rejected. If you trade during a next-phase reset window, the account may be breached. For your safety, do not trade during any review window until processing is complete.',
+  },
+  {
     question: 'Where do I start my challenge?',
     answer:
       'Select a challenge on this page and click Start Now to head to the trader area checkout.',
