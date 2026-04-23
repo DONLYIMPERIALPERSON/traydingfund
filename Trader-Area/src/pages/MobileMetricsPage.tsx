@@ -225,6 +225,18 @@ const MobileMetricsPage: React.FC = () => {
           </section>
         ) : null}
 
+        {hasPendingWithdrawal ? (
+          <section className="mobile-metrics-breach-card">
+            <div>
+              <strong>Withdrawal Under Review</strong>
+              <p>
+                Your withdrawal request for <strong>{formatCurrency(accountData.pending_withdrawal_amount ?? 0, accountCurrency)}</strong> is being reviewed.
+                <strong> Warning:</strong> do not trade on this account until the review is complete to avoid a breach.
+              </p>
+            </div>
+          </section>
+        ) : null}
+
         <section className="mobile-metrics-balance-card">
           <div className="mobile-metrics-balance-header">
             <span className="mobile-metrics-balance-title">Balance Overview</span>

@@ -369,7 +369,7 @@ const AccountOverviewPage: React.FC = () => {
                 <h3>Withdrawal Under Review</h3>
                 <p>
                   Your withdrawal request for <strong>{formatCurrency(pendingWithdrawalAmount, accountCurrency)}</strong> is being reviewed.
-                  Trading is paused for this account until the review completes.
+                  <strong> Warning:</strong> do not trade on this account until the review is complete to avoid a breach.
                 </p>
               </div>
             </div>
