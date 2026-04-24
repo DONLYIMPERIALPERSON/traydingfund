@@ -1,7 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api'
 import { config } from './config'
 import { notifyAdjustBalance, notifyResetComplete, notifyWithdrawApproved, notifyWithdrawComplete } from './backendClient'
-import { appendTelegramFailureLog } from './logger'
 
 const normalize = (text: string) => text.trim().replace(/\s+/g, ' ')
 
@@ -117,14 +116,6 @@ export const sendFinanceEventMessage = async (bot: TelegramBot, payload: {
   try {
     await bot.sendMessage(config.telegramChatId, message)
   } catch (error) {
-    appendTelegramFailureLog({
-      scope: 'sendFinanceEventMessage',
-      chatId: config.telegramChatId,
-      payload,
-      error: error instanceof Error
-        ? { message: error.message, stack: error.stack, name: error.name }
-        : error,
-    })
     console.error('Telegram sendMessage failed', {
       chatId: config.telegramChatId,
       payload,
