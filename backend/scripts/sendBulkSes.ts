@@ -66,7 +66,7 @@ const HTML_BODY = buildEmailTemplate({
     </p>
     <p>
       You can also join our community on Discord to stay updated with the latest updates, connect with other traders, and never miss important announcements:<br/>
-      <a href="https://discord.gg/SXuDQc7g2">https://discord.gg/SXuDQc7g2</a>
+      <a href="https://discord.gg/R2DxQQKfP">https://discord.gg/R2DxQQKfP</a>
     </p>
     <p>
       No long stories. No restrictions holding you back.
