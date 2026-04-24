@@ -40,7 +40,7 @@ export const sendEmailOnce = async ({ type, accountId, userId, send }: ShouldSen
   return prisma.$transaction(async (tx) => {
     const lockKey = `${type}:${normalizedAccountId ?? 'null'}:${normalizedUserId ?? 'null'}`
 
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`
 
     const alreadySent = await tx.emailLog.findFirst({
       where: {
