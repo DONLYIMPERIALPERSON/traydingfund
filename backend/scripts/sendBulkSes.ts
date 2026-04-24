@@ -5,42 +5,82 @@ import dotenv from 'dotenv'
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses'
 import { buildEmailTemplate } from '../src/services/emailTemplate'
 
-const SUBJECT = '₦1,500 for a ₦200,000 Challenge — Limited Access'
+const SUBJECT = 'Withdraw Daily on Flexi - No Limits, No Caps'
 
 const HTML_BODY = buildEmailTemplate({
-  title: '₦1,500 for a ₦200,000 Challenge — Limited Access',
-  subtitle: 'A simple and powerful way for Nigerian traders to get started.',
+  title: 'Withdraw Daily on Flexi - No Limits, No Caps',
+  subtitle: 'Flexibility, speed, and full control over your earnings.',
   content: `
-    <p>Hello Trader,</p>
+    <p>Dear Trader,</p>
 
     <p>
-      In trading, one principle always stands out — quality over everything.
+      Na everyday withdrawals dey happen here — and if you never believe, this is your sign to try am yourself.
+    </p>
+
+    <p>
+      With our Flexi Accounts, you enjoy:
+    </p>
+    <ul>
+      <li>Daily withdrawals — no waiting, no delays</li>
+      <li>No profit cap — everything you earn is yours</li>
+      <li>No daily drawdown limit — trade with more freedom</li>
+      <li>No minimum trading days — pass and withdraw at your pace</li>
+      <li>Fully automated system — fast, smooth experience from start to payout</li>
+      <li>24/7 support — we’re always here when you need us</li>
+    </ul>
+
+    <p>
+      <strong>Flexi Account Pricing:</strong>
+    </p>
+    <ul>
+      <li>₦200,000 account — ₦9,000</li>
+      <li>₦500,000 account — ₦21,000</li>
+      <li>₦800,000 account — ₦31,500</li>
+    </ul>
+
+    <p>
+      <strong>Standard Account Pricing:</strong>
+    </p>
+    <ul>
+      <li>₦200,000 account — ₦5,000</li>
+      <li>₦500,000 account — ₦11,500</li>
+      <li>₦800,000 account — ₦17,000</li>
+    </ul>
+
+    <p>
+      <strong>April Promo Codes:</strong>
+    </p>
+    <ul>
+      <li>Use NGN26 — get 26% OFF NGN accounts</li>
+      <li>Use USD16 — get 16% OFF USD accounts</li>
+    </ul>
+
+    <p>
+      To allow you try our service with our improved system and new features, we’re doing something special:
     </p>
     <p>
-      At Machefunded, we’ve built our systems around speed, reliability, and a seamless experience. From automated next-phase upgrades immediately after passing, to fast and responsive support, everything is designed to keep you focused on what truly matters — trading.
+      The first 50 users to use the promo code <strong>YES</strong> will get <strong>65% OFF</strong> on any NGN Flexi or Standard account.
     </p>
     <p>
-      This week alone, we paid out over $17,000 to Nigerian traders, reinforcing our commitment to consistency and trust.
+      We built this for Nigerian traders who want flexibility, speed, and full control over their earnings.
     </p>
     <p>
-      If you’re looking to get started or scale faster, now is the time. Our Attic Program gives Nigerian traders access to a ₦200,000 account for just ₦1,500 — a simple and powerful way to begin your journey with us.
-    </p>
-    <p>
-      Explore the opportunity here: <a href="https://www.machefunded.com/attic-program">https://www.machefunded.com/attic-program</a>
-    </p>
-    <p>
-      You can also join our growing community of traders on Discord to stay updated, connect, and learn:<br/>
+      You can also join our community on Discord to stay updated with the latest updates, connect with other traders, and never miss important announcements:<br/>
       <a href="https://discord.gg/SXuDQc7g2">https://discord.gg/SXuDQc7g2</a>
     </p>
     <p>
-      Trade with speed. Trade with confidence. Choose quality.
+      No long stories. No restrictions holding you back.
     </p>
     <p>
-      Machefunded Team
+      Start today and experience it yourself.
+    </p>
+    <p>
+      Best regards,<br/>
+      MACHEFUNDED Team
     </p>
   `,
-  buttonText: 'Explore Attic Program',
-  buttonLink: 'https://www.machefunded.com/attic-program',
+  buttonText: 'Start Today',
+  buttonLink: 'https://www.machefunded.com',
   infoBox: 'If you no longer want to receive emails, reply with "unsubscribe".',
 })
 
