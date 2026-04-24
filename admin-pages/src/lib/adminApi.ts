@@ -1048,10 +1048,10 @@ export const fetchAffiliatePayouts = async (page: number = 1, perPage: number = 
 export const approveAffiliatePayout = async (payoutId: number) =>
   apiFetch<{ message: string; status: string }>(`/admin/affiliate/payouts/${payoutId}/approve`, { method: 'POST' })
 
-export const rejectAffiliatePayout = async (payoutId: number, reason?: string) =>
+export const rejectAffiliatePayout = async (payoutId: number, reason?: string, deductCommission?: boolean) =>
   apiFetch<{ message: string; status: string }>(`/admin/affiliate/payouts/${payoutId}/reject`, {
     method: 'POST',
-    body: JSON.stringify({ reason }),
+    body: JSON.stringify({ reason, deductCommission }),
   })
 
 export const fetchPayoutStats = async (period: 'today' | 'week' | 'month' = 'today') => {

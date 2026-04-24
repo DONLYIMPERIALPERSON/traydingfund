@@ -78,10 +78,14 @@ const ReferralsPage = () => {
 
   const handleRejectPayout = async (payoutId: number) => {
     const reason = prompt('Reason for rejection (optional):')
+    const deductCommission = window.confirm(
+      'Do you also want to deduct/reverse the earned commission for this rejected payout?\n\nChoose OK to reject and deduct commission.\nChoose Cancel to reject only.',
+    )
     try {
-      await rejectAffiliatePayout(payoutId, reason || undefined)
+      await rejectAffiliatePayout(payoutId, reason || undefined, deductCommission)
       // Reload payouts
       loadPayouts()
+      loadCommissions()
       loadOverview()
     } catch (err) {
       alert('Failed to reject payout')

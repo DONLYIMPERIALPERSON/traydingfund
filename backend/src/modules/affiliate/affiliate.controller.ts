@@ -48,6 +48,40 @@ const buildCommissionScopeWhere = (affiliateId: number, scope: AffiliateScope) =
   order: buildOrderScopeWhere(scope),
 })
 
+const resolveCommissionsToReverse = async (
+  tx: typeof prisma,
+  affiliateId: number,
+  payoutAmountKobo: number,
+  requestedAt: Date,
+) => {
+  const commissions = await (tx as any).affiliateCommission.findMany({
+    where: {
+      affiliateId,
+      status: 'earned',
+      createdAt: { lte: requestedAt },
+    },
+    orderBy: { createdAt: 'asc' },
+  }) as Array<{ id: number; amountKobo: number; createdAt: Date }>
+
+  const selected: number[] = []
+  let runningTotal = 0
+
+  for (const commission of commissions) {
+    if (runningTotal >= payoutAmountKobo) break
+    selected.push(commission.id)
+    runningTotal += commission.amountKobo
+  }
+
+  if (runningTotal !== payoutAmountKobo) {
+    throw new ApiError(
+      `Unable to reverse commissions exactly for payout amount. Expected ${payoutAmountKobo}, found ${runningTotal}.`,
+      400,
+    )
+  }
+
+  return selected
+}
+
 export const getAffiliateDashboard = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const scope = resolveAffiliateScope(req)
@@ -510,13 +544,13 @@ export const approveAffiliatePayout = async (req: Request, res: Response, next: 
 
 export const rejectAffiliatePayout = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { affiliatePayoutClient } = getAffiliateClients()
-    if (!affiliatePayoutClient?.findUnique) {
+    const { affiliatePayoutClient, affiliateCommissionClient } = getAffiliateClients()
+    if (!affiliatePayoutClient?.findUnique || !affiliateCommissionClient?.findMany) {
       throw new ApiError('Affiliate payouts are not configured yet.', 500)
     }
 
     const payoutId = Number(req.params.id)
-    const { reason } = req.body as { reason?: string }
+    const { reason, deductCommission } = req.body as { reason?: string; deductCommission?: boolean }
     if (!payoutId) {
       throw new ApiError('Payout ID is required', 400)
     }
@@ -529,17 +563,44 @@ export const rejectAffiliatePayout = async (req: Request, res: Response, next: N
       throw new ApiError('Only pending payouts can be rejected', 400)
     }
 
-    const updated = await affiliatePayoutClient.update({
-      where: { id: payoutId },
-      data: {
-        status: 'rejected',
-        rejectedAt: new Date(),
-        rejectedBy: (req as AuthRequest).user?.email ?? 'admin',
-        rejectionReason: reason ?? 'Rejected by admin',
-      },
+    const updated = await prisma.$transaction(async (tx) => {
+      const payoutUpdate = await (tx as any).affiliatePayout.update({
+        where: { id: payoutId },
+        data: {
+          status: 'rejected',
+          rejectedAt: new Date(),
+          rejectedBy: (req as AuthRequest).user?.email ?? 'admin',
+          rejectionReason: reason ?? 'Rejected by admin',
+        },
+      })
+
+      if (deductCommission) {
+        const commissionIds = await resolveCommissionsToReverse(
+          tx as typeof prisma,
+          payout.affiliateId,
+          payout.amountKobo,
+          payout.requestedAt,
+        )
+
+        await (tx as any).affiliateCommission.updateMany({
+          where: { id: { in: commissionIds } },
+          data: {
+            status: 'reversed',
+            paidAt: null,
+          },
+        })
+      }
+
+      return payoutUpdate
     })
 
-    res.json({ id: updated.id, status: updated.status, message: 'Affiliate payout rejected.' })
+    res.json({
+      id: updated.id,
+      status: updated.status,
+      message: deductCommission
+        ? 'Affiliate payout rejected and commission reversed.'
+        : 'Affiliate payout rejected.',
+    })
   } catch (err) {
     next(err as Error)
   }
