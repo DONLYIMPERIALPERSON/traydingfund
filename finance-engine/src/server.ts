@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express'
 import { config } from './config'
 import { createTelegramBot, processTelegramUpdate, registerWebhook, sendFinanceEventMessage } from './telegram'
 import type { FinanceEventPayload } from './types'
+import { appendTelegramFailureLog, getTelegramFailureLogPath } from './logger'
 
 const app = express()
 app.use(express.json())
@@ -24,8 +25,23 @@ app.post('/finance-engine/event', async (req: Request, res: Response) => {
     res.status(400).json({ message: 'type and account are required' })
     return
   }
-  await sendFinanceEventMessage(bot, payload)
-  res.json({ status: 'sent' })
+  try {
+    await sendFinanceEventMessage(bot, payload)
+    res.json({ status: 'sent' })
+  } catch (error) {
+    appendTelegramFailureLog({
+      scope: 'finance-engine-event-route',
+      payload,
+      error: error instanceof Error
+        ? { message: error.message, stack: error.stack, name: error.name }
+        : error,
+    })
+    console.error('Failed to send finance event message', {
+      payload,
+      error,
+    })
+    res.status(502).json({ status: 'error', message: 'Failed to send Telegram notification' })
+  }
 })
 
 app.post(config.telegramWebhookPath, async (req: Request, res: Response) => {
@@ -45,6 +61,7 @@ app.get('/health', (_req, res) => {
 export const startServer = () => {
   app.listen(config.port, async () => {
     console.log(`Finance engine listening on port ${config.port}`)
+    console.log(`Telegram failure log file: ${getTelegramFailureLogPath()}`)
     if (!config.publicBaseUrl.startsWith('https://')) {
       console.warn('Skipping Telegram webhook registration; PUBLIC_BASE_URL must be HTTPS for Telegram webhooks.')
       return
