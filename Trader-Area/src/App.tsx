@@ -27,6 +27,7 @@ import MobileKYCPage from './pages/MobileKYCPage'
 import LeaderboardPage from './pages/LeaderboardPage'
 import AccountOverviewPage from './pages/AccountOverviewPage'
 import MobileMetricsPage from './pages/MobileMetricsPage'
+import MobileStatsPage from './pages/MobileStatsPage'
 import StatisticsPage from './pages/StatisticsPage'
 import CredentialsPage from './pages/CredentialsPage'
 import MobileCredentialsPage from './pages/MobileCredentialsPage'
@@ -55,6 +56,7 @@ const OverviewEntryRoute = () => (isMobileViewport() ? <MobileOverviewPage /> : 
 const TradingAccountsEntryRoute = () => (isMobileViewport() ? <MobileTradingAccountsPage /> : <TradingAccountsPage />)
 const CredentialsEntryRoute = () => (isMobileViewport() ? <MobileCredentialsPage /> : <CredentialsPage />)
 const MetricsEntryRoute = () => (isMobileViewport() ? <MobileMetricsPage /> : <AccountOverviewPage />)
+const StatisticsEntryRoute = () => (isMobileViewport() ? <MobileStatsPage /> : <StatisticsPage />)
 const CalendarEntryRoute = () => (isMobileViewport() ? <MobileCalendarPage /> : <CalendarPage />)
 const StartChallengeEntryRoute = () => (isMobileViewport() ? <MobileStartChallengePage /> : <StartChallengePage />)
 const OrdersEntryRoute = () => (isMobileViewport() ? <MobileOrdersPage /> : <OrdersPage />)
@@ -240,7 +242,7 @@ function App() {
             path="/statistics"
             element={
               <ProtectedRoute>
-                <StatisticsPage />
+                <StatisticsEntryRoute />
               </ProtectedRoute>
             }
           />

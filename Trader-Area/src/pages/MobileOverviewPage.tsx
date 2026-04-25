@@ -133,46 +133,9 @@ const SlideCard: React.FC<SlideCardProps> = ({ account, onHideBreached }) => {
     navigate(`/calendar?challenge_id=${encodeURIComponent(account.challenge_id)}`)
   }
 
-  const handleOpenReport = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleOpenStats = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
-
-    const isBreached = ['breached', 'failed'].includes(String(account.objective_status ?? account.display_status ?? '').toLowerCase())
-
-    if (!isBreached) {
-      navigate(`/account-overview?challenge_id=${encodeURIComponent(account.challenge_id)}`)
-      return
-    }
-
-    void (async () => {
-      try {
-        const detail = await fetchUserChallengeAccountDetail(account.challenge_id)
-        let downloadUrl = detail.breach_report_url ?? null
-
-        if (!downloadUrl) {
-          try {
-            const report = await downloadBreachReport(account.challenge_id)
-            downloadUrl = report.download_url || null
-          } catch {
-            downloadUrl = null
-          }
-        }
-
-        if (!downloadUrl) {
-          window.alert('No report for this account')
-          return
-        }
-
-        const link = document.createElement('a')
-        link.href = downloadUrl
-        link.target = '_blank'
-        link.rel = 'noopener noreferrer'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-      } catch {
-        window.alert('No report for this account')
-      }
-    })()
+    navigate(`/statistics?challenge_id=${encodeURIComponent(account.challenge_id)}`)
   }
 
   const handleHideBreached = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -234,11 +197,11 @@ const SlideCard: React.FC<SlideCardProps> = ({ account, onHideBreached }) => {
           </span>
           <span className="mobile-overview-slide-card__action-label">Calendar</span>
         </button>
-        <button type="button" className="mobile-overview-slide-card__action-item" onClick={handleOpenReport}>
+        <button type="button" className="mobile-overview-slide-card__action-item" onClick={handleOpenStats}>
           <span className="mobile-overview-slide-card__action-icon">
-            <i className="fas fa-file-lines" />
+            <i className="fas fa-chart-pie" />
           </span>
-          <span className="mobile-overview-slide-card__action-label">Report</span>
+          <span className="mobile-overview-slide-card__action-label">Stats</span>
         </button>
       </div>
     </article>
