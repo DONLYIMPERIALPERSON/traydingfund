@@ -104,7 +104,7 @@
 .mobile-calendar-top-summary strong {
   text-align: right;
   flex-shrink: 0;
-  font-size: 18px;
+  font-size: 22px;
   line-height: 1;
   font-weight: 700;
 }
@@ -259,7 +259,7 @@
 }
 
 .mobile-calendar-day-status-label {
-  font-size: 5px;
+  font-size: 7px;
   font-weight: 700;
   text-transform: uppercase;
   color: #6b7280;
@@ -267,7 +267,7 @@
 }
 
 .mobile-calendar-day-pnl {
-  font-size: 6px;
+  font-size: 10px;
   font-weight: 800;
   line-height: 1.1;
   color: #1f2937;

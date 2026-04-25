@@ -35,10 +35,13 @@ const formatCurrency = (value: number | null, currency = 'USD') => {
 
 const formatCompactPnl = (value: number | null) => {
   if (value === null) return ''
-  const formatted = Math.abs(value).toLocaleString('en-US', {
+  const absoluteValue = Math.abs(value)
+  const formatted = new Intl.NumberFormat('en-US', {
+    notation: 'compact',
+    compactDisplay: 'short',
     minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  })
+    maximumFractionDigits: absoluteValue >= 1000 ? 1 : 2,
+  }).format(absoluteValue).toLowerCase()
   if (value > 0) return `+${formatted}`
   if (value < 0) return `-${formatted}`
   return formatted
@@ -173,7 +176,7 @@ const MobileCalendarPage: React.FC = () => {
         <section className="mobile-calendar-top-summary">
           <h2>{currentMonthLabel}</h2>
           <strong className={summary.totalPnl >= 0 ? 'is-profit' : 'is-loss'}>
-            {summary.totalPnl >= 0 ? '+' : ''}{formatCurrency(summary.totalPnl, selectedAccount?.currency ?? 'USD')}
+            {formatCompactPnl(summary.totalPnl)}
           </strong>
         </section>
 
