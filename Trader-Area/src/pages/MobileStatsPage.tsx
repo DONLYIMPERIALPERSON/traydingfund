@@ -28,6 +28,12 @@ const formatPercent = (value: number | null) => {
   return `${value.toFixed(2)}%`
 }
 
+const resolveWinRatePercent = (value: number | null | undefined, closedTradesCount: number | null | undefined) => {
+  if (value == null || !Number.isFinite(value)) return null
+  if (!closedTradesCount || closedTradesCount <= 0) return null
+  return value <= 1 ? value * 100 : value
+}
+
 const formatNumber = (value: number | null, maximumFractionDigits = 2) => {
   if (value == null || !Number.isFinite(value)) return 'N/A'
   return value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits })
@@ -130,24 +136,30 @@ const MobileStatsPage: React.FC = () => {
     if (!accountData) return []
 
     const initialBalance = accountData.initial_balance ?? parseAccountSize(accountData.account_size)
-    const profitableDays = calendarEntries.filter((entry) => entry.pnl > 0).length
-    const biggestGain = calendarEntries.length ? Math.max(...calendarEntries.map((entry) => entry.pnl)) : null
-    const biggestLoss = calendarEntries.length ? Math.min(...calendarEntries.map((entry) => entry.pnl)) : null
-    const profitFactor = computeProfitFactor(calendarEntries)
+    const profitableEntries = calendarEntries.filter((entry) => entry.pnl > 0)
+    const lossEntries = calendarEntries.filter((entry) => entry.pnl < 0)
+    const profitableDays = profitableEntries.length
+    const biggestGain = profitableEntries.length ? Math.max(...profitableEntries.map((entry) => entry.pnl)) : null
+    const biggestLoss = lossEntries.length ? Math.min(...lossEntries.map((entry) => entry.pnl)) : null
+    const profitFactor = (profitableEntries.length && lossEntries.length)
+      ? computeProfitFactor(calendarEntries)
+      : null
     const sharpeRatio = computeSharpeRatio(calendarEntries, initialBalance)
-    const arrr = computeArrr(calendarEntries)
+    const arrr = (profitableEntries.length && lossEntries.length) ? computeArrr(calendarEntries) : null
+    const closedTradesCount = accountData.metrics.closed_trades_count ?? 0
+    const resolvedWinRate = resolveWinRatePercent(accountData.metrics.win_rate, closedTradesCount)
 
     return [
-      { label: 'Win Rate', value: formatPercent((accountData.metrics.win_rate ?? 0) * 100) },
-      { label: 'Profit Factor', value: formatNumber(profitFactor) },
-      { label: 'Sharp Ratio', value: formatNumber(sharpeRatio) },
-      { label: 'Number of Trades', value: formatNumber(accountData.metrics.closed_trades_count ?? 0, 0) },
+      { label: 'Win Rate', value: closedTradesCount > 0 ? formatPercent(resolvedWinRate) : 'No closed trades' },
+      { label: 'Profit Factor', value: profitFactor != null ? formatNumber(profitFactor) : 'No closed profit/loss trades' },
+      { label: 'Sharp Ratio', value: closedTradesCount > 1 ? formatNumber(sharpeRatio) : 'Not enough data' },
+      { label: 'Number of Trades', value: closedTradesCount > 0 ? formatNumber(closedTradesCount, 0) : 'No closed trades' },
       { label: 'Account Age', value: formatAccountAge(accountData.started_at) },
-      { label: 'Profitable Days', value: formatNumber(profitableDays, 0) },
-      { label: 'ARRR', value: formatNumber(arrr) },
-      { label: 'Most Traded Symbol', value: 'N/A' },
-      { label: 'Biggest Loss', value: formatCurrency(biggestLoss, accountCurrency) },
-      { label: 'Biggest Gain', value: formatCurrency(biggestGain, accountCurrency) },
+      { label: 'Profitable Days', value: profitableDays > 0 ? formatNumber(profitableDays, 0) : 'No profit days' },
+      { label: 'ARRR', value: arrr != null ? formatNumber(arrr) : 'No closed profit/loss trades' },
+      { label: 'Most Traded Symbol', value: 'Trade symbol data unavailable' },
+      { label: 'Biggest Loss', value: biggestLoss != null ? formatCurrency(biggestLoss, accountCurrency) : 'No closed loss trades' },
+      { label: 'Biggest Gain', value: biggestGain != null ? formatCurrency(biggestGain, accountCurrency) : 'No closed profit trades' },
     ]
   }, [accountCurrency, accountData, calendarEntries])
 
