@@ -531,7 +531,7 @@ export const listOrders = async (req: AuthRequest, res: Response, next: NextFunc
         assignment_status: order.assignmentStatus,
         account_size: order.accountSize,
         net_amount_kobo: order.netAmountKobo,
-        net_amount_formatted: `$${(order.netAmountKobo / 100).toLocaleString('en-US')}`,
+        net_amount_formatted: formatCurrency(order.netAmountKobo, order.currency),
         payment_method: order.paymentMethod,
         payment_provider: order.paymentProvider,
         created_at: order.createdAt,
