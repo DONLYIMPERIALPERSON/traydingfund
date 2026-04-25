@@ -39,18 +39,22 @@ const formatNumber = (value: number | null, maximumFractionDigits = 2) => {
   return value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits })
 }
 
-const formatAccountAge = (startedAt?: string | null) => {
-  if (!startedAt) return 'N/A'
-  const parsed = new Date(startedAt)
+const formatAccountAge = (startedAt?: string | null, tradingCycleStart?: string | null) => {
+  const sourceDate = tradingCycleStart ?? startedAt
+  if (!sourceDate) return 'N/A'
+  const parsed = new Date(sourceDate)
   if (Number.isNaN(parsed.getTime())) return 'N/A'
   const diffMs = Date.now() - parsed.getTime()
-  if (diffMs < 0) return '0d'
+  if (diffMs < 0) return '1 Day'
   const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000))
-  if (diffDays < 1) {
-    const diffHours = Math.max(1, Math.floor(diffMs / (60 * 60 * 1000)))
-    return `${diffHours}h`
-  }
-  return `${diffDays}d`
+  if (diffDays < 1) return '1 Day'
+  if (diffDays < 7) return `${diffDays} Day${diffDays === 1 ? '' : 's'}`
+  const diffWeeks = Math.floor(diffDays / 7)
+  if (diffDays < 30) return `${diffWeeks} Week${diffWeeks === 1 ? '' : 's'}`
+  const diffMonths = Math.floor(diffDays / 30)
+  if (diffDays < 365) return `${diffMonths} Month${diffMonths === 1 ? '' : 's'}`
+  const diffYears = Math.floor(diffDays / 365)
+  return `${diffYears} Year${diffYears === 1 ? '' : 's'}`
 }
 
 const computeSharpeRatio = (entries: UserChallengeCalendarDay[], initialBalance: number) => {
@@ -154,7 +158,7 @@ const MobileStatsPage: React.FC = () => {
       { label: 'Profit Factor', value: profitFactor != null ? formatNumber(profitFactor) : 'No closed profit/loss trades' },
       { label: 'Sharp Ratio', value: closedTradesCount > 1 ? formatNumber(sharpeRatio) : 'Not enough data' },
       { label: 'Number of Trades', value: closedTradesCount > 0 ? formatNumber(closedTradesCount, 0) : 'No closed trades' },
-      { label: 'Account Age', value: formatAccountAge(accountData.started_at) },
+      { label: 'Account Age', value: formatAccountAge(accountData.started_at, accountData.metrics.trading_cycle_start ?? null) },
       { label: 'Profitable Days', value: profitableDays > 0 ? formatNumber(profitableDays, 0) : 'No profit days' },
       { label: 'ARRR', value: arrr != null ? formatNumber(arrr) : 'No closed profit/loss trades' },
       { label: 'Most Traded Symbol', value: 'Trade symbol data unavailable' },
@@ -203,7 +207,13 @@ const MobileStatsPage: React.FC = () => {
           {statCards.map((stat) => (
             <article key={stat.label} className="mobile-stats-card">
               <span className="mobile-stats-card__label">{stat.label}</span>
-              <strong className="mobile-stats-card__value">{stat.value}</strong>
+              <strong
+                className={`mobile-stats-card__value${
+                  /no |not enough|unavailable|n\/a/i.test(stat.value) ? ' mobile-stats-card__value--hint' : ''
+                }`}
+              >
+                {stat.value}
+              </strong>
             </article>
           ))}
         </section>

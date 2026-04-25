@@ -93,5 +93,12 @@
   line-height: 1.15;
   font-weight: 800;
   color: #ffffff;
+
+.mobile-stats-card__value--hint {
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: rgba(238, 247, 251, 0.82);
+}
   word-break: break-word;
 }
