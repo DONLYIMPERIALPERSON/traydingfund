@@ -33,6 +33,25 @@ const formatCurrency = (value: number | null, currency = 'USD') => {
   }).format(value)
 }
 
+const formatCompactPnl = (value: number | null, currency = 'USD') => {
+  if (value === null) return 'No trade'
+
+  const normalizedCurrency = currency.toUpperCase()
+  const symbol = normalizedCurrency === 'NGN' ? '₦' : '$'
+  const absoluteValue = Math.abs(value)
+
+  const compact = new Intl.NumberFormat('en-US', {
+    notation: 'compact',
+    compactDisplay: 'short',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: absoluteValue >= 1000 ? 1 : 2,
+  }).format(absoluteValue).toLowerCase()
+
+  if (value > 0) return `+${symbol}${compact}`
+  if (value < 0) return `-${symbol}${compact}`
+  return `${symbol}${compact}`
+}
+
 const buildCalendarDays = (
   selectedAccount: UserChallengeAccountListItem | null,
   calendarEntries: UserChallengeCalendarDay[],
@@ -492,12 +511,12 @@ const CalendarPage: React.FC = () => {
                           {day.isCurrentMonth ? (day.status === 'profit' ? 'Profit' : day.status === 'loss' ? 'Loss' : 'No trade') : 'Out'}
                         </div>
                         <div className="calendar-day-pnl" style={{
-                          fontSize: '18px',
+                          fontSize: '22px',
                           fontWeight: 800,
                           color: day.status === 'profit' ? '#0a8f4f' : day.status === 'loss' ? '#c12d3d' : '#1f2937',
                           lineHeight: 1.3,
                         }}>
-                          {day.isCurrentMonth ? formatCurrency(day.pnl, selectedAccount.currency ?? 'USD') : '—'}
+                          {day.isCurrentMonth ? formatCompactPnl(day.pnl, selectedAccount.currency ?? 'USD') : '—'}
                         </div>
                       </div>
 
