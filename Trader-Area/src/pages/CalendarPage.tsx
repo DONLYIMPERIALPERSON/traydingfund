@@ -396,7 +396,7 @@ const CalendarPage: React.FC = () => {
                     Total PnL
                   </div>
                   <div style={{ color: brandGold, fontSize: '14px', fontWeight: 800, whiteSpace: 'nowrap' }}>
-                    {formatCompactPnl(summary.totalPnl, selectedAccount?.currency ?? 'USD')}
+                    {formatCurrency(summary.totalPnl, selectedAccount?.currency ?? 'USD')}
                   </div>
                 </div>
               </div>

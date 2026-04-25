@@ -176,7 +176,7 @@ const MobileCalendarPage: React.FC = () => {
         <section className="mobile-calendar-top-summary">
           <h2>{currentMonthLabel}</h2>
           <strong className={summary.totalPnl >= 0 ? 'is-profit' : 'is-loss'}>
-            {formatCompactPnl(summary.totalPnl)}
+            {summary.totalPnl >= 0 ? '+' : ''}{formatCurrency(summary.totalPnl, selectedAccount?.currency ?? 'USD')}
           </strong>
         </section>
 
