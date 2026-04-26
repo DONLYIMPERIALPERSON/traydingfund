@@ -27,6 +27,11 @@ body {
   background-attachment: fixed;
 }
 
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
 #root {
   min-height: 100vh;
 }
@@ -45,5 +50,21 @@ body {
 @supports (height: 100dvh) {
   [class$="-page"] {
     min-height: 100dvh;
+  }
+}
+
+@media (max-width: 768px) {
+  html,
+  body,
+  #root {
+    background:
+      radial-gradient(900px 500px at 8% 6%, rgba(127, 231, 247, 0.16), transparent 60%),
+      radial-gradient(700px 420px at 92% 12%, rgba(11, 142, 166, 0.14), transparent 60%),
+      linear-gradient(180deg, #06171d 0%, #0a2730 100%);
+  }
+
+  [class$="-page"] {
+    overscroll-behavior-y: contain;
+    background-color: transparent;
   }
 }
