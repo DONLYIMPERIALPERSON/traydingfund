@@ -67,6 +67,88 @@
   gap: 12px;
 }
 
+.mobile-stats-coming-soon {
+  padding: 20px 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(14px);
+}
+
+.mobile-stats-coming-soon__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(127, 231, 247, 0.14);
+  border: 1px solid rgba(127, 231, 247, 0.24);
+  color: #7fe7f7;
+  font-size: 11px;
+  font-weight: 800;
+  margin-bottom: 14px;
+}
+
+.mobile-stats-coming-soon h2 {
+  margin: 0 0 10px;
+  font-size: 24px;
+  line-height: 1.1;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.mobile-stats-coming-soon p {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(238, 247, 251, 0.78);
+}
+
+.mobile-stats-coming-soon__list {
+  display: grid;
+  gap: 10px;
+}
+
+.mobile-stats-coming-soon__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.mobile-stats-coming-soon__item span {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(127, 231, 247, 0.16);
+  color: #7fe7f7;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.mobile-stats-coming-soon__item strong {
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.mobile-stats-coming-soon__footer {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(238, 247, 251, 0.72);
+}
+
 .mobile-stats-card {
   padding: 14px 12px;
   border-radius: 16px;

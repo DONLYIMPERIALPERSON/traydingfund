@@ -7,6 +7,97 @@
   min-height: 100vh;
 }
 
+.desktop-stats-coming-soon {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 32px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #0b2430 0%, #0f3340 100%);
+  border: 1px solid rgba(127, 231, 247, 0.12);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
+  color: #eef7fb;
+}
+
+.desktop-stats-coming-soon__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(127, 231, 247, 0.12);
+  border: 1px solid rgba(127, 231, 247, 0.24);
+  color: #7fe7f7;
+  font-size: 12px;
+  font-weight: 800;
+  margin-bottom: 18px;
+  text-transform: uppercase;
+}
+
+.desktop-stats-coming-soon h1 {
+  margin: 0 0 12px;
+  font-size: 42px;
+  line-height: 1.08;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.desktop-stats-coming-soon p {
+  margin: 0 0 20px;
+  font-size: 16px;
+  line-height: 1.8;
+  color: rgba(238, 247, 251, 0.78);
+  max-width: 760px;
+}
+
+.desktop-stats-coming-soon__list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.desktop-stats-coming-soon__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.desktop-stats-coming-soon__item span {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(127, 231, 247, 0.16);
+  color: #7fe7f7;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.desktop-stats-coming-soon__item strong {
+  color: #ffffff;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.desktop-stats-coming-soon__footer {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 14px;
+  line-height: 1.7;
+  color: rgba(238, 247, 251, 0.72);
+}
+
+@media (max-width: 1200px) {
+  .desktop-stats-coming-soon__list {
+    grid-template-columns: 1fr;
+  }
+}
+
 .statistics-content {
   margin-left: 280px; /* Account for sidebar */
   padding: 24px;
