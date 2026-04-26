@@ -41,18 +41,18 @@ export default function Home() {
                                     New
                                 </span>
                                 <h2 className="mt-4 text-2xl font-bold text-white md:text-4xl">
-                                    Start your funding journey faster with the Attic Program for just ₦1,500.
+                                    Start Trading Instantly with the NGN Breezy Accounts.
                                 </h2>
                                 <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/72 md:text-base">
-                                    A low-entry, high-opportunity path built to help talented traders prove themselves and unlock a funded challenge account.
+                                    No Challenges. No daily drawdown. Just trade freely and earn up to 100% of your profits. A flexible modal designed for disciplined traders who want real payouts without pressure.
                                 </p>
                             </div>
 
                             <a
-                                href="/attic-program"
+                                href="/breezy-accounts"
                                 className="inline-flex items-center justify-center gap-2 self-start rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-gray-100 md:self-center"
                             >
-                                Explore Attic Program
+                                See Breezy Accounts
                                 <ArrowRightIcon className="size-4" />
                             </a>
                         </div>

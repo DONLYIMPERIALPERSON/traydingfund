@@ -13,6 +13,8 @@ type PricingTab = {
     label: string;
     tiers: PricingTier[];
     rules: string[];
+    ctaPrefix?: string;
+    ctaSuffix?: string;
 };
 
 const usdTwoPhaseRules = [
@@ -109,6 +111,26 @@ const ngnTabs: PricingTab[] = [
         ],
         rules: usdTwoPhaseRules,
     },
+    {
+        key: 'breezy',
+        label: 'BREEZY Account',
+        tiers: [
+            { account: '₦200,000', price: '₦4,500' },
+            { account: '₦500,000', price: '₦9,500' },
+            { account: '₦800,000', price: '₦13,500' },
+            { account: '₦1,000,000', price: '₦16,500' },
+        ],
+        rules: [
+            'Challenge: None',
+            'Daily DD: None',
+            'Max DD: None',
+            'Minimum Trades Required: 5',
+            'Profit Split: Up to 100%',
+            'Withdrawals: On Demand',
+        ],
+        ctaPrefix: 'Activate Now',
+        ctaSuffix: '/Week',
+    },
 ];
 
 type CurrencyTab = {
@@ -118,8 +140,8 @@ type CurrencyTab = {
 };
 
 const currencyTabs: CurrencyTab[] = [
-    { key: 'usd', label: 'USD', tabs: usdTabs },
     { key: 'ngn', label: 'NGN', tabs: ngnTabs },
+    { key: 'usd', label: 'USD', tabs: usdTabs },
 ];
 
 export default function Pricing() {
@@ -130,11 +152,22 @@ export default function Pricing() {
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const currencyParam = params.get('currency');
-        if (currencyParam !== 'ngn') return;
-        const ngnCurrency = currencyTabs.find((currency) => currency.key === 'ngn');
-        if (!ngnCurrency) return;
-        setActiveCurrency(ngnCurrency);
-        setActiveTab(ngnCurrency.tabs[0]);
+        const tabParam = params.get('tab');
+
+        if (currencyParam === 'ngn') {
+            const ngnCurrency = currencyTabs.find((currency) => currency.key === 'ngn');
+            if (!ngnCurrency) return;
+
+            setActiveCurrency(ngnCurrency);
+
+            if (tabParam) {
+                const requestedTab = ngnCurrency.tabs.find((tab) => tab.key === tabParam);
+                setActiveTab(requestedTab ?? ngnCurrency.tabs[0]);
+                return;
+            }
+
+            setActiveTab(ngnCurrency.tabs[0]);
+        }
     }, []);
 
     const handleCurrencyChange = (currency: CurrencyTab) => {
@@ -238,7 +271,7 @@ export default function Pricing() {
                                 href={buyUrl}
                                 className="mt-5 block w-full rounded-xl bg-white py-3 text-center text-sm font-semibold text-black transition hover:bg-gray-100"
                             >
-                                Start Now {tier.discountPrice ?? tier.price}
+                                {(activeTab.ctaPrefix ?? 'Start Now')} {tier.discountPrice ?? tier.price}{activeTab.ctaSuffix ?? ''}
                             </a>
                         </div>
                     ))}
