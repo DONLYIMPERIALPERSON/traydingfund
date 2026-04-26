@@ -6,6 +6,7 @@ import {
   fetchAffiliateDashboard,
   requestAffiliatePayout,
 } from '../lib/affiliateApi'
+import { formatReadableDateTime } from '../lib/dateFormat'
 import type { AffiliateDashboard } from '../lib/affiliateApi'
 
 const MobileAffiliatePage: React.FC = () => {
@@ -132,7 +133,7 @@ const MobileAffiliatePage: React.FC = () => {
                 <article key={index} className="mobile-affiliate-list-item">
                   <div>
                     <strong>{transaction.type}</strong>
-                    <p>{transaction.date}</p>
+                    <p>{formatReadableDateTime(transaction.date)}</p>
                   </div>
                   <span>{formatCurrency(transaction.commission)}</span>
                 </article>
@@ -145,7 +146,7 @@ const MobileAffiliatePage: React.FC = () => {
               {dashboardData?.recent_payouts.length ? dashboardData.recent_payouts.map((payout, index) => (
                 <article key={index} className="mobile-affiliate-list-item">
                   <div>
-                    <strong>{payout.date}</strong>
+                    <strong>{formatReadableDateTime(payout.date)}</strong>
                     <p>{payout.status}</p>
                   </div>
                   <span>{formatCurrency(payout.amount)}</span>
