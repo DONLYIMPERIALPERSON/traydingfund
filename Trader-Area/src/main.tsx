@@ -15,3 +15,26 @@ if (container) {
     </>,
   )
 }
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then((registration) => {
+      if (registration.waiting) {
+        window.dispatchEvent(new Event('pwa:update-available'))
+      }
+
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing
+        if (!newWorker) return
+
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            window.dispatchEvent(new Event('pwa:update-available'))
+          }
+        })
+      })
+    }).catch((error) => {
+      console.error('Service worker registration failed:', error)
+    })
+  })
+}

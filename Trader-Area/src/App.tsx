@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import AffiliateRefRedirect from './components/AffiliateRefRedirect'
 import { SidebarProvider } from './contexts/SidebarContext'
@@ -41,6 +41,8 @@ import MobileCalendarPage from './pages/MobileCalendarPage'
 import MobileEconomicCalendarPage from './pages/MobileEconomicCalendarPage'
 import AccountRecoveryPage from './pages/AccountRecoveryPage'
 import MobileOverviewPage from './pages/MobileOverviewPage'
+import PWAPrompts from './components/PWAPrompts'
+import AppLoadingScreen from './components/AppLoadingScreen'
 
 const isAuthenticated = () => Boolean(localStorage.getItem('supabase_access_token'))
 const isMobileViewport = () => window.matchMedia('(max-width: 768px)').matches
@@ -70,9 +72,18 @@ const AffiliateEntryRoute = () => (isMobileViewport() ? <MobileAffiliatePage /> 
 const RewardEntryRoute = () => (isMobileViewport() ? <MobileRewardPage /> : <PayoutPage />)
 
 function App() {
+  const [showLoadingScreen, setShowLoadingScreen] = useState(true)
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setShowLoadingScreen(false), 900)
+    return () => window.clearTimeout(timeout)
+  }, [])
+
   return (
     <SidebarProvider>
       <BrowserRouter>
+        <AppLoadingScreen visible={showLoadingScreen} />
+        <PWAPrompts />
         <Routes>
           <Route path="/ref/:affiliateId" element={<AffiliateRefRedirect />} />
           <Route path="/login" element={<LoginPage />} />
