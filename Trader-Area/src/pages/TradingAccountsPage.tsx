@@ -38,6 +38,26 @@ type AccountView = {
 
 const pricingTabs: PricingTab[] = [
   {
+    key: 'ngnStandard',
+    label: 'NGN Standard',
+    tiers: [
+      { account: '₦200,000', price: '₦5,000' },
+      { account: '₦500,000', price: '₦11,500' },
+      { account: '₦800,000', price: '₦17,000' },
+    ],
+    rules: [],
+  },
+  {
+    key: 'ngnFlexi',
+    label: 'NGN Flexi',
+    tiers: [
+      { account: '₦200,000', price: '₦9,000' },
+      { account: '₦500,000', price: '₦21,000' },
+      { account: '₦800,000', price: '₦31,500' },
+    ],
+    rules: [],
+  },
+  {
     key: 'twoPhase',
     label: '2 Step',
     tiers: [
@@ -73,26 +93,6 @@ const pricingTabs: PricingTab[] = [
       { account: '$50K', price: '$612' },
       { account: '$100K', price: '$1091' },
       { account: '$200K', price: '$1910' },
-    ],
-    rules: [],
-  },
-  {
-    key: 'ngnStandard',
-    label: 'NGN Standard',
-    tiers: [
-      { account: '₦200,000', price: '₦5,000' },
-      { account: '₦500,000', price: '₦11,500' },
-      { account: '₦800,000', price: '₦17,000' },
-    ],
-    rules: [],
-  },
-  {
-    key: 'ngnFlexi',
-    label: 'NGN Flexi',
-    tiers: [
-      { account: '₦200,000', price: '₦9,000' },
-      { account: '₦500,000', price: '₦21,000' },
-      { account: '₦800,000', price: '₦31,500' },
     ],
     rules: [],
   },
@@ -292,6 +292,8 @@ const DesktopTradingAccountsPage: React.FC = () => {
     })
   }, [activeTab, effectiveRules, planPrices])
 
+  const isPurchaseRestricted = (tabKey: PricingTab['key']) => ['twoPhase', 'onePhase', 'instant'].includes(tabKey)
+
   return (
     <div className="desktop-trading-accounts-page">
       <DesktopHeader />
@@ -347,12 +349,13 @@ const DesktopTradingAccountsPage: React.FC = () => {
                 </div>
                 <button
                   className="pricing-tier-button"
+                  disabled={isPurchaseRestricted(activeTab.key)}
                   onClick={() => navigate(
                     window.matchMedia('(max-width: 768px)').matches ? '/mobile-start-challenge' : '/start-challenge',
                     { state: accounts[index] },
                   )}
                 >
-                  Start Now
+                  {isPurchaseRestricted(activeTab.key) ? 'Temporarily Unavailable' : 'Start Now'}
                 </button>
               </div>
             ))}

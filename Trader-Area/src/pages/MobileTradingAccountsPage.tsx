@@ -31,11 +31,11 @@ type AccountView = {
 }
 
 const pricingTabs: PricingTab[] = [
+  { key: 'ngnStandard', label: 'NGN Standard', tiers: [{ account: '₦200,000', price: '₦5,000' }, { account: '₦500,000', price: '₦11,500' }, { account: '₦800,000', price: '₦17,000' }], rules: [] },
+  { key: 'ngnFlexi', label: 'NGN Flexi', tiers: [{ account: '₦200,000', price: '₦9,000' }, { account: '₦500,000', price: '₦21,000' }, { account: '₦800,000', price: '₦31,500' }], rules: [] },
   { key: 'twoPhase', label: '2 Step', tiers: [{ account: '$2K', price: '$12' }, { account: '$10K', price: '$81' }, { account: '$30K', price: '$163' }, { account: '$50K', price: '$203' }, { account: '$100K', price: '$354' }, { account: '$200K', price: '$681' }], rules: [] },
   { key: 'onePhase', label: '1 Step', tiers: [{ account: '$2K', price: '$26' }, { account: '$10K', price: '$108' }, { account: '$30K', price: '$203' }, { account: '$50K', price: '$299' }, { account: '$100K', price: '$450' }, { account: '$200K', price: '$885' }], rules: [] },
   { key: 'instant', label: 'Instant Funded', tiers: [{ account: '$2K', price: '$53' }, { account: '$10K', price: '$163' }, { account: '$30K', price: '$381' }, { account: '$50K', price: '$612' }, { account: '$100K', price: '$1091' }, { account: '$200K', price: '$1910' }], rules: [] },
-  { key: 'ngnStandard', label: 'NGN Standard', tiers: [{ account: '₦200,000', price: '₦5,000' }, { account: '₦500,000', price: '₦11,500' }, { account: '₦800,000', price: '₦17,000' }], rules: [] },
-  { key: 'ngnFlexi', label: 'NGN Flexi', tiers: [{ account: '₦200,000', price: '₦9,000' }, { account: '₦500,000', price: '₦21,000' }, { account: '₦800,000', price: '₦31,500' }], rules: [] },
 ]
 
 const formatAccountSize = (label: string) => {
@@ -176,6 +176,8 @@ const MobileTradingAccountsPage: React.FC = () => {
     })
   }, [activeTab, effectiveRules, planPrices])
 
+  const isPurchaseRestricted = (tabKey: PricingTab['key']) => ['twoPhase', 'onePhase', 'instant'].includes(tabKey)
+
   return (
     <div className="mobile-trading-accounts-page">
       <div className="mobile-trading-accounts-shell">
@@ -225,9 +227,10 @@ const MobileTradingAccountsPage: React.FC = () => {
               <button
                 type="button"
                 className="mobile-trading-account-card__button"
+                disabled={isPurchaseRestricted(activeTab.key)}
                 onClick={() => navigate('/mobile-start-challenge', { state: accounts[index] })}
               >
-                Start Now
+                {isPurchaseRestricted(activeTab.key) ? 'Temporarily Unavailable' : 'Start Now'}
               </button>
             </article>
           ))}

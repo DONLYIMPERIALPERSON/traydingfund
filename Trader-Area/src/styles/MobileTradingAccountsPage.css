@@ -134,3 +134,10 @@
   color: #06212a;
   font-weight: 700;
 }
+
+.mobile-trading-account-card__button:disabled {
+  background: #7b8794;
+  color: rgba(255, 255, 255, 0.82);
+  cursor: not-allowed;
+  box-shadow: none;
+}
