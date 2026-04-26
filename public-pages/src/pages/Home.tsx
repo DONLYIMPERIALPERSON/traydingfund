@@ -52,7 +52,7 @@ export default function Home() {
                                 href="/breezy-accounts"
                                 className="inline-flex items-center justify-center gap-2 self-start rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-gray-100 md:self-center"
                             >
-                                See Breezy Accounts
+                                Read More
                                 <ArrowRightIcon className="size-4" />
                             </a>
                         </div>
