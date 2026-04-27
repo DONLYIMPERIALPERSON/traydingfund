@@ -9,11 +9,14 @@ type BreezyMetricsPayload = {
   platform?: string
   balance?: number
   equity?: number
+  unrealized_pnl?: number
   account_status?: string
   breach_reason?: string | null
   capital_protection_level?: number
   min_equity?: number
   peak_balance?: number
+  trading_cycle_start?: string | null
+  trading_cycle_source?: string | null
   realized_profit?: number
   profit_percent?: number
   closed_trades?: number
@@ -41,6 +44,12 @@ const parseDailyPnlSummary = (value: unknown): Array<{ date: Date; pnl: number }
     if (!Number.isFinite(parsedDate.getTime())) return []
     return [{ date: parsedDate, pnl: Number(rawPnl) }]
   })
+}
+
+const parseIsoDate = (value: unknown): Date | null => {
+  if (typeof value !== 'string' || !value.trim()) return null
+  const parsed = new Date(value)
+  return Number.isFinite(parsed.getTime()) ? parsed : null
 }
 
 export const upsertBreezyMetrics = async (req: Request, res: Response, next: NextFunction) => {
@@ -90,7 +99,7 @@ export const upsertBreezyMetrics = async (req: Request, res: Response, next: Nex
           accountId: account.id,
           balance: Number(payload.balance),
           equity: Number(payload.equity),
-          unrealizedPnl: 0,
+          unrealizedPnl: Number(payload.unrealized_pnl ?? (Number(payload.equity) - Number(payload.balance))),
           maxPermittedLossLeft: 0,
           highestBalance: Number(payload.peak_balance ?? payload.balance),
           breachBalance: Number(payload.capital_protection_level ?? 0),
@@ -117,8 +126,8 @@ export const upsertBreezyMetrics = async (req: Request, res: Response, next: Nex
           firstTradeAt: null,
           totalTrades: Number(payload.closed_trades ?? 0),
           tradingDaysCount: dailyPnlSummary.length,
-          tradingCycleStart: null,
-          tradingCycleSource: 'breezy_engine',
+          tradingCycleStart: parseIsoDate(payload.trading_cycle_start),
+          tradingCycleSource: payload.trading_cycle_source ? String(payload.trading_cycle_source) : 'breezy_engine',
           shortDurationViolation: false,
           breachReason: payload.breach_reason ? String(payload.breach_reason) : null,
           minEquity: Number(payload.min_equity ?? payload.equity),
@@ -145,11 +154,14 @@ export const upsertBreezyMetrics = async (req: Request, res: Response, next: Nex
         update: {
           balance: Number(payload.balance),
           equity: Number(payload.equity),
+          unrealizedPnl: Number(payload.unrealized_pnl ?? (Number(payload.equity) - Number(payload.balance))),
           highestBalance: Number(payload.peak_balance ?? payload.balance),
           breachBalance: Number(payload.capital_protection_level ?? 0),
           closedTradesCount: Number(payload.closed_trades ?? 0),
           totalTrades: Number(payload.closed_trades ?? 0),
           tradingDaysCount: dailyPnlSummary.length,
+          tradingCycleStart: parseIsoDate(payload.trading_cycle_start),
+          tradingCycleSource: payload.trading_cycle_source ? String(payload.trading_cycle_source) : 'breezy_engine',
           dailyLowEquity: Number(payload.min_equity ?? payload.equity),
           breachReason: payload.breach_reason ? String(payload.breach_reason) : null,
           minEquity: Number(payload.min_equity ?? payload.equity),

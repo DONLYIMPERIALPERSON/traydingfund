@@ -103,6 +103,48 @@ def log_summary(*, account_number: str, session_id: str, record: dict) -> None:
         handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
 
+def post_result_to_backend(result: BreezyReplayResult) -> None:
+    if not BACKEND_BREEZY_METRICS_URL:
+        return
+
+    payload = {
+        "account_number": result.account_number,
+        "platform": "mt5",
+        "balance": result.snapshot.get("balance") if result.snapshot else None,
+        "equity": result.snapshot.get("equity") if result.snapshot else None,
+        "account_status": result.account_status,
+        "breach_reason": result.breach_reason,
+        "capital_protection_level": result.capital_protection_level,
+        "min_equity": result.min_equity,
+        "peak_balance": result.peak_balance,
+        "realized_profit": result.realized_profit,
+        "profit_percent": result.profit_percent,
+        "closed_trades": result.closed_trades,
+        "risk_score": result.risk_score,
+        "risk_score_band": result.risk_score_band,
+        "components": result.components,
+        "profit_split": result.profit_split,
+        "withdrawal_eligible": result.withdrawal_eligible,
+        "withdrawal_block_reason": result.withdrawal_block_reason,
+        "breach_event": result.breach_event,
+        "daily_pnl_summary": result.daily_pnl_summary,
+        "snapshot": result.snapshot,
+        "max_total_exposure": result.max_total_exposure,
+        "max_single_position_risk": result.max_single_position_risk,
+    }
+    headers = {}
+    if BACKEND_ENGINE_SECRET:
+        headers["X-ENGINE-SECRET"] = BACKEND_ENGINE_SECRET
+
+    response = requests.post(
+        BACKEND_BREEZY_METRICS_URL,
+        json=payload,
+        headers=headers,
+        timeout=15,
+    )
+    response.raise_for_status()
+
+
 class PositionPayload(BaseModel):
     ticket: Optional[str] = None
     position_id: Optional[str] = None
@@ -148,6 +190,8 @@ class BreezyEAPayload(BaseModel):
     account_size: Optional[float] = None
     current_balance: float
     current_equity: float
+    trading_cycle_start: Optional[str] = None
+    trading_cycle_source: Optional[str] = None
     anchor_time_ms: int
     positions: List[PositionPayload] = Field(default_factory=list)
     closed_deals: List[ClosedDealPayload] = Field(default_factory=list)
@@ -187,6 +231,9 @@ class BreezyReplayResult(BaseModel):
     capital_protection_level: float
     min_equity: float
     peak_balance: float
+    unrealized_pnl: float = 0.0
+    trading_cycle_start: Optional[str] = None
+    trading_cycle_source: Optional[str] = None
     realized_profit: float
     profit_percent: float
     closed_trades: int
@@ -959,6 +1006,7 @@ def calculate_result(session: BreezyReplaySession) -> BreezyReplayResult:
 
     profit_percent = _round6((realized_profit / replay.initial_balance * 100) if replay.initial_balance > 0 else 0.0)
     account_status = "terminated" if breach_reason == "CAPITAL_PROTECTION_LIMIT" else "active"
+    unrealized_pnl = _round6(payload.current_equity - payload.current_balance)
 
     score_exposure_input = max_total_exposure
     exposure_component = _score_total_exposure(score_exposure_input)
@@ -1045,6 +1093,9 @@ def calculate_result(session: BreezyReplaySession) -> BreezyReplayResult:
         capital_protection_level=capital_protection_level,
         min_equity=min_equity,
         peak_balance=peak_balance,
+        unrealized_pnl=unrealized_pnl,
+        trading_cycle_start=payload.trading_cycle_start,
+        trading_cycle_source=payload.trading_cycle_source,
         realized_profit=_round6(realized_profit),
         profit_percent=profit_percent,
         closed_trades=closed_trades,
