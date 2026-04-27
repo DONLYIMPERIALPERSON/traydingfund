@@ -247,27 +247,22 @@ const AdminCheckingPage = () => {
       </div>
 
       <div className="admin-table-card" style={{ display: 'grid', gap: 16 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+        <div className="admin-mobile-controls">
           <input
             type="text"
             placeholder="Enter account number"
             value={accountNumber}
             onChange={(event) => setAccountNumber(event.target.value)}
-            style={{
-              border: '1px solid #2a2f3a',
-              background: '#0f172a',
-              color: '#e5e7eb',
-              borderRadius: 10,
-              padding: '10px 12px',
-              minWidth: 240,
-            }}
+            className="admin-mobile-input"
           />
-          <button type="button" onClick={handleLookup} disabled={loading}>
-            {loading ? 'Searching...' : 'Search'}
-          </button>
-          <button type="button" onClick={handleReset} disabled={!account || resetting}>
-            {resetting ? 'Requesting...' : 'Request Reset'}
-          </button>
+          <div className="admin-mobile-button-row">
+            <button type="button" onClick={handleLookup} disabled={loading}>
+              {loading ? 'Searching...' : 'Search'}
+            </button>
+            <button type="button" onClick={handleReset} disabled={!account || resetting}>
+              {resetting ? 'Requesting...' : 'Request Reset'}
+            </button>
+          </div>
         </div>
 
         {error && <p style={{ color: '#fca5a5', margin: 0 }}>{error}</p>}

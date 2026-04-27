@@ -100,6 +100,8 @@ const PayoutPage: React.FC = () => {
     ? payoutData.funded_accounts.filter((account) => !account.has_pending_request)
     : []
   const availablePayoutTotal = availableAccounts.reduce((sum, account) => sum + account.available_payout, 0)
+  const overallRewardAmount = overallCertificate?.total_reward ?? payoutData?.total_earned_all_time ?? 0
+  const overallRewardCurrency = overallCertificate?.currency ?? 'USD'
   const kycLockedTitle = kycStatus === 'pending'
     ? 'KYC verification in progress'
     : kycStatus === 'declined'
@@ -225,7 +227,7 @@ const PayoutPage: React.FC = () => {
                     </div>
                     <div className="stat-content">
                       <div className="stat-label">Overall Reward</div>
-                      <div className="stat-value">{formatCurrency(payoutData.total_earned_all_time)}</div>
+                      <div className="stat-value">{formatCurrency(overallRewardAmount, overallRewardCurrency)}</div>
                       <div className="stat-subtitle">All-time earnings</div>
                     </div>
                     <div className="reward-certificate-actions">
@@ -334,8 +336,8 @@ const PayoutPage: React.FC = () => {
                               value={account.account_id}
                               disabled={!canWithdraw}
                             >
-                              {account.account_size} - Available: {formatCurrency(account.available_payout)}
-                              {!canWithdraw && ` (Min: ${formatCurrency(account.minimum_withdrawal_amount)})`}
+                              {account.account_size} - Available: {formatCurrency(account.available_payout, account.currency)}
+                              {!canWithdraw && ` (Min: ${formatCurrency(account.minimum_withdrawal_amount, account.currency)})`}
                             </option>
                           )
                         })}
@@ -405,7 +407,7 @@ const PayoutPage: React.FC = () => {
                               <i className={`fas fa-${withdrawal.status === 'completed' ? 'check' : withdrawal.status === 'processing' ? 'clock' : 'times'}`}></i>
                             </div>
                             <div className="history-details">
-                              <div className="history-amount">{formatCurrency(withdrawal.amount)}</div>
+                              <div className="history-amount">{formatCurrency(withdrawal.amount, withdrawal.currency ?? 'USD')}</div>
                               <div className="history-date">
                                 {formatDate(withdrawal.requested_at)} • {formatTime(withdrawal.requested_at)}
                               </div>

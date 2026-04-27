@@ -112,11 +112,14 @@ def post_result_to_backend(result: BreezyReplayResult) -> None:
         "platform": "mt5",
         "balance": result.snapshot.get("balance") if result.snapshot else None,
         "equity": result.snapshot.get("equity") if result.snapshot else None,
+        "unrealized_pnl": result.unrealized_pnl,
         "account_status": result.account_status,
         "breach_reason": result.breach_reason,
         "capital_protection_level": result.capital_protection_level,
         "min_equity": result.min_equity,
         "peak_balance": result.peak_balance,
+        "trading_cycle_start": result.trading_cycle_start,
+        "trading_cycle_source": result.trading_cycle_source,
         "realized_profit": result.realized_profit,
         "profit_percent": result.profit_percent,
         "closed_trades": result.closed_trades,
@@ -435,6 +438,48 @@ def _is_balance_symbol(deal: ClosedDealPayload) -> bool:
 
 def _should_ignore_deal(deal: ClosedDealPayload) -> bool:
     return _deal_is_deposit(deal) or _deal_is_withdrawal(deal) or _is_balance_symbol(deal)
+
+
+def _resolve_cycle_start(payload: BreezyEAPayload) -> tuple[Optional[str], Optional[str], Optional[int]]:
+    withdrawals = [deal for deal in payload.closed_deals if _deal_is_withdrawal(deal)]
+    if withdrawals:
+        last_withdrawal = max(withdrawals, key=lambda d: d.time_ms)
+        return (
+            datetime.utcfromtimestamp(last_withdrawal.time_ms / 1000).isoformat() + "Z",
+            "withdrawal",
+            last_withdrawal.time_ms,
+        )
+
+    deposits = [deal for deal in payload.closed_deals if _deal_is_deposit(deal)]
+    if deposits:
+        first_deposit = min(deposits, key=lambda d: d.time_ms)
+        first_trade_candidates: List[int] = []
+
+        for deal in payload.closed_deals:
+            if _should_ignore_deal(deal):
+                continue
+            if deal.time_ms >= first_deposit.time_ms:
+                first_trade_candidates.append(deal.time_ms)
+
+        for position in payload.positions:
+            if position.open_time_ms >= first_deposit.time_ms:
+                first_trade_candidates.append(position.open_time_ms)
+
+        if first_trade_candidates:
+            first_trade_ms = min(first_trade_candidates)
+            return (
+                datetime.utcfromtimestamp(first_trade_ms / 1000).isoformat() + "Z",
+                "first_trade_after_deposit",
+                first_trade_ms,
+            )
+
+        return (
+            datetime.utcfromtimestamp(first_deposit.time_ms / 1000).isoformat() + "Z",
+            "deposit",
+            first_deposit.time_ms,
+        )
+
+    return (payload.trading_cycle_start, payload.trading_cycle_source, payload.anchor_time_ms)
 
 
 def _symbol_meta_map(payload: BreezyEAPayload) -> Dict[str, SymbolMetaPayload]:
@@ -798,6 +843,7 @@ def calculate_result(session: BreezyReplaySession) -> BreezyReplayResult:
 
     payload = session.ea_payload
     replay = session.replay_input
+    cycle_start, cycle_source, _cycle_start_ms = _resolve_cycle_start(payload)
 
     symbols = sorted({pos.symbol for pos in payload.positions} | {deal.symbol for deal in payload.closed_deals if not _should_ignore_deal(deal)})
     unsupported_symbols = _unsupported_symbols(symbols)
@@ -1094,8 +1140,8 @@ def calculate_result(session: BreezyReplaySession) -> BreezyReplayResult:
         min_equity=min_equity,
         peak_balance=peak_balance,
         unrealized_pnl=unrealized_pnl,
-        trading_cycle_start=payload.trading_cycle_start,
-        trading_cycle_source=payload.trading_cycle_source,
+        trading_cycle_start=cycle_start,
+        trading_cycle_source=cycle_source,
         realized_profit=_round6(realized_profit),
         profit_percent=profit_percent,
         closed_trades=closed_trades,

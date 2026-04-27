@@ -363,6 +363,7 @@ export const getPayoutSummary = async (req: AuthRequest, res: Response, next: Ne
           account_id: account.id,
           challenge_id: account.challengeId,
           account_size: account.accountSize,
+          currency: resolveCurrencyLabel(account.currency),
           current_balance: payoutInfo.metrics?.balance ?? payoutInfo.initialBalance,
           available_payout: availablePayout,
           profit_cap_amount: payoutInfo.profitRaw,
@@ -395,6 +396,7 @@ export const getPayoutSummary = async (req: AuthRequest, res: Response, next: Ne
         account: {
           select: {
             accountNumber: true,
+            currency: true,
           },
         },
       },
@@ -414,6 +416,7 @@ export const getPayoutSummary = async (req: AuthRequest, res: Response, next: Ne
       withdrawal_history: withdrawals.map((withdrawal) => ({
         id: withdrawal.id,
         amount: withdrawal.amountKobo / 100,
+        currency: resolveCurrencyLabel(withdrawal.account?.currency),
         status: withdrawal.status,
         requested_at: withdrawal.requestedAt.toISOString(),
         completed_at: withdrawal.completedAt?.toISOString() ?? null,

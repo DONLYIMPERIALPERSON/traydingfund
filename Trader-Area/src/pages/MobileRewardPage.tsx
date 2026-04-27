@@ -95,6 +95,8 @@ const MobileRewardPage: React.FC = () => {
   const hasPayoutMethod = Boolean(bankProfile || cryptoProfile)
   const isKycVerified = ['verified', 'approved'].includes(kycStatus)
   const availableAccounts = payoutData ? payoutData.funded_accounts.filter((account) => !account.has_pending_request) : []
+  const overallRewardAmount = overallCertificate?.total_reward ?? payoutData?.total_earned_all_time ?? 0
+  const overallRewardCurrency = overallCertificate?.currency ?? 'USD'
 
   const handleDownloadCertificate = () => {
     if (!overallCertificate?.certificate_url) return
@@ -179,7 +181,7 @@ const MobileRewardPage: React.FC = () => {
                 <div className="mobile-reward-highlight__top">
                   <div>
                     <span>Overall Reward</span>
-                    <strong>{formatCurrency(payoutData.total_earned_all_time)}</strong>
+                    <strong>{formatCurrency(overallRewardAmount, overallRewardCurrency)}</strong>
                     <p>All-time earnings</p>
                   </div>
                   <button type="button" className="mobile-reward-refresh" onClick={() => void handleRefreshCertificate()} disabled={refreshingCertificate}>
@@ -222,8 +224,8 @@ const MobileRewardPage: React.FC = () => {
                           const canWithdraw = account.available_payout >= account.minimum_withdrawal_amount
                           return (
                             <option key={account.account_id} value={account.account_id} disabled={!canWithdraw}>
-                              {account.account_size} - Available: {formatCurrency(account.available_payout)}
-                              {!canWithdraw ? ` (Min: ${formatCurrency(account.minimum_withdrawal_amount)})` : ''}
+                              {account.account_size} - Available: {formatCurrency(account.available_payout, account.currency)}
+                              {!canWithdraw ? ` (Min: ${formatCurrency(account.minimum_withdrawal_amount, account.currency)})` : ''}
                             </option>
                           )
                         })}
@@ -255,7 +257,7 @@ const MobileRewardPage: React.FC = () => {
                     {payoutData.withdrawal_history.map((withdrawal) => (
                       <article key={withdrawal.id} className="mobile-reward-history-item">
                         <div>
-                          <strong>{formatCurrency(withdrawal.amount)}</strong>
+                          <strong>{formatCurrency(withdrawal.amount, withdrawal.currency ?? 'USD')}</strong>
                           <p>{formatDate(withdrawal.requested_at)} • {formatTime(withdrawal.requested_at)}</p>
                           {withdrawal.reference ? <small>Ref: {withdrawal.reference}</small> : null}
                           {withdrawal.decline_reason ? <small>Reason: {withdrawal.decline_reason}</small> : null}

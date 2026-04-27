@@ -257,7 +257,7 @@ const PayoutsPage = ({
             <h2>Payout Requests</h2>
             <p>Review eligibility, approve/reject requests, and monitor payout processing queue.</p>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="admin-mobile-button-row">
             <button
               type="button"
               onClick={handleGeneratePayoutCertificates}
@@ -279,7 +279,7 @@ const PayoutsPage = ({
         </div>
 
         {/* Tab Selector */}
-        <div style={{ marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="admin-mobile-button-row" style={{ marginTop: '16px' }}>
           <button
             onClick={() => setActiveTab('requests')}
             style={{
@@ -389,7 +389,7 @@ const PayoutsPage = ({
                     <div style={{ fontSize: '12px', color: '#fff' }}>{new Date(request.created_at).toLocaleTimeString()}</div>
                   </td>
                   <td>
-                    <div style={{ display: 'flex', gap: '4px', flexDirection: 'column' }}>
+                    <div style={{ display: 'flex', gap: '4px', flexDirection: 'column', minWidth: 140 }}>
                       <button
                         type="button"
                         className="payout-action-btn"
@@ -398,7 +398,7 @@ const PayoutsPage = ({
                       >
                         View Profile
                       </button>
-                      <div style={{ display: 'flex', gap: '4px' }}>
+                      <div className="payout-action-group payout-action-group--mobile">
                         <button
                           type="button"
                           className="payout-action-btn approve"

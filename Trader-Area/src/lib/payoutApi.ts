@@ -4,6 +4,7 @@ export interface FundedAccountPayout {
   account_id: number;
   challenge_id: string;
   account_size: string;
+  currency?: string;
   current_balance: number;
   available_payout: number;
   profit_cap_amount: number;
@@ -19,6 +20,7 @@ export interface FundedAccountPayout {
 export interface WithdrawalHistory {
   id: number
   amount: number
+  currency?: string | null
   status: string
   requested_at: string
   completed_at: string | null
@@ -104,7 +106,16 @@ class PayoutAPI {
 export const payoutAPI = new PayoutAPI()
 
 // Utility functions for formatting
-export const formatCurrency = (amount: number): string => {
+export const formatCurrency = (amount: number, currency: string = 'USD'): string => {
+  const normalizedCurrency = String(currency).toUpperCase() === 'NGN' ? 'NGN' : 'USD'
+
+  if (normalizedCurrency === 'NGN') {
+    return `₦${amount.toLocaleString('en-NG', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`
+  }
+
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',

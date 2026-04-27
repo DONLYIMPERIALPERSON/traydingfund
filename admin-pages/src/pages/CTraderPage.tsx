@@ -380,7 +380,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
             <h2>Accounts Pool</h2>
             <p style={{ margin: 0, color: '#fff' }}>Ready inventory and stage-assigned account tracking</p>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="admin-mobile-button-row">
             <button
               type="button"
               onClick={handleDownloadTemplate}
@@ -491,7 +491,7 @@ const CTraderPage = ({ isSuperAdmin, canAssignMt5 }: { isSuperAdmin: boolean; ca
       <div className="admin-table-card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px 6px', gap: 12, flexWrap: 'wrap' }}>
           <h3 style={{ color: '#fff', margin: 0 }}>cTrader Accounts</h3>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="admin-mobile-button-row">
             <select
               value={platformFilter}
               onChange={(event) => setPlatformFilter(event.target.value as 'all' | 'ctrader' | 'mt5')}
