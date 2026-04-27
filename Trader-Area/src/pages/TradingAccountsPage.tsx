@@ -15,7 +15,7 @@ type PricingTier = {
 }
 
 type PricingTab = {
-  key: 'twoPhase' | 'onePhase' | 'instant' | 'ngnStandard' | 'ngnFlexi'
+  key: 'twoPhase' | 'onePhase' | 'instant' | 'ngnStandard' | 'ngnFlexi' | 'breezy'
   label: string
   tiers: PricingTier[]
   rules: string[]
@@ -32,8 +32,9 @@ type AccountView = {
   fee: string
   status: 'available' | 'paused'
   profit_split: string
-  challenge_type: 'two_step' | 'one_step' | 'instant_funded' | 'ngn_standard' | 'ngn_flexi'
+  challenge_type: 'two_step' | 'one_step' | 'instant_funded' | 'ngn_standard' | 'ngn_flexi' | 'breezy'
   phase: 'phase_1' | 'phase_2' | 'funded'
+  description?: string
 }
 
 const pricingTabs: PricingTab[] = [
@@ -56,6 +57,24 @@ const pricingTabs: PricingTab[] = [
       { account: '₦800,000', price: '₦31,500' },
     ],
     rules: [],
+  },
+  {
+    key: 'breezy',
+    label: 'NGN Breezy',
+    tiers: [
+      { account: '₦200,000', price: '₦7,500' },
+      { account: '₦500,000', price: '₦15,000' },
+      { account: '₦800,000', price: '₦24,000' },
+      { account: '₦1,000,000', price: '₦30,000' },
+    ],
+    rules: [
+      'Challenge: None',
+      'Daily DD: None',
+      'Max DD: None',
+      'Minimum Trades Required: 5',
+      'Profit Split: Up to 100%',
+      'Withdrawals: On Demand',
+    ],
   },
   {
     key: 'twoPhase',
@@ -250,6 +269,8 @@ const DesktopTradingAccountsPage: React.FC = () => {
           ? 'ngn_standard'
           : activeTab.key === 'ngnFlexi'
             ? 'ngn_flexi'
+            : activeTab.key === 'breezy'
+              ? 'breezy'
             : 'two_step'
     const availablePlans = planPrices[challengeKey] ?? []
 
@@ -286,13 +307,32 @@ const DesktopTradingAccountsPage: React.FC = () => {
         fee,
         status,
         profit_split: getRuleValue(['Profit Split']),
-        challenge_type: challengeType,
+        challenge_type: challengeType as AccountView['challenge_type'],
         phase,
+        description: activeTab.key === 'breezy' ? 'Weekly subscription · bank transfer only' : undefined,
       }
     })
   }, [activeTab, effectiveRules, planPrices])
 
-  const isPurchaseRestricted = (tabKey: PricingTab['key']) => ['twoPhase', 'onePhase', 'instant'].includes(tabKey)
+  const isPurchaseRestricted = (tabKey: PricingTab['key']) => {
+    const challengeKey = tabKey === 'onePhase'
+      ? 'one_step'
+      : tabKey === 'instant'
+        ? 'instant_funded'
+        : tabKey === 'ngnStandard'
+          ? 'ngn_standard'
+          : tabKey === 'ngnFlexi'
+            ? 'ngn_flexi'
+            : tabKey === 'breezy'
+              ? 'breezy'
+              : 'two_step'
+
+    if (['two_step', 'one_step', 'instant_funded'].includes(challengeKey)) {
+      return (planPrices[challengeKey] ?? []).length === 0
+    }
+
+    return false
+  }
 
   return (
     <div className="desktop-trading-accounts-page">
@@ -355,7 +395,7 @@ const DesktopTradingAccountsPage: React.FC = () => {
                     { state: accounts[index] },
                   )}
                 >
-                  {isPurchaseRestricted(activeTab.key) ? 'Temporarily Unavailable' : 'Start Now'}
+                  {isPurchaseRestricted(activeTab.key) ? 'Temporarily Unavailable' : activeTab.key === 'breezy' ? 'Activate Now' : 'Start Now'}
                 </button>
               </div>
             ))}

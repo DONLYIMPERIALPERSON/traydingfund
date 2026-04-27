@@ -456,6 +456,7 @@ export const listChallengeAccounts = async (req: AuthRequest, res: Response, nex
             ? 'RESET_MANUAL_ADJUSTMENT'
             : null
       const baseAccount = {
+        account_id: account.id,
         challenge_id: account.challengeId,
         account_size: account.accountSize,
         currency: account.currency,
@@ -472,6 +473,22 @@ export const listChallengeAccounts = async (req: AuthRequest, res: Response, nex
         breached_at: account.breachedAt?.toISOString() ?? null,
         passed_at: account.passedAt?.toISOString() ?? null,
         passed_stage: null,
+        breezy: String(account.challengeType ?? '').toLowerCase() === 'breezy'
+          ? {
+              risk_score: account.metrics?.riskScore ?? null,
+              risk_score_band: account.metrics?.riskScoreBand ?? null,
+              withdrawal_eligible: account.metrics?.withdrawalEligible ?? null,
+              withdrawal_block_reason: account.metrics?.withdrawalBlockReason ?? null,
+              profit_split_percent: account.metrics?.effectiveProfitSplitPercent ?? null,
+              capital_protection_level: account.metrics?.capitalProtectionLevel ?? null,
+              account_status: account.metrics?.accountStatus ?? null,
+              subscription_expires_at: account.subscriptionExpiresAt?.toISOString() ?? null,
+              subscription_started_at: account.subscriptionStartedAt?.toISOString() ?? null,
+              subscription_status: account.subscriptionStatus ?? null,
+              renewal_price_kobo: account.renewalPriceKobo ?? null,
+              can_renew: account.subscriptionExpiresAt ? (account.subscriptionExpiresAt.getTime() - Date.now()) <= (2 * 24 * 60 * 60 * 1000) && account.subscriptionExpiresAt.getTime() > Date.now() : false,
+            }
+          : null,
       }
 
       return baseAccount
@@ -611,6 +628,7 @@ export const getChallengeAccountDetail = async (
     const normalizedChallengeType = normalizeChallengeType(account.challengeType)
     const accountCurrency = account.currency ?? 'USD'
     const formatAccountCurrency = (value: number) => formatCurrency(value, accountCurrency)
+    const isBreezyAccount = String(account.challengeType ?? '').toLowerCase() === 'breezy'
     const profitTargetBalance = objectiveFields.profitTargetAmount != null
       ? initialBalance + objectiveFields.profitTargetAmount
       : metrics.profitTargetBalance
@@ -741,6 +759,7 @@ export const getChallengeAccountDetail = async (
     }
 
     res.json({
+      account_id: account.id,
       challenge_id: account.challengeId,
       account_size: account.accountSize,
       currency: account.currency,
@@ -808,6 +827,22 @@ export const getChallengeAccountDetail = async (
         breach_event: (metrics as { breachEvent?: unknown }).breachEvent ?? null,
         trade_duration_violations: (metrics as { tradeDurationViolations?: unknown }).tradeDurationViolations ?? null,
         reset_type: resetType,
+        breezy: isBreezyAccount
+          ? {
+              account_status: (account.metrics as { accountStatus?: string | null } | null)?.accountStatus ?? null,
+              capital_protection_level: (account.metrics as { capitalProtectionLevel?: number | null } | null)?.capitalProtectionLevel ?? null,
+              risk_score: (account.metrics as { riskScore?: number | null } | null)?.riskScore ?? null,
+              risk_score_band: (account.metrics as { riskScoreBand?: string | null } | null)?.riskScoreBand ?? null,
+              risk_components: (account.metrics as { riskComponents?: unknown } | null)?.riskComponents ?? null,
+              effective_profit_split_percent: (account.metrics as { effectiveProfitSplitPercent?: number | null } | null)?.effectiveProfitSplitPercent ?? null,
+              withdrawal_eligible: (account.metrics as { withdrawalEligible?: boolean | null } | null)?.withdrawalEligible ?? null,
+              withdrawal_block_reason: (account.metrics as { withdrawalBlockReason?: string | null } | null)?.withdrawalBlockReason ?? null,
+              max_total_exposure: (account.metrics as { maxTotalExposure?: number | null } | null)?.maxTotalExposure ?? null,
+              max_single_position_risk: (account.metrics as { maxSinglePositionRisk?: number | null } | null)?.maxSinglePositionRisk ?? null,
+              realized_profit: (account.metrics as { realizedProfit?: number | null } | null)?.realizedProfit ?? null,
+              profit_percent: (account.metrics as { profitPercent?: number | null } | null)?.profitPercent ?? null,
+            }
+          : null,
       },
       objectives,
       credentials,
@@ -815,6 +850,20 @@ export const getChallengeAccountDetail = async (
       funded_profit_capped: null,
       funded_profit_cap_amount: null,
       funded_user_payout_amount: null,
+      breezy: isBreezyAccount
+        ? {
+            withdrawal_eligible: (account.metrics as { withdrawalEligible?: boolean | null } | null)?.withdrawalEligible ?? null,
+            withdrawal_block_reason: (account.metrics as { withdrawalBlockReason?: string | null } | null)?.withdrawalBlockReason ?? null,
+            risk_score: (account.metrics as { riskScore?: number | null } | null)?.riskScore ?? null,
+            risk_score_band: (account.metrics as { riskScoreBand?: string | null } | null)?.riskScoreBand ?? null,
+            profit_split_percent: (account.metrics as { effectiveProfitSplitPercent?: number | null } | null)?.effectiveProfitSplitPercent ?? null,
+            subscription_started_at: account.subscriptionStartedAt?.toISOString() ?? null,
+            subscription_expires_at: account.subscriptionExpiresAt?.toISOString() ?? null,
+            subscription_status: account.subscriptionStatus ?? null,
+            renewal_price_kobo: account.renewalPriceKobo ?? null,
+            can_renew: account.subscriptionExpiresAt ? (account.subscriptionExpiresAt.getTime() - Date.now()) <= (2 * 24 * 60 * 60 * 1000) && account.subscriptionExpiresAt.getTime() > Date.now() : false,
+          }
+        : null,
     })
   } catch (err) {
     next(err as Error)

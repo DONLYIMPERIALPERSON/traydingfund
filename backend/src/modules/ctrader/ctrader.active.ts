@@ -30,7 +30,9 @@ export const listActiveCTraderAccounts = async (req: Request, res: Response, nex
       const phase = String(account.phase ?? '')
         .toLowerCase()
         .replace(/-/g, '_')
-      const accountType = challengeType === 'instant_funded'
+      const accountType = challengeType === 'breezy'
+        ? 'breezy'
+        : challengeType === 'instant_funded'
         ? 'instant_funded'
         : (challengeType && phase ? `${challengeType}_${phase}` : challengeType)
       return {

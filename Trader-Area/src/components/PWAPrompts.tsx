@@ -81,9 +81,9 @@ const PWAPrompts: React.FC = () => {
         }}>
           {showInstall && !showUpdate ? (
             <>
-              <div style={{ fontSize: '15px', fontWeight: 800, marginBottom: '6px' }}>Install Trader Area</div>
+              <div style={{ fontSize: '15px', fontWeight: 800, marginBottom: '6px' }}>Install MacheFunded</div>
               <div style={{ fontSize: '13px', lineHeight: 1.6, color: 'rgba(238,247,251,0.78)', marginBottom: '14px' }}>
-                Add Trader Area to your home screen for faster access and a more app-like experience.
+                Add MacheFunded to your home screen for faster access and a more app-like experience.
               </div>
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
                 <button type="button" onClick={() => setShowInstall(false)} style={{ background: 'transparent', color: '#eef7fb', border: '1px solid rgba(255,255,255,0.16)', borderRadius: '999px', padding: '10px 14px', cursor: 'pointer' }}>
@@ -100,7 +100,7 @@ const PWAPrompts: React.FC = () => {
             <>
               <div style={{ fontSize: '15px', fontWeight: 800, marginBottom: '6px' }}>Update available</div>
               <div style={{ fontSize: '13px', lineHeight: 1.6, color: 'rgba(238,247,251,0.78)', marginBottom: '14px' }}>
-                A newer version of Trader Area is ready. Update now to use the latest improvements.
+                A newer version of MacheFunded is ready. Update now to use the latest improvements.
               </div>
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
                 <button type="button" onClick={() => setShowUpdate(false)} disabled={updating} style={{ background: 'transparent', color: '#eef7fb', border: '1px solid rgba(255,255,255,0.16)', borderRadius: '999px', padding: '10px 14px', cursor: 'pointer' }}>

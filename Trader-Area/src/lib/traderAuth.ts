@@ -95,6 +95,7 @@ export type KycEligibilityResponse = {
 }
 
 export type UserChallengeAccountListItem = {
+  account_id?: number
   challenge_id: string
   account_size: string
   currency?: string
@@ -110,6 +111,20 @@ export type UserChallengeAccountListItem = {
   breached_at: string | null
   passed_at: string | null
   passed_stage: string | null
+  breezy?: {
+    risk_score?: number | null
+    risk_score_band?: string | null
+    withdrawal_eligible?: boolean | null
+    withdrawal_block_reason?: string | null
+    profit_split_percent?: number | null
+    capital_protection_level?: number | null
+    account_status?: string | null
+    subscription_expires_at?: string | null
+    subscription_started_at?: string | null
+    subscription_status?: string | null
+    renewal_price_kobo?: number | null
+    can_renew?: boolean | null
+  } | null
 }
 
 export type UserChallengeAccountListResponse = {
@@ -161,6 +176,20 @@ export type UserChallengeMetrics = {
   duration_violations_count?: number
   breach_event?: Record<string, unknown> | null
   trade_duration_violations?: Record<string, unknown>[] | null
+  breezy?: {
+    account_status?: string | null
+    capital_protection_level?: number | null
+    risk_score?: number | null
+    risk_score_band?: string | null
+    risk_components?: Record<string, number> | null
+    effective_profit_split_percent?: number | null
+    withdrawal_eligible?: boolean | null
+    withdrawal_block_reason?: string | null
+    max_total_exposure?: number | null
+    max_single_position_risk?: number | null
+    realized_profit?: number | null
+    profit_percent?: number | null
+  } | null
 }
 
 export type UserChallengeCredentials = {
@@ -175,6 +204,7 @@ export type TradingObjectivesResponse = {
 }
 
 export type UserChallengeAccountDetailResponse = {
+  account_id?: number
   challenge_id: string
   account_size: string
   currency?: string
@@ -201,6 +231,18 @@ export type UserChallengeAccountDetailResponse = {
   funded_profit_capped: number | null
   funded_profit_cap_amount: number | null
   funded_user_payout_amount: number | null
+  breezy?: {
+    withdrawal_eligible?: boolean | null
+    withdrawal_block_reason?: string | null
+    risk_score?: number | null
+    risk_score_band?: string | null
+    profit_split_percent?: number | null
+    subscription_started_at?: string | null
+    subscription_expires_at?: string | null
+    subscription_status?: string | null
+    renewal_price_kobo?: number | null
+    can_renew?: boolean | null
+  } | null
 }
 
 export type UserChallengeCalendarDay = {
@@ -314,6 +356,8 @@ export type PaymentOrderResponse = {
   payer_virtual_acc_no: string | null
   expires_at: string | null
   challenge_id: string | null
+  order_type?: string | null
+  renewal_for_account_number?: string | null
   crypto_currency?: string | null
   crypto_address?: string | null
   crypto_networks?: {
@@ -664,6 +708,12 @@ export async function refreshPaymentOrderStatus(providerOrderId: string): Promis
   return apiFetch<PaymentStatusRefreshResponse>(
     `/trader/orders/${encodeURIComponent(providerOrderId)}`
   )
+}
+
+export async function createBreezyRenewalOrder(accountId: number): Promise<PaymentOrderResponse> {
+  return apiFetch<PaymentOrderResponse>(`/trader/breezy/${accountId}/renew`, {
+    method: 'POST',
+  })
 }
 
 export async function fetchOrders(

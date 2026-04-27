@@ -36,7 +36,7 @@ const AppLoadingScreen: React.FC<AppLoadingScreenProps> = ({ visible }) => {
           alt="MacheFunded"
           style={{ width: '88px', height: '88px', objectFit: 'contain', display: 'block', margin: '0 auto 18px' }}
         />
-        <div style={{ fontSize: '22px', fontWeight: 800, marginBottom: '8px' }}>Trader Area</div>
+        <div style={{ fontSize: '22px', fontWeight: 800, marginBottom: '8px' }}>MacheFunded</div>
         <div style={{ fontSize: '13px', lineHeight: 1.6, color: 'rgba(238,247,251,0.76)', marginBottom: '18px' }}>
           Preparing your workspace and loading your trading dashboard.
         </div>

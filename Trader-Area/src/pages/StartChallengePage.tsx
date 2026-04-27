@@ -25,6 +25,9 @@ interface AccountData {
   payout: string
   fee: string
   status: string
+  challenge_type?: string
+  phase?: string
+  description?: string
 }
 
 const normalizeDisplayPrice = (value: string | number | null | undefined, currency: 'USD' | 'NGN') => {
@@ -66,6 +69,7 @@ const DesktopStartChallengePage: React.FC = () => {
     accountData?.size?.trim().startsWith('₦')
     || String((accountData as any)?.challenge_type ?? '').toLowerCase().startsWith('ngn')
   )
+  const isBreezyAccount = String((accountData as any)?.challenge_type ?? '').toLowerCase() === 'breezy'
   const checkoutCurrency: 'USD' | 'NGN' = isNgnAccount ? 'NGN' : 'USD'
   const isFreeCheckout = Boolean(couponPreview && couponPreview.final_amount === 0)
 
@@ -101,6 +105,13 @@ const DesktopStartChallengePage: React.FC = () => {
       setSelectedPaymentMethod('bank-transfer')
     }
   }, [isNgnAccount, isFreeCheckout, selectedPaymentMethod])
+
+  React.useEffect(() => {
+    if (isBreezyAccount) {
+      setSelectedPaymentMethod('bank-transfer')
+      setSelectedPlatform('mt5')
+    }
+  }, [isBreezyAccount])
 
   const inferPlanId = (account: AccountData | undefined): string => {
     if (!account) return ''
@@ -337,7 +348,7 @@ const DesktopStartChallengePage: React.FC = () => {
                   <h3>Account Details</h3>
                   <div className="desktop-summary-row"><span>Account Balance</span><strong>{accountData.size}</strong></div>
                   <div className="desktop-summary-row"><span>Leverage</span><strong>1:100</strong></div>
-                  <div className="desktop-summary-row"><span>Trading Account Currency</span><strong>USD</strong></div>
+                  <div className="desktop-summary-row"><span>Trading Account Currency</span><strong>{checkoutCurrency}</strong></div>
                   <div className="desktop-summary-row"><span>Platform</span><strong>{selectedPlatform === 'ctrader' ? 'cTrader' : 'MT5'}</strong></div>
                 </div>
                 <div className="platform-selection">
@@ -367,30 +378,32 @@ const DesktopStartChallengePage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="desktop-checkout-panel">
-                  <h3>Promo Code</h3>
-                  <div className="desktop-promo-row">
-                    <input
-                      value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value)}
-                      placeholder="Enter discount code"
-                    />
-                    <button type="button" onClick={() => void applyCoupon()} disabled={couponLoading || pageLoading}>
-                      {couponLoading ? 'Applying...' : 'Apply'}
-                    </button>
-                  </div>
-                  {couponError && (
-                    <div className="desktop-coupon-error" role="alert">
-                      <i className="fas fa-exclamation-circle" aria-hidden="true"></i>
-                      <span>{couponError}</span>
+                {!isBreezyAccount && (
+                  <div className="desktop-checkout-panel">
+                    <h3>Promo Code</h3>
+                    <div className="desktop-promo-row">
+                      <input
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value)}
+                        placeholder="Enter discount code"
+                      />
+                      <button type="button" onClick={() => void applyCoupon()} disabled={couponLoading || pageLoading}>
+                        {couponLoading ? 'Applying...' : 'Apply'}
+                      </button>
                     </div>
-                  )}
-                  {couponPreview && (
-                    <p className="desktop-coupon-success">
-                      Applied {couponPreview.code}: -{couponPreview.formatted_discount_amount}
-                    </p>
-                  )}
-                </div>
+                    {couponError && (
+                      <div className="desktop-coupon-error" role="alert">
+                        <i className="fas fa-exclamation-circle" aria-hidden="true"></i>
+                        <span>{couponError}</span>
+                      </div>
+                    )}
+                    {couponPreview && (
+                      <p className="desktop-coupon-success">
+                        Applied {couponPreview.code}: -{couponPreview.formatted_discount_amount}
+                      </p>
+                    )}
+                  </div>
+                )}
 
 
               </div>
@@ -399,7 +412,7 @@ const DesktopStartChallengePage: React.FC = () => {
                 <div className="desktop-checkout-panel">
                   <h3>Summary</h3>
                   <div className="desktop-summary-row"><span>Account Balance</span><strong>{accountData.size}</strong></div>
-                  <div className="desktop-summary-row"><span>Challenge Type</span><strong>{accountData.phases}-Step</strong></div>
+                  <div className="desktop-summary-row"><span>Challenge Type</span><strong>{isBreezyAccount ? 'Breezy Weekly Subscription' : `${accountData.phases}-Step`}</strong></div>
                   <div className="desktop-summary-row"><span>Target</span><strong>{accountData.target}</strong></div>
                   <div className="desktop-summary-row"><span>Max Drawdown</span><strong>{accountData.drawdown}</strong></div>
                   {couponPreview && (
@@ -431,7 +444,7 @@ const DesktopStartChallengePage: React.FC = () => {
                           />
                           <span>NGN Bank Transfer</span>
                         </label>
-                        {!isNgnAccount && (
+                        {!isNgnAccount && !isBreezyAccount && (
                           <label className={`desktop-method-option ${selectedPaymentMethod === 'crypto' ? 'active' : ''}`}>
                             <input
                               type="radio"
@@ -488,7 +501,7 @@ const DesktopStartChallengePage: React.FC = () => {
                         ? 'Processing...'
                         : isFreeCheckout
                           ? 'Activate Free Challenge'
-                          : 'Proceed to Payment'}
+                          : isBreezyAccount ? 'Proceed to Breezy Payment' : 'Proceed to Payment'}
                   </button>
                   {paymentStatus && <p className="desktop-coupon-success">{paymentStatus}</p>}
                 </div>

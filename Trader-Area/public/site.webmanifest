@@ -1,6 +1,6 @@
 {
-  "name": "MacheFunded Trader Area",
-  "short_name": "Trader Area",
+  "name": "MacheFunded",
+  "short_name": "MacheFunded",
   "description": "Access your MacheFunded trader dashboard, accounts, payouts, certificates, support, and performance tools.",
   "start_url": "/login",
   "scope": "/",

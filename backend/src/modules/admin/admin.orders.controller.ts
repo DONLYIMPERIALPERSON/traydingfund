@@ -11,6 +11,9 @@ import { fetchRemoteAttachment, sendUnifiedEmail } from '../../services/email.se
 import { redeemCouponForCompletedOrder } from '../../services/coupon.service'
 
 const AFFILIATE_COMMISSION_PERCENT = 30
+const BREEZY_SUBSCRIPTION_DAYS = 7
+const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000)
+const isBreezyChallengeType = (challengeType?: string | null) => String(challengeType ?? '').toLowerCase() === 'breezy'
 
 const formatCurrency = (amountKobo: number) =>
   `$${(amountKobo / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
@@ -289,6 +292,19 @@ export const retryPendingAssignments = async (_req: Request, res: Response, next
         data: { assignmentStatus: 'assigned' },
       })
 
+      if (isBreezyChallengeType(order.challengeType)) {
+        const paidAt = order.paidAt ?? new Date()
+        await prisma.cTraderAccount.update({
+          where: { id: assigned.id },
+          data: {
+            subscriptionStartedAt: paidAt,
+            subscriptionExpiresAt: addDays(paidAt, BREEZY_SUBSCRIPTION_DAYS),
+            subscriptionStatus: 'active',
+            renewalPriceKobo: order.netAmountKobo,
+          } as Prisma.CTraderAccountUncheckedUpdateInput,
+        })
+      }
+
       if (platform.toLowerCase() === 'mt5') {
         await prisma.cTraderAccount.update({
           where: { id: assigned.id },
@@ -440,6 +456,19 @@ export const approveCryptoOrder = async (req: Request, res: Response, next: Next
           where: { id: updated.id },
           data: { assignmentStatus: 'assigned' },
         })
+
+        if (isBreezyChallengeType(updated.challengeType)) {
+          const paidAt = updated.paidAt ?? new Date()
+          await prisma.cTraderAccount.update({
+            where: { id: assigned.id },
+            data: {
+              subscriptionStartedAt: paidAt,
+              subscriptionExpiresAt: addDays(paidAt, BREEZY_SUBSCRIPTION_DAYS),
+              subscriptionStatus: 'active',
+              renewalPriceKobo: updated.netAmountKobo,
+            } as Prisma.CTraderAccountUncheckedUpdateInput,
+          })
+        }
 
         if (platform.toLowerCase() === 'mt5') {
           await prisma.cTraderAccount.update({

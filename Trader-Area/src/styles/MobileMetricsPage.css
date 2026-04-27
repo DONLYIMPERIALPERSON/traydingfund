@@ -225,6 +225,94 @@
   padding: 18px;
 }
 
+.mobile-breezy-card {
+  padding: 18px;
+}
+
+.mobile-breezy-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.mobile-breezy-item {
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mobile-breezy-item--hero {
+  padding-bottom: 16px;
+}
+
+.mobile-breezy-item__label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(238, 247, 251, 0.6);
+  font-weight: 700;
+}
+
+.mobile-breezy-item__value {
+  font-size: 24px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.mobile-breezy-item__value.is-positive {
+  color: #7ef0b1;
+}
+
+.mobile-breezy-item__value.is-negative {
+  color: #ff8f8f;
+}
+
+.mobile-breezy-item__status,
+.mobile-breezy-item__copy {
+  font-size: 12px;
+  color: rgba(238, 247, 251, 0.78);
+}
+
+.mobile-breezy-item__status.is-good {
+  color: #7ef0b1;
+}
+
+.mobile-breezy-item__status.is-mid {
+  color: #ffd76d;
+}
+
+.mobile-breezy-item__status.is-low {
+  color: #ff8f8f;
+}
+
+.mobile-breezy-progress {
+  margin-top: 8px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.mobile-breezy-progress__bar {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.mobile-breezy-progress__bar.is-good {
+  background: linear-gradient(90deg, #34d399, #0f9d58);
+}
+
+.mobile-breezy-progress__bar.is-mid {
+  background: linear-gradient(90deg, #facc15, #f59e0b);
+}
+
+.mobile-breezy-progress__bar.is-low {
+  background: linear-gradient(90deg, #f87171, #d93025);
+}
+
 .mobile-metrics-section-heading h2 {
   margin: 0 0 14px;
   font-size: 20px;

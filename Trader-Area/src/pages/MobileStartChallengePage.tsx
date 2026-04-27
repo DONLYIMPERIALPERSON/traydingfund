@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import MobilePaymentSheet from '../components/MobilePaymentSheet'
 import {
+  createBreezyRenewalOrder,
   initPalmPayBankTransfer,
   initCryptoOrder,
   initFreeOrder,
@@ -66,6 +67,14 @@ const MobileStartChallengePage: React.FC = () => {
   )
   const checkoutCurrency: 'USD' | 'NGN' = isNgnAccount ? 'NGN' : 'USD'
   const isFreeCheckout = Boolean(couponPreview && couponPreview.final_amount === 0)
+  const isBreezyAccount = String(accountData?.challenge_type ?? '').toLowerCase() === 'breezy'
+
+  React.useEffect(() => {
+    if (isBreezyAccount) {
+      setSelectedPaymentMethod('bank-transfer')
+      setSelectedPlatform('mt5')
+    }
+  }, [isBreezyAccount])
 
   const inferPlanId = (account: AccountData | undefined): string => {
     if (!account) return ''
@@ -80,7 +89,7 @@ const MobileStartChallengePage: React.FC = () => {
     if (!accountData) return []
     return [
       { label: 'Account Balance', value: accountData.size },
-      { label: 'Challenge Type', value: `${accountData.phases}-Step` },
+        { label: 'Challenge Type', value: isBreezyAccount ? 'Breezy Weekly Subscription' : `${accountData.phases}-Step` },
       { label: 'Target', value: accountData.target },
       { label: 'Max Drawdown', value: accountData.drawdown },
     ]
@@ -275,7 +284,7 @@ const MobileStartChallengePage: React.FC = () => {
           <div className="mobile-start-challenge-summary-list">
             <div className="mobile-start-challenge-summary-row"><span>Account Balance</span><strong>{accountData.size}</strong></div>
             <div className="mobile-start-challenge-summary-row"><span>Leverage</span><strong>1:100</strong></div>
-            <div className="mobile-start-challenge-summary-row"><span>Trading Currency</span><strong>USD</strong></div>
+            <div className="mobile-start-challenge-summary-row"><span>Trading Currency</span><strong>{checkoutCurrency}</strong></div>
             <div className="mobile-start-challenge-summary-row"><span>Platform</span><strong>{selectedPlatform === 'ctrader' ? 'cTrader' : 'MT5'}</strong></div>
           </div>
         </section>
@@ -292,21 +301,23 @@ const MobileStartChallengePage: React.FC = () => {
           </div>
         </section>
 
-        <section className="mobile-start-challenge-card">
-          <h2>Promo Code</h2>
-          <div className="mobile-start-challenge-promo-row">
-            <input
-              value={promoCode}
-              onChange={(e) => setPromoCode(e.target.value)}
-              placeholder="Enter discount code"
-            />
-            <button type="button" onClick={() => void applyCoupon()} disabled={couponLoading}>
-              {couponLoading ? 'Applying...' : 'Apply'}
-            </button>
-          </div>
-          {couponError ? <p className="mobile-start-challenge-error">{couponError}</p> : null}
-          {couponPreview ? <p className="mobile-start-challenge-success">Applied {couponPreview.code}: -{couponPreview.formatted_discount_amount}</p> : null}
-        </section>
+        {!isBreezyAccount ? (
+          <section className="mobile-start-challenge-card">
+            <h2>Promo Code</h2>
+            <div className="mobile-start-challenge-promo-row">
+              <input
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value)}
+                placeholder="Enter discount code"
+              />
+              <button type="button" onClick={() => void applyCoupon()} disabled={couponLoading}>
+                {couponLoading ? 'Applying...' : 'Apply'}
+              </button>
+            </div>
+            {couponError ? <p className="mobile-start-challenge-error">{couponError}</p> : null}
+            {couponPreview ? <p className="mobile-start-challenge-success">Applied {couponPreview.code}: -{couponPreview.formatted_discount_amount}</p> : null}
+          </section>
+        ) : null}
 
         <section className="mobile-start-challenge-card">
           <h2>Summary</h2>
@@ -352,7 +363,7 @@ const MobileStartChallengePage: React.FC = () => {
                 >
                   NGN Bank Transfer
                 </button>
-                {!isNgnAccount ? (
+                {!isNgnAccount && !isBreezyAccount ? (
                   <button
                     type="button"
                     className={selectedPaymentMethod === 'crypto' ? 'is-active' : ''}

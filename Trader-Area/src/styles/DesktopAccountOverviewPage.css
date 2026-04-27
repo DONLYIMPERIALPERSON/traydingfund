@@ -669,6 +669,96 @@
   border-radius: 10px;
 }
 
+.breezy-objective-section {
+  background: white;
+}
+
+.breezy-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.breezy-metric-card {
+  border-radius: 18px;
+  padding: 20px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.06);
+}
+
+.breezy-metric-card--hero {
+  grid-column: span 2;
+}
+
+.breezy-metric-card__label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 10px;
+}
+
+.breezy-metric-card__value {
+  font-size: 30px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.05;
+}
+
+.breezy-metric-card__value.is-positive {
+  color: #0f9d58;
+}
+
+.breezy-metric-card__value.is-negative {
+  color: #d93025;
+}
+
+.breezy-metric-card__status,
+.breezy-metric-card__subtext {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #475569;
+}
+
+.breezy-metric-card__status.is-good {
+  color: #0f9d58;
+}
+
+.breezy-metric-card__status.is-mid {
+  color: #b7791f;
+}
+
+.breezy-metric-card__status.is-low {
+  color: #d93025;
+}
+
+.breezy-progress {
+  margin-top: 14px;
+  height: 12px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.breezy-progress__bar {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.breezy-progress__bar.is-good {
+  background: linear-gradient(90deg, #34d399, #0f9d58);
+}
+
+.breezy-progress__bar.is-mid {
+  background: linear-gradient(90deg, #facc15, #f59e0b);
+}
+
+.breezy-progress__bar.is-low {
+  background: linear-gradient(90deg, #f87171, #d93025);
+}
+
 /* Breach Details Modal */
 .breach-modal-overlay {
   position: fixed;

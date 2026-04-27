@@ -96,7 +96,36 @@ const buildAccountPayout = async (accountId: number) => {
   const metrics = account.metrics
 
   const challengeType = normalizeChallengeType(account.challengeType)
+  const isBreezy = challengeType === 'breezy'
   const phaseKey = account.phase?.toLowerCase().includes('funded') ? 'funded' : account.phase
+
+  if (isBreezy) {
+    const initialBalance = account.initialBalance
+      ?? parseAccountSize(account.accountSize)
+      ?? 0
+    const realizedProfit = metrics?.realizedProfit ?? Math.max(0, (metrics?.balance ?? initialBalance) - initialBalance)
+    const profitSplitPercent = metrics?.effectiveProfitSplitPercent ?? 0
+    const profitSplitAmount = realizedProfit * (profitSplitPercent / 100)
+
+    const lastPayout = await prisma.payout.findFirst({
+      where: { accountId: account.id, status: { in: ['processing', 'completed', 'pending_approval', 'declined'] } },
+      orderBy: { requestedAt: 'desc' },
+    })
+
+    return {
+      account,
+      metrics,
+      initialBalance,
+      profitRaw: realizedProfit,
+      profitSplitPercent,
+      profitSplitAmount,
+      withdrawalSchedule: 'breezy_risk_based',
+      scheduleDays: 0,
+      nextEligibleAt: null,
+      lastPayout,
+      isBreezy: true,
+    }
+  }
 
   const objectiveFields = await buildObjectiveFields({
     accountSize: account.accountSize,
@@ -175,6 +204,7 @@ const buildAccountPayout = async (accountId: number) => {
     scheduleDays,
     nextEligibleAt,
     lastPayout,
+    isBreezy: false,
   }
 }
 
@@ -299,10 +329,16 @@ export const getPayoutSummary = async (req: AuthRequest, res: Response, next: Ne
     const fundedAccounts = await prisma.cTraderAccount.findMany({
       where: {
         userId: user.id,
-        status: { in: ['funded', 'active'] },
         OR: [
           {
             AND: [
+              { challengeType: 'breezy' },
+              { status: { in: ['active', 'breached'], mode: 'insensitive' } },
+            ],
+          },
+          {
+            AND: [
+              { status: { in: ['funded', 'active'] } },
               { status: 'active' },
               { phase: { contains: 'funded', mode: 'insensitive' } },
             ],
@@ -339,6 +375,8 @@ export const getPayoutSummary = async (req: AuthRequest, res: Response, next: Ne
           next_withdrawal_at: payoutInfo.nextEligibleAt?.toISOString() ?? null,
           withdrawal_schedule: payoutInfo.withdrawalSchedule,
           has_pending_request: hasPendingRequest,
+          withdrawal_eligible: payoutInfo.isBreezy ? (payoutInfo.metrics?.withdrawalEligible ?? false) : undefined,
+          withdrawal_block_reason: payoutInfo.isBreezy ? (payoutInfo.metrics?.withdrawalBlockReason ?? null) : undefined,
         }
       })
     )
@@ -429,15 +467,19 @@ export const requestPayout = async (req: AuthRequest, res: Response, next: NextF
     }
 
     const metrics = payoutInfo.metrics
-    if (metrics && !metrics.minTradingDaysMet) {
+    if (!payoutInfo.isBreezy && metrics && !metrics.minTradingDaysMet) {
       throw new ApiError('Minimum trading days not reached yet.', 400)
+    }
+
+    if (payoutInfo.isBreezy && !metrics?.withdrawalEligible) {
+      throw new ApiError(metrics?.withdrawalBlockReason || 'Breezy withdrawal is not currently eligible.', 400)
     }
 
     if (payoutInfo.profitSplitAmount < MIN_WITHDRAWAL_AMOUNT) {
       throw new ApiError(`Minimum withdrawal amount is $${MIN_WITHDRAWAL_AMOUNT}.`, 400)
     }
 
-    if (payoutInfo.nextEligibleAt && payoutInfo.nextEligibleAt > new Date()) {
+    if (!payoutInfo.isBreezy && payoutInfo.nextEligibleAt && payoutInfo.nextEligibleAt > new Date()) {
       throw new ApiError('Withdrawal schedule not reached yet.', 400)
     }
 

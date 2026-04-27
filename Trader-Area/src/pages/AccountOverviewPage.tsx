@@ -3,9 +3,16 @@ import { useSearchParams } from 'react-router-dom'
 import DesktopHeader from '../components/DesktopHeader'
 import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
+import PaymentDetailsModal from '../components/PaymentDetailsModal'
 import ServiceUnavailableState from '../components/ServiceUnavailableState'
-import { downloadBreachReport, fetchUserChallengeAccountDetail, refreshChallengeAccount, type UserChallengeAccountDetailResponse } from '../lib/traderAuth'
+import { createBreezyRenewalOrder, downloadBreachReport, fetchUserChallengeAccountDetail, refreshChallengeAccount, refreshPaymentOrderStatus, type PaymentOrderResponse, type UserChallengeAccountDetailResponse } from '../lib/traderAuth'
 import '../styles/DesktopAccountOverviewPage.css'
+
+const getBreezyProgressTone = (score: number) => {
+  if (score >= 75) return 'good'
+  if (score >= 50) return 'mid'
+  return 'low'
+}
 
 const AccountOverviewPage: React.FC = () => {
   const [searchParams] = useSearchParams()
@@ -15,6 +22,11 @@ const AccountOverviewPage: React.FC = () => {
   const [showBreachModal, setShowBreachModal] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isDownloadingBreachReport, setIsDownloadingBreachReport] = useState(false)
+  const [isRenewing, setIsRenewing] = useState(false)
+  const [paymentStatus, setPaymentStatus] = useState('')
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [currentOrder, setCurrentOrder] = useState<PaymentOrderResponse | null>(null)
+  const [modalStatus, setModalStatus] = useState<'waiting' | 'confirming' | 'success'>('waiting')
 
   const resolveCurrencyCode = (account: UserChallengeAccountDetailResponse) => {
     const currency = account.currency
@@ -222,6 +234,61 @@ const AccountOverviewPage: React.FC = () => {
     }
   }, [accountData?.breach_report_url, challengeId, isDownloadingBreachReport])
 
+  const startPaymentPolling = useCallback(async (orderId: string) => {
+    setModalStatus('confirming')
+    for (let i = 0; i < 24; i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5000))
+      try {
+        const refreshed = await refreshPaymentOrderStatus(orderId)
+        if (refreshed.status === 'completed') {
+          setModalStatus('success')
+          await loadAccountData()
+          return
+        }
+        if (refreshed.status === 'failed' || refreshed.status === 'expired') {
+          setModalStatus('waiting')
+          setPaymentStatus(`Payment ${refreshed.status}. Please try again.`)
+          setShowPaymentModal(false)
+          return
+        }
+      } catch (error) {
+        console.error('Renewal payment status check failed:', error)
+      }
+    }
+    setModalStatus('waiting')
+    setPaymentStatus('Payment confirmation timed out. Please check your payment status.')
+    setShowPaymentModal(false)
+  }, [loadAccountData])
+
+  const handleBreezyRenew = useCallback(async () => {
+    if (!accountData || isRenewing) return
+    const accountIdRaw = challengeId ? Number(new URLSearchParams(window.location.search).get('account_id')) : NaN
+    try {
+      setIsRenewing(true)
+      setPaymentStatus('')
+      const accountsResponse = await fetch('/noop')
+      void accountsResponse
+    } catch {}
+    try {
+      const accountList = await fetchUserChallengeAccountDetail(accountData.challenge_id)
+      void accountList
+    } catch {}
+    try {
+      const accountId = Number((accountData as unknown as { account_id?: number }).account_id ?? accountIdRaw)
+      if (!Number.isFinite(accountId) || accountId <= 0) {
+        throw new Error('Unable to resolve Breezy account for renewal.')
+      }
+      const order = await createBreezyRenewalOrder(accountId)
+      setCurrentOrder(order)
+      setShowPaymentModal(true)
+      void startPaymentPolling(order.provider_order_id)
+    } catch (error) {
+      setPaymentStatus(error instanceof Error ? error.message : 'Failed to create renewal payment')
+    } finally {
+      setIsRenewing(false)
+    }
+  }, [accountData, isRenewing, startPaymentPolling, challengeId])
+
   useEffect(() => {
     if (!challengeId) {
       setError('Challenge ID is required')
@@ -266,6 +333,7 @@ const AccountOverviewPage: React.FC = () => {
   }
 
   const hasPendingWithdrawal = Boolean(accountData.has_pending_withdrawal)
+  const isBreezyAccount = String(accountData.challenge_type ?? '').toLowerCase() === 'breezy'
   const normalizedBreachReason = accountData.breached_reason?.toLowerCase() ?? ''
   const breachDetails = accountData.metrics.breach_event
   const tradeViolations = accountData.metrics.trade_duration_violations ?? []
@@ -299,6 +367,20 @@ const AccountOverviewPage: React.FC = () => {
   const lastUpdatedLabel = formatRelativeUpdate(latestUpdateTimestamp)
   const showForceRefreshButton = isActiveAccount(accountData.objective_status)
     && isOlderThanThirtyMinutes(accountData.last_feed_at)
+  const breezyMetrics = accountData.metrics.breezy
+  const breezyScore = Math.max(0, Math.min(100, Number(breezyMetrics?.risk_score ?? accountData.breezy?.risk_score ?? 0)))
+  const breezyBand = String(breezyMetrics?.risk_score_band ?? accountData.breezy?.risk_score_band ?? 'N/A').toUpperCase()
+  const breezyTradeCount = Number(accountData.metrics.closed_trades_count ?? 0)
+  const breezyTradesNeeded = Math.max(0, 5 - breezyTradeCount)
+  const breezyProfitSplit = Number(breezyMetrics?.effective_profit_split_percent ?? accountData.breezy?.profit_split_percent ?? 0)
+  const breezyWithdrawalEligible = Boolean(breezyMetrics?.withdrawal_eligible ?? accountData.breezy?.withdrawal_eligible)
+  const breezyWithdrawalBlockReason = breezyMetrics?.withdrawal_block_reason ?? accountData.breezy?.withdrawal_block_reason ?? null
+  const breezyTone = getBreezyProgressTone(breezyScore)
+  const breezyCanRenew = Boolean(accountData.breezy?.can_renew)
+  const breezyExpiresAt = accountData.breezy?.subscription_expires_at
+  const breezyRenewalAmount = typeof accountData.breezy?.renewal_price_kobo === 'number'
+    ? accountData.breezy.renewal_price_kobo / 100
+    : null
   return (
     <div className="account-overview-page">
       <DesktopHeader />
@@ -446,7 +528,7 @@ const AccountOverviewPage: React.FC = () => {
         </div>
 
         {/* Trading Objective Section */}
-        {!hasPendingWithdrawal && !isFraudBreach && (
+        {!hasPendingWithdrawal && !isFraudBreach && !isBreezyAccount && (
           <div className="trading-objective-section">
             <div className="trading-objective-header">
               <span className="trading-objective-title">Trading Objective</span>
@@ -623,6 +705,64 @@ const AccountOverviewPage: React.FC = () => {
           </div>
         )}
 
+        {!hasPendingWithdrawal && !isFraudBreach && isBreezyAccount && (
+          <div className="trading-objective-section breezy-objective-section">
+            <div className="trading-objective-header">
+              <span className="trading-objective-title">Breezy Metrics</span>
+            </div>
+
+            <div className="breezy-metrics-grid">
+              <div className="breezy-metric-card breezy-metric-card--hero">
+                <div className="breezy-metric-card__label">Risk Score</div>
+                <div className="breezy-metric-card__value">{breezyScore}/100</div>
+                <div className={`breezy-metric-card__status is-${breezyTone}`}>Status: {breezyBand}</div>
+                <div className="breezy-progress">
+                  <div className={`breezy-progress__bar is-${breezyTone}`} style={{ width: `${breezyScore}%` }} />
+                </div>
+              </div>
+
+              <div className="breezy-metric-card">
+                <div className="breezy-metric-card__label">Trade Stats</div>
+                <div className="breezy-metric-card__value">{breezyTradeCount}/5</div>
+                <div className="breezy-metric-card__subtext">
+                  Closed Trades
+                  {breezyTradesNeeded > 0 ? ` · ${breezyTradesNeeded} trade${breezyTradesNeeded === 1 ? '' : 's'} needed` : ' · Requirement met'}
+                </div>
+              </div>
+
+              <div className="breezy-metric-card">
+                <div className="breezy-metric-card__label">Profit Split</div>
+                <div className="breezy-metric-card__value">{breezyProfitSplit}%</div>
+                <div className="breezy-metric-card__subtext">Dynamic split based on current risk score</div>
+              </div>
+
+              <div className="breezy-metric-card">
+                <div className="breezy-metric-card__label">Withdrawal Status</div>
+                <div className={`breezy-metric-card__value ${breezyWithdrawalEligible ? 'is-positive' : 'is-negative'}`}>
+                  {breezyWithdrawalEligible ? 'Eligible' : 'Not Eligible'}
+                </div>
+                <div className="breezy-metric-card__subtext">
+                  {breezyWithdrawalEligible ? 'Withdrawal criteria satisfied' : (breezyWithdrawalBlockReason ?? 'Breezy withdrawal criteria not yet met')}
+                </div>
+              </div>
+
+              <div className="breezy-metric-card breezy-metric-card--hero">
+                <div className="breezy-metric-card__label">Subscription</div>
+                <div className="breezy-metric-card__subtext">Expires: {breezyExpiresAt ? new Date(breezyExpiresAt).toLocaleString() : 'N/A'}</div>
+                <div className="breezy-metric-card__subtext">Renewal Amount: {breezyRenewalAmount != null ? formatCurrency(breezyRenewalAmount, 'NGN') : 'N/A'}</div>
+                {breezyCanRenew ? (
+                  <button className="breach-alert-button" style={{ marginLeft: 0, marginTop: 12 }} onClick={() => void handleBreezyRenew()}>
+                    {isRenewing ? 'Preparing...' : 'Renew Now'}
+                  </button>
+                ) : (
+                  <div className="breezy-metric-card__subtext">Renewal becomes available 2 days before expiry.</div>
+                )}
+                {paymentStatus ? <div className="breezy-metric-card__subtext" style={{ marginTop: 10 }}>{paymentStatus}</div> : null}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Fraud Breach Section */}
         {!hasPendingWithdrawal && isFraudBreach && (
           <div className="trading-objective-section fraud-breach-section">
@@ -651,6 +791,26 @@ const AccountOverviewPage: React.FC = () => {
 
       {/* Footer */}
       <DesktopFooter />
+
+      {showPaymentModal && currentOrder ? (
+        <PaymentDetailsModal
+          isOpen={showPaymentModal}
+          onClose={() => {
+            setShowPaymentModal(false)
+            setCurrentOrder(null)
+            setModalStatus('waiting')
+          }}
+          status={modalStatus}
+          paymentDetails={{
+            bankName: currentOrder.payer_bank_name || '',
+            accountName: currentOrder.payer_account_name || '',
+            accountNumber: currentOrder.payer_virtual_acc_no || '',
+            amount: currentOrder.bank_transfer_amount_ngn
+              ? `₦${currentOrder.bank_transfer_amount_ngn.toLocaleString('en-NG')}`
+              : `$${(currentOrder.net_amount_kobo / 100).toLocaleString('en-US')}`,
+          }}
+        />
+      ) : null}
     </div>
   )
 }

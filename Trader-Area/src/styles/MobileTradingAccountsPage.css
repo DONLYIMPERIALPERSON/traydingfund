@@ -54,8 +54,8 @@
 }
 
 .mobile-trading-accounts-tabs {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 16px;
 }
@@ -65,8 +65,9 @@
   background: rgba(255, 255, 255, 0.06);
   color: #eef7fb;
   padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: 14px;
   font-weight: 700;
+  min-height: 48px;
 }
 
 .mobile-trading-accounts-tabs button.is-active {

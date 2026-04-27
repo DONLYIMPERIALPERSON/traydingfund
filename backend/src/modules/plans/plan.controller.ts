@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import { prisma } from '../../config/prisma'
+import { env } from '../../config/env'
 
 type ChallengePlanRecord = {
   planId: string
@@ -18,6 +19,11 @@ type ChallengePlanRecord = {
   enabled: boolean
   challengeType?: string | null
   phase?: string | null
+}
+
+const isUsdChallengeType = (challengeType?: string | null) => {
+  const normalized = String(challengeType ?? '').toLowerCase()
+  return ['two_step', 'one_step', 'instant_funded'].includes(normalized)
 }
 
 const formatMoney = (amount: number, currency: string) => {
@@ -51,7 +57,8 @@ export const listPublicPlans = async (_req: Request, res: Response, next: NextFu
     const databasePlans = (plans ?? []) as ChallengePlanRecord[]
     const existingPlanIds = new Set(databasePlans.map((plan) => plan.planId))
     const mergedFallbackPlans = fallbackPlans.filter((plan) => !existingPlanIds.has(plan.planId))
-    const resolvedPlans = [...databasePlans, ...mergedFallbackPlans] as ChallengePlanRecord[]
+    const resolvedPlans = [...databasePlans, ...mergedFallbackPlans]
+      .filter((plan) => env.enableUsdChallenges || !isUsdChallengeType(plan.challengeType)) as ChallengePlanRecord[]
 
     res.json({
       plans: resolvedPlans.map((plan) => ({

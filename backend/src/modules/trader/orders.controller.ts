@@ -13,6 +13,7 @@ import { buildObjectiveFields } from '../ctrader/ctrader.objectives'
 import { fetchRemoteAttachment, sendUnifiedEmail } from '../../services/email.service'
 import { applyCouponToOrder, redeemCouponForCompletedOrder } from '../../services/coupon.service'
 import { buildCacheKey, clearCacheByPrefix } from '../../common/cache'
+import { sendEmailOnce } from '../../services/emailLog.service'
 
 const CRYPTO_ADDRESSES = {
   BTC: env.cryptoBtcAddress,
@@ -31,7 +32,18 @@ const resolveCryptoAddress = (currency: keyof typeof CRYPTO_ADDRESSES) => {
 
 const isNgnChallengeType = (challengeType?: string | null) => {
   const normalized = String(challengeType ?? '').toLowerCase()
-  return normalized.includes('ngn') || normalized === 'attic'
+  return normalized.includes('ngn') || normalized === 'attic' || normalized === 'breezy'
+}
+
+const isUsdChallengeType = (challengeType?: string | null) => {
+  const normalized = String(challengeType ?? '').toLowerCase()
+  return ['two_step', 'one_step', 'instant_funded'].includes(normalized)
+}
+
+const assertChallengeTypePurchasable = (challengeType?: string | null) => {
+  if (!env.enableUsdChallenges && isUsdChallengeType(challengeType)) {
+    throw new ApiError('USD challenge purchases are temporarily unavailable', 403)
+  }
 }
 
 const resolveAffiliateCommissionAmountKobo = (order: { netAmountKobo: number; currency?: string | null; challengeType?: string | null }, usdNgnRate: number) => {
@@ -130,6 +142,20 @@ const getIdempotencyKey = (req: Request) =>
 
 const resolveSafeHavenPayload = (order: Order) => (order.metadata as { safehaven?: any } | null)?.safehaven
 
+const BREEZY_SUBSCRIPTION_DAYS = 7
+const BREEZY_RENEWAL_WINDOW_DAYS = 2
+
+const isBreezyChallengeType = (challengeType?: string | null) => String(challengeType ?? '').toLowerCase() === 'breezy'
+
+const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000)
+
+const canRenewBreezyAccount = (expiresAt?: Date | null) => {
+  if (!expiresAt) return false
+  const now = Date.now()
+  const renewalOpenAt = expiresAt.getTime() - (BREEZY_RENEWAL_WINDOW_DAYS * 24 * 60 * 60 * 1000)
+  return now >= renewalOpenAt && now < expiresAt.getTime()
+}
+
 const buildBankTransferResponse = (order: Order, safehavenPayload?: any) => {
   const safehaven = safehavenPayload ?? resolveSafeHavenPayload(order)
   const resolvedAccountNumber = String(
@@ -189,6 +215,8 @@ const buildBankTransferResponse = (order: Order, safehavenPayload?: any) => {
     payer_virtual_acc_no: resolvedAccountNumber,
     expires_at: order.safehavenExpiresAt?.toISOString() ?? null,
     challenge_id: null,
+    order_type: order.orderType ?? 'initial_purchase',
+    renewal_for_account_number: order.renewalForAccountNumber ?? null,
   }
 }
 
@@ -341,10 +369,22 @@ const handleCompletedOrder = async (order: Order) => {
       const resolvedPlatform = (order.metadata as { platform?: string } | null)?.platform ?? 'ctrader'
 
       if (resolvedPlatform.toLowerCase() === 'mt5') {
-        await prisma.cTraderAccount.update({
+        const activated = await prisma.cTraderAccount.update({
           where: { id: assigned.id },
           data: { status: 'active', accessStatus: 'granted', accessGrantedAt: new Date() },
         })
+        if (isBreezyChallengeType(order.challengeType)) {
+          const paidAt = order.paidAt ?? new Date()
+          await prisma.cTraderAccount.update({
+            where: { id: activated.id },
+            data: {
+              subscriptionStartedAt: paidAt,
+              subscriptionExpiresAt: addDays(paidAt, BREEZY_SUBSCRIPTION_DAYS),
+              subscriptionStatus: 'active',
+              renewalPriceKobo: order.netAmountKobo,
+            },
+          })
+        }
       } else {
         try {
           const accessAccountSize = assigned.accountSize ?? order.accountSize
@@ -597,6 +637,7 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
     if (!plan_id || !account_size || !amount_kobo || !challenge_type || !phase) {
       throw new ApiError('plan_id, account_size, amount_kobo, challenge_type, and phase are required', 400)
     }
+    assertChallengeTypePurchasable(challenge_type)
     const normalizedPlatform = String(platform ?? 'ctrader').toLowerCase()
     if (!['ctrader', 'mt5'].includes(normalizedPlatform)) {
       throw new ApiError('platform must be ctrader or mt5', 400)
@@ -719,6 +760,7 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
         checkoutUrl: null,
         paymentMethod: 'bank_transfer',
         paymentProvider: 'safehaven',
+        orderType: 'initial_purchase',
         safehavenAccountId: virtualAccount._id,
         safehavenAccountNumber: resolvedAccountNumber,
         safehavenAccountName: resolvedAccountName,
@@ -750,6 +792,113 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
   }
 }
 
+export const createBreezyRenewalOrder = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const user = ensureUser(req)
+    const accountId = Number(req.params.accountId)
+    const account = await prisma.cTraderAccount.findFirst({
+      where: { id: accountId, userId: user.id },
+    })
+
+    if (!account) throw new ApiError('Account not found', 404)
+    if (!isBreezyChallengeType(account.challengeType)) throw new ApiError('Only Breezy accounts can be renewed here.', 400)
+    if (String(account.subscriptionStatus ?? '').toLowerCase() === 'completed' || String(account.status).toLowerCase() === 'completed') {
+      throw new ApiError('This Breezy account has expired and cannot be renewed.', 400)
+    }
+    if (!canRenewBreezyAccount(account.subscriptionExpiresAt)) {
+      throw new ApiError('Renewal is only available within 2 days of expiration.', 400)
+    }
+
+    await prisma.order.updateMany({
+      where: {
+        renewalForAccountNumber: account.accountNumber,
+        orderType: 'breezy_renewal',
+        status: 'pending',
+      },
+      data: {
+        status: 'expired',
+      },
+    })
+
+    const amountKobo = account.renewalPriceKobo ?? 0
+    if (!amountKobo || amountKobo <= 0) {
+      throw new ApiError('Renewal amount is not configured for this account.', 400)
+    }
+
+    const providerOrderId = `BREEZY-RENEW-${Date.now()}-${Math.floor(Math.random() * 9999)}`
+    const virtualAccount = await createVirtualAccount({
+      amount: Math.round(amountKobo / 100),
+      externalReference: providerOrderId,
+    })
+
+    const resolvedAccountNumber = String(
+      virtualAccount.accountNumber
+        ?? (virtualAccount as { account_number?: string }).account_number
+        ?? (virtualAccount as { account?: { accountNumber?: string; account_number?: string; number?: string } }).account?.accountNumber
+        ?? (virtualAccount as { account?: { accountNumber?: string; account_number?: string; number?: string } }).account?.account_number
+        ?? (virtualAccount as { account?: { number?: string } }).account?.number
+        ?? ''
+    )
+    const resolvedAccountName = String(
+      virtualAccount.accountName
+        ?? (virtualAccount as { account_name?: string }).account_name
+        ?? (virtualAccount as { account?: { accountName?: string; account_name?: string; name?: string } }).account?.accountName
+        ?? (virtualAccount as { account?: { account_name?: string; name?: string } }).account?.account_name
+        ?? (virtualAccount as { account?: { name?: string } }).account?.name
+        ?? ''
+    )
+    const resolvedBankName = String(
+      virtualAccount.bankName
+        ?? (virtualAccount as { bank_name?: string }).bank_name
+        ?? (virtualAccount as { account?: { bankName?: string; bank_name?: string } }).account?.bankName
+        ?? (virtualAccount as { account?: { bank_name?: string } }).account?.bank_name
+        ?? 'SafeHaven MFB'
+    )
+
+    const order = await prisma.order.create({
+      data: {
+        providerOrderId,
+        status: 'pending',
+        assignmentStatus: 'assigned',
+        currency: 'NGN',
+        grossAmountKobo: amountKobo,
+        discountAmountKobo: 0,
+        netAmountKobo: amountKobo,
+        planId: account.accountSize.replace(/[^0-9]/g, ''),
+        accountSize: account.accountSize,
+        challengeType: 'breezy',
+        phase: account.phase,
+        paymentMethod: 'bank_transfer',
+        paymentProvider: 'safehaven',
+        orderType: 'breezy_renewal',
+        renewalForAccountNumber: account.accountNumber,
+        renewalForChallengeId: account.challengeId,
+        safehavenAccountId: virtualAccount._id,
+        safehavenAccountNumber: resolvedAccountNumber,
+        safehavenAccountName: resolvedAccountName,
+        safehavenBankName: resolvedBankName,
+        safehavenExpiresAt: virtualAccount.expiryDate ? new Date(virtualAccount.expiryDate) : null,
+        safehavenSessionId: virtualAccount.sessionId ?? null,
+        metadata: {
+          safehaven: virtualAccount,
+          platform: account.platform ?? 'mt5',
+          renewal: true,
+        },
+        userId: user.id,
+      } as Prisma.OrderUncheckedCreateInput,
+    })
+
+    await prisma.cTraderAccount.update({
+      where: { id: account.id },
+      data: { subscriptionStatus: 'renewal_due' },
+    })
+
+    res.json(buildBankTransferResponse(order, virtualAccount))
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
 export const createFreeOrder = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureUser(req)
@@ -771,6 +920,7 @@ export const createFreeOrder = async (req: AuthRequest, res: Response, next: Nex
     if (!plan_id || !account_size || !amount_kobo || !challenge_type || !phase) {
       throw new ApiError('plan_id, account_size, amount_kobo, challenge_type, and phase are required', 400)
     }
+    assertChallengeTypePurchasable(challenge_type)
     const normalizedPlatform = String(platform ?? 'ctrader').toLowerCase()
     if (!['ctrader', 'mt5'].includes(normalizedPlatform)) {
       throw new ApiError('platform must be ctrader or mt5', 400)
@@ -867,6 +1017,7 @@ export const createCryptoOrder = async (req: AuthRequest, res: Response, next: N
     if (!plan_id || !account_size || !amount_kobo || !crypto_currency || !challenge_type || !phase) {
       throw new ApiError('plan_id, account_size, amount_kobo, crypto_currency, challenge_type, and phase are required', 400)
     }
+    assertChallengeTypePurchasable(challenge_type)
     const normalizedPlatform = String(platform ?? 'ctrader').toLowerCase()
     if (!['ctrader', 'mt5'].includes(normalizedPlatform)) {
       throw new ApiError('platform must be ctrader or mt5', 400)
@@ -989,7 +1140,56 @@ export const handleSafeHavenWebhook = async (req: Request, res: Response, next: 
     })
 
     if (mapped === 'completed') {
-      await handleCompletedOrder(updatedOrder)
+      if (updatedOrder.orderType === 'breezy_renewal' && updatedOrder.renewalForAccountNumber) {
+        const renewalAccount = await prisma.cTraderAccount.findFirst({
+          where: { accountNumber: updatedOrder.renewalForAccountNumber },
+          include: { user: true },
+        })
+        if (renewalAccount) {
+          const paidAt = updatedOrder.paidAt ?? new Date()
+          const baseDate = renewalAccount.subscriptionExpiresAt && renewalAccount.subscriptionExpiresAt > paidAt
+            ? renewalAccount.subscriptionExpiresAt
+            : paidAt
+          await prisma.cTraderAccount.update({
+            where: { id: renewalAccount.id },
+            data: {
+              subscriptionStatus: 'active',
+              lastRenewalPaidAt: paidAt,
+              subscriptionExpiresAt: addDays(baseDate, BREEZY_SUBSCRIPTION_DAYS),
+            },
+          })
+          if (renewalAccount.userId) {
+            await clearCacheByPrefix(buildCacheKey(['trader', 'challenges', renewalAccount.userId]))
+          }
+
+          if (renewalAccount.user?.email) {
+            const nextExpiryDate = addDays(baseDate, BREEZY_SUBSCRIPTION_DAYS)
+            const cycleKey = nextExpiryDate.toISOString().slice(0, 10)
+            await sendEmailOnce({
+              type: `BREEZY_RENEWAL_SUCCESS_${cycleKey}`,
+              accountId: renewalAccount.id,
+              userId: renewalAccount.userId ?? null,
+              send: async () => {
+                await sendUnifiedEmail({
+                  to: renewalAccount.user!.email,
+                  subject: '✅ Breezy subscription renewed successfully',
+                  title: 'Breezy renewal confirmed',
+                  subtitle: 'Your account is active for another cycle',
+                  content: 'Your Breezy renewal payment was successful and your subscription has been extended.',
+                  buttonText: 'View Dashboard',
+                  infoBox: [
+                    `Account: ${renewalAccount.accountNumber}`,
+                    `Renewal Amount: ${formatCurrency(updatedOrder.netAmountKobo, 'NGN')}`,
+                    `New Expiry Date: ${nextExpiryDate.toISOString()}`,
+                  ].join('<br>'),
+                })
+              },
+            })
+          }
+        }
+      } else {
+        await handleCompletedOrder(updatedOrder)
+      }
     }
 
     res.json({ received: true })

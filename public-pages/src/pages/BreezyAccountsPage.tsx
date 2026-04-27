@@ -46,10 +46,10 @@ const profitSplitTiers = [
 ];
 
 const pricing = [
-    { account: '₦200,000', price: '₦5,000/week' },
-    { account: '₦500,000', price: '₦9,500/week', badge: 'Most Popular' },
-    { account: '₦800,000', price: '₦13,500/week' },
-    { account: '₦1,000,000', price: '₦16,500/week' },
+    { account: '₦200,000', price: '₦7,500/week' },
+    { account: '₦500,000', price: '₦15,000/week', badge: 'Most Popular' },
+    { account: '₦800,000', price: '₦24,000/week' },
+    { account: '₦1,000,000', price: '₦30,000/week' },
 ];
 
 const importantRules = [

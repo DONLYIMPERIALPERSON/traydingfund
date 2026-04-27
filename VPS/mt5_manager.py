@@ -16,6 +16,8 @@ with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
 
 REPLAY_BASE_URL = settings["REPLAY_BASE_URL"].rstrip("/")
 REPLAY_ENDPOINT = settings.get("REPLAY_ENDPOINT", "/replay/ea")
+BREEZY_BASE_URL = settings.get("BREEZY_BASE_URL", REPLAY_BASE_URL).rstrip("/")
+BREEZY_REPLAY_ENDPOINT = settings.get("BREEZY_REPLAY_ENDPOINT", "/breezy/replay/ea")
 MT5_TERMINALS = settings.get("MT5_TERMINALS", [])
 POLL_INTERVAL_SECONDS = int(settings.get("POLL_INTERVAL_SECONDS", 10))
 MAX_JOB_RUNTIME_SECONDS = int(settings.get("MAX_JOB_RUNTIME_SECONDS", 120))
@@ -329,10 +331,17 @@ def send_metrics_from_file(account_number: str, account_meta: Dict[str, str] | N
             else:
                 payload["account_size"] = raw_size
 
+    normalized_account_type = str((account_meta or {}).get("accountType") or (account_meta or {}).get("account_type") or "").lower()
+    normalized_challenge_type = str((account_meta or {}).get("challengeType") or (account_meta or {}).get("challenge_type") or "").lower()
+    is_breezy = normalized_account_type == "breezy" or normalized_challenge_type == "breezy"
+
     try:
-        url = f"{REPLAY_BASE_URL}{REPLAY_ENDPOINT}"
+        base_url = BREEZY_BASE_URL if is_breezy else REPLAY_BASE_URL
+        endpoint = BREEZY_REPLAY_ENDPOINT if is_breezy else REPLAY_ENDPOINT
+        url = f"{base_url}{endpoint}"
         response = requests.post(url, json=payload, timeout=15)
-        print(f"[replay-mt5] Sent metrics for {account_number} -> {response.status_code}")
+        target_label = "breezy" if is_breezy else "classic"
+        print(f"[replay-mt5] Sent {target_label} metrics for {account_number} -> {response.status_code}")
         if response.status_code not in (200, 202):
             try:
                 print(f"[replay-mt5] Replay response body: {response.text}")
@@ -341,7 +350,7 @@ def send_metrics_from_file(account_number: str, account_meta: Dict[str, str] | N
             log_manager_failure(
                 account_number,
                 "replay_send_failed",
-                {"status_code": response.status_code, "response_text": response.text[:4000]},
+                {"status_code": response.status_code, "response_text": response.text[:4000], "target": target_label, "url": url},
             )
             return False
         if response.status_code in (200, 202):

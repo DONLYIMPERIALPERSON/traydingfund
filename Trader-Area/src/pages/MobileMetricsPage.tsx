@@ -1,14 +1,24 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import MobilePaymentSheet from '../components/MobilePaymentSheet'
 import ServiceUnavailableState from '../components/ServiceUnavailableState'
 import {
+  createBreezyRenewalOrder,
   downloadBreachReport,
   fetchUserChallengeAccountDetail,
   refreshChallengeAccount,
+  refreshPaymentOrderStatus,
+  type PaymentOrderResponse,
   type UserChallengeAccountDetailResponse,
 } from '../lib/traderAuth'
 import '../styles/DesktopAccountOverviewPage.css'
 import '../styles/MobileMetricsPage.css'
+
+const getBreezyProgressTone = (score: number) => {
+  if (score >= 75) return 'good'
+  if (score >= 50) return 'mid'
+  return 'low'
+}
 
 const formatCurrency = (value: number, currencyCode: string) => {
   const normalized = currencyCode.toUpperCase()
@@ -56,6 +66,13 @@ const formatCycleDate = (value?: string | null) => {
   })
 }
 
+const formatRenewalDate = (value?: string | null) => {
+  if (!value) return 'Renewal date pending'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'Renewal date pending'
+  return `Renews ${parsed.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+}
+
 const parseAccountSize = (value: string) => {
   const normalized = value
     .toLowerCase()
@@ -91,6 +108,10 @@ const MobileMetricsPage: React.FC = () => {
   const [error, setError] = useState('')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isDownloadingBreachReport, setIsDownloadingBreachReport] = useState(false)
+  const [isRenewing, setIsRenewing] = useState(false)
+  const [currentOrder, setCurrentOrder] = useState<PaymentOrderResponse | null>(null)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [modalStatus, setModalStatus] = useState<'waiting' | 'confirming' | 'success'>('waiting')
 
   const challengeId = searchParams.get('challenge_id')
 
@@ -161,6 +182,48 @@ const MobileMetricsPage: React.FC = () => {
     }
   }, [accountData?.breach_report_url, challengeId, isDownloadingBreachReport])
 
+  const startPaymentPolling = useCallback(async (orderId: string) => {
+    setModalStatus('confirming')
+    for (let i = 0; i < 24; i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5000))
+      try {
+        const refreshed = await refreshPaymentOrderStatus(orderId)
+        if (refreshed.status === 'completed') {
+          setModalStatus('success')
+          await loadAccountData()
+          return
+        }
+        if (refreshed.status === 'failed' || refreshed.status === 'expired') {
+          setModalStatus('waiting')
+          setPaymentStatus(`Payment ${refreshed.status}. Please try again.`)
+          setShowPaymentModal(false)
+          return
+        }
+      } catch (error) {
+        console.error('Renewal payment status check failed:', error)
+      }
+    }
+  }, [loadAccountData])
+
+  const handleBreezyRenew = useCallback(async () => {
+    if (isRenewing) return
+    try {
+      setIsRenewing(true)
+      const accountId = Number((accountData as unknown as { account_id?: number }).account_id)
+      if (!Number.isFinite(accountId) || accountId <= 0) {
+        throw new Error('Unable to resolve Breezy account for renewal.')
+      }
+      const order = await createBreezyRenewalOrder(accountId)
+      setCurrentOrder(order)
+      setShowPaymentModal(true)
+      void startPaymentPolling(order.provider_order_id)
+    } catch (error) {
+      setPaymentStatus(error instanceof Error ? error.message : 'Failed to create renewal payment')
+    } finally {
+      setIsRenewing(false)
+    }
+  }, [accountData, isRenewing, startPaymentPolling])
+
   const accountCurrency = (accountData?.currency || 'USD').toUpperCase()
 
   if (loading) {
@@ -184,6 +247,7 @@ const MobileMetricsPage: React.FC = () => {
   }
 
   const hasPendingWithdrawal = Boolean(accountData.has_pending_withdrawal)
+  const isBreezyAccount = String(accountData.challenge_type ?? '').toLowerCase() === 'breezy'
   const normalizedBreachReason = accountData.breached_reason?.toLowerCase() ?? ''
   const isFraudBreach = normalizedBreachReason.includes('fraud')
   const durationViolationsCount = (accountData.metrics.duration_violations_count ?? 0) > 0
@@ -196,6 +260,20 @@ const MobileMetricsPage: React.FC = () => {
   const latestUpdateTimestamp = accountData.last_feed_at ?? accountData.last_refresh_requested_at
   const showForceRefreshButton = isActiveAccount(accountData.objective_status) && isOlderThanThirtyMinutes(accountData.last_feed_at)
   const showLastUpdated = isActiveAccount(accountData.objective_status)
+  const breezyMetrics = accountData.metrics.breezy
+  const breezyScore = Math.max(0, Math.min(100, Number(breezyMetrics?.risk_score ?? accountData.breezy?.risk_score ?? 0)))
+  const breezyBand = String(breezyMetrics?.risk_score_band ?? accountData.breezy?.risk_score_band ?? 'N/A').toUpperCase()
+  const breezyTradeCount = Number(accountData.metrics.closed_trades_count ?? 0)
+  const breezyTradesNeeded = Math.max(0, 5 - breezyTradeCount)
+  const breezyProfitSplit = Number(breezyMetrics?.effective_profit_split_percent ?? accountData.breezy?.profit_split_percent ?? 0)
+  const breezyWithdrawalEligible = Boolean(breezyMetrics?.withdrawal_eligible ?? accountData.breezy?.withdrawal_eligible)
+  const breezyWithdrawalBlockReason = breezyMetrics?.withdrawal_block_reason ?? accountData.breezy?.withdrawal_block_reason ?? null
+  const breezyTone = getBreezyProgressTone(breezyScore)
+  const breezyCanRenew = Boolean(accountData.breezy?.can_renew)
+  const breezyExpiresAt = accountData.breezy?.subscription_expires_at
+  const breezyRenewalAmount = typeof accountData.breezy?.renewal_price_kobo === 'number'
+    ? accountData.breezy.renewal_price_kobo / 100
+    : null
 
   return (
     <div className="mobile-metrics-page">
@@ -206,7 +284,11 @@ const MobileMetricsPage: React.FC = () => {
           </button>
           <div className="mobile-metrics-header__text">
             <h1>Metrics</h1>
-            <p>{accountData.mt5_account ?? 'Pending'} · {accountData.phase}</p>
+            <p>
+              {accountData.mt5_account ?? 'Pending'} · {String(accountData.challenge_type ?? '').toLowerCase() === 'breezy'
+                ? formatRenewalDate(accountData.breezy?.subscription_expires_at)
+                : accountData.phase}
+            </p>
           </div>
           <button type="button" className="mobile-metrics-header__icon" onClick={() => navigate('/support')}>
             <i className="fas fa-headset" />
@@ -303,7 +385,7 @@ const MobileMetricsPage: React.FC = () => {
 
         </section>
 
-        {!hasPendingWithdrawal && !isFraudBreach ? (
+        {!hasPendingWithdrawal && !isFraudBreach && !isBreezyAccount ? (
           <section className="mobile-metrics-objectives-card desktop-objectives-look">
             <div className="mobile-metrics-section-heading desktop-objectives-heading">
               <h2>Trading Objective</h2>
@@ -451,6 +533,50 @@ const MobileMetricsPage: React.FC = () => {
           </section>
         ) : null}
 
+        {!hasPendingWithdrawal && !isFraudBreach && isBreezyAccount ? (
+          <section className="mobile-metrics-objectives-card mobile-breezy-card">
+            <div className="mobile-metrics-section-heading">
+              <h2>Breezy Metrics</h2>
+            </div>
+
+            <div className="mobile-breezy-grid">
+              <div className="mobile-breezy-item mobile-breezy-item--hero">
+                <span className="mobile-breezy-item__label">Risk Score</span>
+                <strong className="mobile-breezy-item__value">{breezyScore}/100</strong>
+                <span className={`mobile-breezy-item__status is-${breezyTone}`}>Status: {breezyBand}</span>
+                <div className="mobile-breezy-progress">
+                  <div className={`mobile-breezy-progress__bar is-${breezyTone}`} style={{ width: `${breezyScore}%` }} />
+                </div>
+              </div>
+
+              <div className="mobile-breezy-item">
+                <span className="mobile-breezy-item__label">Trade Stats</span>
+                <strong className="mobile-breezy-item__value">{breezyTradeCount}/5</strong>
+                <span className="mobile-breezy-item__copy">
+                  Closed Trades{breezyTradesNeeded > 0 ? ` · ${breezyTradesNeeded} needed` : ' · Requirement met'}
+                </span>
+              </div>
+
+              <div className="mobile-breezy-item">
+                <span className="mobile-breezy-item__label">Profit Split</span>
+                <strong className="mobile-breezy-item__value">{breezyProfitSplit}%</strong>
+                <span className="mobile-breezy-item__copy">Dynamic based on risk score</span>
+              </div>
+
+              <div className="mobile-breezy-item">
+                <span className="mobile-breezy-item__label">Withdrawal Status</span>
+                <strong className={`mobile-breezy-item__value ${breezyWithdrawalEligible ? 'is-positive' : 'is-negative'}`}>
+                  {breezyWithdrawalEligible ? 'Eligible' : 'Not Eligible'}
+                </strong>
+                <span className="mobile-breezy-item__copy">
+                  {breezyWithdrawalEligible ? 'Breezy criteria satisfied' : (breezyWithdrawalBlockReason ?? 'Criteria not yet met')}
+                </span>
+              </div>
+
+            </div>
+          </section>
+        ) : null}
+
         {!hasPendingWithdrawal && isFraudBreach ? (
           <section className="mobile-metrics-objectives-card mobile-metrics-objectives-card--fraud">
             <div className="mobile-metrics-section-heading">
@@ -468,6 +594,26 @@ const MobileMetricsPage: React.FC = () => {
           </section>
         ) : null}
       </div>
+
+      {showPaymentModal && currentOrder ? (
+        <MobilePaymentSheet
+          isOpen={showPaymentModal}
+          onClose={() => {
+            setShowPaymentModal(false)
+            setCurrentOrder(null)
+            setModalStatus('waiting')
+          }}
+          status={modalStatus}
+          paymentDetails={{
+            bankName: currentOrder.payer_bank_name || '',
+            accountName: currentOrder.payer_account_name || '',
+            accountNumber: currentOrder.payer_virtual_acc_no || '',
+            amount: currentOrder.bank_transfer_amount_ngn
+              ? `₦${currentOrder.bank_transfer_amount_ngn.toLocaleString('en-NG')}`
+              : `$${(currentOrder.net_amount_kobo / 100).toLocaleString('en-US')}`,
+          }}
+        />
+      ) : null}
     </div>
   )
 }

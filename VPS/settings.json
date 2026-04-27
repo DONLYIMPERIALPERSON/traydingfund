@@ -1,6 +1,8 @@
 {
   "REPLAY_BASE_URL": "https://risk-engine.machefunded.com",
   "REPLAY_ENDPOINT": "/replay/ea",
+  "BREEZY_BASE_URL": "https://breezy-engine.machefunded.com",
+  "BREEZY_REPLAY_ENDPOINT": "/breezy/replay/ea",
 
   "MT5_TERMINALS": [
     "C:\\MT5\\terminal_A\\terminal64.exe",

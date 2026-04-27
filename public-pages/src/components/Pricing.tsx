@@ -115,10 +115,10 @@ const ngnTabs: PricingTab[] = [
         key: 'breezy',
         label: 'BREEZY Account',
         tiers: [
-            { account: '₦200,000', price: '₦4,500' },
-            { account: '₦500,000', price: '₦9,500' },
-            { account: '₦800,000', price: '₦13,500' },
-            { account: '₦1,000,000', price: '₦16,500' },
+            { account: '₦200,000', price: '₦7,500' },
+            { account: '₦500,000', price: '₦15,000' },
+            { account: '₦800,000', price: '₦24,000' },
+            { account: '₦1,000,000', price: '₦30,000' },
         ],
         rules: [
             'Challenge: None',

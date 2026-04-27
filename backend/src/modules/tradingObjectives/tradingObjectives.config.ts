@@ -202,5 +202,24 @@ export const DEFAULT_TRADING_OBJECTIVES: TradingObjectivesConfig = {
         },
       ],
     },
+    {
+      key: 'breezy',
+      label: 'NGN Breezy',
+      phases: [
+        {
+          key: 'phase_1',
+          label: 'Breezy Active',
+          rules: [
+            { key: 'max_drawdown', label: 'Max Drawdown', value: '50%' },
+            { key: 'max_daily_drawdown', label: 'Max Daily Drawdown', value: 'None' },
+            { key: 'profit_target', label: 'Profit Target', value: '5%' },
+            { key: 'min_trading_days', label: 'Minimum Trading Days', value: '0' },
+            { key: 'min_trade_duration', label: 'Minimum Trade Duration Rule', value: '0 mins' },
+            { key: 'profit_split', label: 'Profit Split', value: 'Up to 100%' },
+            { key: 'withdrawals', label: 'Withdrawals', value: 'On Demand' },
+          ],
+        },
+      ],
+    },
   ],
 }

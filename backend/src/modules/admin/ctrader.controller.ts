@@ -8,6 +8,10 @@ import { recordCredentialView } from '../../services/emailLog.service'
 import { buildObjectiveFields } from '../ctrader/ctrader.objectives'
 import { assignReadyAccountFromPool, buildBaseChallengeId, buildChallengeIdForPhase, normalizeAccountSize, normalizeChallengeBase, resolveChallengeCurrency } from '../ctrader/ctrader.assignment'
 
+const BREEZY_SUBSCRIPTION_DAYS = 7
+const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000)
+const isBreezyChallengeType = (challengeType?: string | null) => String(challengeType ?? '').toLowerCase() === 'breezy'
+
 type UploadAccountPayload = {
   account_number: string
   broker: string
@@ -198,6 +202,19 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
         where: { id: order.id },
         data: { assignmentStatus: 'assigned' },
       })
+
+      if (isBreezyChallengeType(order.challengeType)) {
+        const paidAt = order.paidAt ?? new Date()
+        await prisma.cTraderAccount.update({
+          where: { id: assigned.id },
+          data: {
+            subscriptionStartedAt: paidAt,
+            subscriptionExpiresAt: addDays(paidAt, BREEZY_SUBSCRIPTION_DAYS),
+            subscriptionStatus: 'active',
+            renewalPriceKobo: order.netAmountKobo,
+          },
+        })
+      }
 
       const accessAccountSize = assigned.accountSize ?? order.accountSize
       await requestAccountAccess({

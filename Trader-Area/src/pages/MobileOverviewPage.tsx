@@ -1,10 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import MobilePaymentSheet from '../components/MobilePaymentSheet'
 import ServiceUnavailableState from '../components/ServiceUnavailableState'
 import {
+  createBreezyRenewalOrder,
   downloadBreachReport,
   fetchUserChallengeAccountDetail,
   fetchUserChallengeAccounts,
+  refreshPaymentOrderStatus,
+  type PaymentOrderResponse,
   type UserChallengeAccountListItem,
 } from '../lib/traderAuth'
 import '../styles/MobileOverviewPage.css'
@@ -60,6 +64,13 @@ const formatPhase = (value?: string) => {
   return value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
+const formatRenewalDate = (value?: string | null) => {
+  if (!value) return 'Renewal date pending'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'Renewal date pending'
+  return `Renews ${parsed.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+}
+
 const formatAmount = (amount: string, currency?: string) => {
   if (!currency) return amount
   const numeric = Number(amount.replace(/[^0-9.]/g, ''))
@@ -112,12 +123,17 @@ const isHideEligibleAccount = (account: UserChallengeAccountListItem) => {
 type SlideCardProps = {
   account: UserChallengeAccountListItem
   onHideBreached?: (challengeId: string) => void
+  onRenew?: (account: UserChallengeAccountListItem) => void
+  renewingChallengeId?: string | null
 }
 
-const SlideCard: React.FC<SlideCardProps> = ({ account, onHideBreached }) => {
+const SlideCard: React.FC<SlideCardProps> = ({ account, onHideBreached, onRenew, renewingChallengeId }) => {
   const navigate = useNavigate()
   const isBreachedAccount = ['breached', 'failed'].includes(String(account.objective_status ?? account.display_status ?? '').toLowerCase())
   const isHideEligible = isHideEligibleAccount(account)
+  const isBreezyAccount = String(account.challenge_type ?? '').toLowerCase() === 'breezy'
+  const canRenew = Boolean(account.breezy?.can_renew)
+  const isRenewing = renewingChallengeId === account.challenge_id
 
   const handleOpenOverview = () => {
     navigate(`/account-overview?challenge_id=${encodeURIComponent(account.challenge_id)}`)
@@ -143,6 +159,11 @@ const SlideCard: React.FC<SlideCardProps> = ({ account, onHideBreached }) => {
     onHideBreached?.(account.challenge_id)
   }
 
+  const handleRenew = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    onRenew?.(account)
+  }
+
   return (
     <article className="mobile-overview-slide-card" onClick={handleOpenOverview}>
       <div className="mobile-overview-slide-card__top">
@@ -151,7 +172,9 @@ const SlideCard: React.FC<SlideCardProps> = ({ account, onHideBreached }) => {
             {formatChallengeType(account.challenge_type)}
           </span>
           <span className="mobile-overview-slide-card__account-line">
-            {formatPhase(account.phase)} · {account.mt5_account ?? 'Pending'}
+            {String(account.challenge_type ?? '').toLowerCase() === 'breezy'
+              ? `${formatRenewalDate(account.breezy?.subscription_expires_at)} · ${account.mt5_account ?? 'Pending'}`
+              : `${formatPhase(account.phase)} · ${account.mt5_account ?? 'Pending'}`}
           </span>
         </div>
         <div className="mobile-overview-slide-card__status-wrap">
@@ -175,6 +198,16 @@ const SlideCard: React.FC<SlideCardProps> = ({ account, onHideBreached }) => {
         <div className="mobile-overview-slide-card__balance-row">
           <strong>{formatAmount(account.account_size, account.currency)}</strong>
           <span className="mobile-overview-slide-card__platform-tag">{formatPlatform(account.platform)}</span>
+          {isBreezyAccount && canRenew ? (
+            <button
+              type="button"
+              className="mobile-overview-slide-card__renew-tag"
+              onClick={handleRenew}
+              disabled={isRenewing}
+            >
+              {isRenewing ? 'Preparing...' : 'Renew'}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -218,6 +251,11 @@ const MobileOverviewPage: React.FC = () => {
   const [hasAnyAccounts, setHasAnyAccounts] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const [isRenewingChallengeId, setIsRenewingChallengeId] = useState<string | null>(null)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [currentOrder, setCurrentOrder] = useState<PaymentOrderResponse | null>(null)
+  const [modalStatus, setModalStatus] = useState<'waiting' | 'confirming' | 'success'>('waiting')
+  const pollingActiveRef = useRef(false)
   const [hiddenBreachedAccounts, setHiddenBreachedAccounts] = useState<string[]>(() => {
     try {
       const raw = localStorage.getItem(HIDDEN_BREACHED_ACCOUNTS_KEY)
@@ -300,6 +338,48 @@ const MobileOverviewPage: React.FC = () => {
 
   const hasSingleVisibleAccount = hasAnyAccounts && allAccounts.length === 1
 
+  const startPaymentPolling = async (orderId: string) => {
+    pollingActiveRef.current = true
+    setModalStatus('confirming')
+    for (let i = 0; i < 24; i += 1) {
+      if (!pollingActiveRef.current) return
+      await new Promise((resolve) => setTimeout(resolve, 5000))
+      try {
+        if (!pollingActiveRef.current) return
+        const refreshed = await refreshPaymentOrderStatus(orderId)
+        if (refreshed.status === 'completed') {
+          setModalStatus('success')
+          setTimeout(() => window.location.reload(), 2500)
+          return
+        }
+        if (refreshed.status === 'failed' || refreshed.status === 'expired') {
+          setModalStatus('waiting')
+          setShowPaymentModal(false)
+          setCurrentOrder(null)
+          return
+        }
+      } catch (error) {
+        console.error('Renewal payment status check failed:', error)
+      }
+    }
+  }
+
+  const handleRenewBreezyAccount = async (account: UserChallengeAccountListItem) => {
+    const accountId = Number(account.account_id)
+    if (!Number.isFinite(accountId) || accountId <= 0) return
+    try {
+      setIsRenewingChallengeId(account.challenge_id)
+      const order = await createBreezyRenewalOrder(accountId)
+      setCurrentOrder(order)
+      setShowPaymentModal(true)
+      void startPaymentPolling(order.provider_order_id)
+    } catch (error) {
+      console.error('Failed to create Breezy renewal order', error)
+    } finally {
+      setIsRenewingChallengeId(null)
+    }
+  }
+
   return (
     <div className="mobile-overview-page">
       <header className="mobile-overview-header">
@@ -369,7 +449,12 @@ const MobileOverviewPage: React.FC = () => {
               <div className={`mobile-overview-slider mobile-overview-slider--standalone${hasSingleVisibleAccount ? ' mobile-overview-slider--single' : ''}`} ref={sliderRef}>
                 {allAccounts.map((account) => (
                   <div key={account.challenge_id} className="mobile-overview-slide">
-                    <SlideCard account={account} onHideBreached={handleHideBreachedAccount} />
+                    <SlideCard
+                      account={account}
+                      onHideBreached={handleHideBreachedAccount}
+                      onRenew={handleRenewBreezyAccount}
+                      renewingChallengeId={isRenewingChallengeId}
+                    />
                   </div>
                 ))}
               </div>
@@ -483,6 +568,27 @@ const MobileOverviewPage: React.FC = () => {
             </button>
           </div>
         </div>
+      ) : null}
+
+      {showPaymentModal && currentOrder ? (
+        <MobilePaymentSheet
+          isOpen={showPaymentModal}
+          onClose={() => {
+            pollingActiveRef.current = false
+            setShowPaymentModal(false)
+            setCurrentOrder(null)
+            setModalStatus('waiting')
+          }}
+          status={modalStatus}
+          paymentDetails={{
+            bankName: currentOrder.payer_bank_name || '',
+            accountName: currentOrder.payer_account_name || '',
+            accountNumber: currentOrder.payer_virtual_acc_no || '',
+            amount: currentOrder.bank_transfer_amount_ngn
+              ? `₦${currentOrder.bank_transfer_amount_ngn.toLocaleString('en-NG')}`
+              : `$${(currentOrder.net_amount_kobo / 100).toLocaleString('en-US')}`,
+          }}
+        />
       ) : null}
     </div>
   )

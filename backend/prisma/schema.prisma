@@ -202,6 +202,11 @@ model CTraderAccount {
   startedAt     DateTime?
   breachedAt    DateTime?
   passedAt      DateTime?
+  subscriptionStartedAt DateTime?
+  subscriptionExpiresAt DateTime?
+  subscriptionStatus String?
+  lastRenewalPaidAt DateTime?
+  renewalPriceKobo Int?
   lastRefreshRequestedAt DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -266,6 +271,18 @@ model CTraderAccountMetric {
   expectedBalanceOperationAmount Float?
   breachEvent            Json?
   tradeDurationViolations Json?
+  capitalProtectionLevel Float?
+  accountStatus          String?
+  riskScore              Float?
+  riskScoreBand          String?
+  riskComponents         Json?
+  effectiveProfitSplitPercent Float?
+  withdrawalEligible     Boolean?
+  withdrawalBlockReason  String?
+  maxTotalExposure       Float?
+  maxSinglePositionRisk  Float?
+  realizedProfit         Float?
+  profitPercent          Float?
   capturedAt              DateTime @default(now())
 
   accountId               Int      @unique
@@ -323,6 +340,9 @@ model Order {
   safehavenBankName String?
   safehavenExpiresAt DateTime?
   safehavenSessionId String?
+  orderType       String?
+  renewalForAccountNumber String?
+  renewalForChallengeId String?
   metadata        Json?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

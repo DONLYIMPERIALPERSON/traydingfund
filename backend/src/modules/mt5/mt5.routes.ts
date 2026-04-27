@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit'
 import { env } from '../../config/env'
 import { upsertCTraderMetrics } from '../ctrader/ctrader.metrics'
 import { listActiveCTraderAccounts } from '../ctrader/ctrader.active'
+import { upsertBreezyMetrics } from './breezy.metrics'
 
 export const mt5Router = Router()
 
@@ -19,3 +20,4 @@ const metricsLimiter = rateLimit({
 
 mt5Router.get('/active-accounts', listActiveCTraderAccounts)
 mt5Router.post('/metrics', metricsLimiter, upsertCTraderMetrics)
+mt5Router.post('/breezy-metrics', metricsLimiter, upsertBreezyMetrics)
