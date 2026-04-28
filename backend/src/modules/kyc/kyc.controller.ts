@@ -14,6 +14,24 @@ const ensureUser = (req: AuthenticatedRequest) => {
   return req.user
 }
 
+const countKycEligibleAccounts = async (userId: number) => prisma.cTraderAccount.count({
+  where: {
+    userId,
+    accessStatus: 'granted',
+    OR: [
+      {
+        AND: [
+          { challengeType: 'breezy' },
+          { status: { in: ['active', 'breached'], mode: 'insensitive' } },
+        ],
+      },
+      { status: 'funded' },
+      { phase: { contains: 'funded', mode: 'insensitive' } },
+      { challengeType: 'instant_funded' },
+    ],
+  },
+})
+
 const toBankPayload = (bank: typeof SAFEHAVEN_BANKS[number]) => ({
   bank_code: bank.bankCode,
   bank_name: bank.name,
@@ -127,22 +145,12 @@ export const saveCryptoPayout = async (req: AuthenticatedRequest, res: Response,
 export const fetchKycEligibility = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureUser(req)
-    const fundedActive = await prisma.cTraderAccount.count({
-      where: {
-        userId: user.id,
-        accessStatus: 'granted',
-        OR: [
-          { status: 'funded' },
-          { phase: { contains: 'funded', mode: 'insensitive' } },
-          { challengeType: 'instant_funded' },
-        ],
-      },
-    })
+    const fundedActive = await countKycEligibleAccounts(user.id)
 
     if (fundedActive < 1) {
       return res.json({
         eligible: false,
-        message: 'You need at least one funded active account before KYC becomes available.',
+        message: 'You need at least one funded or active Breezy account before KYC becomes available.',
       })
     }
 
@@ -170,19 +178,9 @@ export const submitKyc = async (req: AuthenticatedRequest, res: Response, next: 
       throw new ApiError('document_type, document_number, and id_front_url are required', 400)
     }
 
-    const eligibility = await prisma.cTraderAccount.count({
-      where: {
-        userId: user.id,
-        accessStatus: 'granted',
-        OR: [
-          { status: 'funded' },
-          { phase: { contains: 'funded', mode: 'insensitive' } },
-          { challengeType: 'instant_funded' },
-        ],
-      },
-    })
+    const eligibility = await countKycEligibleAccounts(user.id)
     if (eligibility < 1) {
-      throw new ApiError('You need at least one funded active account before KYC becomes available.', 403)
+      throw new ApiError('You need at least one funded or active Breezy account before KYC becomes available.', 403)
     }
 
     await prisma.user.update({

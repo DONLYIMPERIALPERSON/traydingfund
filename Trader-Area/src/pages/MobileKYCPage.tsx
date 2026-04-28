@@ -51,7 +51,7 @@ const MobileKYCPage: React.FC = () => {
         const historyItems = historyRes.requests ?? []
         const latestRequestStatus = historyItems[0]?.status?.toLowerCase()
         const profileStatus = (profileRes.kyc_status || 'not_started').toLowerCase()
-        const resolvedStatus = historyItems.length > 0 ? (latestRequestStatus || profileStatus) : 'not_started'
+        const resolvedStatus = historyItems.length > 0 ? (latestRequestStatus || profileStatus) : profileStatus
         setKycStatus(resolvedStatus)
         setKycHistory(historyItems)
       } catch (error) {
@@ -206,7 +206,7 @@ const MobileKYCPage: React.FC = () => {
         ) : !eligibleForKyc ? (
           <div className="mobile-kyc-card mobile-kyc-card--status">
             <h2>KYC Not Eligible Yet</h2>
-            <p>{eligibilityMessage || 'You need at least one funded account before KYC becomes available.'}</p>
+            <p>{eligibilityMessage || 'You need at least one funded or active Breezy account before KYC becomes available.'}</p>
           </div>
         ) : isKycApproved ? (
           <div className="mobile-kyc-card mobile-kyc-card--status">

@@ -63,7 +63,7 @@ const PayoutPage: React.FC = () => {
       const profileStatus = (profileRes.kyc_status || 'not_started').toLowerCase()
       setKycStatus(historyItems.length > 0
         ? (latestRequestStatus || profileStatus)
-        : 'not_started')
+        : profileStatus)
       setOverallCertificate(overallReward)
       setCertificateVersion(Date.now())
     } catch {

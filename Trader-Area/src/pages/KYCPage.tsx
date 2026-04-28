@@ -55,7 +55,7 @@ const KYCPage: React.FC = () => {
         const profileStatus = (profileRes.kyc_status || 'not_started').toLowerCase()
         const resolvedStatus = historyItems.length > 0
           ? (latestRequestStatus || profileStatus)
-          : 'not_started'
+          : profileStatus
         setKycStatus(resolvedStatus)
         setKycHistory(historyItems)
       } catch (error) {
@@ -232,7 +232,7 @@ const KYCPage: React.FC = () => {
                 <div>
                   <h2 className="status-title">KYC Not Eligible Yet</h2>
                   <p className="status-subtitle status-subtitle--muted">
-                    {eligibilityMessage || 'You need at least one funded account before KYC becomes available.'}
+                    {eligibilityMessage || 'You need at least one funded or active Breezy account before KYC becomes available.'}
                   </p>
                 </div>
               </div>

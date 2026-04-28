@@ -25,6 +25,8 @@ const ensureUser = (req: AuthRequest) => {
   return req.user
 }
 
+const isKycApproved = (status?: string | null) => ['verified', 'approved'].includes(String(status ?? '').toLowerCase())
+
 const MIN_WITHDRAWAL_AMOUNT = 1
 
 const resolveCurrencyLabel = (currency?: string | null) => {
@@ -405,9 +407,10 @@ export const getPayoutSummary = async (req: AuthRequest, res: Response, next: Ne
     const totalAvailable = payoutAccounts.reduce((sum, account) => sum + account.available_payout, 0)
     const totalEarned = payoutAccounts.reduce((sum, account) => sum + account.profit_cap_amount, 0)
 
+    const hasVerifiedKyc = isKycApproved(dbUser.kycStatus)
     const hasVerifiedBankAccount = Boolean(dbUser.payoutVerifiedAt || dbUser.payoutAccountNumber || dbUser.payoutCryptoAddress)
     const hasAvailablePayout = totalAvailable >= MIN_WITHDRAWAL_AMOUNT
-    const isEligible = hasVerifiedBankAccount && hasAvailablePayout && payoutAccounts.length > 0
+    const isEligible = hasVerifiedKyc && hasVerifiedBankAccount && hasAvailablePayout && payoutAccounts.length > 0
 
     const payload = {
       total_available_payout: totalAvailable,
@@ -426,12 +429,14 @@ export const getPayoutSummary = async (req: AuthRequest, res: Response, next: Ne
       })),
       eligibility: {
         is_eligible: isEligible,
+        kyc_verified: hasVerifiedKyc,
         has_verified_bank_account: hasVerifiedBankAccount,
         has_available_payout: hasAvailablePayout,
         minimum_payout_amount: MIN_WITHDRAWAL_AMOUNT,
         bank_account_masked: dbUser.payoutAccountNumber ?? null,
         ineligibility_reasons: [
           ...(payoutAccounts.length === 0 ? ['No funded accounts are available for payout.'] : []),
+          ...(!hasVerifiedKyc ? ['Please complete and get approval for KYC before requesting a payout.'] : []),
           ...(!hasVerifiedBankAccount ? ['Please save a payout method in Settings.'] : []),
           ...(!hasAvailablePayout ? [`Minimum withdrawal amount is $${MIN_WITHDRAWAL_AMOUNT}.`] : []),
         ],
@@ -458,6 +463,10 @@ export const requestPayout = async (req: AuthRequest, res: Response, next: NextF
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
     if (!dbUser) {
       throw new ApiError('User not found', 404)
+    }
+
+    if (!isKycApproved(dbUser.kycStatus)) {
+      throw new ApiError('Please complete and get approval for KYC before requesting a payout.', 403)
     }
 
     const payoutInfo = await buildAccountPayout(account_id)

@@ -58,7 +58,7 @@ const MobileRewardPage: React.FC = () => {
       const historyItems = historyRes.requests ?? []
       const latestRequestStatus = historyItems[0]?.status?.toLowerCase()
       const profileStatus = (profileRes.kyc_status || 'not_started').toLowerCase()
-      setKycStatus(historyItems.length > 0 ? (latestRequestStatus || profileStatus) : 'not_started')
+      setKycStatus(historyItems.length > 0 ? (latestRequestStatus || profileStatus) : profileStatus)
       setOverallCertificate(overallReward)
       setCertificateVersion(Date.now())
     } catch {

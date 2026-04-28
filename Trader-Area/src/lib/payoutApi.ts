@@ -31,6 +31,7 @@ export interface WithdrawalHistory {
 
 export interface PayoutEligibility {
   is_eligible: boolean
+  kyc_verified?: boolean
   has_verified_bank_account: boolean
   has_available_payout: boolean
   minimum_payout_amount: number
@@ -66,6 +67,7 @@ export interface OverallRewardCertificate {
 
 export interface PayoutEligibilityResponse {
   eligible: boolean
+  kyc_verified?: boolean
   has_bank_account: boolean
   has_funded_accounts: boolean
   available_payout: number
@@ -81,6 +83,7 @@ class PayoutAPI {
     const summary = await apiFetch<PayoutSummaryResponse>('/payouts/summary')
     return {
       eligible: summary.eligibility.is_eligible,
+      kyc_verified: summary.eligibility.kyc_verified,
       has_bank_account: summary.eligibility.has_verified_bank_account,
       has_funded_accounts: summary.funded_accounts.length > 0,
       available_payout: summary.total_available_payout,
