@@ -37,6 +37,42 @@ const riskScorePoints = [
     'Trading discipline',
 ];
 
+const increaseRiskScoreTips = [
+    {
+        title: 'Take real, controlled trades',
+        description: 'Use meaningful but measured risk. Tiny “activity only” trades may not improve your score, while controlled trades with proper intent can.',
+    },
+    {
+        title: 'Keep losses small',
+        description: 'Cut bad trades early and avoid letting losses grow too deep. Smaller realized losses and controlled adverse movement help your score.',
+    },
+    {
+        title: 'Avoid stacking positions recklessly',
+        description: 'Do not overload one idea with too many entries. Lower total exposure and better position control improve your risk profile.',
+    },
+    {
+        title: 'Stay consistent with lot size',
+        description: 'Stable position sizing shows discipline. Sudden jumps in size or random aggression can slow score growth.',
+    },
+    {
+        title: 'Trade with discipline over time',
+        description: 'Breezy score works like a reputation system. Many clean trades build the score faster than lucky wins or one-off spikes.',
+    },
+    {
+        title: 'Avoid chaotic overtrading',
+        description: 'Good frequency and controlled execution matter. Forced, rushed, or hyperactive trading can hurt score quality.',
+    },
+];
+
+const goodTradingBehaviours = [
+    'Controlled risk on each trade',
+    'Tight loss management and quick exits on bad ideas',
+    'Low drawdown relative to account size',
+    'Consistent lot sizing across trades',
+    'Measured trade frequency instead of random overtrading',
+    'Disciplined execution repeated across many trades',
+];
+
 const profitSplitTiers = [
     '100 Score → 100% Profit Split',
     '75–99 Score → 80%',
@@ -278,6 +314,21 @@ export default function BreezyAccountsPage() {
                                     <div className="rounded-2xl border border-white/8 bg-black/20 px-4 py-3">Fast processing</div>
                                 </div>
                             </div>
+
+                            <div className="border-t border-white/10 pt-6">
+                                <h3 className="text-2xl font-semibold text-white">How to increase my risk score</h3>
+                                <p className="mt-3 text-white/72">
+                                    Your Breezy risk score increases when you combine real trading participation with disciplined execution over time.
+                                </p>
+                                <div className="mt-4 space-y-4">
+                                    {increaseRiskScoreTips.map((item) => (
+                                        <div key={item.title} className="rounded-2xl border border-white/8 bg-black/20 px-4 py-4">
+                                            <p className="font-semibold text-white">{item.title}</p>
+                                            <p className="mt-2 text-sm text-white/72">{item.description}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -301,6 +352,18 @@ export default function BreezyAccountsPage() {
                                     <div key={item} className="flex items-start gap-3 rounded-2xl border border-white/8 bg-black/20 px-4 py-3 text-white/80">
                                         <span className="text-[#ffd700]">•</span>
                                         <span>{item}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-white/8 to-white/[0.03] p-7">
+                            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#7fe7f7]">Good Trading Behaviours</p>
+                            <h3 className="mt-3 text-3xl font-semibold text-white">The habits that actually improve your Breezy score.</h3>
+                            <div className="mt-5 space-y-3">
+                                {goodTradingBehaviours.map((item) => (
+                                    <div key={item} className="rounded-2xl border border-white/8 bg-black/20 px-4 py-3 text-white/80">
+                                        {item}
                                     </div>
                                 ))}
                             </div>

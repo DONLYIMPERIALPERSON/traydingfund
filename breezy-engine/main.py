@@ -41,14 +41,14 @@ worker_stop_event = Event()
 worker_threads: List[Thread] = []
 account_lock_registry: Dict[str, Lock] = {}
 account_lock_registry_guard = Lock()
+diagnostic_log_lock = Lock()
 
 BASE_DIR = Path(__file__).resolve().parent
-OUTPUT_DIR = BASE_DIR / "output"
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-DIAGNOSTIC_LOG = OUTPUT_DIR / "breezy-replay-diagnostics.jsonl"
-POSITION_RISK_LOG = OUTPUT_DIR / "breezy-position-risk.jsonl"
-EXPOSURE_LOG = OUTPUT_DIR / "breezy-exposure-snapshots.jsonl"
-SUMMARY_LOG = OUTPUT_DIR / "breezy-replay-summary.jsonl"
+OUTPUTS_DIR = BASE_DIR / "output"
+OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+REPLAY_DIAGNOSTICS_LOG = OUTPUTS_DIR / "replay-diagnostics.jsonl"
+REPLAY_SUCCESS_LOG = OUTPUTS_DIR / "replay-successful-metrics.jsonl"
+REPLAY_BACKEND_FAILURE_LOG = OUTPUTS_DIR / "replay-backend-failures.jsonl"
 
 
 def now_iso() -> str:
@@ -62,49 +62,83 @@ def log_diagnostic(*, account_number: str, issue: str, details: dict) -> None:
         "issue": issue,
         "details": details,
     }
-    with DIAGNOSTIC_LOG.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+    with diagnostic_log_lock:
+        with REPLAY_DIAGNOSTICS_LOG.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
 def _round6(value: float) -> float:
     return round(float(value), 6)
 
 
-def log_position_risk(*, account_number: str, session_id: str, record: dict) -> None:
-    payload = {
+def log_successful_metric_send(*, result: BreezyReplayResult, backend_status_code: Optional[int] = None) -> None:
+    record = {
         "logged_at": now_iso(),
-        "account_number": account_number,
-        "session_id": session_id,
-        **record,
+        "account_number": result.account_number,
+        "session_id": result.session_id,
+        "processed_at": result.processed_at,
+        "breach_reason": result.breach_reason,
+        "account_status": result.account_status,
+        "backend_status_code": backend_status_code,
     }
-    with POSITION_RISK_LOG.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    with diagnostic_log_lock:
+        with REPLAY_SUCCESS_LOG.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def log_backend_failure(
+    *,
+    result: BreezyReplayResult,
+    backend_status_code: Optional[int] = None,
+    response_text: Optional[str] = None,
+    error: Optional[str] = None,
+) -> None:
+    record = {
+        "logged_at": now_iso(),
+        "account_number": result.account_number,
+        "session_id": result.session_id,
+        "processed_at": result.processed_at,
+        "breach_reason": result.breach_reason,
+        "account_status": result.account_status,
+        "backend_status_code": backend_status_code,
+        "response_text": response_text,
+        "error": error,
+    }
+    with diagnostic_log_lock:
+        with REPLAY_BACKEND_FAILURE_LOG.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
 def log_exposure_snapshot(*, account_number: str, session_id: str, record: dict) -> None:
-    payload = {
-        "logged_at": now_iso(),
-        "account_number": account_number,
-        "session_id": session_id,
-        **record,
-    }
-    with EXPOSURE_LOG.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    log_diagnostic(
+        account_number=account_number,
+        issue="exposure_snapshot",
+        details={"session_id": session_id, **record},
+    )
+
+
+def log_position_risk(*, account_number: str, session_id: str, record: dict) -> None:
+    log_diagnostic(
+        account_number=account_number,
+        issue="position_risk",
+        details={"session_id": session_id, **record},
+    )
 
 
 def log_summary(*, account_number: str, session_id: str, record: dict) -> None:
-    payload = {
-        "logged_at": now_iso(),
-        "account_number": account_number,
-        "session_id": session_id,
-        **record,
-    }
-    with SUMMARY_LOG.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    log_diagnostic(
+        account_number=account_number,
+        issue="replay_summary",
+        details={"session_id": session_id, **record},
+    )
 
 
 def post_result_to_backend(result: BreezyReplayResult) -> None:
     if not BACKEND_BREEZY_METRICS_URL:
+        log_backend_failure(
+            result=result,
+            error="missing_backend_breezy_metrics_url",
+        )
         return
 
     payload = {
@@ -145,6 +179,14 @@ def post_result_to_backend(result: BreezyReplayResult) -> None:
         headers=headers,
         timeout=15,
     )
+    if response.ok:
+        log_successful_metric_send(result=result, backend_status_code=response.status_code)
+    else:
+        log_backend_failure(
+            result=result,
+            backend_status_code=response.status_code,
+            response_text=response.text[:4000],
+        )
     response.raise_for_status()
 
 
@@ -242,7 +284,7 @@ class BreezyReplayResult(BaseModel):
     closed_trades: int
     risk_score: int
     risk_score_band: str
-    components: Dict[str, int] = Field(default_factory=dict)
+    components: Dict[str, float | int] = Field(default_factory=dict)
     max_total_exposure: float = 0.0
     max_single_position_risk: float = 0.0
     profit_split: int
@@ -376,11 +418,30 @@ def replay_worker_loop() -> None:
             account_lock = get_account_processing_lock(session.account_number)
             with account_lock:
                 if not is_latest_session_for_account(session):
+                    log_diagnostic(
+                        account_number=session.account_number,
+                        issue="session_superseded",
+                        details={"session_id": session.session_id},
+                    )
                     save_session_record(session, status="failed", error="superseded_by_newer_session")
                     continue
+                log_diagnostic(
+                    account_number=session.account_number,
+                    issue="session_processing_started",
+                    details={"session_id": session.session_id},
+                )
                 save_session_record(session, status="processing")
                 result = calculate_result(session)
                 save_session_record(session, status="completed", result=result)
+                log_diagnostic(
+                    account_number=session.account_number,
+                    issue="session_processing_completed",
+                    details={
+                        "session_id": session.session_id,
+                        "risk_score": result.risk_score,
+                        "account_status": result.account_status,
+                    },
+                )
                 try:
                     post_result_to_backend(result)
                 except Exception as callback_exc:
@@ -392,6 +453,11 @@ def replay_worker_loop() -> None:
         except Exception as exc:
             try:
                 if 'session' in locals():
+                    log_diagnostic(
+                        account_number=session.account_number,
+                        issue="session_processing_failed",
+                        details={"session_id": session.session_id, "error": str(exc)},
+                    )
                     save_session_record(session, status="failed", error=str(exc))
             except Exception:
                 pass
@@ -531,8 +597,10 @@ def _pnl_from_ticks(position: PositionPayload, tick: dict, meta: SymbolMetaPaylo
     if meta.tick_value > 0 and meta.tick_size > 0:
         ticks = price_diff / meta.tick_size
         return _round6(ticks * meta.tick_value * position.volume)
+
     if meta.contract_size > 0:
         return _round6(price_diff * meta.contract_size * position.volume)
+
     return 0.0
 
 
@@ -746,6 +814,7 @@ def build_timeline(
                     else:
                         open_positions.pop(key, None)
                 event_meta["profit"] = _round6(_deal_net(deal))
+                event_meta["price"] = deal.price
         elif event_type == "tick":
             symbol = event[2]
             tick = event[3]
@@ -833,6 +902,31 @@ def _score_frequency(trades_per_hour: float) -> int:
     return 0
 
 
+def _score_recent_trade_quality(used_risk_fraction: float, profit: float) -> int:
+    if used_risk_fraction <= 0.02:
+        score = 100
+    elif used_risk_fraction <= 0.04:
+        score = 80
+    elif used_risk_fraction <= 0.06:
+        score = 60
+    elif used_risk_fraction <= 0.10:
+        score = 40
+    elif used_risk_fraction <= 0.15:
+        score = 20
+    else:
+        score = 0
+
+    if profit < 0:
+        score = max(0, score - 15)
+    return score
+
+
+def _score_delta_from_trade_quality(trade_quality: int) -> int:
+    if trade_quality >= 50:
+        return int(round((trade_quality - 50) / 12))
+    return int(round((trade_quality - 50) / 8))
+
+
 def calculate_result(session: BreezyReplaySession) -> BreezyReplayResult:
     processing_started_at = now_iso()
     started_at = time.perf_counter()
@@ -881,6 +975,12 @@ def calculate_result(session: BreezyReplaySession) -> BreezyReplayResult:
     trade_mae_amounts: Dict[str, float] = {}
     trade_sl_risk_amounts: Dict[str, float] = {}
     mae_tracker: Dict[str, dict] = {}
+    latest_trade_quality: Optional[int] = None
+    cumulative_score = 0
+    good_streak = 0
+    bad_streak = 0
+    score_deltas: List[int] = []
+    minimum_rewardable_risk_fraction = 0.003
 
     seen_open_keys: set[str] = set()
     for position in payload.positions:
@@ -1002,25 +1102,66 @@ def calculate_result(session: BreezyReplaySession) -> BreezyReplayResult:
             closed_key = event.get("key")
             mae_amount = trade_mae_amounts.get(closed_key, 0.0)
             sl_risk_amount = trade_sl_risk_amounts.get(closed_key, 0.0)
-            used_risk_amount = _round6(max(mae_amount, sl_risk_amount))
-            if replay.initial_balance > 0 and mae_amount / replay.initial_balance > 0.10:
+            realized_loss_amount = _round6(max(0.0, -profit))
+            used_risk_amount = _round6(max(mae_amount, sl_risk_amount, realized_loss_amount))
+            used_risk_fraction = _round6(used_risk_amount / replay.initial_balance) if replay.initial_balance > 0 else 0.0
+            latest_trade_quality = _score_recent_trade_quality(used_risk_fraction, profit)
+            trade_delta = _score_delta_from_trade_quality(latest_trade_quality)
+
+            if used_risk_fraction < minimum_rewardable_risk_fraction and trade_delta > 0:
+                trade_delta = 0
+
+            if trade_delta > 0:
+                good_streak += 1
+                bad_streak = 0
+            elif trade_delta < 0:
+                bad_streak += 1
+                good_streak = 0
+            else:
+                good_streak = 0
+                bad_streak = 0
+
+            bonus_or_penalty = 0
+            if good_streak >= 5:
+                bonus_or_penalty += 5
+                good_streak = 0
+            if bad_streak >= 3:
+                bonus_or_penalty -= 5
+                bad_streak = 0
+
+            applied_delta = trade_delta + bonus_or_penalty
+            cumulative_score = max(0, min(100, cumulative_score + applied_delta))
+            score_deltas.append(applied_delta)
+            if replay.initial_balance > 0 and used_risk_amount / replay.initial_balance > 0.10:
                 extreme_loss_penalty = True
             tracker = mae_tracker.get(closed_key, {})
+            closed_symbol = tracker.get("symbol") or event.get("symbol")
+            closed_meta = meta_map.get(str(closed_symbol)) if closed_symbol else None
             log_position_risk(
                 account_number=session.account_number,
                 session_id=session.session_id,
                 record={
                     "position_id": tracker.get("position_id") or event.get("position_id"),
                     "deal_id": event.get("deal_id"),
-                    "symbol": tracker.get("symbol") or event.get("symbol"),
+                    "symbol": closed_symbol,
+                    "entry_price": tracker.get("entry_price"),
+                    "close_price": event.get("price"),
+                    "contract_size": closed_meta.contract_size if closed_meta is not None else None,
+                    "tick_value": closed_meta.tick_value if closed_meta is not None else None,
+                    "tick_size": closed_meta.tick_size if closed_meta is not None else None,
                     "mae_amount": _round6(mae_amount),
                     "mae_percent": _round6(mae_amount / replay.initial_balance) if replay.initial_balance > 0 else 0.0,
                     "sl_risk_amount": _round6(sl_risk_amount),
                     "sl_percent": _round6(sl_risk_amount / replay.initial_balance) if replay.initial_balance > 0 else 0.0,
+                    "realized_loss_amount": realized_loss_amount,
+                    "realized_loss_percent": _round6(realized_loss_amount / replay.initial_balance) if replay.initial_balance > 0 else 0.0,
                     "used_risk_amount": used_risk_amount,
-                    "used_risk_percent": _round6(used_risk_amount / replay.initial_balance) if replay.initial_balance > 0 else 0.0,
+                    "used_risk_percent": used_risk_fraction,
                     "duration_ms": (ts - tracker.get("opened_at")) if tracker.get("opened_at") is not None else None,
                     "closed": True,
+                    "trade_quality": latest_trade_quality,
+                    "score_delta": applied_delta,
+                    "running_score": cumulative_score,
                 },
             )
             if closed_key in mae_tracker and event.get("volume") is not None:
@@ -1077,10 +1218,22 @@ def calculate_result(session: BreezyReplaySession) -> BreezyReplayResult:
         + lot_component * 0.20
         + frequency_component * 0.10
     )
-    risk_score = int(round(max(0.0, min(100.0, weighted_score))))
+    behavior_score = max(0.0, min(100.0, weighted_score))
 
     if exposure_spike_penalty or extreme_loss_penalty or max_single_position_risk_fraction > 0.10:
-        risk_score = min(risk_score, 50)
+        behavior_score = min(behavior_score, 50.0)
+
+    risk_score = cumulative_score
+
+    if exposure_spike_penalty or extreme_loss_penalty:
+        risk_score = max(0, risk_score - 10)
+
+    if latest_trade_quality is not None and latest_trade_quality < 50:
+        risk_score = min(risk_score, 60)
+    if latest_trade_quality is not None and latest_trade_quality < 40:
+        risk_score = int(risk_score * 0.9)
+    if closed_trades < 15:
+        risk_score = min(risk_score, 35)
 
     assert 0 <= risk_score <= 100
     assert 0 <= max_total_exposure
@@ -1096,6 +1249,11 @@ def calculate_result(session: BreezyReplaySession) -> BreezyReplayResult:
         "drawdown": drawdown_component,
         "lot_control": lot_component,
         "frequency": frequency_component,
+        "behavior_score": int(round(behavior_score)),
+        "latest_trade_quality": latest_trade_quality if latest_trade_quality is not None else 0,
+        "score_progress": risk_score,
+        "average_score_delta": int(round(sum(score_deltas) / len(score_deltas))) if score_deltas else 0,
+        "minimum_rewardable_risk_percent": _round6(minimum_rewardable_risk_fraction * 100),
     }
 
     withdrawal_block_reason: Optional[str] = None
