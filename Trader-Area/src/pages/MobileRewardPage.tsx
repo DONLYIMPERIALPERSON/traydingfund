@@ -20,22 +20,22 @@ import {
   type CryptoPayoutProfile,
 } from '../lib/traderAuth'
 
+type RewardView = 'request' | 'history'
+
 const resolveEffectiveKycStatus = (profileStatusRaw: string | null | undefined, hasHistory: boolean, latestRequestStatus?: string) => {
   const profileStatus = (profileStatusRaw || 'not_started').toLowerCase()
-  if (hasHistory) {
-    return latestRequestStatus || profileStatus
-  }
+  if (hasHistory) return latestRequestStatus || profileStatus
   return profileStatus === 'pending' ? 'not_started' : profileStatus
 }
 
 const MobileRewardPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'request' | 'history'>('request')
+  const [activeView, setActiveView] = useState<RewardView>('request')
   const [requestingPayout, setRequestingPayout] = useState(false)
   const [requestError, setRequestError] = useState('')
   const [payoutData, setPayoutData] = useState<PayoutSummaryResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null)
+  const [requestingAccountId, setRequestingAccountId] = useState<number | null>(null)
   const [bankProfile, setBankProfile] = useState<BankAccountProfile | null>(null)
   const [cryptoProfile, setCryptoProfile] = useState<CryptoPayoutProfile | null>(null)
   const [kycStatus, setKycStatus] = useState('not_started')
@@ -60,6 +60,7 @@ const MobileRewardPage: React.FC = () => {
         fetchKycHistory(),
         payoutAPI.fetchOverallRewardCertificate(),
       ])
+
       setBankProfile(payoutProfile)
       setCryptoProfile(cryptoPayoutProfile)
 
@@ -97,6 +98,7 @@ const MobileRewardPage: React.FC = () => {
     : kycStatus === 'declined'
       ? 'KYC verification declined'
       : 'Complete KYC to unlock withdrawals'
+
   const kycLockedMessage = kycStatus === 'pending'
     ? 'Your KYC submission is under review. Withdrawals will unlock once it is approved.'
     : kycStatus === 'declined'
@@ -105,9 +107,45 @@ const MobileRewardPage: React.FC = () => {
 
   const hasPayoutMethod = Boolean(bankProfile || cryptoProfile)
   const isKycVerified = ['verified', 'approved'].includes(kycStatus)
-  const availableAccounts = payoutData ? payoutData.funded_accounts.filter((account) => !account.has_pending_request) : []
+  const fundedAccounts = payoutData?.funded_accounts ?? []
   const overallRewardAmount = overallCertificate?.total_reward ?? payoutData?.total_earned_all_time ?? 0
   const overallRewardCurrency = overallCertificate?.currency ?? 'USD'
+
+  const formatEligibleDate = (dateString?: string | null) => {
+    if (!dateString) return 'Eligible today'
+    const target = new Date(dateString)
+    if (Number.isNaN(target.getTime())) return 'Eligible today'
+    const diffMs = target.getTime() - Date.now()
+    if (diffMs <= 0) return `Eligible today at ${formatTime(target.toISOString())}`
+
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+    return diffDays <= 1
+      ? `Eligible today at ${formatTime(target.toISOString())}`
+      : `Eligible in ${diffDays} days`
+  }
+
+  const getAccountCardState = (account: PayoutSummaryResponse['funded_accounts'][number]) => {
+    const meetsMinimum = account.available_payout >= account.minimum_withdrawal_amount
+    const nextEligiblePending = Boolean(account.next_withdrawal_at && new Date(account.next_withdrawal_at).getTime() > Date.now())
+    const breezyBlocked = account.withdrawal_eligible === false
+    const hasPendingRequest = Boolean(account.has_pending_request)
+    const isEligible = hasPayoutMethod
+      && isKycVerified
+      && meetsMinimum
+      && !nextEligiblePending
+      && !hasPendingRequest
+      && !breezyBlocked
+
+    let reason = ''
+    if (!hasPayoutMethod) reason = 'Set a payout method in Settings first.'
+    else if (!isKycVerified) reason = 'Complete KYC to unlock withdrawals.'
+    else if (hasPendingRequest) reason = 'A withdrawal request is already pending for this account.'
+    else if (breezyBlocked) reason = account.withdrawal_block_reason || 'This account is not currently eligible for withdrawal.'
+    else if (nextEligiblePending) reason = formatEligibleDate(account.next_withdrawal_at)
+    else if (!meetsMinimum) reason = `Minimum withdrawal is ${formatCurrency(account.minimum_withdrawal_amount, account.currency)}.`
+
+    return { isEligible, reason }
+  }
 
   const handleDownloadCertificate = () => {
     if (!overallCertificate?.certificate_url) return
@@ -135,16 +173,12 @@ const MobileRewardPage: React.FC = () => {
     }
   }
 
-  const handleRequestPayout = async () => {
-    if (!selectedAccountId) {
-      setRequestError('Please select an account')
-      return
-    }
-
+  const handleRequestPayout = async (accountId: number) => {
     try {
+      setRequestingAccountId(accountId)
       setRequestingPayout(true)
       setRequestError('')
-      const response = await payoutAPI.requestPayout(selectedAccountId)
+      const response = await payoutAPI.requestPayout(accountId)
       window.alert(response.message || 'Withdrawal request submitted successfully!')
       const data = await payoutAPI.getPayoutSummary()
       setPayoutData(data)
@@ -156,6 +190,7 @@ const MobileRewardPage: React.FC = () => {
       setRequestError(errorMessage)
     } finally {
       setRequestingPayout(false)
+      setRequestingAccountId(null)
     }
   }
 
@@ -170,8 +205,12 @@ const MobileRewardPage: React.FC = () => {
             <h1>Rewards</h1>
             <p>Request and track your payouts.</p>
           </div>
-          <button type="button" className="mobile-reward-header__icon" onClick={() => navigate('/support')}>
-            <i className="fas fa-headset" />
+          <button
+            type="button"
+            className={`mobile-reward-header__icon mobile-reward-header__icon--history ${activeView === 'history' ? 'is-active' : ''}`}
+            onClick={() => setActiveView((current) => current === 'history' ? 'request' : 'history')}
+          >
+            <i className="fas fa-clock-rotate-left" />
           </button>
         </header>
 
@@ -214,74 +253,113 @@ const MobileRewardPage: React.FC = () => {
             ) : null}
 
             <section className="mobile-reward-card">
-              <div className="mobile-reward-tabs">
-                <button type="button" className={activeTab === 'request' ? 'is-active' : ''} onClick={() => setActiveTab('request')}>Request</button>
-                <button type="button" className={activeTab === 'history' ? 'is-active' : ''} onClick={() => setActiveTab('history')}>History</button>
+              <div className="mobile-reward-section-heading">
+                <div>
+                  <h2>{activeView === 'history' ? 'Withdrawal History' : 'Withdrawable Accounts'}</h2>
+                  <p>
+                    {activeView === 'history'
+                      ? 'Track payout requests and their statuses.'
+                      : 'Choose an account and request withdrawals as soon as it becomes eligible.'}
+                  </p>
+                </div>
+                <span className="mobile-reward-section-badge">
+                  {activeView === 'history' ? `${payoutData?.withdrawal_history.length ?? 0} items` : `${fundedAccounts.length} accounts`}
+                </span>
               </div>
 
-              {activeTab === 'request' && payoutData ? (
+              {activeView === 'request' ? (
                 !hasPayoutMethod ? (
                   <div className="mobile-reward-inline-note">
                     <p>Please add your bank transfer or crypto wallet in Settings before requesting a withdrawal.</p>
                     <button type="button" onClick={() => navigate('/settings')}>Go to Settings</button>
                   </div>
                 ) : (
-                  <div className="mobile-reward-request-box">
-                    <label>
-                      <span>Select Account</span>
-                      <select value={selectedAccountId || ''} onChange={(e) => setSelectedAccountId(e.target.value ? parseInt(e.target.value) : null)}>
-                        <option value="" disabled>Select an account to withdraw from</option>
-                        {availableAccounts.map((account) => {
-                          const canWithdraw = account.available_payout >= account.minimum_withdrawal_amount
-                          return (
-                            <option key={account.account_id} value={account.account_id} disabled={!canWithdraw}>
-                              {account.account_size} - Available: {formatCurrency(account.available_payout, account.currency)}
-                              {!canWithdraw ? ` (Min: ${formatCurrency(account.minimum_withdrawal_amount, account.currency)})` : ''}
-                            </option>
-                          )
-                        })}
-                      </select>
-                    </label>
+                  <div className="mobile-reward-account-list">
+                    {fundedAccounts.map((account) => {
+                      const state = getAccountCardState(account)
+                      const isRequestingThis = requestingAccountId === account.account_id
 
-                    <button type="button" onClick={() => void handleRequestPayout()} disabled={!payoutData.eligibility.is_eligible || requestingPayout}>
-                      {requestingPayout ? 'Submitting...' : payoutData.eligibility.is_eligible ? 'Request Withdrawal' : 'Not Eligible'}
-                    </button>
+                      return (
+                        <article
+                          key={account.account_id}
+                          className={`mobile-reward-account-card ${state.isEligible ? 'is-eligible' : 'is-disabled'}`}
+                        >
+                          <div className="mobile-reward-account-card__top">
+                            <div>
+                              <span className="mobile-reward-account-card__eyebrow">Account Number</span>
+                              <strong>{account.mt5_account_number || account.challenge_id}</strong>
+                            </div>
+                            <span className={`mobile-reward-account-card__status ${state.isEligible ? 'is-eligible' : 'is-disabled'}`}>
+                              {state.isEligible ? 'Eligible' : 'Unavailable'}
+                            </span>
+                          </div>
 
-                    {requestError ? <div className="mobile-reward-error">{requestError}</div> : null}
+                          <div className="mobile-reward-account-card__timeline">
+                            <i className="fas fa-calendar-check" />
+                            <span>{formatEligibleDate(account.next_withdrawal_at)}</span>
+                          </div>
 
-                    {!payoutData.eligibility.is_eligible && payoutData.eligibility.ineligibility_reasons.length > 0 ? (
-                      <div className="mobile-reward-reasons">
-                        {payoutData.eligibility.ineligibility_reasons.map((reason, index) => (
-                          <div key={index}>• {reason}</div>
-                        ))}
-                      </div>
-                    ) : null}
+                          <div className="mobile-reward-account-card__grid">
+                            <div>
+                              <span>Balance</span>
+                              <strong>{formatCurrency(account.current_balance, account.currency)}</strong>
+                            </div>
+                            <div>
+                              <span>Profit split amount</span>
+                              <strong>{formatCurrency(account.available_payout, account.currency)}</strong>
+                            </div>
+                            <div>
+                              <span>Profit split %</span>
+                              <strong>{account.profit_split_percent}%</strong>
+                            </div>
+                            <div>
+                              <span>Account size</span>
+                              <strong>{account.account_size}</strong>
+                            </div>
+                          </div>
+
+                          {state.reason ? <p className="mobile-reward-account-card__reason">{state.reason}</p> : null}
+
+                          <div className="mobile-reward-account-card__actions">
+                            <button
+                              type="button"
+                              className="mobile-reward-account-card__button"
+                              onClick={() => void handleRequestPayout(account.account_id)}
+                              disabled={!state.isEligible || requestingPayout}
+                            >
+                              {isRequestingThis ? 'Requesting...' : 'Request'}
+                            </button>
+                          </div>
+                        </article>
+                      )
+                    })}
                   </div>
                 )
-              ) : null}
-
-              {activeTab === 'history' && payoutData ? (
-                payoutData.withdrawal_history.length === 0 ? (
-                  <div className="mobile-reward-inline-note">No withdrawal history yet.</div>
-                ) : (
-                  <div className="mobile-reward-history-list">
-                    {payoutData.withdrawal_history.map((withdrawal) => (
-                      <article key={withdrawal.id} className="mobile-reward-history-item">
-                        <div>
+              ) : payoutData?.withdrawal_history.length === 0 ? (
+                <div className="mobile-reward-inline-note">No withdrawal history yet.</div>
+              ) : (
+                <div className="mobile-reward-history-list">
+                  {payoutData.withdrawal_history.map((withdrawal) => (
+                    <article key={withdrawal.id} className="mobile-reward-history-item">
+                      <div className="mobile-reward-history-item__body">
+                        <div className="mobile-reward-history-item__top">
                           <strong>{formatCurrency(withdrawal.amount, withdrawal.currency ?? 'USD')}</strong>
-                          <p>{formatDate(withdrawal.requested_at)} • {formatTime(withdrawal.requested_at)}</p>
-                          {withdrawal.reference ? <small>Ref: {withdrawal.reference}</small> : null}
-                          {withdrawal.decline_reason ? <small>Reason: {withdrawal.decline_reason}</small> : null}
-                        </div>
-                        <div className="mobile-reward-history-item__right">
                           <span className={`mobile-reward-history-status ${withdrawal.status}`}>{resolveStatusLabel(withdrawal.status)}</span>
-                          <small>{formatTimeAgo(withdrawal.completed_at || withdrawal.requested_at)}</small>
                         </div>
-                      </article>
-                    ))}
-                  </div>
-                )
-              ) : null}
+                        <p>{formatDate(withdrawal.requested_at)} • {formatTime(withdrawal.requested_at)}</p>
+                        {withdrawal.mt5_account_number ? <small>Account: {withdrawal.mt5_account_number}</small> : null}
+                        {withdrawal.reference ? <small>Ref: {withdrawal.reference}</small> : null}
+                        {withdrawal.decline_reason ? <small>Reason: {withdrawal.decline_reason}</small> : null}
+                      </div>
+                      <div className="mobile-reward-history-item__right">
+                        <small>{formatTimeAgo(withdrawal.completed_at || withdrawal.requested_at)}</small>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+
+              {requestError ? <div className="mobile-reward-error">{requestError}</div> : null}
             </section>
           </>
         )}

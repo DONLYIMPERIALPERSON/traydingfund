@@ -3,6 +3,7 @@ import { apiFetch } from '../lib/api'
 export interface FundedAccountPayout {
   account_id: number;
   challenge_id: string;
+  mt5_account_number?: string | null;
   account_size: string;
   currency?: string;
   current_balance: number;
@@ -15,6 +16,8 @@ export interface FundedAccountPayout {
   next_withdrawal_at?: string | null;
   withdrawal_schedule?: string | null;
   has_pending_request?: boolean;
+  withdrawal_eligible?: boolean;
+  withdrawal_block_reason?: string | null;
 }
 
 export interface WithdrawalHistory {

@@ -364,6 +364,7 @@ export const getPayoutSummary = async (req: AuthRequest, res: Response, next: Ne
         return {
           account_id: account.id,
           challenge_id: account.challengeId,
+          mt5_account_number: account.accountNumber,
           account_size: account.accountSize,
           currency: resolveCurrencyLabel(account.currency),
           current_balance: payoutInfo.metrics?.balance ?? payoutInfo.initialBalance,
