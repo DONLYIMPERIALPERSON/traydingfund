@@ -3,86 +3,211 @@ import path from 'path'
 import readline from 'readline'
 import dotenv from 'dotenv'
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses'
-import { buildEmailTemplate } from '../src/services/emailTemplate'
+const SUBJECT = 'Introducing NGN Breezy Accounts'
 
-const SUBJECT = 'Withdraw Daily on Flexi - No Limits, No Caps'
+const HTML_BODY = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MACHEFUNDED Breezy Accounts</title>
+</head>
+<body style="margin:0; padding:0; background:#071f24; font-family:Arial, sans-serif; color:#ffffff;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#071f24; padding:30px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px; width:90%; background:#0b2b31; border-radius:18px; overflow:hidden;">
+          <tr>
+            <td style="padding:30px; text-align:center;">
+              <img
+                src="https://pub-e47c37a6a0b447288c2210b9e8f6faf5.r2.dev/login-page-logo.png"
+                width="72"
+                alt="MACHEFUNDED"
+                style="display:block; margin:0 auto 14px;"
+              />
+              <h2 style="margin:0; color:#ffffff; letter-spacing:2px;">MACHEFUNDED</h2>
+            </td>
+          </tr>
 
-const HTML_BODY = buildEmailTemplate({
-  title: 'Withdraw Daily on Flexi - No Limits, No Caps',
-  subtitle: 'Flexibility, speed, and full control over your earnings.',
-  content: `
-    <p>Dear Trader,</p>
+          <tr>
+            <td style="padding:10px 35px 25px; text-align:center;">
+              <p style="color:#6ee7f2; font-size:14px; letter-spacing:4px; margin:0 0 15px;">
+                INTRODUCING
+              </p>
 
-    <p>
-      Na everyday withdrawals dey happen here — and if you never believe, this is your sign to try am yourself.
-    </p>
+              <h1 style="font-size:42px; line-height:1.1; margin:0; color:#ffffff;">
+                NGN Breezy Accounts
+              </h1>
 
-    <p>
-      With our Flexi Accounts, you enjoy:
-    </p>
-    <ul>
-      <li>Daily withdrawals — no waiting, no delays</li>
-      <li>No profit cap — everything you earn is yours</li>
-      <li>No daily drawdown limit — trade with more freedom</li>
-      <li>No minimum trading days — pass and withdraw at your pace</li>
-      <li>Fully automated system — fast, smooth experience from start to payout</li>
-      <li>24/7 support — we’re always here when you need us</li>
-    </ul>
+              <p style="font-size:18px; line-height:1.6; color:#d7e8eb; margin:25px 0 0;">
+                Start trading instantly with no challenges, no drawdown limits, and earn up to
+                <strong style="color:#6ee7f2;">100% profit split</strong>.
+              </p>
+            </td>
+          </tr>
 
-    <p>
-      <strong>Flexi Account Pricing:</strong>
-    </p>
-    <ul>
-      <li>₦200,000 account — ₦9,000</li>
-      <li>₦500,000 account — ₦21,000</li>
-      <li>₦800,000 account — ₦31,500</li>
-    </ul>
+          <tr>
+            <td style="padding:10px 35px 0; text-align:left;">
+              <p style="font-size:16px; line-height:1.7; color:#d7e8eb; margin:0;">
+                Dear Trader,
+              </p>
+              <p style="font-size:16px; line-height:1.7; color:#d7e8eb; margin:16px 0 0;">
+                Breezy Accounts are built for traders who want to start immediately and get rewarded based on how well they manage risk.
+                There is no challenge phase, no drawdown limit, and you can request withdrawals the same day.
+                On Breezy Accounts, payouts take less than <strong style="color:#6ee7f2;">5 minutes</strong> once processed.
+              </p>
+            </td>
+          </tr>
 
-    <p>
-      <strong>Standard Account Pricing:</strong>
-    </p>
-    <ul>
-      <li>₦200,000 account — ₦5,000</li>
-      <li>₦500,000 account — ₦11,500</li>
-      <li>₦800,000 account — ₦17,000</li>
-    </ul>
+          <tr>
+            <td style="padding:20px 35px 10px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="background:#082126; padding:18px; border-radius:12px; color:#ffffff; font-size:16px;">
+                    ✅ No Challenge Model
+                  </td>
+                </tr>
+                <tr><td height="12"></td></tr>
+                <tr>
+                  <td style="background:#082126; padding:18px; border-radius:12px; color:#ffffff; font-size:16px;">
+                    ✅ No Drawdown Limits
+                  </td>
+                </tr>
+                <tr><td height="12"></td></tr>
+                <tr>
+                  <td style="background:#082126; padding:18px; border-radius:12px; color:#ffffff; font-size:16px;">
+                    ✅ Same-Day Withdrawal Available
+                  </td>
+                </tr>
+                <tr><td height="12"></td></tr>
+                <tr>
+                  <td style="background:#082126; padding:18px; border-radius:12px; color:#ffffff; font-size:16px;">
+                    ✅ Payouts in Less Than 5 Minutes on Breezy Accounts
+                  </td>
+                </tr>
+                <tr><td height="12"></td></tr>
+                <tr>
+                  <td style="background:#082126; padding:18px; border-radius:12px; color:#ffffff; font-size:16px;">
+                    ✅ Up to 100% Profit Split
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
 
-    <p>
-      <strong>April Promo Codes:</strong>
-    </p>
-    <ul>
-      <li>Use NGN26 — get 26% OFF NGN accounts</li>
-      <li>Use USD16 — get 16% OFF USD accounts</li>
-    </ul>
+          <tr>
+            <td style="padding:30px 35px 10px; text-align:center;">
+              <h2 style="font-size:28px; margin:0 0 15px; color:#ffffff;">
+                How Your Profit Split Works
+              </h2>
 
-    <p>
-      To allow you try our service with our improved system and new features, we’re doing something special:
-    </p>
-    <p>
-      The first 50 users to use the promo code <strong>YES</strong> will get <strong>65% OFF</strong> on any NGN Flexi or Standard account.
-    </p>
-    <p>
-      We built this for Nigerian traders who want flexibility, speed, and full control over their earnings.
-    </p>
-    <p>
-      You can also join our community on Discord to stay updated with the latest updates, connect with other traders, and never miss important announcements:<br/>
-      <a href="https://discord.gg/R2DxQQKfP">https://discord.gg/R2DxQQKfP</a>
-    </p>
-    <p>
-      No long stories. No restrictions holding you back.
-    </p>
-    <p>
-      Start today and experience it yourself.
-    </p>
-    <p>
-      Best regards,<br/>
-      MACHEFUNDED Team
-    </p>
-  `,
-  buttonText: 'Start Today',
-  buttonLink: 'https://www.machefunded.com',
-  infoBox: 'If you no longer want to receive emails, reply with "unsubscribe".',
-})
+              <p style="font-size:16px; color:#c8dadd; line-height:1.6; margin:0;">
+                Your Breezy risk score determines your profit split. The higher your score, the higher your reward.
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:20px 35px;">
+              <table width="100%" cellpadding="12" cellspacing="0" style="background:#082126; border-radius:14px; color:#ffffff;">
+                <tr>
+                  <td>100 Score</td>
+                  <td align="right" style="color:#6ee7f2;"><strong>100% Profit Split</strong></td>
+                </tr>
+                <tr>
+                  <td>75–99 Score</td>
+                  <td align="right" style="color:#6ee7f2;"><strong>80%</strong></td>
+                </tr>
+                <tr>
+                  <td>60–74 Score</td>
+                  <td align="right" style="color:#6ee7f2;"><strong>60%</strong></td>
+                </tr>
+                <tr>
+                  <td>40–59 Score</td>
+                  <td align="right" style="color:#6ee7f2;"><strong>40%</strong></td>
+                </tr>
+                <tr>
+                  <td>Below 40</td>
+                  <td align="right" style="color:#ff7777;"><strong>Not eligible</strong></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:5px 35px 0; text-align:left;">
+              <h2 style="font-size:26px; margin:0 0 15px; color:#ffffff; text-align:center;">
+                How To Increase Your Risk Score
+              </h2>
+
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="background:#082126; padding:16px 18px; border-radius:12px; color:#d7e8eb; font-size:15px; line-height:1.7;">
+                    1. Protect your capital by avoiding reckless exposure and oversized positions.
+                  </td>
+                </tr>
+                <tr><td height="10"></td></tr>
+                <tr>
+                  <td style="background:#082126; padding:16px 18px; border-radius:12px; color:#d7e8eb; font-size:15px; line-height:1.7;">
+                    2. Keep your trading consistent instead of swinging between extreme gains and losses.
+                  </td>
+                </tr>
+                <tr><td height="10"></td></tr>
+                <tr>
+                  <td style="background:#082126; padding:16px 18px; border-radius:12px; color:#d7e8eb; font-size:15px; line-height:1.7;">
+                    3. Manage drawups and losses carefully so your account stays healthy over time.
+                  </td>
+                </tr>
+                <tr><td height="10"></td></tr>
+                <tr>
+                  <td style="background:#082126; padding:16px 18px; border-radius:12px; color:#d7e8eb; font-size:15px; line-height:1.7;">
+                    4. Focus on disciplined execution — better risk management leads to better payout percentages.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:25px 35px 10px; text-align:center;">
+              <p style="font-size:16px; color:#c8dadd; line-height:1.7; margin:0;">
+                No long process. No challenge stress. Just start trading, build your score, and unlock higher rewards.
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:25px 35px; text-align:center;">
+              <a href="https://machefunded.com" style="display:inline-block; background:#0ea5ad; color:#ffffff; text-decoration:none; padding:16px 32px; border-radius:50px; font-size:16px; font-weight:bold;">
+                Explore Breezy Accounts
+              </a>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:0 35px 20px; text-align:center;">
+              <p style="font-size:13px; color:#9fbabe; line-height:1.6; margin:0; background:#082126; padding:14px 16px; border-radius:12px;">
+                If you no longer want to receive emails, reply with "unsubscribe".
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:20px 35px 35px; text-align:center;">
+              <p style="font-size:14px; color:#9fbabe; line-height:1.6; margin:0;">
+                Trade smart. Build your score. Get rewarded.
+              </p>
+              <p style="font-size:13px; color:#6f8f94; margin-top:18px;">
+                © MACHEFUNDED. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
 
 type CliOptions = {
   filePath: string
