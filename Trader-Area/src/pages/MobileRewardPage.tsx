@@ -202,8 +202,7 @@ const MobileRewardPage: React.FC = () => {
             <i className="fas fa-arrow-left" />
           </button>
           <div className="mobile-reward-header__text">
-            <h1>Rewards</h1>
-            <p>Request and track your payouts.</p>
+            <h1>Request A Reward</h1>
           </div>
           <button
             type="button"
@@ -256,11 +255,6 @@ const MobileRewardPage: React.FC = () => {
               <div className="mobile-reward-section-heading">
                 <div>
                   <h2>{activeView === 'history' ? 'Withdrawal History' : 'Withdrawable Accounts'}</h2>
-                  <p>
-                    {activeView === 'history'
-                      ? 'Track payout requests and their statuses.'
-                      : 'Choose an account and request withdrawals as soon as it becomes eligible.'}
-                  </p>
                 </div>
                 <span className="mobile-reward-section-badge">
                   {activeView === 'history' ? `${payoutData?.withdrawal_history.length ?? 0} items` : `${fundedAccounts.length} accounts`}
@@ -312,24 +306,22 @@ const MobileRewardPage: React.FC = () => {
                               <span>Profit split %</span>
                               <strong>{account.profit_split_percent}%</strong>
                             </div>
-                            <div>
-                              <span>Account size</span>
-                              <strong>{account.account_size}</strong>
-                            </div>
                           </div>
 
                           {state.reason ? <p className="mobile-reward-account-card__reason">{state.reason}</p> : null}
 
-                          <div className="mobile-reward-account-card__actions">
-                            <button
-                              type="button"
-                              className="mobile-reward-account-card__button"
-                              onClick={() => void handleRequestPayout(account.account_id)}
-                              disabled={!state.isEligible || requestingPayout}
-                            >
-                              {isRequestingThis ? 'Requesting...' : 'Request'}
-                            </button>
-                          </div>
+                          {state.isEligible ? (
+                            <div className="mobile-reward-account-card__actions">
+                              <button
+                                type="button"
+                                className="mobile-reward-account-card__button"
+                                onClick={() => void handleRequestPayout(account.account_id)}
+                                disabled={requestingPayout}
+                              >
+                                {isRequestingThis ? 'Requesting...' : 'Request'}
+                              </button>
+                            </div>
+                          ) : null}
                         </article>
                       )
                     })}

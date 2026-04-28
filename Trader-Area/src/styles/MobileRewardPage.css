@@ -44,19 +44,18 @@
 
 .mobile-reward-header__text {
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
 }
 
 .mobile-reward-header__text h1 {
   margin: 0;
-  font-size: 28px;
-  line-height: 1.05;
+  font-size: 24px;
+  line-height: 1.1;
   font-weight: 800;
-}
-
-.mobile-reward-header__text p {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: rgba(238, 247, 251, 0.72);
+  white-space: nowrap;
 }
 
 .mobile-reward-card,
@@ -69,7 +68,7 @@
 }
 
 .mobile-reward-card {
-  padding: 18px;
+  padding: 16px;
   margin-bottom: 16px;
 }
 
@@ -163,18 +162,12 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .mobile-reward-section-heading h2 {
   margin: 0;
-  font-size: 18px;
-}
-
-.mobile-reward-section-heading p {
-  margin: 4px 0 0;
-  font-size: 12px;
-  color: rgba(238, 247, 251, 0.72);
+  font-size: 16px;
 }
 
 .mobile-reward-section-badge {
@@ -193,7 +186,7 @@
 .mobile-reward-account-list,
 .mobile-reward-history-list {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .mobile-reward-inline-note,
@@ -206,12 +199,12 @@
 }
 
 .mobile-reward-account-card {
-  padding: 14px;
-  border-radius: 18px;
+  padding: 12px;
+  border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.04);
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .mobile-reward-account-card.is-disabled {
@@ -227,27 +220,27 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
 }
 
 .mobile-reward-account-card__eyebrow,
 .mobile-reward-account-card__grid span {
   display: block;
-  font-size: 11px;
+  font-size: 10px;
   color: rgba(238, 247, 251, 0.62);
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .mobile-reward-account-card__top strong,
 .mobile-reward-account-card__grid strong {
   color: #ffffff;
-  font-size: 15px;
+  font-size: 13px;
 }
 
 .mobile-reward-account-card__status {
-  padding: 6px 10px;
+  padding: 5px 8px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -265,20 +258,27 @@
 .mobile-reward-account-card__timeline {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   color: #bfeef5;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .mobile-reward-account-card__grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mobile-reward-account-card__grid > div {
+  padding: 8px 9px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .mobile-reward-account-card__reason {
   margin: 0;
-  font-size: 12px;
+  font-size: 11px;
   color: rgba(238, 247, 251, 0.72);
 }
 
@@ -288,10 +288,10 @@
 }
 
 .mobile-reward-account-card__button {
-  min-width: 92px;
-  padding: 9px 12px !important;
+  min-width: 78px;
+  padding: 7px 10px !important;
   border-radius: 12px !important;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .mobile-reward-account-card__button:disabled {
