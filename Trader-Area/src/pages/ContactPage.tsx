@@ -5,7 +5,7 @@ import DesktopFooter from '../components/DesktopFooter'
 import '../styles/DesktopContactPage.css'
 
 const socialLinks = [
-  { name: 'Discord', color: '#5865F2', url: 'https://discord.gg/HR6QW83W6' },
+  { name: 'Discord', color: '#5865F2', url: 'https://discord.gg/93trVSkjcf' },
   { name: 'X', color: '#ffffff', url: 'https://x.com/machefunded?s=21' },
   { name: 'Instagram', color: '#E1306C', url: 'https://www.instagram.com/mache.funded?igsh=NDZsbXhzM3c4d2hu&utm_source=qr' },
 ]

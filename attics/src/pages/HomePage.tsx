@@ -45,7 +45,7 @@ const HomePage: React.FC = () => {
 						</p>
 						<div className="attics-home-actions">
 							<a href="/login" className="attics-home-primary">Start Now</a>
-							<a href="https://discord.gg/HR6QW83W6" className="attics-home-secondary">Join Discord</a>
+							<a href="https://discord.gg/93trVSkjcf" className="attics-home-secondary">Join Discord</a>
 						</div>
 					</section>
 				</div>
