@@ -20,6 +20,14 @@ import {
   type CryptoPayoutProfile,
 } from '../lib/traderAuth'
 
+const resolveEffectiveKycStatus = (profileStatusRaw: string | null | undefined, hasHistory: boolean, latestRequestStatus?: string) => {
+  const profileStatus = (profileStatusRaw || 'not_started').toLowerCase()
+  if (hasHistory) {
+    return latestRequestStatus || profileStatus
+  }
+  return profileStatus === 'pending' ? 'not_started' : profileStatus
+}
+
 const MobileRewardPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'request' | 'history'>('request')
   const [requestingPayout, setRequestingPayout] = useState(false)
@@ -57,8 +65,11 @@ const MobileRewardPage: React.FC = () => {
 
       const historyItems = historyRes.requests ?? []
       const latestRequestStatus = historyItems[0]?.status?.toLowerCase()
-      const profileStatus = (profileRes.kyc_status || 'not_started').toLowerCase()
-      setKycStatus(historyItems.length > 0 ? (latestRequestStatus || profileStatus) : profileStatus)
+      setKycStatus(resolveEffectiveKycStatus(
+        profileRes.kyc_status,
+        historyItems.length > 0,
+        latestRequestStatus,
+      ))
       setOverallCertificate(overallReward)
       setCertificateVersion(Date.now())
     } catch {

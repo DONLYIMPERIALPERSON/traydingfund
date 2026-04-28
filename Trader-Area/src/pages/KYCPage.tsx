@@ -16,6 +16,14 @@ import {
 
 type UploadStatus = 'idle' | 'ready' | 'uploading'
 
+const resolveEffectiveKycStatus = (profileStatusRaw: string | null | undefined, hasHistory: boolean, latestRequestStatus?: string) => {
+  const profileStatus = (profileStatusRaw || 'not_started').toLowerCase()
+  if (hasHistory) {
+    return latestRequestStatus || profileStatus
+  }
+  return profileStatus === 'pending' ? 'not_started' : profileStatus
+}
+
 const KYCPage: React.FC = () => {
   const [kycStatus, setKycStatus] = useState<string>('not_started')
   const [eligibleForKyc, setEligibleForKyc] = useState(false)
@@ -52,10 +60,11 @@ const KYCPage: React.FC = () => {
         setEligibilityMessage(eligibility.message)
         const historyItems = historyRes.requests ?? []
         const latestRequestStatus = historyItems[0]?.status?.toLowerCase()
-        const profileStatus = (profileRes.kyc_status || 'not_started').toLowerCase()
-        const resolvedStatus = historyItems.length > 0
-          ? (latestRequestStatus || profileStatus)
-          : profileStatus
+        const resolvedStatus = resolveEffectiveKycStatus(
+          profileRes.kyc_status,
+          historyItems.length > 0,
+          latestRequestStatus,
+        )
         setKycStatus(resolvedStatus)
         setKycHistory(historyItems)
       } catch (error) {
