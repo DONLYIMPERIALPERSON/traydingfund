@@ -86,6 +86,23 @@ export type AdminLookupAccount = {
   breach_report_url?: string | null
 }
 
+export type AdminUserPaymentMethod = {
+  id: number
+  email: string
+  full_name?: string | null
+  payout_method_type?: string | null
+  payout_bank_name?: string | null
+  payout_bank_code?: string | null
+  payout_account_number?: string | null
+  payout_account_name?: string | null
+  payout_crypto_currency?: string | null
+  payout_crypto_address?: string | null
+  payout_crypto_first_name?: string | null
+  payout_crypto_last_name?: string | null
+  payout_verified_at?: string | null
+  payout_updated_at?: string | null
+}
+
 export type AdminResetAccountResponse = {
   status: 'pending' | 'completed'
   message: string
@@ -577,8 +594,19 @@ export const adminReplaceAccount = async (payload: { account_id?: number; accoun
 
 export const lookupChallengeAccount = async (accountNumber: string) =>
   apiFetch<{ account: AdminLookupAccount }>(
-    `/admin/challenges/lookup?account_number=${encodeURIComponent(accountNumber)}`
+    `/admin/challenges/lookup?account_number=${encodeURIComponent(accountNumber)}`,
   )
+
+export const lookupUserPaymentMethod = async (email: string) =>
+  apiFetch<{ user: AdminUserPaymentMethod }>(
+    `/admin/users/payment-method?email=${encodeURIComponent(email)}`,
+  )
+
+export const clearUserPaymentMethod = async (email: string) =>
+  apiFetch<{ message: string; email: string }>('/admin/users/payment-method/clear', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
 
 export const fetchFundedChallengeAccounts = async (platform?: string) =>
   apiFetch<{ accounts: ChallengeAccountListItem[] }>(

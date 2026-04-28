@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../config/prisma'
 import { ApiError } from '../../common/errors'
 import { getFxRatesConfig } from '../fxRates/fxRates.service'
@@ -589,6 +590,97 @@ export const lookupChallengeAccount = async (req: Request, res: Response, next: 
         breach_report_url: ensuredBreachReport?.certificateUrl ?? null,
       },
     })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const lookupUserPaymentMethod = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const email = String(req.query.email ?? '').trim().toLowerCase()
+    if (!email) {
+      throw new ApiError('email is required', 400)
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        payoutMethodType: true,
+        payoutBankName: true,
+        payoutBankCode: true,
+        payoutAccountNumber: true,
+        payoutAccountName: true,
+        payoutCryptoCurrency: true,
+        payoutCryptoAddress: true,
+        payoutCryptoFirstName: true,
+        payoutCryptoLastName: true,
+        payoutVerifiedAt: true,
+        payoutUpdatedAt: true,
+      },
+    })
+
+    if (!user) {
+      throw new ApiError('User not found', 404)
+    }
+
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        full_name: user.fullName,
+        payout_method_type: user.payoutMethodType,
+        payout_bank_name: user.payoutBankName,
+        payout_bank_code: user.payoutBankCode,
+        payout_account_number: user.payoutAccountNumber,
+        payout_account_name: user.payoutAccountName,
+        payout_crypto_currency: user.payoutCryptoCurrency,
+        payout_crypto_address: user.payoutCryptoAddress,
+        payout_crypto_first_name: user.payoutCryptoFirstName,
+        payout_crypto_last_name: user.payoutCryptoLastName,
+        payout_verified_at: user.payoutVerifiedAt?.toISOString() ?? null,
+        payout_updated_at: user.payoutUpdatedAt?.toISOString() ?? null,
+      },
+    })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const clearUserPaymentMethod = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const email = String(req.body?.email ?? '').trim().toLowerCase()
+    if (!email) {
+      throw new ApiError('email is required', 400)
+    }
+
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true, email: true } })
+    if (!user) {
+      throw new ApiError('User not found', 404)
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        payoutMethodType: null,
+        payoutBankName: null,
+        payoutBankCode: null,
+        payoutAccountNumber: null,
+        payoutAccountName: null,
+        payoutCryptoCurrency: null,
+        payoutCryptoAddress: null,
+        payoutCryptoFirstName: null,
+        payoutCryptoLastName: null,
+        payoutSafeHavenReference: null,
+        payoutSafeHavenPayload: Prisma.JsonNull,
+        payoutVerifiedAt: null,
+        payoutUpdatedAt: new Date(),
+      },
+    })
+
+    res.json({ message: 'User payout method cleared successfully.', email: user.email })
   } catch (err) {
     next(err as Error)
   }

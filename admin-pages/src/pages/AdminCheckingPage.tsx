@@ -3,8 +3,11 @@ import {
   adminReplaceAccount,
   adminUpdateMt5Password,
   adminResetAccount,
+  clearUserPaymentMethod,
   lookupChallengeAccount,
+  lookupUserPaymentMethod,
   type AdminLookupAccount,
+  type AdminUserPaymentMethod,
 } from '../lib/adminApi'
 import { formatAccountSize } from '../lib/formatters'
 
@@ -120,6 +123,10 @@ const AdminCheckingPage = () => {
   const [replaceToNextPhase, setReplaceToNextPhase] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [showReplaceModal, setShowReplaceModal] = useState(false)
+  const [paymentEmail, setPaymentEmail] = useState('')
+  const [paymentLookupLoading, setPaymentLookupLoading] = useState(false)
+  const [clearingPaymentMethod, setClearingPaymentMethod] = useState(false)
+  const [paymentMethodUser, setPaymentMethodUser] = useState<AdminUserPaymentMethod | null>(null)
 
   const formatCurrency = (value: number | null | undefined, currency?: string | null) => {
     if (value == null) return '—'
@@ -236,6 +243,40 @@ const AdminCheckingPage = () => {
       setError(err instanceof Error ? err.message : 'Replace account failed')
     } finally {
       setReplacingAccount(false)
+    }
+  }
+
+  const handlePaymentLookup = async () => {
+    const trimmed = paymentEmail.trim()
+    if (!trimmed) {
+      setError('Enter an email to search payout method.')
+      return
+    }
+    setPaymentLookupLoading(true)
+    setError('')
+    try {
+      const response = await lookupUserPaymentMethod(trimmed)
+      setPaymentMethodUser(response.user)
+    } catch (err) {
+      setPaymentMethodUser(null)
+      setError(err instanceof Error ? err.message : 'Payment method lookup failed')
+    } finally {
+      setPaymentLookupLoading(false)
+    }
+  }
+
+  const handleClearPaymentMethod = async () => {
+    if (!paymentMethodUser?.email) return
+    setClearingPaymentMethod(true)
+    setError('')
+    try {
+      await clearUserPaymentMethod(paymentMethodUser.email)
+      const refreshed = await lookupUserPaymentMethod(paymentMethodUser.email)
+      setPaymentMethodUser(refreshed.user)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to clear payment method')
+    } finally {
+      setClearingPaymentMethod(false)
     }
   }
 
@@ -397,6 +438,51 @@ const AdminCheckingPage = () => {
             )}
           </div>
         )}
+
+        <div style={{
+          background: '#0b1220',
+          border: '1px solid #1f2937',
+          borderRadius: 12,
+          padding: 16,
+          display: 'grid',
+          gap: 12,
+        }}>
+          <div>
+            <strong style={{ color: '#f8fafc' }}>User Payment Method</strong>
+            <p style={{ margin: '6px 0 0', color: '#cbd5e1', fontSize: 14 }}>Search a user by email and clear their payout method so they can submit new payout details.</p>
+          </div>
+
+          <div className="admin-mobile-controls">
+            <input
+              type="email"
+              placeholder="Enter user email"
+              value={paymentEmail}
+              onChange={(event) => setPaymentEmail(event.target.value)}
+              className="admin-mobile-input"
+            />
+            <div className="admin-mobile-button-row">
+              <button type="button" onClick={handlePaymentLookup} disabled={paymentLookupLoading}>
+                {paymentLookupLoading ? 'Searching...' : 'Search Email'}
+              </button>
+              <button type="button" onClick={handleClearPaymentMethod} disabled={!paymentMethodUser?.payout_method_type || clearingPaymentMethod}>
+                {clearingPaymentMethod ? 'Deleting...' : 'Delete Payment Method'}
+              </button>
+            </div>
+          </div>
+
+          {paymentMethodUser && (
+            <div style={{ color: '#cbd5f5', display: 'grid', gap: 4 }}>
+              <span>User: {paymentMethodUser.full_name ?? '—'} ({paymentMethodUser.email})</span>
+              <span>Method: {paymentMethodUser.payout_method_type ?? 'None'}</span>
+              <span>
+                Details: {paymentMethodUser.payout_method_type === 'crypto'
+                  ? `${paymentMethodUser.payout_crypto_currency ?? '—'} • ${paymentMethodUser.payout_crypto_address ?? '—'}`
+                  : `${paymentMethodUser.payout_bank_name ?? '—'} • ${paymentMethodUser.payout_account_number ?? '—'}`}
+              </span>
+              <span>Verified At: {formatDateTime(paymentMethodUser.payout_verified_at)}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {showPasswordModal && account && (
