@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { clearUserPaymentMethod, getAdminMe, getDashboardStats, listActiveChallengeAccounts, listAdminUsers, listAtticChallengeAccounts, listBreachedChallengeAccounts, listFundedChallengeAccounts, listTopFundedTraders, lookupChallengeAccount, lookupUserPaymentMethod } from './admin.controller'
+import { clearUserPaymentMethod, getAdminMe, getDashboardStats, listActiveChallengeAccounts, listAdminUsers, listAtticChallengeAccounts, listBreachedChallengeAccounts, listBreezyAccounts, listFundedChallengeAccounts, listTopFundedTraders, lookupChallengeAccount, lookupUserPaymentMethod } from './admin.controller'
 import { approveCryptoOrder, declineCryptoOrder, getOrderStats, listOrders, listPendingAssignments, retryPendingAssignments } from './admin.orders.controller'
 import { authenticate, requireRole } from '../../common/auth'
 import { createAllowlistEntry, deleteAllowlistEntry, listAllowlist, updateAllowlistEntry } from './admin.allowlist.controller'
@@ -22,6 +22,7 @@ adminRouter.get('/users', authenticate, requireRole(['admin', 'super_admin']), l
 adminRouter.get('/challenges/active', authenticate, requireRole(['admin', 'super_admin']), listActiveChallengeAccounts)
 adminRouter.get('/challenges/attic', authenticate, requireRole(['admin', 'super_admin']), listAtticChallengeAccounts)
 adminRouter.get('/challenges/lookup', authenticate, requireRole(['admin', 'super_admin']), lookupChallengeAccount)
+adminRouter.get('/challenges/breezy', authenticate, requireRole(['admin', 'super_admin']), listBreezyAccounts)
 adminRouter.get('/users/payment-method', authenticate, requireRole(['admin', 'super_admin']), lookupUserPaymentMethod)
 adminRouter.post('/users/payment-method/clear', authenticate, requireRole(['admin', 'super_admin']), clearUserPaymentMethod)
 adminRouter.get('/challenges/funded', authenticate, requireRole(['admin', 'super_admin']), listFundedChallengeAccounts)

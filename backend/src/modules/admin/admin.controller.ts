@@ -686,6 +686,45 @@ export const clearUserPaymentMethod = async (req: Request, res: Response, next: 
   }
 }
 
+export const listBreezyAccounts = async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const accounts = await prisma.cTraderAccount.findMany({
+      where: { challengeType: { equals: 'breezy', mode: 'insensitive' } },
+      orderBy: [{ updatedAt: 'desc' }],
+      include: {
+        user: true,
+        metrics: true,
+      },
+    })
+
+    res.json({
+      accounts: accounts.map((account) => ({
+        id: account.id,
+        challenge_id: account.challengeId,
+        account_number: account.accountNumber,
+        trader_name: account.user?.fullName ?? null,
+        trader_email: account.user?.email ?? null,
+        account_size: account.accountSize,
+        currency: account.currency ?? null,
+        status: account.status,
+        phase: account.phase,
+        subscription_status: account.subscriptionStatus ?? null,
+        subscription_started_at: account.subscriptionStartedAt?.toISOString() ?? null,
+        subscription_expires_at: account.subscriptionExpiresAt?.toISOString() ?? null,
+        risk_score: account.metrics?.riskScore ?? null,
+        risk_score_band: account.metrics?.riskScoreBand ?? null,
+        capital_protection_level: account.metrics?.capitalProtectionLevel ?? null,
+        account_status: account.metrics?.accountStatus ?? null,
+        withdrawal_eligible: account.metrics?.withdrawalEligible ?? null,
+        effective_profit_split_percent: account.metrics?.effectiveProfitSplitPercent ?? null,
+        last_update_at: account.metrics?.capturedAt?.toISOString() ?? account.updatedAt.toISOString(),
+      })),
+    })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
 const formatCurrency = (amountKobo: number) =>
   `$${(amountKobo / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 

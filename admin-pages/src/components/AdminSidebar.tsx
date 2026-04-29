@@ -1,6 +1,6 @@
 import './AdminSidebar.css'
 
-type AdminPage = 'analysis' | 'users' | 'accounts' | 'atticAccounts' | 'adminChecking' | 'fundedAccounts' | 'breaches' | 'orders' | 'payouts' | 'kycReview' | 'accountRecovery' | 'referrals' | 'userProfile' | 'financeAnalysis' | 'coupons' | 'supportTickets' | 'settings' | 'mt5' | 'sendAnnouncement' | 'salary' | 'tradingRules' | 'fxRates'
+type AdminPage = 'analysis' | 'users' | 'accounts' | 'atticAccounts' | 'adminChecking' | 'fundedAccounts' | 'breezyAccounts' | 'breaches' | 'orders' | 'payouts' | 'kycReview' | 'accountRecovery' | 'referrals' | 'userProfile' | 'financeAnalysis' | 'coupons' | 'supportTickets' | 'settings' | 'mt5' | 'sendAnnouncement' | 'salary' | 'tradingRules' | 'fxRates'
 
 interface AdminSidebarProps {
   activePage: AdminPage
@@ -156,6 +156,15 @@ const AdminSidebar = ({ activePage, onNavigate, onLogout, isLoggingOut, allowedP
               onClick={() => onNavigate('fundedAccounts')}
             >
               Funded Accounts
+            </button>
+          )}
+          {hasAccess('breezyAccounts') && (
+            <button
+              className={`admin-sidebar-subitem ${activePage === 'breezyAccounts' ? 'active' : ''}`}
+              type="button"
+              onClick={() => onNavigate('breezyAccounts')}
+            >
+              Breezy Monitor
             </button>
           )}
           {hasAccess('breaches') && (

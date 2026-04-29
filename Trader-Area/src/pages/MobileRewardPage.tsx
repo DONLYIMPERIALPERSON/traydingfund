@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ServiceUnavailableState from '../components/ServiceUnavailableState'
 import '../styles/MobileRewardPage.css'
@@ -43,8 +43,10 @@ const MobileRewardPage: React.FC = () => {
   const [certificateVersion, setCertificateVersion] = useState(Date.now())
   const [refreshingCertificate, setRefreshingCertificate] = useState(false)
   const [certificateError, setCertificateError] = useState('')
+  const [activeAccountIndex, setActiveAccountIndex] = useState(0)
 
   const navigate = useNavigate()
+  const accountSliderRef = useRef<HTMLDivElement | null>(null)
 
   const loadPayoutData = async () => {
     try {
@@ -83,6 +85,24 @@ const MobileRewardPage: React.FC = () => {
   useEffect(() => {
     void loadPayoutData()
   }, [])
+
+  useEffect(() => {
+    const slider = accountSliderRef.current
+    if (!slider || fundedAccounts.length === 0) return
+
+    const handleScroll = () => {
+      const firstSlide = slider.querySelector<HTMLElement>('.mobile-reward-account-slide')
+      if (!firstSlide) return
+      const slideWidth = firstSlide.getBoundingClientRect().width + 12
+      if (!slideWidth) return
+      const nextIndex = Math.round(slider.scrollLeft / slideWidth)
+      setActiveAccountIndex(Math.min(Math.max(nextIndex, 0), fundedAccounts.length - 1))
+    }
+
+    slider.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll()
+    return () => slider.removeEventListener('scroll', handleScroll)
+  }, [fundedAccounts.length, activeView])
 
   const normalizeStatus = (status: string) => status.replace(/_/g, ' ').toLowerCase()
   const resolveStatusLabel = (status: string) => {
@@ -194,6 +214,15 @@ const MobileRewardPage: React.FC = () => {
     }
   }
 
+  const scrollToAccountIndex = (index: number) => {
+    const slider = accountSliderRef.current
+    const firstSlide = slider?.querySelector<HTMLElement>('.mobile-reward-account-slide')
+    if (!slider || !firstSlide) return
+    const slideWidth = firstSlide.getBoundingClientRect().width + 12
+    slider.scrollTo({ left: slideWidth * index, behavior: 'smooth' })
+    setActiveAccountIndex(index)
+  }
+
   return (
     <div className="mobile-reward-page">
       <div className="mobile-reward-shell">
@@ -268,14 +297,15 @@ const MobileRewardPage: React.FC = () => {
                     <button type="button" onClick={() => navigate('/settings')}>Go to Settings</button>
                   </div>
                 ) : (
-                  <div className="mobile-reward-account-list">
+                  <>
+                  <div ref={accountSliderRef} className="mobile-reward-account-list">
                     {fundedAccounts.map((account) => {
                       const state = getAccountCardState(account)
                       const isRequestingThis = requestingAccountId === account.account_id
 
                       return (
+                        <div key={account.account_id} className="mobile-reward-account-slide">
                         <article
-                          key={account.account_id}
                           className={`mobile-reward-account-card ${state.isEligible ? 'is-eligible' : 'is-disabled'}`}
                         >
                           <div className="mobile-reward-account-card__top">
@@ -323,9 +353,44 @@ const MobileRewardPage: React.FC = () => {
                             </div>
                           ) : null}
                         </article>
+                        </div>
                       )
                     })}
                   </div>
+                  {fundedAccounts.length > 1 ? (
+                    <div className="mobile-reward-slider-controls">
+                      <button
+                        type="button"
+                        className="mobile-reward-slider-arrow"
+                        onClick={() => scrollToAccountIndex(Math.max(activeAccountIndex - 1, 0))}
+                        disabled={activeAccountIndex === 0}
+                        aria-label="Previous account"
+                      >
+                        <i className="fas fa-chevron-left" />
+                      </button>
+                      <div className="mobile-reward-dots">
+                        {fundedAccounts.map((account, index) => (
+                          <button
+                            key={account.account_id}
+                            type="button"
+                            className={index === activeAccountIndex ? 'is-active' : ''}
+                            onClick={() => scrollToAccountIndex(index)}
+                            aria-label={`Go to withdrawal account ${index + 1}`}
+                          />
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        className="mobile-reward-slider-arrow"
+                        onClick={() => scrollToAccountIndex(Math.min(activeAccountIndex + 1, fundedAccounts.length - 1))}
+                        disabled={activeAccountIndex === fundedAccounts.length - 1}
+                        aria-label="Next account"
+                      >
+                        <i className="fas fa-chevron-right" />
+                      </button>
+                    </div>
+                  ) : null}
+                  </>
                 )
               ) : payoutData?.withdrawal_history.length === 0 ? (
                 <div className="mobile-reward-inline-note">No withdrawal history yet.</div>

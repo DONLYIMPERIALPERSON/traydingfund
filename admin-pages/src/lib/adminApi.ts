@@ -145,6 +145,28 @@ export type ChallengeBreachListItem = {
   breached_at?: string | null
 }
 
+export type BreezyAccountListItem = {
+  id: number
+  challenge_id: string
+  account_number: string
+  trader_name?: string | null
+  trader_email?: string | null
+  account_size: string
+  currency?: string | null
+  status: string
+  phase: string
+  subscription_status?: string | null
+  subscription_started_at?: string | null
+  subscription_expires_at?: string | null
+  risk_score?: number | null
+  risk_score_band?: string | null
+  capital_protection_level?: number | null
+  account_status?: string | null
+  withdrawal_eligible?: boolean | null
+  effective_profit_split_percent?: number | null
+  last_update_at?: string | null
+}
+
 export type MT5Account = {
   id: number
   account_number: string
@@ -620,6 +642,9 @@ export const fetchProfitableFundedAccounts = async (platform?: string) =>
 
 export const fetchBreachedChallengeAccounts = async () =>
   apiFetch<{ accounts: ChallengeBreachListItem[] }>('/admin/challenges/breaches')
+
+export const fetchBreezyAccounts = async () =>
+  apiFetch<{ accounts: BreezyAccountListItem[] }>('/admin/challenges/breezy')
 
 export const fetchAdminUsers = async () =>
   apiFetch<{ users: AdminUsersListItem[]; stats: { total_users: number; funded_users: number; breached_users: number } }>('/admin/users')

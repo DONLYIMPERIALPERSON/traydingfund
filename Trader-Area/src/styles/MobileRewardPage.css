@@ -183,10 +183,27 @@
 
 .mobile-reward-inline-note,
 .mobile-reward-request-box,
-.mobile-reward-account-list,
 .mobile-reward-history-list {
   display: grid;
   gap: 10px;
+}
+
+.mobile-reward-account-list {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 6px;
+}
+
+.mobile-reward-account-list::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-reward-account-slide {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
 }
 
 .mobile-reward-inline-note,
@@ -199,6 +216,7 @@
 }
 
 .mobile-reward-account-card {
+  width: 100%;
   padding: 12px;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -296,6 +314,49 @@
 
 .mobile-reward-account-card__button:disabled {
   opacity: 0.65;
+}
+
+.mobile-reward-slider-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.mobile-reward-slider-arrow {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: rgba(238, 247, 251, 0.78);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-reward-slider-arrow:disabled {
+  opacity: 0.35;
+}
+
+.mobile-reward-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.mobile-reward-dots button {
+  width: 8px;
+  height: 8px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.mobile-reward-dots button.is-active {
+  background: #7fe7f7;
 }
 
 .mobile-reward-history-item {
