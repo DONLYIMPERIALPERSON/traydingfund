@@ -3,14 +3,14 @@ import path from 'path'
 import readline from 'readline'
 import dotenv from 'dotenv'
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses'
-const SUBJECT = 'Introducing NGN Breezy Accounts'
+const SUBJECT = 'COME AND SEE - 50% DISCOUNT TO TRY US'
 
 const HTML_BODY = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MACHEFUNDED Breezy Accounts</title>
+  <title>COME AND SEE - 50% DISCOUNT TO TRY US</title>
 </head>
 <body style="margin:0; padding:0; background:#071f24; font-family:Arial, sans-serif; color:#ffffff;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#071f24; padding:30px 0;">
@@ -32,16 +32,15 @@ const HTML_BODY = `<!DOCTYPE html>
           <tr>
             <td style="padding:10px 35px 25px; text-align:center;">
               <p style="color:#6ee7f2; font-size:14px; letter-spacing:4px; margin:0 0 15px;">
-                INTRODUCING
+                LIMITED OFFER
               </p>
 
               <h1 style="font-size:42px; line-height:1.1; margin:0; color:#ffffff;">
-                NGN Breezy Accounts
+                COME AND SEE
               </h1>
 
               <p style="font-size:18px; line-height:1.6; color:#d7e8eb; margin:25px 0 0;">
-                Start trading instantly with no challenges, no drawdown limits, and earn up to
-                <strong style="color:#6ee7f2;">100% profit split</strong>.
+                Get <strong style="color:#6ee7f2;">50% OFF</strong> on all NGN Flexi and NGN Standard accounts.
               </p>
             </td>
           </tr>
@@ -52,43 +51,65 @@ const HTML_BODY = `<!DOCTYPE html>
                 Dear Trader,
               </p>
               <p style="font-size:16px; line-height:1.7; color:#d7e8eb; margin:16px 0 0;">
-                Breezy Accounts are built for traders who want to start immediately and get rewarded based on how well they manage risk.
-                There is no challenge phase, no drawdown limit, and you can request withdrawals the same day.
-                On Breezy Accounts, payouts take less than <strong style="color:#6ee7f2;">5 minutes</strong> once processed.
+                It’s actually very easy to know if a prop firm truly offers a good service or not.
+              </p>
+              <p style="font-size:16px; line-height:1.7; color:#d7e8eb; margin:16px 0 0;">
+                Just join their community and observe how existing customers are treated.
+              </p>
+              <p style="font-size:16px; line-height:1.7; color:#d7e8eb; margin:16px 0 0;">
+                At MACHEFUNDED, we encourage you to do exactly that.
+              </p>
+              <p style="font-size:16px; line-height:1.7; color:#d7e8eb; margin:16px 0 0;">
+                Join our Discord community, interact with traders, watch the conversations, see payout proofs, support responses, trader experiences, and judge everything yourself before getting started.
+              </p>
+              <p style="font-size:16px; line-height:1.7; color:#d7e8eb; margin:16px 0 0;">
+                Being a new prop firm does not mean we are not good.
+              </p>
+              <p style="font-size:16px; line-height:1.7; color:#d7e8eb; margin:16px 0 0;">
+                In fact, we strongly believe we currently offer one of the best trading experiences among NGN prop firms.
               </p>
             </td>
           </tr>
 
           <tr>
-            <td style="padding:20px 35px 10px;">
+            <td style="padding:25px 35px 10px;">
+              <h2 style="font-size:28px; margin:0 0 18px; color:#ffffff; text-align:center;">
+                Why traders love MACHEFUNDED
+              </h2>
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="background:#082126; padding:18px; border-radius:12px; color:#ffffff; font-size:16px;">
-                    ✅ No Challenge Model
+                  <td style="background:#082126; padding:16px 18px; border-radius:12px; color:#d7e8eb; font-size:15px; line-height:1.7;">
+                    • Clean and easy-to-use dashboard/UI
                   </td>
                 </tr>
-                <tr><td height="12"></td></tr>
+                <tr><td height="10"></td></tr>
                 <tr>
-                  <td style="background:#082126; padding:18px; border-radius:12px; color:#ffffff; font-size:16px;">
-                    ✅ No Drawdown Limits
+                  <td style="background:#082126; padding:16px 18px; border-radius:12px; color:#d7e8eb; font-size:15px; line-height:1.7;">
+                    • Fully automated systems for smooth experience
                   </td>
                 </tr>
-                <tr><td height="12"></td></tr>
+                <tr><td height="10"></td></tr>
                 <tr>
-                  <td style="background:#082126; padding:18px; border-radius:12px; color:#ffffff; font-size:16px;">
-                    ✅ Same-Day Withdrawal Available
+                  <td style="background:#082126; padding:16px 18px; border-radius:12px; color:#d7e8eb; font-size:15px; line-height:1.7;">
+                    • Fast account processing
                   </td>
                 </tr>
-                <tr><td height="12"></td></tr>
+                <tr><td height="10"></td></tr>
                 <tr>
-                  <td style="background:#082126; padding:18px; border-radius:12px; color:#ffffff; font-size:16px;">
-                    ✅ Payouts in Less Than 5 Minutes on Breezy Accounts
+                  <td style="background:#082126; padding:16px 18px; border-radius:12px; color:#d7e8eb; font-size:15px; line-height:1.7;">
+                    • Responsive support that feels more like talking to a family member than a company
                   </td>
                 </tr>
-                <tr><td height="12"></td></tr>
+                <tr><td height="10"></td></tr>
                 <tr>
-                  <td style="background:#082126; padding:18px; border-radius:12px; color:#ffffff; font-size:16px;">
-                    ✅ Up to 100% Profit Split
+                  <td style="background:#082126; padding:16px 18px; border-radius:12px; color:#d7e8eb; font-size:15px; line-height:1.7;">
+                    • Transparent rules and active community
+                  </td>
+                </tr>
+                <tr><td height="10"></td></tr>
+                <tr>
+                  <td style="background:#082126; padding:16px 18px; border-radius:12px; color:#d7e8eb; font-size:15px; line-height:1.7;">
+                    • Built by traders, for traders
                   </td>
                 </tr>
               </table>
@@ -96,90 +117,53 @@ const HTML_BODY = `<!DOCTYPE html>
           </tr>
 
           <tr>
-            <td style="padding:30px 35px 10px; text-align:center;">
-              <h2 style="font-size:28px; margin:0 0 15px; color:#ffffff;">
-                How Your Profit Split Works
-              </h2>
-
-              <p style="font-size:16px; color:#c8dadd; line-height:1.6; margin:0;">
-                Your Breezy risk score determines your profit split. The higher your score, the higher your reward.
+            <td style="padding:5px 35px 10px; text-align:left;">
+              <p style="font-size:16px; line-height:1.7; color:#d7e8eb; margin:0;">
+                We are focused on creating a modern prop firm experience that actually feels stress-free and enjoyable for traders.
+              </p>
+              <p style="font-size:16px; line-height:1.7; color:#d7e8eb; margin:16px 0 0;">
+                And to give you a reason to finally try our service…
               </p>
             </td>
           </tr>
 
           <tr>
-            <td style="padding:20px 35px;">
-              <table width="100%" cellpadding="12" cellspacing="0" style="background:#082126; border-radius:14px; color:#ffffff;">
-                <tr>
-                  <td>100 Score</td>
-                  <td align="right" style="color:#6ee7f2;"><strong>100% Profit Split</strong></td>
-                </tr>
-                <tr>
-                  <td>75–99 Score</td>
-                  <td align="right" style="color:#6ee7f2;"><strong>80%</strong></td>
-                </tr>
-                <tr>
-                  <td>60–74 Score</td>
-                  <td align="right" style="color:#6ee7f2;"><strong>60%</strong></td>
-                </tr>
-                <tr>
-                  <td>40–59 Score</td>
-                  <td align="right" style="color:#6ee7f2;"><strong>40%</strong></td>
-                </tr>
-                <tr>
-                  <td>Below 40</td>
-                  <td align="right" style="color:#ff7777;"><strong>Not eligible</strong></td>
-                </tr>
-              </table>
+            <td style="padding:20px 35px; text-align:center;">
+              <div style="background:#082126; border-radius:16px; padding:24px 20px;">
+                <p style="font-size:24px; line-height:1.4; color:#6ee7f2; margin:0 0 16px; font-weight:bold;">
+                  🔥 CRAZY LIMITED OFFER 🔥
+                </p>
+                <p style="font-size:18px; line-height:1.7; color:#ffffff; margin:0;">
+                  Get <strong style="color:#6ee7f2;">50% OFF</strong> on <strong>ALL NGN FLEXI</strong> and <strong>NGN STANDARD</strong> accounts.
+                </p>
+                <p style="font-size:20px; line-height:1.6; color:#ffffff; margin:18px 0 0;">
+                  Use Code: <strong style="color:#6ee7f2; letter-spacing:1px;">COMEANDSEE</strong>
+                </p>
+                <p style="font-size:16px; line-height:1.6; color:#ffcf70; margin:18px 0 0; font-weight:bold;">
+                  ⏳ Offer ends tomorrow.
+                </p>
+              </div>
             </td>
           </tr>
 
           <tr>
-            <td style="padding:5px 35px 0; text-align:left;">
-              <h2 style="font-size:26px; margin:0 0 15px; color:#ffffff; text-align:center;">
-                How To Increase Your Risk Score
-              </h2>
-
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="background:#082126; padding:16px 18px; border-radius:12px; color:#d7e8eb; font-size:15px; line-height:1.7;">
-                    1. Protect your capital by avoiding reckless exposure and oversized positions.
-                  </td>
-                </tr>
-                <tr><td height="10"></td></tr>
-                <tr>
-                  <td style="background:#082126; padding:16px 18px; border-radius:12px; color:#d7e8eb; font-size:15px; line-height:1.7;">
-                    2. Keep your trading consistent instead of swinging between extreme gains and losses.
-                  </td>
-                </tr>
-                <tr><td height="10"></td></tr>
-                <tr>
-                  <td style="background:#082126; padding:16px 18px; border-radius:12px; color:#d7e8eb; font-size:15px; line-height:1.7;">
-                    3. Manage drawups and losses carefully so your account stays healthy over time.
-                  </td>
-                </tr>
-                <tr><td height="10"></td></tr>
-                <tr>
-                  <td style="background:#082126; padding:16px 18px; border-radius:12px; color:#d7e8eb; font-size:15px; line-height:1.7;">
-                    4. Focus on disciplined execution — better risk management leads to better payout percentages.
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <tr>
-            <td style="padding:25px 35px 10px; text-align:center;">
-              <p style="font-size:16px; color:#c8dadd; line-height:1.7; margin:0;">
-                No long process. No challenge stress. Just start trading, build your score, and unlock higher rewards.
+            <td style="padding:10px 35px 0; text-align:left;">
+              <p style="font-size:16px; line-height:1.7; color:#d7e8eb; margin:0;">
+                We would love to have you in the community.
+              </p>
+              <p style="font-size:16px; line-height:1.7; color:#d7e8eb; margin:16px 0 0;">
+                See you inside.
+              </p>
+              <p style="font-size:16px; line-height:1.7; color:#d7e8eb; margin:16px 0 0;">
+                — Team MACHEFUNDED
               </p>
             </td>
           </tr>
 
           <tr>
             <td style="padding:25px 35px; text-align:center;">
-              <a href="https://machefunded.com" style="display:inline-block; background:#0ea5ad; color:#ffffff; text-decoration:none; padding:16px 32px; border-radius:50px; font-size:16px; font-weight:bold;">
-                Explore Breezy Accounts
+              <a href="https://discord.gg/93trVSkjcf" style="display:inline-block; background:#0ea5ad; color:#ffffff; text-decoration:none; padding:16px 32px; border-radius:50px; font-size:16px; font-weight:bold;">
+                Join Our Discord Community
               </a>
             </td>
           </tr>
