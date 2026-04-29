@@ -589,6 +589,29 @@ def _merge_position(existing: PositionPayload, incoming: PositionPayload) -> Pos
     )
 
 
+def _positions_equivalent(existing: PositionPayload, incoming: PositionPayload) -> bool:
+    return (
+        existing.symbol == incoming.symbol
+        and existing.type == incoming.type
+        and existing.position_id == incoming.position_id
+        and existing.open_time_ms == incoming.open_time_ms
+        and _round6(existing.volume) == _round6(incoming.volume)
+        and _round6(existing.open_price) == _round6(incoming.open_price)
+    )
+
+
+def _apply_open_position(open_positions: Dict[str, PositionPayload], key: str, position: PositionPayload) -> PositionPayload:
+    existing = open_positions.get(key)
+    if existing is None:
+        open_positions[key] = position
+        return position
+    if _positions_equivalent(existing, position):
+        return existing
+    merged = _merge_position(existing, position)
+    open_positions[key] = merged
+    return merged
+
+
 def _pnl_from_ticks(position: PositionPayload, tick: dict, meta: SymbolMetaPayload) -> float:
     price = tick.get("bid") if position.type == 0 else tick.get("ask")
     if price is None:
@@ -682,7 +705,17 @@ def replay_anchor_end_ms(payload: BreezyEAPayload) -> int:
 
 def _build_structural_events(payload: BreezyEAPayload) -> List[tuple]:
     events: List[tuple] = []
+    opening_deal_keys = {
+        _position_key(deal.position_id, deal.position_id, deal.symbol, deal.time_ms)
+        for deal in payload.closed_deals
+        if not _should_ignore_deal(deal) and deal.entry == 0
+    }
     for position in payload.positions:
+        key = _position_key(position.position_id, position.ticket, position.symbol, position.open_time_ms)
+        if position.open_time_ms <= payload.anchor_time_ms:
+            continue
+        if key in opening_deal_keys:
+            continue
         events.append(("open", position.open_time_ms, position))
     for deal in payload.closed_deals:
         events.append(("deal", deal.time_ms, deal))
@@ -708,7 +741,7 @@ def build_timeline(
     for position in payload.positions:
         if position.open_time_ms <= payload.anchor_time_ms:
             key = _position_key(position.position_id, position.ticket, position.symbol, position.open_time_ms)
-            open_positions[key] = position
+            _apply_open_position(open_positions, key, position)
 
     balance = initial_balance
     last_ticks: Dict[str, dict] = {}
@@ -758,9 +791,7 @@ def build_timeline(
             position = event[2]
             key = _position_key(position.position_id, position.ticket, position.symbol, position.open_time_ms)
             event_meta["key"] = key
-            existing = open_positions.get(key)
-            open_positions[key] = _merge_position(existing, position) if existing else position
-            event_meta["position"] = open_positions[key]
+            event_meta["position"] = _apply_open_position(open_positions, key, position)
             event_meta["position_id"] = position.position_id
             event_meta["ticket"] = position.ticket
             event_meta["symbol"] = position.symbol
@@ -790,9 +821,7 @@ def build_timeline(
                     pip_value=deal.pip_value,
                 )
                 key = _position_key(position.position_id, position.ticket, position.symbol, position.open_time_ms)
-                existing = open_positions.get(key)
-                open_positions[key] = _merge_position(existing, position) if existing else position
-                event_meta["position"] = open_positions[key]
+                event_meta["position"] = _apply_open_position(open_positions, key, position)
             elif deal.entry == 1:
                 balance += _deal_net(deal)
                 existing = open_positions.get(key)

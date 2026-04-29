@@ -65,6 +65,9 @@ export type AdminLookupAccount = {
   id: number
   challenge_id: string
   account_number: string
+  mt5_login?: string | null
+  mt5_password?: string | null
+  mt5_server?: string | null
   platform: string
   status: string
   phase: string

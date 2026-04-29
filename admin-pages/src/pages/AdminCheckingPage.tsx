@@ -322,6 +322,13 @@ const AdminCheckingPage = () => {
               <div style={{ color: '#cbd5f5', display: 'grid', gap: 4 }}>
                 <span>Challenge ID: {account.challenge_id}</span>
                 <span>Account Number: {account.account_number}</span>
+                {String(account.platform ?? '').toLowerCase() === 'mt5' && (
+                  <>
+                    <span>MT5 Login: {account.mt5_login ?? account.account_number}</span>
+                    <span>MT5 Server: {account.mt5_server ?? '—'}</span>
+                    <span>MT5 Password: {account.mt5_password ?? '—'}</span>
+                  </>
+                )}
                 <span>Trader: {account.trader_name ?? '—'} ({account.trader_email ?? '—'})</span>
                 <span>Account Size: {formatAccountSize(account.account_size, account.currency)}</span>
                 <span>Phase: {account.phase}</span>
