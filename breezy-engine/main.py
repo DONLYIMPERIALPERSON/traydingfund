@@ -927,6 +927,68 @@ def _score_delta_from_trade_quality(trade_quality: int) -> int:
     return int(round((trade_quality - 50) / 8))
 
 
+def enrich_breach_trade_details(*, payload: BreezyEAPayload, breach_event: Optional[dict]) -> Optional[dict]:
+    if not breach_event:
+        return breach_event
+
+    breach_time_ms = breach_event.get("time_ms")
+    largest_loss_trade = breach_event.get("largest_loss_trade")
+    if not breach_time_ms or not isinstance(largest_loss_trade, dict):
+        return breach_event
+
+    position_id = largest_loss_trade.get("position_id")
+    ticket = largest_loss_trade.get("ticket")
+    symbol = largest_loss_trade.get("symbol")
+    open_time_ms = largest_loss_trade.get("open_time_ms")
+
+    if open_time_ms is not None:
+      breach_event["breach_trade_duration_min"] = round((breach_time_ms - open_time_ms) / 60000.0, 4)
+
+    breach_event["breach_trade"] = {
+        "position_id": position_id,
+        "ticket": ticket,
+        "symbol": symbol,
+        "open_time_ms": open_time_ms,
+        "volume": largest_loss_trade.get("volume"),
+        "type": largest_loss_trade.get("type"),
+        "open_price": largest_loss_trade.get("open_price"),
+        "floating_pnl_at_breach": largest_loss_trade.get("floating_pnl"),
+        "stop_loss_price": largest_loss_trade.get("stop_loss_price"),
+        "stop_loss_pips": largest_loss_trade.get("stop_loss_pips"),
+        "pip_value": largest_loss_trade.get("pip_value"),
+    }
+
+    matching_close = None
+    for deal in payload.closed_deals:
+        if deal.entry != 1 or _should_ignore_deal(deal):
+            continue
+        if position_id and deal.position_id == position_id and deal.time_ms >= breach_time_ms:
+            matching_close = deal
+            break
+        if not position_id and ticket and deal.position_id == ticket and deal.time_ms >= breach_time_ms:
+            matching_close = deal
+            break
+
+    if matching_close:
+        minutes_after_breach = (matching_close.time_ms - breach_time_ms) / 60000.0
+        breach_event["breach_trade_close"] = {
+            "deal_id": matching_close.deal_id,
+            "closed_time_ms": matching_close.time_ms,
+            "minutes_after_breach": round(minutes_after_breach, 4),
+            "closed_at_breach": abs(matching_close.time_ms - breach_time_ms) <= 60_000,
+            "profit": _round6(_deal_net(matching_close)),
+            "price": matching_close.price,
+        }
+    else:
+        breach_event["breach_trade_close"] = {
+            "closed_at_breach": False,
+            "closed_after_breach": False,
+        }
+
+    breach_event.pop("largest_loss_trade", None)
+    return breach_event
+
+
 def calculate_result(session: BreezyReplaySession) -> BreezyReplayResult:
     processing_started_at = now_iso()
     started_at = time.perf_counter()
@@ -1006,6 +1068,7 @@ def calculate_result(session: BreezyReplaySession) -> BreezyReplayResult:
         total_risk_amount = 0.0
         snapshot_positions = snapshot.get("open_positions_snapshot") or []
         exposure_positions: List[dict] = []
+        largest_loss_trade: Optional[dict] = None
         for position_data in snapshot_positions:
             position = PositionPayload(
                 ticket=position_data.get("ticket"),
@@ -1067,6 +1130,8 @@ def calculate_result(session: BreezyReplaySession) -> BreezyReplayResult:
                 "used_risk_amount": effective_risk_amount,
                 "used_risk_percent": used_risk_fraction,
             })
+            if largest_loss_trade is None or float(position_data.get("floating_pnl", 0.0)) < float(largest_loss_trade.get("floating_pnl", 0.0)):
+                largest_loss_trade = dict(position_data)
         if balance_snapshot > 0:
             exposure_fraction = _round6(total_risk_amount / replay.initial_balance) if replay.initial_balance > 0 else 0.0
             assert exposure_fraction >= 0
@@ -1182,7 +1247,17 @@ def calculate_result(session: BreezyReplaySession) -> BreezyReplayResult:
 
         if breach_reason is None and equity < capital_protection_level:
             breach_reason = "CAPITAL_PROTECTION_LIMIT"
-            breach_event = {"type": event.get("type", "tick"), "time_ms": ts, "equity": equity, "balance": balance_snapshot}
+            breach_event = {
+                "type": event.get("type", "tick"),
+                "time_ms": ts,
+                "equity": _round6(equity),
+                "balance": _round6(balance_snapshot),
+                "capital_protection_level": _round6(capital_protection_level),
+                "reason": "Equity fell below the capital protection level.",
+                "largest_loss_trade": largest_loss_trade,
+                "open_positions_at_breach_count": len(snapshot_positions),
+                "open_positions_at_breach": snapshot_positions,
+            }
             break
 
     if min_equity == float("inf"):
@@ -1283,6 +1358,8 @@ def calculate_result(session: BreezyReplaySession) -> BreezyReplayResult:
             "withdrawal_block_reason": withdrawal_block_reason,
         },
     )
+
+    breach_event = enrich_breach_trade_details(payload=payload, breach_event=breach_event)
 
     processed_at = now_iso()
     return BreezyReplayResult(

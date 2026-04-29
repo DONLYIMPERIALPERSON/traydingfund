@@ -86,24 +86,6 @@ const MobileRewardPage: React.FC = () => {
     void loadPayoutData()
   }, [])
 
-  useEffect(() => {
-    const slider = accountSliderRef.current
-    if (!slider || fundedAccounts.length === 0) return
-
-    const handleScroll = () => {
-      const firstSlide = slider.querySelector<HTMLElement>('.mobile-reward-account-slide')
-      if (!firstSlide) return
-      const slideWidth = firstSlide.getBoundingClientRect().width + 12
-      if (!slideWidth) return
-      const nextIndex = Math.round(slider.scrollLeft / slideWidth)
-      setActiveAccountIndex(Math.min(Math.max(nextIndex, 0), fundedAccounts.length - 1))
-    }
-
-    slider.addEventListener('scroll', handleScroll, { passive: true })
-    handleScroll()
-    return () => slider.removeEventListener('scroll', handleScroll)
-  }, [fundedAccounts.length, activeView])
-
   const normalizeStatus = (status: string) => status.replace(/_/g, ' ').toLowerCase()
   const resolveStatusLabel = (status: string) => {
     if (status === 'pending_approval') return 'Pending approval'
@@ -130,6 +112,24 @@ const MobileRewardPage: React.FC = () => {
   const fundedAccounts = payoutData?.funded_accounts ?? []
   const overallRewardAmount = overallCertificate?.total_reward ?? payoutData?.total_earned_all_time ?? 0
   const overallRewardCurrency = overallCertificate?.currency ?? 'USD'
+
+  useEffect(() => {
+    const slider = accountSliderRef.current
+    if (!slider || fundedAccounts.length === 0) return
+
+    const handleScroll = () => {
+      const firstSlide = slider.querySelector<HTMLElement>('.mobile-reward-account-slide')
+      if (!firstSlide) return
+      const slideWidth = firstSlide.getBoundingClientRect().width + 12
+      if (!slideWidth) return
+      const nextIndex = Math.round(slider.scrollLeft / slideWidth)
+      setActiveAccountIndex(Math.min(Math.max(nextIndex, 0), fundedAccounts.length - 1))
+    }
+
+    slider.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll()
+    return () => slider.removeEventListener('scroll', handleScroll)
+  }, [fundedAccounts.length, activeView])
 
   const formatEligibleDate = (dateString?: string | null) => {
     if (!dateString) return 'Eligible today'
