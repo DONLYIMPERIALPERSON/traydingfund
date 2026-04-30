@@ -321,6 +321,33 @@ const fulfillPhase2RepeatOrder = async (order: RepeatTrackedOrder) => {
     }
   }
 
+  if (breachedAccount.user?.email) {
+    try {
+      await sendUnifiedEmail({
+        to: breachedAccount.user.email,
+        subject: buildEmailSubject('Your Phase 2 repeat account is ready'),
+        title: 'Phase 2 repeat confirmed',
+        subtitle: 'Your replacement Phase 2 account has been issued',
+        content: 'Your repeat payment was successful and a new Phase 2 account has been assigned to you.',
+        buttonText: 'View Dashboard',
+        infoBox: [
+          `Previous Account: ${breachedAccount.accountNumber}`,
+          `New Account: ${assigned.accountNumber}`,
+          `Challenge Type: ${assigned.challengeType ?? breachedAccount.challengeType ?? 'NGN Standard'}`,
+          `Account Size: ${assigned.accountSize}`,
+          `Repeat Amount: ${formatCurrency(order.netAmountKobo, order.currency ?? 'NGN')}`,
+        ].join('<br>'),
+      })
+    } catch (error) {
+      console.error('Failed to send Phase 2 repeat success email', {
+        orderId: order.id,
+        providerOrderId: order.providerOrderId,
+        accountId: assigned.id,
+        error,
+      })
+    }
+  }
+
   await clearCacheByPrefix(buildCacheKey(['trader', 'challenges', order.userId]))
 }
 
