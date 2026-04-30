@@ -281,10 +281,10 @@ const shouldHavePassedCertificate = (account: {
   if (!passedLike) return false
   if (challengeType === 'attic' || challengeType === 'instant_funded') return false
   if (['two_step', 'ngn_standard', 'ngn_flexi'].includes(challengeType)) {
-    return phase === 'phase_2'
+    return phase === 'phase_2' || phase === 'funded'
   }
   if (challengeType === 'one_step') {
-    return phase === 'phase_1'
+    return phase === 'phase_1' || phase === 'funded'
   }
   return false
 }
@@ -746,6 +746,8 @@ export const regenerateUserMissingCertificates = async (req: Request, res: Respo
       passed_created: 0,
       payout_created: 0,
       overall_created: 0,
+      passed_eligible_accounts: 0,
+      passed_existing: 0,
     }
 
     for (const order of user.orders) {
@@ -769,6 +771,7 @@ export const regenerateUserMissingCertificates = async (req: Request, res: Respo
 
     for (const account of user.cTraderAccounts) {
       if (!shouldHavePassedCertificate(account)) continue
+      summary.passed_eligible_accounts += 1
       const relatedEntityId = account.challengeId || String(account.id)
       const existing = await prisma.certificate.findFirst({
         where: {
@@ -777,7 +780,10 @@ export const regenerateUserMissingCertificates = async (req: Request, res: Respo
           relatedEntityId,
         },
       })
-      if (existing) continue
+      if (existing) {
+        summary.passed_existing += 1
+        continue
+      }
       await createPassedChallengeCertificate({
         userId: user.id,
         accountId: account.id,
