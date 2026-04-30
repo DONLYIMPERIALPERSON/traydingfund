@@ -62,6 +62,12 @@ type UpdateMt5PasswordPayload = {
   mt5_password?: string
 }
 
+type UpdateAccountStatusPayload = {
+  account_id?: number
+  account_number?: string
+  status?: string
+}
+
 type ReplaceAccountPayload = {
   account_id?: number
   account_number?: string
@@ -500,6 +506,68 @@ export const updateMt5Password = async (req: Request, res: Response, next: NextF
       account_number: updated.accountNumber,
       mt5_login: updated.mt5Login ?? updated.accountNumber,
       mt5_server: updated.mt5Server ?? null,
+    })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const updateAccountStatusManually = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { account_id, account_number, status } = req.body as UpdateAccountStatusPayload
+    const accountId = account_id != null ? Number(account_id) : null
+    const accountNumber = account_number ? String(account_number).trim() : null
+    const nextStatus = String(status ?? '').trim().toLowerCase()
+
+    if (!accountId && !accountNumber) {
+      throw new ApiError('account_id or account_number is required', 400)
+    }
+
+    const allowedStatuses = new Set([
+      'ready',
+      'assigned',
+      'assigned_pending_access',
+      'active',
+      'passed',
+      'awaiting_reset',
+      'funded',
+      'breached',
+      'completed',
+      'withdraw_requested',
+      'admin_checking',
+      'disabled',
+    ])
+
+    if (!allowedStatuses.has(nextStatus)) {
+      throw new ApiError('Invalid status selected', 400)
+    }
+
+    const account = await prisma.cTraderAccount.findFirst({
+      where: accountId ? { id: accountId } : { accountNumber: accountNumber ?? '' },
+    })
+
+    if (!account) {
+      throw new ApiError('Account not found', 404)
+    }
+
+    const updated = await prisma.cTraderAccount.update({
+      where: { id: account.id },
+      data: {
+        status: nextStatus,
+        accessStatus: nextStatus === 'active' && String(account.platform ?? '').toLowerCase() === 'mt5'
+          ? 'granted'
+          : account.accessStatus,
+        accessGrantedAt: nextStatus === 'active' && String(account.platform ?? '').toLowerCase() === 'mt5'
+          ? new Date()
+          : account.accessGrantedAt,
+      },
+    })
+
+    res.json({
+      message: 'Account status updated successfully',
+      account_id: updated.id,
+      account_number: updated.accountNumber,
+      status: updated.status,
     })
   } catch (err) {
     next(err as Error)

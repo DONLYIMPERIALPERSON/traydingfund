@@ -1135,7 +1135,7 @@ export const createPhase2RepeatOrder = async (req: AuthRequest, res: Response, n
         status: 'completed',
       },
     }) as RepeatTrackedOrder | null
-    if (existingCompleted || account.phase2RepeatUsedAt) {
+    if (existingCompleted || (account as typeof account & { phase2RepeatUsedAt?: Date | null }).phase2RepeatUsedAt) {
       throw new ApiError('Repeat has already been used for this account.', 409)
     }
 

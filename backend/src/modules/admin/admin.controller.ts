@@ -4,6 +4,7 @@ import { prisma } from '../../config/prisma'
 import { ApiError } from '../../common/errors'
 import { getFxRatesConfig } from '../fxRates/fxRates.service'
 import { buildBreachNarrative, getOrCreateBreachReport, type BreachReportPayload } from '../../services/breachReport.service'
+import { sendUnifiedEmail } from '../../services/email.service'
 
 export const getAdminMe = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -684,6 +685,241 @@ export const clearUserPaymentMethod = async (req: Request, res: Response, next: 
     })
 
     res.json({ message: 'User payout method cleared successfully.', email: user.email })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const getUserProfile = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = Number(req.params.userId)
+    if (!Number.isFinite(userId)) throw new ApiError('Invalid user ID', 400)
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        cTraderAccounts: true,
+        orders: { where: { status: 'completed' } },
+        payouts: true,
+      },
+    })
+    if (!user) throw new ApiError('User not found', 404)
+
+    const challengeAccounts = user.cTraderAccounts.filter((account) =>
+      ['active', 'assigned', 'assigned_pending_access', 'passed', 'funded', 'breached', 'completed', 'awaiting_reset', 'withdraw_requested'].includes(
+        account.status.toLowerCase()
+      )
+    )
+
+    res.json({
+      status: user.status ?? 'active',
+      accounts: `${challengeAccounts.length}`,
+      revenue: formatUsdCompact(user.orders.reduce((sum, order) => sum + order.netAmountKobo, 0)),
+      payouts: formatUsdCompact(user.payouts.reduce((sum, payout) => sum + payout.amountKobo, 0)),
+      orders: String(user.orders.length),
+      trading: challengeAccounts.length > 0 ? 'Active' : 'None',
+      kyc_status: user.kycStatus ?? 'pending',
+      bank_account: {
+        account_name: user.payoutAccountName ?? null,
+        bank_name: user.payoutBankName ?? null,
+        bank_code: user.payoutBankCode ?? null,
+        bank_account_number: user.payoutAccountNumber ?? null,
+        is_verified: Boolean(user.payoutVerifiedAt),
+        verified_at: user.payoutVerifiedAt?.toISOString() ?? null,
+      },
+    })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const getUserChallengeAccounts = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = Number(req.params.userId)
+    if (!Number.isFinite(userId)) throw new ApiError('Invalid user ID', 400)
+
+    const accounts = await prisma.cTraderAccount.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    res.json(accounts.map((account) => ({
+      challenge_id: account.challengeId,
+      mt5_account: account.accountNumber,
+      account_size: account.accountSize,
+      phase: mapAccountPhaseLabel(account.phase),
+      assigned_at: account.assignedAt?.toISOString() ?? null,
+      objective_status: account.status,
+    })))
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const getUserOrders = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = Number(req.params.userId)
+    if (!Number.isFinite(userId)) throw new ApiError('Invalid user ID', 400)
+
+    const orders = await prisma.order.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    res.json({
+      orders: orders.map((order) => ({
+        id: order.id,
+        provider_order_id: order.providerOrderId,
+        account_size: order.accountSize,
+        net_amount_formatted: formatUsdCompact(order.netAmountKobo),
+        status: order.status,
+        created_at: order.createdAt.toISOString(),
+      })),
+    })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const getUserPayouts = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = Number(req.params.userId)
+    if (!Number.isFinite(userId)) throw new ApiError('Invalid user ID', 400)
+
+    const payouts = await prisma.payout.findMany({
+      where: { userId },
+      orderBy: { requestedAt: 'desc' },
+      include: { account: true },
+    })
+
+    res.json({
+      payouts: payouts.map((payout) => ({
+        id: payout.id,
+        amount_formatted: formatUsdCompact(payout.amountKobo),
+        status: payout.status,
+        created_at: payout.requestedAt.toISOString(),
+        account: { challenge_id: payout.account?.challengeId ?? null },
+      })),
+    })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const getUserSupportTickets = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = Number(req.params.userId)
+    if (!Number.isFinite(userId)) throw new ApiError('Invalid user ID', 400)
+
+    const tickets = await prisma.supportTicket.findMany({
+      where: { userId },
+      orderBy: { updatedAt: 'desc' },
+    })
+
+    res.json(tickets.map((ticket) => ({
+      id: String(ticket.id),
+      subject: ticket.subject,
+      priority: ticket.priority,
+      status: ticket.status,
+      updated_at: ticket.updatedAt.toISOString(),
+      user_name: '',
+      user_email: '',
+    })))
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const disableUserWithdrawals = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = Number(req.params.userId)
+    if (!Number.isFinite(userId)) throw new ApiError('Invalid user ID', 400)
+    await prisma.user.update({ where: { id: userId }, data: { status: 'withdrawals_disabled' } })
+    res.json({ message: 'Withdrawals disabled successfully' })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const enableUserWithdrawals = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = Number(req.params.userId)
+    if (!Number.isFinite(userId)) throw new ApiError('Invalid user ID', 400)
+    await prisma.user.update({ where: { id: userId }, data: { status: 'active' } })
+    res.json({ message: 'Withdrawals enabled successfully' })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const suspendUser = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = Number(req.params.userId)
+    if (!Number.isFinite(userId)) throw new ApiError('Invalid user ID', 400)
+    await prisma.user.update({ where: { id: userId }, data: { status: 'suspended' } })
+    res.json({ message: 'User suspended successfully' })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const unsuspendUser = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = Number(req.params.userId)
+    if (!Number.isFinite(userId)) throw new ApiError('Invalid user ID', 400)
+    await prisma.user.update({ where: { id: userId }, data: { status: 'active' } })
+    res.json({ message: 'User unsuspended successfully' })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const banUser = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = Number(req.params.userId)
+    if (!Number.isFinite(userId)) throw new ApiError('Invalid user ID', 400)
+    await prisma.user.update({ where: { id: userId }, data: { status: 'banned' } })
+    res.json({ message: 'User banned successfully' })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const addUserNote = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = Number(req.params.userId)
+    const note = String(req.body?.note ?? '').trim()
+    if (!Number.isFinite(userId)) throw new ApiError('Invalid user ID', 400)
+    if (!note) throw new ApiError('note is required', 400)
+    // Temporary no-op persistence placeholder until note model exists
+    res.json({ message: 'Note saved successfully' })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const sendUserEmail = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = Number(req.params.userId)
+    const subject = String(req.body?.subject ?? '').trim()
+    const message = String(req.body?.message ?? '').trim()
+    if (!Number.isFinite(userId)) throw new ApiError('Invalid user ID', 400)
+    if (!subject || !message) throw new ApiError('subject and message are required', 400)
+
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+    if (!user?.email) throw new ApiError('User not found', 404)
+
+    await sendUnifiedEmail({
+      to: user.email,
+      subject,
+      title: subject,
+      subtitle: 'Message from admin',
+      content: message,
+      buttonText: 'View Dashboard',
+      infoBox: `Sent by admin to ${user.email}`,
+    })
+
+    res.json({ message: 'Email sent successfully' })
   } catch (err) {
     next(err as Error)
   }

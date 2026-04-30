@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   adminChangeAccountPhase,
   adminReplaceAccount,
+  adminUpdateAccountStatus,
   adminUpdateMt5Password,
   adminResetAccount,
   clearUserPaymentMethod,
@@ -126,6 +127,8 @@ const AdminCheckingPage = () => {
   const [replaceAction, setReplaceAction] = useState<'replace_account' | 'change_phase_only'>('replace_account')
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [showReplaceModal, setShowReplaceModal] = useState(false)
+  const [manualStatus, setManualStatus] = useState('active')
+  const [updatingStatus, setUpdatingStatus] = useState(false)
   const [paymentEmail, setPaymentEmail] = useState('')
   const [paymentLookupLoading, setPaymentLookupLoading] = useState(false)
   const [clearingPaymentMethod, setClearingPaymentMethod] = useState(false)
@@ -179,6 +182,7 @@ const AdminCheckingPage = () => {
     try {
       const response = await lookupChallengeAccount(trimmed)
       setAccount(response.account)
+      setManualStatus(response.account.status ?? 'active')
       setReportOpen(false)
     } catch (err) {
       setAccount(null)
@@ -221,6 +225,7 @@ const AdminCheckingPage = () => {
       setShowPasswordModal(false)
       const refreshed = await lookupChallengeAccount(account.account_number)
       setAccount(refreshed.account)
+      setManualStatus(refreshed.account.status ?? 'active')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Password update failed')
     } finally {
@@ -251,6 +256,7 @@ const AdminCheckingPage = () => {
       setShowReplaceModal(false)
       const refreshed = await lookupChallengeAccount(account.account_number)
       setAccount(refreshed.account)
+      setManualStatus(refreshed.account.status ?? 'active')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Replace account failed')
     } finally {
@@ -274,6 +280,26 @@ const AdminCheckingPage = () => {
       setError(err instanceof Error ? err.message : 'Payment method lookup failed')
     } finally {
       setPaymentLookupLoading(false)
+    }
+  }
+
+  const handleUpdateAccountStatus = async () => {
+    if (!account) return
+    setUpdatingStatus(true)
+    setError('')
+    try {
+      await adminUpdateAccountStatus({
+        account_id: account.id,
+        account_number: account.account_number,
+        status: manualStatus,
+      })
+      const refreshed = await lookupChallengeAccount(account.account_number)
+      setAccount(refreshed.account)
+      setManualStatus(refreshed.account.status ?? 'active')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update account status')
+    } finally {
+      setUpdatingStatus(false)
     }
   }
 
@@ -399,6 +425,38 @@ const AdminCheckingPage = () => {
               >
                 {reportOpen ? 'Hide Report' : 'View Report'}
               </button>
+            </div>
+
+            <div style={{ display: 'grid', gap: 8 }}>
+              <strong style={{ color: '#f8fafc' }}>Manual Account Status</strong>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <select
+                  value={manualStatus}
+                  onChange={(event) => setManualStatus(event.target.value)}
+                  style={{ border: '1px solid #2a2f3a', background: '#0f172a', color: '#e5e7eb', borderRadius: 10, padding: '10px 12px', minWidth: 220 }}
+                >
+                  <option value="ready">ready</option>
+                  <option value="assigned">assigned</option>
+                  <option value="assigned_pending_access">assigned_pending_access</option>
+                  <option value="active">active</option>
+                  <option value="passed">passed</option>
+                  <option value="awaiting_reset">awaiting_reset</option>
+                  <option value="funded">funded</option>
+                  <option value="breached">breached</option>
+                  <option value="completed">completed</option>
+                  <option value="withdraw_requested">withdraw_requested</option>
+                  <option value="admin_checking">admin_checking</option>
+                  <option value="disabled">disabled</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={handleUpdateAccountStatus}
+                  disabled={updatingStatus}
+                  style={{ background: '#111827', border: '1px solid #334155', color: '#f8fafc' }}
+                >
+                  {updatingStatus ? 'Updating...' : 'Update Status'}
+                </button>
+              </div>
             </div>
 
             {reportOpen && (
