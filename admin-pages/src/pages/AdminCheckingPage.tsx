@@ -6,6 +6,7 @@ import {
   adminUpdateMt5Password,
   adminResetAccount,
   clearUserPaymentMethod,
+  previewUserMissingCertificates,
   regenerateUserMissingCertificates,
   lookupChallengeAccount,
   lookupUserPaymentMethod,
@@ -136,6 +137,7 @@ const AdminCheckingPage = () => {
   const [paymentMethodUser, setPaymentMethodUser] = useState<AdminUserPaymentMethod | null>(null)
   const [certificateEmail, setCertificateEmail] = useState('')
   const [regeneratingCertificates, setRegeneratingCertificates] = useState(false)
+  const [previewingCertificates, setPreviewingCertificates] = useState(false)
   const [certificateSummary, setCertificateSummary] = useState<string>('')
 
   const formatCurrency = (value: number | null | undefined, currency?: string | null) => {
@@ -322,6 +324,27 @@ const AdminCheckingPage = () => {
     }
   }
 
+  const handlePreviewCertificates = async () => {
+    const trimmed = certificateEmail.trim()
+    if (!trimmed) {
+      setError('Enter an email to check certificates.')
+      return
+    }
+    setPreviewingCertificates(true)
+    setError('')
+    try {
+      const response = await previewUserMissingCertificates(trimmed)
+      setCertificateSummary(
+        `Onboarding Existing/Missing: ${response.audit.onboarding.existing}/${response.audit.onboarding.missing} • Passed Existing/Missing: ${response.audit.passed.existing}/${response.audit.passed.missing} • Payout Existing/Missing: ${response.audit.payout.existing}/${response.audit.payout.missing} • Overall Existing/Missing: ${response.audit.overall.existing}/${response.audit.overall.missing}`,
+      )
+    } catch (err) {
+      setCertificateSummary('')
+      setError(err instanceof Error ? err.message : 'Failed to preview certificates')
+    } finally {
+      setPreviewingCertificates(false)
+    }
+  }
+
   const handleRegenerateCertificates = async () => {
     const trimmed = certificateEmail.trim()
     if (!trimmed) {
@@ -334,7 +357,7 @@ const AdminCheckingPage = () => {
     try {
       const response = await regenerateUserMissingCertificates(trimmed)
       setCertificateSummary(
-        `Onboarding: ${response.summary.onboarding_created}, Passed: ${response.summary.passed_created}, Payout: ${response.summary.payout_created}, Overall: ${response.summary.overall_created}`,
+        `Onboarding Created: ${response.summary.onboarding_created}, Passed Created: ${response.summary.passed_created}, Payout Created: ${response.summary.payout_created}, Overall Created: ${response.summary.overall_created}${typeof response.summary.passed_eligible_accounts === 'number' ? `, Passed Eligible: ${response.summary.passed_eligible_accounts}` : ''}${typeof response.summary.passed_existing === 'number' ? `, Passed Existing: ${response.summary.passed_existing}` : ''}`,
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to regenerate certificates')
@@ -608,6 +631,9 @@ const AdminCheckingPage = () => {
               className="admin-mobile-input"
             />
             <div className="admin-mobile-button-row">
+              <button type="button" onClick={handlePreviewCertificates} disabled={previewingCertificates || regeneratingCertificates}>
+                {previewingCertificates ? 'Checking...' : 'Check Certificates'}
+              </button>
               <button type="button" onClick={handleRegenerateCertificates} disabled={regeneratingCertificates}>
                 {regeneratingCertificates ? 'Regenerating...' : 'Regenerate Certificates'}
               </button>

@@ -712,6 +712,92 @@ export const clearUserPaymentMethod = async (req: Request, res: Response, next: 
   }
 }
 
+const buildUserCertificateAudit = async (email: string) => {
+  const user = await prisma.user.findUnique({
+    where: { email },
+    include: {
+      orders: {
+        where: { status: 'completed' },
+        orderBy: { createdAt: 'asc' },
+      },
+      cTraderAccounts: {
+        orderBy: { createdAt: 'asc' },
+      },
+      payouts: {
+        where: { status: { in: ['completed', 'processing', 'pending_approval'] } },
+        include: { account: true },
+        orderBy: { requestedAt: 'asc' },
+      },
+      certificates: true,
+    },
+  })
+
+  if (!user) {
+    throw new ApiError('User not found', 404)
+  }
+
+  const existingKeys = new Set(
+    user.certificates.map((certificate) => `${certificate.type}:${certificate.relatedEntityId ?? ''}`),
+  )
+
+  const onboardingEligible = user.orders.length
+  const onboardingExisting = user.orders.filter((order) => existingKeys.has(`onboarding:${String(order.id)}`)).length
+
+  const passedEligibleAccounts = user.cTraderAccounts.filter(shouldHavePassedCertificate)
+  const passedEligible = passedEligibleAccounts.length
+  const passedExisting = passedEligibleAccounts.filter((account) => existingKeys.has(`passed_challenge:${account.challengeId || String(account.id)}`)).length
+
+  const payoutEligible = user.payouts.length
+  const payoutExisting = user.payouts.filter((payout) => existingKeys.has(`payout:${String(payout.id)}`)).length
+
+  const overallEligible = user.payouts.length > 0 ? 1 : 0
+  const overallExisting = overallEligible > 0 && existingKeys.has('overall_reward:overall-reward') ? 1 : 0
+
+  return {
+    user,
+    audit: {
+      onboarding: {
+        eligible: onboardingEligible,
+        existing: onboardingExisting,
+        missing: Math.max(0, onboardingEligible - onboardingExisting),
+      },
+      passed: {
+        eligible: passedEligible,
+        existing: passedExisting,
+        missing: Math.max(0, passedEligible - passedExisting),
+      },
+      payout: {
+        eligible: payoutEligible,
+        existing: payoutExisting,
+        missing: Math.max(0, payoutEligible - payoutExisting),
+      },
+      overall: {
+        eligible: overallEligible,
+        existing: overallExisting,
+        missing: Math.max(0, overallEligible - overallExisting),
+      },
+    },
+  }
+}
+
+export const previewUserMissingCertificates = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const email = String(req.query.email ?? '').trim().toLowerCase()
+    if (!email) {
+      throw new ApiError('email is required', 400)
+    }
+
+    const { user, audit } = await buildUserCertificateAudit(email)
+    res.json({
+      email: user.email,
+      full_name: user.fullName ?? null,
+      audit,
+    })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
 export const regenerateUserMissingCertificates = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const email = String(req.body?.email ?? '').trim().toLowerCase()
@@ -719,35 +805,15 @@ export const regenerateUserMissingCertificates = async (req: Request, res: Respo
       throw new ApiError('email is required', 400)
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: {
-        orders: {
-          where: { status: 'completed' },
-          orderBy: { createdAt: 'asc' },
-        },
-        cTraderAccounts: {
-          orderBy: { createdAt: 'asc' },
-        },
-        payouts: {
-          where: { status: { in: ['completed', 'processing', 'pending_approval'] } },
-          include: { account: true },
-          orderBy: { requestedAt: 'asc' },
-        },
-      },
-    })
-
-    if (!user) {
-      throw new ApiError('User not found', 404)
-    }
+    const { user, audit } = await buildUserCertificateAudit(email)
 
     const summary = {
       onboarding_created: 0,
       passed_created: 0,
       payout_created: 0,
       overall_created: 0,
-      passed_eligible_accounts: 0,
-      passed_existing: 0,
+      passed_eligible_accounts: audit.passed.eligible,
+      passed_existing: audit.passed.existing,
     }
 
     for (const order of user.orders) {
@@ -771,7 +837,6 @@ export const regenerateUserMissingCertificates = async (req: Request, res: Respo
 
     for (const account of user.cTraderAccounts) {
       if (!shouldHavePassedCertificate(account)) continue
-      summary.passed_eligible_accounts += 1
       const relatedEntityId = account.challengeId || String(account.id)
       const existing = await prisma.certificate.findFirst({
         where: {
@@ -848,6 +913,7 @@ export const regenerateUserMissingCertificates = async (req: Request, res: Respo
       message: 'Missing certificates regeneration completed',
       email: user.email,
       summary,
+      audit,
     })
   } catch (err) {
     next(err as Error)

@@ -114,7 +114,23 @@ export type AdminRegenerateCertificatesResponse = {
     passed_created: number
     payout_created: number
     overall_created: number
+    passed_eligible_accounts?: number
+    passed_existing?: number
   }
+  audit?: AdminCertificateAudit
+}
+
+export type AdminCertificateAudit = {
+  onboarding: { eligible: number; existing: number; missing: number }
+  passed: { eligible: number; existing: number; missing: number }
+  payout: { eligible: number; existing: number; missing: number }
+  overall: { eligible: number; existing: number; missing: number }
+}
+
+export type AdminPreviewCertificatesResponse = {
+  email: string
+  full_name?: string | null
+  audit: AdminCertificateAudit
 }
 
 export type AdminResetAccountResponse = {
@@ -677,6 +693,9 @@ export const regenerateUserMissingCertificates = async (email: string) =>
     method: 'POST',
     body: JSON.stringify({ email }),
   })
+
+export const previewUserMissingCertificates = async (email: string) =>
+  apiFetch<AdminPreviewCertificatesResponse>(`/admin/users/certificates/regenerate-missing?email=${encodeURIComponent(email)}`)
 
 export const fetchFundedChallengeAccounts = async (platform?: string) =>
   apiFetch<{ accounts: ChallengeAccountListItem[] }>(
