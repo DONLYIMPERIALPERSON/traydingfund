@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import {
+  adminChangeAccountPhase,
   adminReplaceAccount,
   adminUpdateMt5Password,
   adminResetAccount,
@@ -121,6 +122,8 @@ const AdminCheckingPage = () => {
   const [newMt5Password, setNewMt5Password] = useState('')
   const [replacementPlatform, setReplacementPlatform] = useState<'mt5' | 'ctrader'>('mt5')
   const [replaceToNextPhase, setReplaceToNextPhase] = useState(false)
+  const [replacementTargetPhase, setReplacementTargetPhase] = useState<'phase_1' | 'phase_2' | 'funded'>('phase_1')
+  const [replaceAction, setReplaceAction] = useState<'replace_account' | 'change_phase_only'>('replace_account')
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [showReplaceModal, setShowReplaceModal] = useState(false)
   const [paymentEmail, setPaymentEmail] = useState('')
@@ -230,12 +233,21 @@ const AdminCheckingPage = () => {
     setReplacingAccount(true)
     setError('')
     try {
-      await adminReplaceAccount({
-        account_id: account.id,
-        account_number: account.account_number,
-        platform: replacementPlatform,
-        next_phase: replaceToNextPhase,
-      })
+      if (replaceAction === 'change_phase_only') {
+        await adminChangeAccountPhase({
+          account_id: account.id,
+          account_number: account.account_number,
+          target_phase: replacementTargetPhase,
+        })
+      } else {
+        await adminReplaceAccount({
+          account_id: account.id,
+          account_number: account.account_number,
+          platform: replacementPlatform,
+          next_phase: replaceToNextPhase,
+          target_phase: replacementTargetPhase,
+        })
+      }
       setShowReplaceModal(false)
       const refreshed = await lookupChallengeAccount(account.account_number)
       setAccount(refreshed.account)
@@ -518,27 +530,48 @@ const AdminCheckingPage = () => {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(2,6,23,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ width: 'min(500px, 92vw)', background: '#0b1220', border: '1px solid #334155', borderRadius: 14, padding: 20, display: 'grid', gap: 14 }}>
             <h3 style={{ margin: 0, color: '#f8fafc' }}>Replace Account</h3>
-            <p style={{ margin: 0, color: '#cbd5e1', fontSize: 14 }}>Assign a ready replacement for <strong>{account.account_number}</strong> with the same size/type. You can optionally move the user to the next phase.</p>
+            <p style={{ margin: 0, color: '#cbd5e1', fontSize: 14 }}>Admin can either replace the account and set a phase, or keep the same account and only change its phase.</p>
             <select
-              value={replacementPlatform}
-              onChange={(event) => setReplacementPlatform(event.target.value as 'mt5' | 'ctrader')}
+              value={replaceAction}
+              onChange={(event) => setReplaceAction(event.target.value as 'replace_account' | 'change_phase_only')}
               style={{ border: '1px solid #2a2f3a', background: '#0f172a', color: '#e5e7eb', borderRadius: 10, padding: '10px 12px' }}
             >
-              <option value="mt5">mt5</option>
-              <option value="ctrader">ctrader</option>
+              <option value="replace_account">Change phase + replace account</option>
+              <option value="change_phase_only">Change phase but keep same account</option>
             </select>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: '#cbd5f5', fontSize: 14 }}>
-              <input
-                type="checkbox"
-                checked={replaceToNextPhase}
-                onChange={(event) => setReplaceToNextPhase(event.target.checked)}
-              />
-              Next Phase
-            </label>
+            {replaceAction === 'replace_account' && (
+              <select
+                value={replacementPlatform}
+                onChange={(event) => setReplacementPlatform(event.target.value as 'mt5' | 'ctrader')}
+                style={{ border: '1px solid #2a2f3a', background: '#0f172a', color: '#e5e7eb', borderRadius: 10, padding: '10px 12px' }}
+              >
+                <option value="mt5">mt5</option>
+                <option value="ctrader">ctrader</option>
+              </select>
+            )}
+            <select
+              value={replacementTargetPhase}
+              onChange={(event) => setReplacementTargetPhase(event.target.value as 'phase_1' | 'phase_2' | 'funded')}
+              style={{ border: '1px solid #2a2f3a', background: '#0f172a', color: '#e5e7eb', borderRadius: 10, padding: '10px 12px' }}
+            >
+              <option value="phase_1">Phase 1</option>
+              <option value="phase_2">Phase 2</option>
+              <option value="funded">Funded</option>
+            </select>
+            {replaceAction === 'replace_account' && (
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: '#cbd5f5', fontSize: 14 }}>
+                <input
+                  type="checkbox"
+                  checked={replaceToNextPhase}
+                  onChange={(event) => setReplaceToNextPhase(event.target.checked)}
+                />
+                Auto-select next phase from current account
+              </label>
+            )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button type="button" onClick={() => setShowReplaceModal(false)} style={{ background: '#111827', border: '1px solid #334155', color: '#cbd5e1' }}>Cancel</button>
               <button type="button" onClick={handleReplaceAccount} disabled={replacingAccount} style={{ background: '#111827', border: '1px solid #334155', color: '#fda4af' }}>
-                {replacingAccount ? 'Replacing...' : 'Confirm Replace'}
+                {replacingAccount ? 'Saving...' : replaceAction === 'change_phase_only' ? 'Confirm Phase Change' : 'Confirm Replace'}
               </button>
             </div>
           </div>

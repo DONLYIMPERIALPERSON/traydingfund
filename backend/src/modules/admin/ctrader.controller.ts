@@ -67,6 +67,13 @@ type ReplaceAccountPayload = {
   account_number?: string
   platform?: 'mt5' | 'ctrader'
   next_phase?: boolean
+  target_phase?: string
+}
+
+type ChangeAccountPhasePayload = {
+  account_id?: number
+  account_number?: string
+  target_phase?: string
 }
 
 const normalizeUploadAccountSize = (raw: string) => {
@@ -99,6 +106,25 @@ const resolveReplacementPhase = (challengeType: string, phase: string, nextPhase
   }
 
   return null
+}
+
+const normalizeReplacementPhaseInput = (value?: string | null) => {
+  const normalized = String(value ?? '').trim().toLowerCase().replace(/\s+/g, '_')
+  if (!normalized) return null
+  if (normalized === 'phase1' || normalized === 'phase_1') return 'phase_1'
+  if (normalized === 'phase2' || normalized === 'phase_2') return 'phase_2'
+  if (normalized === 'funded') return 'funded'
+  return null
+}
+
+const isAllowedReplacementPhase = (challengeType: string, targetPhase: string) => {
+  const normalizedChallengeType = String(challengeType ?? 'two_step').toLowerCase()
+  if (normalizedChallengeType === 'instant_funded') return targetPhase === 'funded'
+  if (normalizedChallengeType === 'attic') return targetPhase === 'phase_1'
+  if (['two_step', 'one_step', 'ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)) {
+    return ['phase_1', 'phase_2', 'funded'].includes(targetPhase)
+  }
+  return ['phase_1', 'phase_2', 'funded'].includes(targetPhase)
 }
 
 export const uploadCTraderAccounts = async (req: Request, res: Response, next: NextFunction) => {
@@ -482,7 +508,7 @@ export const updateMt5Password = async (req: Request, res: Response, next: NextF
 
 export const replaceUserAccount = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { account_id, account_number, platform, next_phase } = req.body as ReplaceAccountPayload
+    const { account_id, account_number, platform, next_phase, target_phase } = req.body as ReplaceAccountPayload
     const accountId = account_id != null ? Number(account_id) : null
     const accountNumber = account_number ? String(account_number).trim() : null
     const targetPlatform = String(platform ?? '').trim().toLowerCase()
@@ -509,9 +535,16 @@ export const replaceUserAccount = async (req: Request, res: Response, next: Next
       throw new ApiError('Account has no assigned user', 400)
     }
 
-    const targetPhase = resolveReplacementPhase(account.challengeType ?? 'two_step', account.phase, advanceToNextPhase)
+    const explicitTargetPhase = normalizeReplacementPhaseInput(target_phase)
+    const targetPhase = explicitTargetPhase
+      ?? resolveReplacementPhase(account.challengeType ?? 'two_step', account.phase, advanceToNextPhase)
+
     if (!targetPhase) {
       throw new ApiError('This account cannot be moved to the requested replacement phase', 400)
+    }
+
+    if (!isAllowedReplacementPhase(account.challengeType ?? 'two_step', targetPhase)) {
+      throw new ApiError('Selected replacement phase is not allowed for this challenge type', 400)
     }
 
     const resolvedCurrency = resolveChallengeCurrency(account.challengeType, account.currency ?? null)
@@ -612,6 +645,92 @@ export const replaceUserAccount = async (req: Request, res: Response, next: Next
       assigned_challenge_type: assignedAccount.challengeType,
       assigned_platform: assignedAccount.platform,
       assigned_status: assignedAccount.status,
+    })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const changeUserAccountPhase = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { account_id, account_number, target_phase } = req.body as ChangeAccountPhasePayload
+    const accountId = account_id != null ? Number(account_id) : null
+    const accountNumber = account_number ? String(account_number).trim() : null
+
+    if (!accountId && !accountNumber) {
+      throw new ApiError('account_id or account_number is required', 400)
+    }
+
+    const targetPhase = normalizeReplacementPhaseInput(target_phase)
+    if (!targetPhase) {
+      throw new ApiError('target_phase must be phase_1, phase_2, or funded', 400)
+    }
+
+    const account = await prisma.cTraderAccount.findFirst({
+      where: accountId ? { id: accountId } : { accountNumber: accountNumber ?? '' },
+      include: { user: true },
+    })
+
+    if (!account) {
+      throw new ApiError('Account not found', 404)
+    }
+
+    if (!account.userId) {
+      throw new ApiError('Account has no assigned user', 400)
+    }
+
+    if (!isAllowedReplacementPhase(account.challengeType ?? 'two_step', targetPhase)) {
+      throw new ApiError('Selected phase is not allowed for this challenge type', 400)
+    }
+
+    const baseChallengeId = normalizeChallengeBase(account.challengeId)
+    const nextChallengeId = buildChallengeIdForPhase(baseChallengeId, targetPhase)
+
+    const existingChallenge = await prisma.cTraderAccount.findFirst({
+      where: {
+        challengeId: nextChallengeId,
+        NOT: { id: account.id },
+      },
+      select: { id: true },
+    })
+
+    if (existingChallenge) {
+      throw new ApiError(`Target challenge ID already exists: ${nextChallengeId}`, 409)
+    }
+
+    const objectiveFields = await buildObjectiveFields({
+      accountSize: account.accountSize,
+      challengeType: account.challengeType ?? 'two_step',
+      phase: targetPhase,
+    })
+
+    const updated = await prisma.cTraderAccount.update({
+      where: { id: account.id },
+      data: {
+        challengeId: nextChallengeId,
+        phase: targetPhase,
+        ...objectiveFields,
+      } as Prisma.CTraderAccountUncheckedUpdateInput,
+    })
+
+    try {
+      await pushActiveAccountAdd({
+        accountNumber: updated.accountNumber,
+        phase: updated.phase,
+        status: updated.status,
+        challengeType: updated.challengeType,
+      })
+    } catch (error) {
+      console.error('Failed to push updated account phase active state', error)
+    }
+
+    res.json({
+      message: 'Account phase updated successfully',
+      account_id: updated.id,
+      account_number: updated.accountNumber,
+      challenge_id: updated.challengeId,
+      phase: updated.phase,
+      status: updated.status,
     })
   } catch (err) {
     next(err as Error)

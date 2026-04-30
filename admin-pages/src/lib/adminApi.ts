@@ -135,6 +135,15 @@ export type AdminReplaceAccountResponse = {
   assigned_status: string
 }
 
+export type AdminChangeAccountPhaseResponse = {
+  message: string
+  account_id: number
+  account_number: string
+  challenge_id: string
+  phase: string
+  status: string
+}
+
 export type ChallengeBreachListItem = {
   challenge_id: string
   user_id?: number | null
@@ -611,8 +620,14 @@ export const adminUpdateMt5Password = async (payload: { account_id?: number; acc
     body: JSON.stringify(payload),
   })
 
-export const adminReplaceAccount = async (payload: { account_id?: number; account_number?: string; platform: 'mt5' | 'ctrader'; next_phase?: boolean }) =>
+export const adminReplaceAccount = async (payload: { account_id?: number; account_number?: string; platform: 'mt5' | 'ctrader'; next_phase?: boolean; target_phase?: 'phase_1' | 'phase_2' | 'funded' }) =>
   apiFetch<AdminReplaceAccountResponse>('/admin/ctrader/accounts/replace', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+
+export const adminChangeAccountPhase = async (payload: { account_id?: number; account_number?: string; target_phase: 'phase_1' | 'phase_2' | 'funded' }) =>
+  apiFetch<AdminChangeAccountPhaseResponse>('/admin/ctrader/accounts/change-phase', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
