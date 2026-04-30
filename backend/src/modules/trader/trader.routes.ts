@@ -18,6 +18,7 @@ import {
 import {
   createBankTransferOrder,
   createBreezyRenewalOrder,
+  createPhase2RepeatOrder,
   createFreeOrder,
   createCryptoOrder,
   handleSafeHavenWebhook,
@@ -52,6 +53,10 @@ const challengeRefreshSchema = z.object({
 })
 
 const breezyRenewalParamsSchema = z.object({
+  accountId: z.coerce.number().int().positive(),
+})
+
+const phase2RepeatParamsSchema = z.object({
   accountId: z.coerce.number().int().positive(),
 })
 
@@ -107,6 +112,7 @@ traderRouter.get('/orders', authenticate, requireRole('trader'), validate({ quer
 traderRouter.get('/orders/:providerOrderId', authenticate, requireRole('trader'), getOrderStatus)
 traderRouter.post('/orders/bank-transfer', authenticate, requireRole('trader'), validate({ body: bankTransferOrderSchema }), createBankTransferOrder)
 traderRouter.post('/breezy/:accountId/renew', authenticate, requireRole('trader'), validate({ params: breezyRenewalParamsSchema }), createBreezyRenewalOrder)
+traderRouter.post('/phase2-repeat/:accountId', authenticate, requireRole('trader'), validate({ params: phase2RepeatParamsSchema }), createPhase2RepeatOrder)
 traderRouter.post('/orders/free', authenticate, requireRole('trader'), validate({ body: freeOrderSchema }), createFreeOrder)
 traderRouter.post('/orders/crypto', authenticate, requireRole('trader'), validate({ body: cryptoOrderSchema }), createCryptoOrder)
 traderRouter.post('/safehaven/webhook', handleSafeHavenWebhook)

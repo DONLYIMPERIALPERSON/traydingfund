@@ -111,6 +111,14 @@ export type UserChallengeAccountListItem = {
   breached_at: string | null
   passed_at: string | null
   passed_stage: string | null
+  phase2_repeat?: {
+    eligible: boolean
+    used: boolean
+    repeat_fee_kobo: number | null
+    used_at: string | null
+    repeated_from_account_id: number | null
+    replaced_by_account_id: number | null
+  } | null
   breezy?: {
     risk_score?: number | null
     risk_score_band?: string | null
@@ -231,6 +239,14 @@ export type UserChallengeAccountDetailResponse = {
   funded_profit_capped: number | null
   funded_profit_cap_amount: number | null
   funded_user_payout_amount: number | null
+  phase2_repeat?: {
+    eligible: boolean
+    used: boolean
+    repeat_fee_kobo: number | null
+    used_at: string | null
+    repeated_from_account_id: number | null
+    replaced_by_account_id: number | null
+  } | null
   breezy?: {
     withdrawal_eligible?: boolean | null
     withdrawal_block_reason?: string | null
@@ -712,6 +728,12 @@ export async function refreshPaymentOrderStatus(providerOrderId: string): Promis
 
 export async function createBreezyRenewalOrder(accountId: number): Promise<PaymentOrderResponse> {
   return apiFetch<PaymentOrderResponse>(`/trader/breezy/${accountId}/renew`, {
+    method: 'POST',
+  })
+}
+
+export async function createPhase2RepeatOrder(accountId: number): Promise<PaymentOrderResponse> {
+  return apiFetch<PaymentOrderResponse>(`/trader/phase2-repeat/${accountId}`, {
     method: 'POST',
   })
 }

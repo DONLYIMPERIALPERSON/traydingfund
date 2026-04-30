@@ -1,13 +1,13 @@
 import { Request, Response, NextFunction } from 'express'
 import { prisma } from '../../config/prisma'
-import { Prisma, type Order } from '@prisma/client'
+import { Prisma, type Order, type CTraderAccount } from '@prisma/client'
 import { env } from '../../config/env'
 import { ApiError } from '../../common/errors'
 import { createVirtualAccount } from '../../services/safehaven.service'
 import { getFxRatesConfig } from '../fxRates/fxRates.service'
 import { pushActiveAccountRemove } from '../../services/ctraderEngine.service'
 import { requestAccountAccess } from '../../services/accessEngine.service'
-import { assignReadyAccountFromPool, buildBaseChallengeId } from '../ctrader/ctrader.assignment'
+import { assignReadyAccountFromPool, buildBaseChallengeId, normalizeChallengeBase } from '../ctrader/ctrader.assignment'
 import { createOnboardingCertificate } from '../../services/certificate.service'
 import { buildObjectiveFields } from '../ctrader/ctrader.objectives'
 import { fetchRemoteAttachment, sendUnifiedEmail } from '../../services/email.service'
@@ -146,8 +146,168 @@ const BREEZY_SUBSCRIPTION_DAYS = 7
 const BREEZY_RENEWAL_WINDOW_DAYS = 2
 
 const isBreezyChallengeType = (challengeType?: string | null) => String(challengeType ?? '').toLowerCase() === 'breezy'
+const PHASE2_REPEAT_SUPPORTED_TYPES = new Set(['ngn_standard', 'ngn_flexi'])
 
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000)
+
+const isPhase2RepeatChallengeType = (challengeType?: string | null) =>
+  PHASE2_REPEAT_SUPPORTED_TYPES.has(String(challengeType ?? '').toLowerCase())
+
+type RepeatTrackedAccount = CTraderAccount & {
+  archivedAt?: Date | null
+  phase2RepeatUsedAt?: Date | null
+  repeatedFromAccountId?: number | null
+  repeatReplacedByAccountId?: number | null
+}
+
+type RepeatTrackedOrder = Order & {
+  repeatForAccountId?: number | null
+  repeatForChallengeId?: string | null
+}
+
+const isEligibleForPhase2Repeat = (account: {
+  challengeType?: string | null
+  phase?: string | null
+  status?: string | null
+  phase2RepeatUsedAt?: Date | null
+  archivedAt?: Date | null
+}) => {
+  if (!isPhase2RepeatChallengeType(account.challengeType)) return false
+  if (String(account.phase ?? '').toLowerCase() !== 'phase_2') return false
+  if (String(account.status ?? '').toLowerCase() !== 'breached') return false
+  if (account.phase2RepeatUsedAt) return false
+  if (account.archivedAt) return false
+  return true
+}
+
+const resolvePhase2RepeatAmountKobo = async (account: {
+  challengeType?: string | null
+  accountSize: string
+  currency?: string | null
+}) => {
+  const plan = await prisma.challengePlan.findFirst({
+    where: {
+      phase: 'phase_1',
+      accountSize: account.accountSize,
+      enabled: true,
+      ...(account.challengeType != null ? { challengeType: account.challengeType } : {}),
+    },
+    orderBy: { updatedAt: 'desc' },
+  })
+
+  if (!plan) {
+    throw new ApiError('Unable to determine repeat fee for this account.', 400)
+  }
+
+  const baseAmountKobo = Math.round(Number(plan.price) * 100)
+  if (!Number.isFinite(baseAmountKobo) || baseAmountKobo <= 0) {
+    throw new ApiError('Invalid challenge fee configured for this account.', 400)
+  }
+
+  return {
+    planId: plan.planId,
+    amountKobo: Math.round(baseAmountKobo * 1.1),
+    currency: (plan.currency || account.currency || 'NGN').toUpperCase(),
+  }
+}
+
+const buildPhase2RepeatResponse = (order: RepeatTrackedOrder, safehavenPayload?: any) => ({
+  ...buildBankTransferResponse(order, safehavenPayload),
+  repeat_for_account_id: order.repeatForAccountId ?? null,
+  repeat_for_challenge_id: order.repeatForChallengeId ?? null,
+})
+
+const fulfillPhase2RepeatOrder = async (order: RepeatTrackedOrder) => {
+  if (!order.repeatForAccountId) {
+    throw new ApiError('Repeat order is missing target account.', 400)
+  }
+
+  const breachedAccount = await prisma.cTraderAccount.findUnique({
+    where: { id: order.repeatForAccountId },
+    include: { user: true },
+  }) as (RepeatTrackedAccount & { user: { email: string; fullName: string | null } | null }) | null
+
+  if (!breachedAccount) {
+    throw new ApiError('Original breached account not found.', 404)
+  }
+
+  if (!isEligibleForPhase2Repeat(breachedAccount)) {
+    return
+  }
+
+  const assigned = await assignReadyAccount(order.userId, {
+    challengeType: breachedAccount.challengeType ?? 'ngn_standard',
+    phase: 'phase_2',
+    accountSize: breachedAccount.accountSize,
+    currency: breachedAccount.currency ?? 'NGN',
+    platform: breachedAccount.platform ?? 'ctrader',
+    baseChallengeId: normalizeChallengeBase(breachedAccount.challengeId),
+  })
+
+  if (!assigned) {
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { assignmentStatus: 'pending_assign' },
+    })
+    return
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: order.id },
+      data: { assignmentStatus: 'assigned' },
+    })
+
+    await tx.cTraderAccount.update({
+      where: { id: breachedAccount.id },
+      data: {
+        archivedAt: new Date(),
+        phase2RepeatUsedAt: new Date(),
+        repeatReplacedByAccountId: assigned.id,
+      } as Prisma.CTraderAccountUncheckedUpdateInput,
+    })
+
+    await tx.cTraderAccount.update({
+      where: { id: assigned.id },
+      data: {
+        repeatedFromAccountId: breachedAccount.id,
+      } as Prisma.CTraderAccountUncheckedUpdateInput,
+    })
+  })
+
+  const resolvedPlatform = String(assigned.platform ?? breachedAccount.platform ?? 'ctrader').toLowerCase()
+  if (resolvedPlatform === 'mt5') {
+    await prisma.cTraderAccount.update({
+      where: { id: assigned.id },
+      data: { status: 'active', accessStatus: 'granted', accessGrantedAt: new Date() },
+    })
+  } else {
+    try {
+      await requestAccountAccess({
+        user_email: breachedAccount.user?.email ?? '',
+        account_number: assigned.accountNumber,
+        broker: assigned.brokerName,
+        platform: resolvedPlatform,
+        ...(breachedAccount.user?.fullName ? { user_name: breachedAccount.user.fullName } : {}),
+        ...(assigned.challengeType ? { account_type: assigned.challengeType } : {}),
+        ...(assigned.phase ? { account_phase: assigned.phase } : {}),
+        ...(assigned.accountSize ? { account_size: assigned.accountSize } : {}),
+        ...(assigned.mt5Login ? { mt5_login: assigned.mt5Login } : {}),
+        ...(assigned.mt5Server ? { mt5_server: assigned.mt5Server } : {}),
+        ...(assigned.mt5Password ? { mt5_password: assigned.mt5Password } : {}),
+      })
+    } catch (error) {
+      console.error('Failed to request repeat account access grant', {
+        orderId: order.id,
+        providerOrderId: order.providerOrderId,
+        accountNumber: assigned.accountNumber,
+        error,
+      })
+    }
+  }
+
+  await clearCacheByPrefix(buildCacheKey(['trader', 'challenges', order.userId]))
+}
 
 const canRenewBreezyAccount = (expiresAt?: Date | null) => {
   if (!expiresAt) return false
@@ -798,7 +958,7 @@ export const createBreezyRenewalOrder = async (req: AuthRequest, res: Response, 
     const accountId = Number(req.params.accountId)
     const account = await prisma.cTraderAccount.findFirst({
       where: { id: accountId, userId: user.id },
-    })
+    }) as RepeatTrackedAccount | null
 
     if (!account) throw new ApiError('Account not found', 404)
     if (!isBreezyChallengeType(account.challengeType)) throw new ApiError('Only Breezy accounts can be renewed here.', 400)
@@ -894,6 +1054,110 @@ export const createBreezyRenewalOrder = async (req: AuthRequest, res: Response, 
     })
 
     res.json(buildBankTransferResponse(order, virtualAccount))
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const createPhase2RepeatOrder = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const user = ensureUser(req)
+    const accountId = Number(req.params.accountId)
+    const account = await prisma.cTraderAccount.findFirst({
+      where: { id: accountId, userId: user.id },
+    })
+
+    if (!account) throw new ApiError('Account not found', 404)
+    if (!isEligibleForPhase2Repeat(account)) {
+      throw new ApiError('This account is not eligible for a Phase 2 repeat.', 400)
+    }
+
+    await prisma.order.updateMany({
+      where: {
+        repeatForAccountId: account.id,
+        orderType: 'phase2_repeat',
+        status: 'pending',
+      },
+      data: { status: 'expired' },
+    })
+
+    const existingCompleted = await prisma.order.findFirst({
+      where: {
+        repeatForAccountId: account.id,
+        orderType: 'phase2_repeat',
+        status: 'completed',
+      },
+    }) as RepeatTrackedOrder | null
+    if (existingCompleted || account.phase2RepeatUsedAt) {
+      throw new ApiError('Repeat has already been used for this account.', 409)
+    }
+
+    const pricing = await resolvePhase2RepeatAmountKobo(account)
+    const providerOrderId = `P2R-${Date.now()}-${Math.floor(Math.random() * 9999)}`
+    const virtualAccount = await createVirtualAccount({
+      amount: Math.round(pricing.amountKobo / 100),
+      externalReference: providerOrderId,
+    })
+
+    const resolvedAccountNumber = String(
+      virtualAccount.accountNumber
+        ?? (virtualAccount as { account_number?: string }).account_number
+        ?? (virtualAccount as { account?: { accountNumber?: string; account_number?: string; number?: string } }).account?.accountNumber
+        ?? (virtualAccount as { account?: { accountNumber?: string; account_number?: string; number?: string } }).account?.account_number
+        ?? (virtualAccount as { account?: { number?: string } }).account?.number
+        ?? ''
+    )
+    const resolvedAccountName = String(
+      virtualAccount.accountName
+        ?? (virtualAccount as { account_name?: string }).account_name
+        ?? (virtualAccount as { account?: { accountName?: string; account_name?: string; name?: string } }).account?.accountName
+        ?? (virtualAccount as { account?: { account_name?: string; name?: string } }).account?.account_name
+        ?? (virtualAccount as { account?: { name?: string } }).account?.name
+        ?? ''
+    )
+    const resolvedBankName = String(
+      virtualAccount.bankName
+        ?? (virtualAccount as { bank_name?: string }).bank_name
+        ?? (virtualAccount as { account?: { bankName?: string; bank_name?: string } }).account?.bankName
+        ?? (virtualAccount as { account?: { bank_name?: string } }).account?.bank_name
+        ?? 'SafeHaven MFB'
+    )
+
+    const order = await prisma.order.create({
+      data: {
+        providerOrderId,
+        status: 'pending',
+        assignmentStatus: 'unassigned',
+        currency: pricing.currency,
+        grossAmountKobo: pricing.amountKobo,
+        discountAmountKobo: 0,
+        netAmountKobo: pricing.amountKobo,
+        planId: pricing.planId,
+        accountSize: account.accountSize,
+        challengeType: account.challengeType,
+        phase: 'phase_2',
+        paymentMethod: 'bank_transfer',
+        paymentProvider: 'safehaven',
+        orderType: 'phase2_repeat',
+        repeatForAccountId: account.id,
+        repeatForChallengeId: account.challengeId,
+        safehavenAccountId: virtualAccount._id,
+        safehavenAccountNumber: resolvedAccountNumber,
+        safehavenAccountName: resolvedAccountName,
+        safehavenBankName: resolvedBankName,
+        safehavenExpiresAt: virtualAccount.expiryDate ? new Date(virtualAccount.expiryDate) : null,
+        safehavenSessionId: virtualAccount.sessionId ?? null,
+        metadata: {
+          safehaven: virtualAccount,
+          platform: account.platform ?? 'ctrader',
+          phase2Repeat: true,
+          originalChallengeId: account.challengeId,
+        },
+        userId: user.id,
+      } as Prisma.OrderUncheckedCreateInput,
+    }) as RepeatTrackedOrder
+
+    res.json(buildPhase2RepeatResponse(order, virtualAccount))
   } catch (err) {
     next(err as Error)
   }
@@ -1187,6 +1451,8 @@ export const handleSafeHavenWebhook = async (req: Request, res: Response, next: 
             })
           }
         }
+      } else if ((updatedOrder as RepeatTrackedOrder).orderType === 'phase2_repeat' && (updatedOrder as RepeatTrackedOrder).repeatForAccountId) {
+        await fulfillPhase2RepeatOrder(updatedOrder as RepeatTrackedOrder)
       } else {
         await handleCompletedOrder(updatedOrder)
       }

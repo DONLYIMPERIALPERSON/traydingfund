@@ -4,6 +4,7 @@ import MobilePaymentSheet from '../components/MobilePaymentSheet'
 import ServiceUnavailableState from '../components/ServiceUnavailableState'
 import {
   createBreezyRenewalOrder,
+  createPhase2RepeatOrder,
   downloadBreachReport,
   fetchUserChallengeAccountDetail,
   refreshChallengeAccount,
@@ -112,6 +113,7 @@ const MobileMetricsPage: React.FC = () => {
   const [currentOrder, setCurrentOrder] = useState<PaymentOrderResponse | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [modalStatus, setModalStatus] = useState<'waiting' | 'confirming' | 'success'>('waiting')
+  const [paymentStatus, setPaymentStatus] = useState('')
 
   const challengeId = searchParams.get('challenge_id')
 
@@ -190,7 +192,9 @@ const MobileMetricsPage: React.FC = () => {
         const refreshed = await refreshPaymentOrderStatus(orderId)
         if (refreshed.status === 'completed') {
           setModalStatus('success')
-          await loadAccountData()
+          if (currentOrder?.order_type !== 'phase2_repeat') {
+            await loadAccountData()
+          }
           return
         }
         if (refreshed.status === 'failed' || refreshed.status === 'expired') {
@@ -203,7 +207,10 @@ const MobileMetricsPage: React.FC = () => {
         console.error('Renewal payment status check failed:', error)
       }
     }
-  }, [loadAccountData])
+    setModalStatus('waiting')
+    setPaymentStatus('Payment confirmation timed out. Please check your payment status.')
+    setShowPaymentModal(false)
+  }, [currentOrder?.order_type, loadAccountData])
 
   const handleBreezyRenew = useCallback(async () => {
     if (isRenewing) return
@@ -219,6 +226,26 @@ const MobileMetricsPage: React.FC = () => {
       void startPaymentPolling(order.provider_order_id)
     } catch (error) {
       setPaymentStatus(error instanceof Error ? error.message : 'Failed to create renewal payment')
+    } finally {
+      setIsRenewing(false)
+    }
+  }, [accountData, isRenewing, startPaymentPolling])
+
+  const handlePhase2Repeat = useCallback(async () => {
+    if (isRenewing) return
+    try {
+      setIsRenewing(true)
+      setPaymentStatus('')
+      const accountId = Number((accountData as unknown as { account_id?: number }).account_id)
+      if (!Number.isFinite(accountId) || accountId <= 0) {
+        throw new Error('Unable to resolve breached account for repeat.')
+      }
+      const order = await createPhase2RepeatOrder(accountId)
+      setCurrentOrder(order)
+      setShowPaymentModal(true)
+      void startPaymentPolling(order.provider_order_id)
+    } catch (error) {
+      setPaymentStatus(error instanceof Error ? error.message : 'Failed to create repeat payment')
     } finally {
       setIsRenewing(false)
     }
@@ -274,6 +301,10 @@ const MobileMetricsPage: React.FC = () => {
   const breezyRenewalAmount = typeof accountData.breezy?.renewal_price_kobo === 'number'
     ? accountData.breezy.renewal_price_kobo / 100
     : null
+  const phase2RepeatEligible = Boolean(accountData.phase2_repeat?.eligible)
+  const phase2RepeatFee = typeof accountData.phase2_repeat?.repeat_fee_kobo === 'number'
+    ? accountData.phase2_repeat.repeat_fee_kobo / 100
+    : null
 
   return (
     <div className="mobile-metrics-page">
@@ -301,11 +332,20 @@ const MobileMetricsPage: React.FC = () => {
               <strong>Account breached</strong>
               <p>Download your breach report for full details.</p>
             </div>
-            <button type="button" onClick={() => void handleDownloadBreachReport()}>
-              {isDownloadingBreachReport ? 'Preparing...' : 'Download'}
-            </button>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button type="button" onClick={() => void handleDownloadBreachReport()}>
+                {isDownloadingBreachReport ? 'Preparing...' : 'Download'}
+              </button>
+              {phase2RepeatEligible ? (
+                <button type="button" onClick={() => void handlePhase2Repeat()}>
+                  {isRenewing ? 'Preparing...' : `Repeat${phase2RepeatFee != null ? ` · ${formatCurrency(phase2RepeatFee, accountCurrency)}` : ''}`}
+                </button>
+              ) : null}
+            </div>
           </section>
         ) : null}
+
+        {paymentStatus ? <div className="mobile-metrics-error" style={{ marginBottom: 12 }}>{paymentStatus}</div> : null}
 
         {hasPendingWithdrawal ? (
           <section className="mobile-metrics-breach-card">

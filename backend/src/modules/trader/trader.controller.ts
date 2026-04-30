@@ -49,6 +49,47 @@ const isActiveStatus = (status: string) => {
     || normalized === 'admin_checking'
 }
 
+const PHASE2_REPEAT_SUPPORTED_TYPES = new Set(['ngn_standard', 'ngn_flexi'])
+
+const buildPhase2RepeatMeta = async (account: CTraderAccount & {
+  phase2RepeatUsedAt?: Date | null
+  archivedAt?: Date | null
+  repeatedFromAccountId?: number | null
+  repeatReplacedByAccountId?: number | null
+}) => {
+  const normalizedChallengeType = String(account.challengeType ?? '').toLowerCase()
+  const canRepeat = PHASE2_REPEAT_SUPPORTED_TYPES.has(normalizedChallengeType)
+    && String(account.phase ?? '').toLowerCase() === 'phase_2'
+    && String(account.status ?? '').toLowerCase() === 'breached'
+    && !account.phase2RepeatUsedAt
+    && !account.archivedAt
+
+  let repeatFeeKobo: number | null = null
+  if (PHASE2_REPEAT_SUPPORTED_TYPES.has(normalizedChallengeType)) {
+    const plan = await prisma.challengePlan.findFirst({
+      where: {
+        phase: 'phase_1',
+        accountSize: account.accountSize,
+        enabled: true,
+        ...(account.challengeType != null ? { challengeType: account.challengeType } : {}),
+      },
+      orderBy: { updatedAt: 'desc' },
+    })
+    if (plan) {
+      repeatFeeKobo = Math.round(Number(plan.price) * 100 * 1.1)
+    }
+  }
+
+  return {
+    eligible: canRepeat,
+    used: Boolean(account.phase2RepeatUsedAt),
+    repeat_fee_kobo: repeatFeeKobo,
+    used_at: account.phase2RepeatUsedAt?.toISOString() ?? null,
+    repeated_from_account_id: account.repeatedFromAccountId ?? null,
+    replaced_by_account_id: account.repeatReplacedByAccountId ?? null,
+  }
+}
+
 const normalizeChallengeType = (value?: string | null) => {
   if (!value) return 'two_step'
   const normalized = value.toLowerCase().replace(/-/g, '_')
@@ -417,17 +458,22 @@ export const listChallengeAccounts = async (req: AuthRequest, res: Response, nex
       res.json(cached)
       return
     }
-    const accounts: (CTraderAccount & {
+    const accounts: Array<CTraderAccount & {
+      archivedAt?: Date | null
+      phase2RepeatUsedAt?: Date | null
+      repeatedFromAccountId?: number | null
+      repeatReplacedByAccountId?: number | null
       payouts: { status: string }[]
       metrics?: CTraderAccountMetric | null
       adjustments: { reason: string | null; createdAt: Date }[]
-    })[] = await prisma.cTraderAccount.findMany({
+    }> = await prisma.cTraderAccount.findMany({
       where: {
         userId: user.id,
+        archivedAt: null,
         ...(scope === 'attic'
           ? { challengeType: 'attic' }
           : { NOT: { challengeType: 'attic' } }),
-      },
+      } as any,
       orderBy: { createdAt: 'desc' },
       include: {
         metrics: true,
@@ -443,7 +489,7 @@ export const listChallengeAccounts = async (req: AuthRequest, res: Response, nex
       },
     })
 
-    const mapped = accounts.map((account) => {
+    const mapped = await Promise.all(accounts.map(async (account) => {
       const displayStatus = mapAccountStatus(account.status)
       const hasPendingWithdrawal = account.payouts?.length > 0
       const rawResetType = (account.metrics as { expectedBalanceOperationType?: string | null } | null)?.expectedBalanceOperationType
@@ -473,6 +519,7 @@ export const listChallengeAccounts = async (req: AuthRequest, res: Response, nex
         breached_at: account.breachedAt?.toISOString() ?? null,
         passed_at: account.passedAt?.toISOString() ?? null,
         passed_stage: null,
+        phase2_repeat: await buildPhase2RepeatMeta(account),
         breezy: String(account.challengeType ?? '').toLowerCase() === 'breezy'
           ? {
               risk_score: account.metrics?.riskScore ?? null,
@@ -492,7 +539,7 @@ export const listChallengeAccounts = async (req: AuthRequest, res: Response, nex
       }
 
       return baseAccount
-    })
+    }))
 
     const payload = {
       has_any_accounts: accounts.length > 0,
@@ -522,14 +569,21 @@ export const getChallengeAccountDetail = async (
     }
 
     type CTraderAccountWithMetrics = CTraderAccount & { metrics: CTraderAccountMetric | null }
-    const account: (CTraderAccountWithMetrics & { payouts: { status: string; amountKobo: number }[] }) | null = await prisma.cTraderAccount.findFirst({
+    const account: (CTraderAccountWithMetrics & {
+      archivedAt?: Date | null
+      phase2RepeatUsedAt?: Date | null
+      repeatedFromAccountId?: number | null
+      repeatReplacedByAccountId?: number | null
+      payouts: { status: string; amountKobo: number }[]
+    }) | null = await prisma.cTraderAccount.findFirst({
       where: {
         userId: user.id,
         challengeId,
+        archivedAt: null,
         ...(scope === 'attic'
           ? { challengeType: 'attic' }
           : { NOT: { challengeType: 'attic' } }),
-      },
+      } as any,
       include: {
         metrics: true,
         payouts: {
@@ -664,6 +718,7 @@ export const getChallengeAccountDetail = async (
           : null
 
     const isMt5Account = platform === 'mt5'
+    const phase2Repeat = await buildPhase2RepeatMeta(account)
 
     const objectives = {
       profit_target: {
@@ -850,6 +905,7 @@ export const getChallengeAccountDetail = async (
       funded_profit_capped: null,
       funded_profit_cap_amount: null,
       funded_user_payout_amount: null,
+      phase2_repeat: phase2Repeat,
       breezy: isBreezyAccount
         ? {
             withdrawal_eligible: (account.metrics as { withdrawalEligible?: boolean | null } | null)?.withdrawalEligible ?? null,

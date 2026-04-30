@@ -208,6 +208,10 @@ model CTraderAccount {
   lastRenewalPaidAt DateTime?
   renewalPriceKobo Int?
   lastRefreshRequestedAt DateTime?
+  archivedAt     DateTime?
+  phase2RepeatUsedAt DateTime?
+  repeatedFromAccountId Int?
+  repeatReplacedByAccountId Int?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -343,6 +347,8 @@ model Order {
   orderType       String?
   renewalForAccountNumber String?
   renewalForChallengeId String?
+  repeatForAccountId Int?
+  repeatForChallengeId String?
   metadata        Json?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

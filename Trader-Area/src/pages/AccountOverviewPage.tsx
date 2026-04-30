@@ -5,7 +5,7 @@ import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
 import PaymentDetailsModal from '../components/PaymentDetailsModal'
 import ServiceUnavailableState from '../components/ServiceUnavailableState'
-import { createBreezyRenewalOrder, downloadBreachReport, fetchUserChallengeAccountDetail, refreshChallengeAccount, refreshPaymentOrderStatus, type PaymentOrderResponse, type UserChallengeAccountDetailResponse } from '../lib/traderAuth'
+import { createBreezyRenewalOrder, createPhase2RepeatOrder, downloadBreachReport, fetchUserChallengeAccountDetail, refreshChallengeAccount, refreshPaymentOrderStatus, type PaymentOrderResponse, type UserChallengeAccountDetailResponse } from '../lib/traderAuth'
 import '../styles/DesktopAccountOverviewPage.css'
 
 const getBreezyProgressTone = (score: number) => {
@@ -242,7 +242,9 @@ const AccountOverviewPage: React.FC = () => {
         const refreshed = await refreshPaymentOrderStatus(orderId)
         if (refreshed.status === 'completed') {
           setModalStatus('success')
-          await loadAccountData()
+          if (currentOrder?.order_type !== 'phase2_repeat') {
+            await loadAccountData()
+          }
           return
         }
         if (refreshed.status === 'failed' || refreshed.status === 'expired') {
@@ -258,7 +260,7 @@ const AccountOverviewPage: React.FC = () => {
     setModalStatus('waiting')
     setPaymentStatus('Payment confirmation timed out. Please check your payment status.')
     setShowPaymentModal(false)
-  }, [loadAccountData])
+  }, [currentOrder?.order_type, loadAccountData])
 
   const handleBreezyRenew = useCallback(async () => {
     if (!accountData || isRenewing) return
@@ -288,6 +290,26 @@ const AccountOverviewPage: React.FC = () => {
       setIsRenewing(false)
     }
   }, [accountData, isRenewing, startPaymentPolling, challengeId])
+
+  const handlePhase2Repeat = useCallback(async () => {
+    if (!accountData || isRenewing) return
+    try {
+      setIsRenewing(true)
+      setPaymentStatus('')
+      const accountId = Number((accountData as unknown as { account_id?: number }).account_id)
+      if (!Number.isFinite(accountId) || accountId <= 0) {
+        throw new Error('Unable to resolve breached account for repeat.')
+      }
+      const order = await createPhase2RepeatOrder(accountId)
+      setCurrentOrder(order)
+      setShowPaymentModal(true)
+      void startPaymentPolling(order.provider_order_id)
+    } catch (error) {
+      setPaymentStatus(error instanceof Error ? error.message : 'Failed to create repeat payment')
+    } finally {
+      setIsRenewing(false)
+    }
+  }, [accountData, isRenewing, startPaymentPolling])
 
   useEffect(() => {
     if (!challengeId) {
@@ -381,6 +403,10 @@ const AccountOverviewPage: React.FC = () => {
   const breezyRenewalAmount = typeof accountData.breezy?.renewal_price_kobo === 'number'
     ? accountData.breezy.renewal_price_kobo / 100
     : null
+  const phase2RepeatEligible = Boolean(accountData.phase2_repeat?.eligible)
+  const phase2RepeatFee = typeof accountData.phase2_repeat?.repeat_fee_kobo === 'number'
+    ? accountData.phase2_repeat.repeat_fee_kobo / 100
+    : null
   return (
     <div className="account-overview-page">
       <DesktopHeader />
@@ -418,10 +444,20 @@ const AccountOverviewPage: React.FC = () => {
                 >
                   {isDownloadingBreachReport ? 'Preparing...' : 'Download PDF'}
                 </button>
+                {phase2RepeatEligible ? (
+                  <button
+                    className="breach-alert-button"
+                    style={{ marginLeft: 10 }}
+                    onClick={() => void handlePhase2Repeat()}
+                  >
+                    {isRenewing ? 'Preparing...' : `Repeat${phase2RepeatFee != null ? ` · ${formatCurrency(phase2RepeatFee, accountCurrency)}` : ''}`}
+                  </button>
+                ) : null}
               </div>
             )}
           </div>
         </div>
+        {paymentStatus ? <div className="breezy-metric-card__subtext" style={{ marginBottom: 16 }}>{paymentStatus}</div> : null}
 
         {/* Balance Overview Section */}
         <div className="balance-overview-section">
