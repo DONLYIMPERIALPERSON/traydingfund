@@ -332,16 +332,24 @@ const MobileMetricsPage: React.FC = () => {
               <strong>Account breached</strong>
               <p>Download your breach report for full details.</p>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button type="button" onClick={() => void handleDownloadBreachReport()}>
-                {isDownloadingBreachReport ? 'Preparing...' : 'Download'}
-              </button>
-              {phase2RepeatEligible ? (
-                <button type="button" onClick={() => void handlePhase2Repeat()}>
-                  {isRenewing ? 'Preparing...' : `Repeat${phase2RepeatFee != null ? ` · ${formatCurrency(phase2RepeatFee, accountCurrency)}` : ''}`}
-                </button>
-              ) : null}
+            <button type="button" onClick={() => void handleDownloadBreachReport()}>
+              {isDownloadingBreachReport ? 'Preparing...' : 'Download'}
+            </button>
+          </section>
+        ) : null}
+
+        {phase2RepeatEligible ? (
+          <section className="mobile-metrics-breach-card">
+            <div>
+              <strong>Phase 2 Repeat</strong>
+              <p>
+                Get a new Phase 2 account for this breached challenge.
+                {phase2RepeatFee != null ? ` Fee: ${formatCurrency(phase2RepeatFee, accountCurrency)}.` : ''}
+              </p>
             </div>
+            <button type="button" onClick={() => void handlePhase2Repeat()}>
+              {isRenewing ? 'Preparing...' : 'Repeat Now'}
+            </button>
           </section>
         ) : null}
 
