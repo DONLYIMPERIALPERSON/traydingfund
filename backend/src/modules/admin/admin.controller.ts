@@ -5,6 +5,7 @@ import { ApiError } from '../../common/errors'
 import { getFxRatesConfig } from '../fxRates/fxRates.service'
 import { buildBreachNarrative, getOrCreateBreachReport, type BreachReportPayload } from '../../services/breachReport.service'
 import { sendUnifiedEmail } from '../../services/email.service'
+import { createOnboardingCertificate, createOverallRewardCertificate, createPassedChallengeCertificate, createPayoutCertificate } from '../../services/certificate.service'
 
 export const getAdminMe = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -265,6 +266,27 @@ const mapAccountPhaseLabel = (phase?: string | null) => {
   if (normalized.includes('phase_2') || normalized.includes('phase 2')) return 'Phase 2'
   if (normalized.includes('funded')) return 'Funded'
   return 'Phase 1'
+}
+
+const shouldHavePassedCertificate = (account: {
+  challengeType?: string | null
+  phase?: string | null
+  passedAt?: Date | null
+  status?: string | null
+}) => {
+  const challengeType = String(account.challengeType ?? '').toLowerCase()
+  const phase = String(account.phase ?? '').toLowerCase()
+  const status = String(account.status ?? '').toLowerCase()
+  const passedLike = Boolean(account.passedAt) || ['passed', 'funded', 'completed'].includes(status)
+  if (!passedLike) return false
+  if (challengeType === 'attic' || challengeType === 'instant_funded') return false
+  if (['two_step', 'ngn_standard', 'ngn_flexi'].includes(challengeType)) {
+    return phase === 'phase_2'
+  }
+  if (challengeType === 'one_step') {
+    return phase === 'phase_1'
+  }
+  return false
 }
 
 export const listActiveChallengeAccounts = async (_req: Request, res: Response, next: NextFunction) => {
@@ -685,6 +707,142 @@ export const clearUserPaymentMethod = async (req: Request, res: Response, next: 
     })
 
     res.json({ message: 'User payout method cleared successfully.', email: user.email })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const regenerateUserMissingCertificates = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const email = String(req.body?.email ?? '').trim().toLowerCase()
+    if (!email) {
+      throw new ApiError('email is required', 400)
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        orders: {
+          where: { status: 'completed' },
+          orderBy: { createdAt: 'asc' },
+        },
+        cTraderAccounts: {
+          orderBy: { createdAt: 'asc' },
+        },
+        payouts: {
+          where: { status: { in: ['completed', 'processing', 'pending_approval'] } },
+          include: { account: true },
+          orderBy: { requestedAt: 'asc' },
+        },
+      },
+    })
+
+    if (!user) {
+      throw new ApiError('User not found', 404)
+    }
+
+    const summary = {
+      onboarding_created: 0,
+      passed_created: 0,
+      payout_created: 0,
+      overall_created: 0,
+    }
+
+    for (const order of user.orders) {
+      const existing = await prisma.certificate.findFirst({
+        where: {
+          userId: user.id,
+          type: 'onboarding',
+          relatedEntityId: String(order.id),
+        },
+      })
+      if (existing) continue
+      await createOnboardingCertificate({
+        userId: user.id,
+        orderId: order.id,
+        challengeType: order.challengeType,
+        phase: order.phase,
+        accountSize: order.accountSize,
+      })
+      summary.onboarding_created += 1
+    }
+
+    for (const account of user.cTraderAccounts) {
+      if (!shouldHavePassedCertificate(account)) continue
+      const relatedEntityId = account.challengeId || String(account.id)
+      const existing = await prisma.certificate.findFirst({
+        where: {
+          userId: user.id,
+          type: 'passed_challenge',
+          relatedEntityId,
+        },
+      })
+      if (existing) continue
+      await createPassedChallengeCertificate({
+        userId: user.id,
+        accountId: account.id,
+        challengeId: account.challengeId,
+        phase: account.phase,
+        challengeType: account.challengeType,
+        accountSize: account.accountSize,
+      })
+      summary.passed_created += 1
+    }
+
+    for (const payout of user.payouts) {
+      const existing = await prisma.certificate.findFirst({
+        where: {
+          userId: user.id,
+          type: 'payout',
+          relatedEntityId: String(payout.id),
+        },
+      })
+      if (existing) continue
+      await createPayoutCertificate({
+        userId: user.id,
+        payoutId: payout.id,
+        accountId: payout.accountId,
+        amount: payout.amountKobo / 100,
+        currency: payout.account?.currency ?? 'USD',
+      })
+      summary.payout_created += 1
+    }
+
+    const overallExisting = await prisma.certificate.findFirst({
+      where: {
+        userId: user.id,
+        type: 'overall_reward',
+        relatedEntityId: 'overall-reward',
+      },
+    })
+
+    if (!overallExisting && user.payouts.length > 0) {
+      const fxConfig = await getFxRatesConfig()
+      const usdNgnRate = fxConfig.rules?.usd_ngn_rate ?? 1300
+      const preferredCurrency = (user.overallRewardCurrency ?? 'USD').toUpperCase()
+      const totalReward = user.payouts.reduce((sum, payout) => {
+        const rawAmount = payout.profitAmount ?? (payout.amountKobo ? payout.amountKobo / 100 : 0)
+        const payoutCurrency = payout.account?.currency ?? 'USD'
+        if (preferredCurrency === 'NGN') {
+          const ngnAmount = payoutCurrency.toUpperCase() === 'NGN' ? rawAmount : rawAmount * usdNgnRate
+          return sum + ngnAmount
+        }
+        return sum + (payoutCurrency.toUpperCase() === 'NGN' ? rawAmount / usdNgnRate : rawAmount)
+      }, 0)
+
+      await createOverallRewardCertificate({
+        userId: user.id,
+        totalReward,
+        currency: preferredCurrency === 'NGN' ? 'NGN' : 'USD',
+      })
+      summary.overall_created += 1
+    }
+
+    res.json({
+      message: 'Missing certificates regeneration completed',
+      email: user.email,
+      summary,
+    })
   } catch (err) {
     next(err as Error)
   }

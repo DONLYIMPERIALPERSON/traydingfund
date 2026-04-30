@@ -804,6 +804,7 @@ export const approvePayoutRequest = async (req: AuthRequest, res: Response, next
         type: 'WITHDRAW_REQUEST' as const,
         account: String(payoutAccount?.accountNumber ?? ''),
         platform: payoutAccount?.platform ?? 'ctrader',
+        accountSize: payoutAccount?.accountSize ?? null,
         amount: updated.amountKobo / 100,
         ...(payoutAccount?.accountNumber
           ? { resetCommand: `/withdraw_done${payoutAccount.accountNumber}` }
@@ -824,7 +825,7 @@ export const approvePayoutRequest = async (req: AuthRequest, res: Response, next
           subtitle: 'Your payout is being processed',
           content: 'Your withdrawal request has been approved and processing has started. Funds will be sent shortly.',
           buttonText: 'View Dashboard',
-          infoBox: `Amount: ${formatMoney(updated.amountKobo / 100, resolveCurrencyLabel(payoutAccount?.currency))}<br>Status: Processing<br>Reference: ${updated.providerRef ?? updated.id}`,
+          infoBox: `Amount: ${formatMoney(updated.amountKobo / 100, resolveCurrencyLabel(payoutAccount?.currency))}<br>Account Size: ${payoutAccount?.accountSize ?? 'N/A'}<br>Status: Processing<br>Reference: ${updated.providerRef ?? updated.id}`,
         })
       }
 

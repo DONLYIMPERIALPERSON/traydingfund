@@ -950,26 +950,6 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       }
     }
 
-    if (passed && accountData.userId && !resetExpectationActive) {
-      const profitBase = accountData.initialBalance ?? 0
-      const profit = Math.max(0, balance - profitBase)
-      try {
-        await notifyFinanceEngine({
-          type: 'PHASE_PASS',
-          account: String(account.accountNumber),
-          platform: normalizedPayloadPlatform,
-          profit,
-          targetBalance: accountData.initialBalance ?? balance,
-          currentPhase: accountData.phase,
-          nextPhase: nextPhaseKey,
-          challengeType: accountData.challengeType,
-          ownerEmail: accountData.user?.email ?? undefined,
-        })
-      } catch (error) {
-        console.error('Failed to notify finance engine about phase pass', error)
-      }
-    }
-
     if (accountData.userId && (statusWillChange || nextStageAssigned !== null)) {
       await clearCacheByPrefix(buildCacheKey(['trader', 'challenges', accountData.userId]))
       await clearCacheByPrefix(buildCacheKey(['payouts', 'summary', accountData.userId]))

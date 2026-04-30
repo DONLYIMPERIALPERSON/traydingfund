@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { addUserNote, banUser, clearUserPaymentMethod, disableUserWithdrawals, enableUserWithdrawals, getAdminMe, getDashboardStats, getUserChallengeAccounts, getUserOrders, getUserPayouts, getUserProfile, getUserSupportTickets, listActiveChallengeAccounts, listAdminUsers, listAtticChallengeAccounts, listBreachedChallengeAccounts, listBreezyAccounts, listFundedChallengeAccounts, listTopFundedTraders, lookupChallengeAccount, lookupUserPaymentMethod, sendUserEmail, suspendUser, unsuspendUser } from './admin.controller'
+import { addUserNote, banUser, clearUserPaymentMethod, disableUserWithdrawals, enableUserWithdrawals, getAdminMe, getDashboardStats, getUserChallengeAccounts, getUserOrders, getUserPayouts, getUserProfile, getUserSupportTickets, listActiveChallengeAccounts, listAdminUsers, listAtticChallengeAccounts, listBreachedChallengeAccounts, listBreezyAccounts, listFundedChallengeAccounts, listTopFundedTraders, lookupChallengeAccount, lookupUserPaymentMethod, regenerateUserMissingCertificates, sendUserEmail, suspendUser, unsuspendUser } from './admin.controller'
 import { approveCryptoOrder, declineCryptoOrder, getOrderStats, listOrders, listPendingAssignments, retryPendingAssignments } from './admin.orders.controller'
 import { authenticate, requireRole } from '../../common/auth'
 import { createAllowlistEntry, deleteAllowlistEntry, listAllowlist, updateAllowlistEntry } from './admin.allowlist.controller'
@@ -37,6 +37,7 @@ adminRouter.get('/challenges/lookup', authenticate, requireRole(['admin', 'super
 adminRouter.get('/challenges/breezy', authenticate, requireRole(['admin', 'super_admin']), listBreezyAccounts)
 adminRouter.get('/users/payment-method', authenticate, requireRole(['admin', 'super_admin']), lookupUserPaymentMethod)
 adminRouter.post('/users/payment-method/clear', authenticate, requireRole(['admin', 'super_admin']), clearUserPaymentMethod)
+adminRouter.post('/users/certificates/regenerate-missing', authenticate, requireRole(['admin', 'super_admin']), regenerateUserMissingCertificates)
 adminRouter.get('/challenges/funded', authenticate, requireRole(['admin', 'super_admin']), listFundedChallengeAccounts)
 adminRouter.get('/challenges/funded/top', authenticate, requireRole(['admin', 'super_admin']), listTopFundedTraders)
 adminRouter.get('/challenges/breaches', authenticate, requireRole(['admin', 'super_admin']), listBreachedChallengeAccounts)

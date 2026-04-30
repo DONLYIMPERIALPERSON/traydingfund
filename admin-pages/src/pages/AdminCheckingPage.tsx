@@ -6,6 +6,7 @@ import {
   adminUpdateMt5Password,
   adminResetAccount,
   clearUserPaymentMethod,
+  regenerateUserMissingCertificates,
   lookupChallengeAccount,
   lookupUserPaymentMethod,
   type AdminLookupAccount,
@@ -133,6 +134,9 @@ const AdminCheckingPage = () => {
   const [paymentLookupLoading, setPaymentLookupLoading] = useState(false)
   const [clearingPaymentMethod, setClearingPaymentMethod] = useState(false)
   const [paymentMethodUser, setPaymentMethodUser] = useState<AdminUserPaymentMethod | null>(null)
+  const [certificateEmail, setCertificateEmail] = useState('')
+  const [regeneratingCertificates, setRegeneratingCertificates] = useState(false)
+  const [certificateSummary, setCertificateSummary] = useState<string>('')
 
   const formatCurrency = (value: number | null | undefined, currency?: string | null) => {
     if (value == null) return '—'
@@ -315,6 +319,27 @@ const AdminCheckingPage = () => {
       setError(err instanceof Error ? err.message : 'Failed to clear payment method')
     } finally {
       setClearingPaymentMethod(false)
+    }
+  }
+
+  const handleRegenerateCertificates = async () => {
+    const trimmed = certificateEmail.trim()
+    if (!trimmed) {
+      setError('Enter an email to regenerate certificates.')
+      return
+    }
+    setRegeneratingCertificates(true)
+    setError('')
+    setCertificateSummary('')
+    try {
+      const response = await regenerateUserMissingCertificates(trimmed)
+      setCertificateSummary(
+        `Onboarding: ${response.summary.onboarding_created}, Passed: ${response.summary.passed_created}, Payout: ${response.summary.payout_created}, Overall: ${response.summary.overall_created}`,
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to regenerate certificates')
+    } finally {
+      setRegeneratingCertificates(false)
     }
   }
 
@@ -557,6 +582,41 @@ const AdminCheckingPage = () => {
                   : `${paymentMethodUser.payout_bank_name ?? '—'} • ${paymentMethodUser.payout_account_number ?? '—'}`}
               </span>
               <span>Verified At: {formatDateTime(paymentMethodUser.payout_verified_at)}</span>
+            </div>
+          )}
+        </div>
+
+        <div style={{
+          background: '#0b1220',
+          border: '1px solid #1f2937',
+          borderRadius: 12,
+          padding: 16,
+          display: 'grid',
+          gap: 12,
+        }}>
+          <div>
+            <strong style={{ color: '#f8fafc' }}>Regenerate Missing Certificates</strong>
+            <p style={{ margin: '6px 0 0', color: '#cbd5e1', fontSize: 14 }}>Enter a user email to regenerate any missing onboarding, passed, payout, and overall reward certificates.</p>
+          </div>
+
+          <div className="admin-mobile-controls">
+            <input
+              type="email"
+              placeholder="Enter user email"
+              value={certificateEmail}
+              onChange={(event) => setCertificateEmail(event.target.value)}
+              className="admin-mobile-input"
+            />
+            <div className="admin-mobile-button-row">
+              <button type="button" onClick={handleRegenerateCertificates} disabled={regeneratingCertificates}>
+                {regeneratingCertificates ? 'Regenerating...' : 'Regenerate Certificates'}
+              </button>
+            </div>
+          </div>
+
+          {certificateSummary && (
+            <div style={{ color: '#cbd5f5' }}>
+              <span>{certificateSummary}</span>
             </div>
           )}
         </div>

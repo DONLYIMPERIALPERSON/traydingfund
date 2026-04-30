@@ -360,7 +360,7 @@ export const withdrawComplete = async (req: Request, res: Response, next: NextFu
                 subtitle: 'Your payout has been sent',
                 content: 'Your withdrawal has been completed successfully. Your account has been reset and is active again. You can continue trading immediately.',
                 buttonText: 'View Dashboard',
-                infoBox: `Amount: ${formatMoney(completedPayout.amountKobo / 100, payoutCurrency)}<br>Status: Completed<br>Account: ${completedPayout.account?.accountNumber ?? 'N/A'}`,
+                infoBox: `Amount: ${formatMoney(completedPayout.amountKobo / 100, payoutCurrency)}<br>Account Size: ${completedPayout.account?.accountSize ?? 'N/A'}<br>Status: Completed<br>Account: ${completedPayout.account?.accountNumber ?? 'N/A'}`,
                 ...(attachments ? { attachments } : {}),
               })
             },

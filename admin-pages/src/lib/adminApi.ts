@@ -106,6 +106,17 @@ export type AdminUserPaymentMethod = {
   payout_updated_at?: string | null
 }
 
+export type AdminRegenerateCertificatesResponse = {
+  message: string
+  email: string
+  summary: {
+    onboarding_created: number
+    passed_created: number
+    payout_created: number
+    overall_created: number
+  }
+}
+
 export type AdminResetAccountResponse = {
   status: 'pending' | 'completed'
   message: string
@@ -657,6 +668,12 @@ export const lookupUserPaymentMethod = async (email: string) =>
 
 export const clearUserPaymentMethod = async (email: string) =>
   apiFetch<{ message: string; email: string }>('/admin/users/payment-method/clear', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+
+export const regenerateUserMissingCertificates = async (email: string) =>
+  apiFetch<AdminRegenerateCertificatesResponse>('/admin/users/certificates/regenerate-missing', {
     method: 'POST',
     body: JSON.stringify({ email }),
   })
