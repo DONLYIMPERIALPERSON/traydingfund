@@ -130,6 +130,7 @@ export type AdminCertificateAudit = {
 export type AdminPreviewCertificatesResponse = {
   email: string
   full_name?: string | null
+  certificate_type?: string
   audit: AdminCertificateAudit
 }
 
@@ -688,14 +689,14 @@ export const clearUserPaymentMethod = async (email: string) =>
     body: JSON.stringify({ email }),
   })
 
-export const regenerateUserMissingCertificates = async (email: string) =>
+export const regenerateUserMissingCertificates = async (email: string, certificate_type: 'all' | 'onboarding' | 'passed' | 'payout' | 'overall' = 'all') =>
   apiFetch<AdminRegenerateCertificatesResponse>('/admin/users/certificates/regenerate-missing', {
     method: 'POST',
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, certificate_type }),
   })
 
-export const previewUserMissingCertificates = async (email: string) =>
-  apiFetch<AdminPreviewCertificatesResponse>(`/admin/users/certificates/regenerate-missing?email=${encodeURIComponent(email)}`)
+export const previewUserMissingCertificates = async (email: string, certificate_type: 'all' | 'onboarding' | 'passed' | 'payout' | 'overall' = 'all') =>
+  apiFetch<AdminPreviewCertificatesResponse>(`/admin/users/certificates/regenerate-missing?email=${encodeURIComponent(email)}&certificate_type=${encodeURIComponent(certificate_type)}`)
 
 export const fetchFundedChallengeAccounts = async (platform?: string) =>
   apiFetch<{ accounts: ChallengeAccountListItem[] }>(

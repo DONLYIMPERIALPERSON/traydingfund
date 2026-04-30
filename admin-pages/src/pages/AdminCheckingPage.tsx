@@ -136,6 +136,7 @@ const AdminCheckingPage = () => {
   const [clearingPaymentMethod, setClearingPaymentMethod] = useState(false)
   const [paymentMethodUser, setPaymentMethodUser] = useState<AdminUserPaymentMethod | null>(null)
   const [certificateEmail, setCertificateEmail] = useState('')
+  const [certificateType, setCertificateType] = useState<'all' | 'onboarding' | 'passed' | 'payout' | 'overall'>('all')
   const [regeneratingCertificates, setRegeneratingCertificates] = useState(false)
   const [previewingCertificates, setPreviewingCertificates] = useState(false)
   const [certificateSummary, setCertificateSummary] = useState<string>('')
@@ -333,7 +334,7 @@ const AdminCheckingPage = () => {
     setPreviewingCertificates(true)
     setError('')
     try {
-      const response = await previewUserMissingCertificates(trimmed)
+      const response = await previewUserMissingCertificates(trimmed, certificateType)
       setCertificateSummary(
         `Onboarding Existing/Missing: ${response.audit.onboarding.existing}/${response.audit.onboarding.missing} • Passed Existing/Missing: ${response.audit.passed.existing}/${response.audit.passed.missing} • Payout Existing/Missing: ${response.audit.payout.existing}/${response.audit.payout.missing} • Overall Existing/Missing: ${response.audit.overall.existing}/${response.audit.overall.missing}`,
       )
@@ -355,7 +356,7 @@ const AdminCheckingPage = () => {
     setError('')
     setCertificateSummary('')
     try {
-      const response = await regenerateUserMissingCertificates(trimmed)
+      const response = await regenerateUserMissingCertificates(trimmed, certificateType)
       setCertificateSummary(
         `Onboarding Created: ${response.summary.onboarding_created}, Passed Created: ${response.summary.passed_created}, Payout Created: ${response.summary.payout_created}, Overall Created: ${response.summary.overall_created}${typeof response.summary.passed_eligible_accounts === 'number' ? `, Passed Eligible: ${response.summary.passed_eligible_accounts}` : ''}${typeof response.summary.passed_existing === 'number' ? `, Passed Existing: ${response.summary.passed_existing}` : ''}`,
       )
@@ -630,6 +631,17 @@ const AdminCheckingPage = () => {
               onChange={(event) => setCertificateEmail(event.target.value)}
               className="admin-mobile-input"
             />
+            <select
+              value={certificateType}
+              onChange={(event) => setCertificateType(event.target.value as 'all' | 'onboarding' | 'passed' | 'payout' | 'overall')}
+              className="admin-mobile-input"
+            >
+              <option value="all">All certificate types</option>
+              <option value="onboarding">Onboarding only</option>
+              <option value="passed">Passed only</option>
+              <option value="payout">Payout only</option>
+              <option value="overall">Overall reward only</option>
+            </select>
             <div className="admin-mobile-button-row">
               <button type="button" onClick={handlePreviewCertificates} disabled={previewingCertificates || regeneratingCertificates}>
                 {previewingCertificates ? 'Checking...' : 'Check Certificates'}

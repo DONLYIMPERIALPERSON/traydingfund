@@ -289,6 +289,13 @@ const shouldHavePassedCertificate = (account: {
   return false
 }
 
+const normalizeCertificateTypeFilter = (value?: string | null) => {
+  const normalized = String(value ?? '').trim().toLowerCase()
+  if (!normalized || normalized === 'all') return 'all'
+  if (['onboarding', 'passed', 'payout', 'overall'].includes(normalized)) return normalized as 'onboarding' | 'passed' | 'payout' | 'overall'
+  throw new ApiError('Invalid certificate type filter', 400)
+}
+
 export const listActiveChallengeAccounts = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const { platform } = _req.query as { platform?: string }
@@ -712,7 +719,7 @@ export const clearUserPaymentMethod = async (req: Request, res: Response, next: 
   }
 }
 
-const buildUserCertificateAudit = async (email: string) => {
+const buildUserCertificateAudit = async (email: string, certType: 'all' | 'onboarding' | 'passed' | 'payout' | 'overall' = 'all') => {
   const user = await prisma.user.findUnique({
     where: { email },
     include: {
@@ -759,22 +766,22 @@ const buildUserCertificateAudit = async (email: string) => {
       onboarding: {
         eligible: onboardingEligible,
         existing: onboardingExisting,
-        missing: Math.max(0, onboardingEligible - onboardingExisting),
+        missing: certType === 'all' || certType === 'onboarding' ? Math.max(0, onboardingEligible - onboardingExisting) : 0,
       },
       passed: {
         eligible: passedEligible,
         existing: passedExisting,
-        missing: Math.max(0, passedEligible - passedExisting),
+        missing: certType === 'all' || certType === 'passed' ? Math.max(0, passedEligible - passedExisting) : 0,
       },
       payout: {
         eligible: payoutEligible,
         existing: payoutExisting,
-        missing: Math.max(0, payoutEligible - payoutExisting),
+        missing: certType === 'all' || certType === 'payout' ? Math.max(0, payoutEligible - payoutExisting) : 0,
       },
       overall: {
         eligible: overallEligible,
         existing: overallExisting,
-        missing: Math.max(0, overallEligible - overallExisting),
+        missing: certType === 'all' || certType === 'overall' ? Math.max(0, overallEligible - overallExisting) : 0,
       },
     },
   }
@@ -783,14 +790,16 @@ const buildUserCertificateAudit = async (email: string) => {
 export const previewUserMissingCertificates = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const email = String(req.query.email ?? '').trim().toLowerCase()
+    const certType = normalizeCertificateTypeFilter(String(req.query.certificate_type ?? 'all'))
     if (!email) {
       throw new ApiError('email is required', 400)
     }
 
-    const { user, audit } = await buildUserCertificateAudit(email)
+    const { user, audit } = await buildUserCertificateAudit(email, certType)
     res.json({
       email: user.email,
       full_name: user.fullName ?? null,
+      certificate_type: certType,
       audit,
     })
   } catch (err) {
@@ -801,11 +810,12 @@ export const previewUserMissingCertificates = async (req: Request, res: Response
 export const regenerateUserMissingCertificates = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const email = String(req.body?.email ?? '').trim().toLowerCase()
+    const certType = normalizeCertificateTypeFilter(String(req.body?.certificate_type ?? 'all'))
     if (!email) {
       throw new ApiError('email is required', 400)
     }
 
-    const { user, audit } = await buildUserCertificateAudit(email)
+    const { user, audit } = await buildUserCertificateAudit(email, certType)
 
     const summary = {
       onboarding_created: 0,
@@ -817,6 +827,7 @@ export const regenerateUserMissingCertificates = async (req: Request, res: Respo
     }
 
     for (const order of user.orders) {
+      if (!(certType === 'all' || certType === 'onboarding')) continue
       const existing = await prisma.certificate.findFirst({
         where: {
           userId: user.id,
@@ -836,6 +847,7 @@ export const regenerateUserMissingCertificates = async (req: Request, res: Respo
     }
 
     for (const account of user.cTraderAccounts) {
+      if (!(certType === 'all' || certType === 'passed')) continue
       if (!shouldHavePassedCertificate(account)) continue
       const relatedEntityId = account.challengeId || String(account.id)
       const existing = await prisma.certificate.findFirst({
@@ -861,6 +873,7 @@ export const regenerateUserMissingCertificates = async (req: Request, res: Respo
     }
 
     for (const payout of user.payouts) {
+      if (!(certType === 'all' || certType === 'payout')) continue
       const existing = await prisma.certificate.findFirst({
         where: {
           userId: user.id,
@@ -887,7 +900,7 @@ export const regenerateUserMissingCertificates = async (req: Request, res: Respo
       },
     })
 
-    if (!overallExisting && user.payouts.length > 0) {
+    if ((certType === 'all' || certType === 'overall') && !overallExisting && user.payouts.length > 0) {
       const fxConfig = await getFxRatesConfig()
       const usdNgnRate = fxConfig.rules?.usd_ngn_rate ?? 1300
       const preferredCurrency = (user.overallRewardCurrency ?? 'USD').toUpperCase()
@@ -912,6 +925,7 @@ export const regenerateUserMissingCertificates = async (req: Request, res: Respo
     res.json({
       message: 'Missing certificates regeneration completed',
       email: user.email,
+      certificate_type: certType,
       summary,
       audit,
     })
