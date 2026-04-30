@@ -31,6 +31,7 @@ const mapAccountStatus = (status: string) => {
   if (normalized === 'funded') return 'Funded'
   if (normalized === 'withdrawn') return 'Withdrawn'
   if (normalized === 'awaiting_reset') return 'Awaiting Reset'
+  if (normalized === 'passed') return 'Passed'
   if (normalized === 'withdraw_requested') return 'Withdrawal Requested'
   if (normalized === 'admin_checking') return 'Admin Checking'
   if (normalized === 'assigned_pending_access') return 'Active'
@@ -45,7 +46,6 @@ const isActiveStatus = (status: string) => {
     || normalized === 'assigned'
     || normalized === 'funded'
     || normalized === 'assigned_pending_access'
-    || normalized === 'awaiting_reset'
     || normalized === 'admin_checking'
 }
 
@@ -292,7 +292,7 @@ const computeAtticTimeLimitInfo = (args: {
 
   const status = normalizedBreachReason === 'TIME_LIMIT' || normalizedStatus === 'breached'
     ? 'expired'
-    : args.passedAt || normalizedStatus === 'awaiting_reset'
+    : args.passedAt || normalizedStatus === 'awaiting_reset' || normalizedStatus === 'passed'
       ? 'passed'
       : remainingMs <= 0
         ? 'expired_pending_confirmation'

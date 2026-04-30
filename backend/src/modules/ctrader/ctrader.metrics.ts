@@ -13,6 +13,8 @@ import { fetchRemoteAttachment, sendUnifiedEmail } from '../../services/email.se
 import { sendEmailOnce } from '../../services/emailLog.service'
 import { buildCacheKey, clearCacheByPrefix } from '../../common/cache'
 import supportedSymbolsConfig from '../../config/supportedSymbols.json'
+import { requestAccountAccess } from '../../services/accessEngine.service'
+import { assignReadyAccountFromPool, normalizeChallengeBase, resolveChallengeCurrency } from './ctrader.assignment'
 
 type TradePayload = {
   ticket?: string
@@ -568,7 +570,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     
     const breached = breachReason != null
     const wasBreached = account.status?.toLowerCase() === 'breached'
-    const wasPassed = account.status?.toLowerCase() === 'awaiting_reset'
+    const wasPassed = ['awaiting_reset', 'passed', 'completed'].includes(account.status?.toLowerCase() ?? '')
     const isAdminChecking = account.status?.toLowerCase() === 'admin_checking'
     const passed = !breached && provisionalPassed
     void normalizedChallengeType
@@ -577,7 +579,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     const expectedStatus = breached
       ? 'breached'
       : passed
-        ? 'awaiting_reset'
+        ? 'passed'
         : account.status
     const statusWillChange = expectedStatus && account.status?.toLowerCase() !== expectedStatus
 
@@ -728,60 +730,11 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
           breachedAt: resolvedBreachTimestamp,
         },
       }))
-    } else if (passed && account.status.toLowerCase() !== 'breached') {
-      transactionSteps.push(prisma.cTraderAccount.update({
-        where: { id: account.id },
-        data: {
-          status: 'awaiting_reset',
-          passedAt: now,
-        },
-      }))
     } else if (isAdminChecking && !breached) {
       transactionSteps.push(prisma.cTraderAccount.update({
         where: { id: account.id },
         data: {
           status: 'active',
-        },
-      }))
-    }
-
-    if (passed && !wasPassed) {
-      const resetBalance = accountData.initialBalance ?? balance
-      const resetMaxDdAmount = accountData.maxDdAmount ?? 0
-      const resetDailyDdAmount = accountData.dailyDdAmount ?? 0
-      const resetBreachBalance = resetBalance - resetMaxDdAmount
-      const resetDailyBreachBalance = resetBalance - resetDailyDdAmount
-      transactionSteps.push(prisma.cTraderAccountMetric.updateMany({
-        where: { accountId: account.id },
-        data: {
-          balance: resetBalance,
-          equity: resetBalance,
-          unrealizedPnl: 0,
-          maxPermittedLossLeft: resetBalance,
-          highestBalance: resetBalance,
-          breachBalance: resetBreachBalance,
-          profitTargetBalance: resetBalance,
-          minTradingDaysRequired: accountData.minTradingDaysRequired ?? 0,
-          minTradingDaysMet: false,
-          stageElapsedHours: 0,
-          durationViolationsCount: 0,
-          processedTradeIds: [],
-          dailyStartAt: dailyDdEnabled ? now : null,
-          dailyHighBalance: dailyDdEnabled ? resetBalance : 0,
-          dailyBreachBalance: dailyDdEnabled ? resetDailyBreachBalance : 0,
-          dailyLowEquity: null,
-          drawdownPercent: null,
-          dailyDrawdownPercent: null,
-          firstTradeAt: null,
-          totalTrades: 0,
-          tradingDaysCount: 0,
-          tradingCycleStart: null,
-          tradingCycleSource: null,
-          shortDurationViolation: false,
-          minEquity: resetBalance,
-          lastBalance: resetBalance,
-          lastEquity: resetBalance,
-          capturedAt: now,
         },
       }))
     }
@@ -840,6 +793,105 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       }
     }
 
+    let nextStageAssigned: boolean | null = null
+    let nextStageChallengeId: string | null = null
+    let nextStageAccountNumber: string | null = null
+
+    if (passed && !breached && accountData.userId && !wasPassed) {
+      const nextStageCandidate = isAttic
+        ? 'phase_1'
+        : isMultiPhase
+          ? (normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null)
+          : (normalizedPhase === 'phase_1' ? 'funded' : null)
+
+      if (nextStageCandidate) {
+        try {
+          const nextChallengeType = isAttic ? 'ngn_standard' : (accountData.challengeType ?? 'two_step')
+          const nextAccountSize = isAttic ? '₦200,000' : accountData.accountSize
+          const assigned = await assignReadyAccountFromPool({
+            userId: accountData.userId,
+            challengeType: nextChallengeType,
+            phase: nextStageCandidate,
+            accountSize: nextAccountSize,
+            currency: resolveChallengeCurrency(nextChallengeType, accountData.currency ?? null),
+            baseChallengeId: normalizeChallengeBase(accountData.challengeId),
+            platform: accountData.platform ?? 'ctrader',
+          })
+
+          if (assigned) {
+            await prisma.cTraderAccount.update({
+              where: { id: account.id },
+              data: {
+                status: 'completed',
+                passedAt: now,
+              },
+            })
+
+            const resolvedPlatform = String(assigned.platform ?? accountData.platform ?? 'ctrader').toLowerCase()
+            if (resolvedPlatform === 'mt5') {
+              await prisma.cTraderAccount.update({
+                where: { id: assigned.id },
+                data: { status: 'active', accessStatus: 'granted', accessGrantedAt: new Date() },
+              })
+            } else if (accountData.user?.email) {
+              try {
+                await requestAccountAccess({
+                  user_email: accountData.user.email,
+                  account_number: assigned.accountNumber,
+                  broker: assigned.brokerName,
+                  platform: resolvedPlatform,
+                  ...(accountData.user.fullName ? { user_name: accountData.user.fullName } : {}),
+                  ...(assigned.challengeType ? { account_type: assigned.challengeType } : {}),
+                  ...(assigned.phase ? { account_phase: assigned.phase } : {}),
+                  ...(assigned.accountSize ? { account_size: assigned.accountSize } : {}),
+                  ...(assigned.mt5Login ? { mt5_login: assigned.mt5Login } : {}),
+                  ...(assigned.mt5Server ? { mt5_server: assigned.mt5Server } : {}),
+                  ...(assigned.mt5Password ? { mt5_password: assigned.mt5Password } : {}),
+                })
+              } catch (error) {
+                console.error('Failed to request next-stage account access', {
+                  accountNumber: assigned.accountNumber,
+                  error,
+                })
+              }
+            }
+
+            try {
+              await pushActiveAccountRemove(account.accountNumber, 'phase_passed')
+            } catch (error) {
+              console.error('Failed to remove passed account from active engine list', error)
+            }
+
+            nextStageAssigned = true
+            nextStageChallengeId = assigned.challengeId
+            nextStageAccountNumber = assigned.accountNumber
+          } else {
+            await prisma.cTraderAccount.update({
+              where: { id: account.id },
+              data: {
+                status: 'passed',
+                passedAt: now,
+              },
+            })
+            nextStageAssigned = false
+          }
+        } catch (error) {
+          console.error('Failed to assign fresh next-stage account on pass', {
+            accountNumber: account.accountNumber,
+            error,
+          })
+          await prisma.cTraderAccount.update({
+            where: { id: account.id },
+            data: {
+              status: 'passed',
+              passedAt: now,
+            },
+          })
+          nextStageAssigned = false
+        }
+      }
+    }
+
     const normalizedPhaseKey = String(accountData.phase ?? '').toLowerCase()
     const nextPhaseKey = isAttic
       ? 'phase_1'
@@ -879,12 +931,16 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
               to: accountData.user.email,
               subject: '🎉 Phase Passed – Action in Progress',
               title: 'Phase Passed',
-              subtitle: 'Your account is being prepared for the next phase',
+              subtitle: nextStageAssigned ? 'Your new account has been issued' : 'Your next-phase account is being prepared',
               content: isAttic
-                ? 'Congratulations! You have passed the Attic phase. Your account is being prepared for the ₦200,000 NGN Standard Challenge (Phase 1). No action is required, and your existing login credentials will remain the same.'
-                : `Congratulations! You have passed this phase. Your account is being prepared for the next phase (${nextPhaseKey.replace('_', ' ')}). No action is required, and your existing login credentials will remain the same.`,
+                ? (nextStageAssigned
+                  ? `Congratulations! You have passed the Attic phase. A fresh ₦200,000 NGN Standard Challenge account for Phase 1 has been issued to you${nextStageAccountNumber ? ` (${nextStageAccountNumber})` : ''}.`
+                  : 'Congratulations! You have passed the Attic phase. Your fresh ₦200,000 NGN Standard Challenge account for Phase 1 is being prepared.')
+                : (nextStageAssigned
+                  ? `Congratulations! You have passed this phase. A fresh account for ${nextPhaseKey.replace('_', ' ')} has been issued to you${nextStageAccountNumber ? ` (${nextStageAccountNumber})` : ''}.`
+                  : `Congratulations! You have passed this phase. Your fresh account for ${nextPhaseKey.replace('_', ' ')} is being prepared.`),
               buttonText: 'View Dashboard',
-              infoBox: `Account Size: ${accountData.accountSize}<br>Challenge: ${accountData.challengeType}<br>Phase: ${accountData.phase}<br>Account Number: ${account.accountNumber}`,
+              infoBox: `Previous Account: ${account.accountNumber}<br>Account Size: ${accountData.accountSize}<br>Challenge: ${accountData.challengeType}<br>New Phase: ${nextPhaseKey.replace('_', ' ')}${nextStageAccountNumber ? `<br>New Account: ${nextStageAccountNumber}` : ''}`,
               ...(attachments ? { attachments } : {}),
             })
           },
@@ -897,48 +953,7 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
     if (passed && accountData.userId && !resetExpectationActive) {
       const profitBase = accountData.initialBalance ?? 0
       const profit = Math.max(0, balance - profitBase)
-      const expectedOperationExpiresAt = null
-      const resetBalance = accountData.initialBalance ?? Math.max(0, balance - profit)
       try {
-        await prisma.cTraderAccountMetric.updateMany({
-          where: { accountId: account.id },
-          data: {
-            expectedBalanceChange: true,
-            expectedChangeExpiresAt: expectedOperationExpiresAt,
-            expectedBalanceOperationType: 'PHASE_RESET',
-            expectedBalanceOperationExpiresAt: expectedOperationExpiresAt,
-            expectedBalanceOperationAmount: resetBalance,
-            balance: resetBalance,
-            equity: resetBalance,
-            unrealizedPnl: 0,
-            maxPermittedLossLeft: resetBalance,
-            highestBalance: resetBalance,
-            breachBalance: resetBalance - (accountData.maxDdAmount ?? 0),
-            profitTargetBalance: resetBalance,
-            minTradingDaysMet: false,
-            stageElapsedHours: 0,
-            durationViolationsCount: 0,
-            processedTradeIds: [],
-            dailyStartAt: dailyDdEnabled ? now : null,
-            dailyHighBalance: dailyDdEnabled ? resetBalance : 0,
-            dailyBreachBalance: dailyDdEnabled
-              ? resetBalance - (accountData.dailyDdAmount ?? 0)
-              : 0,
-            dailyLowEquity: null,
-            drawdownPercent: null,
-            dailyDrawdownPercent: null,
-            firstTradeAt: null,
-            totalTrades: 0,
-            tradingDaysCount: 0,
-            tradingCycleStart: null,
-            tradingCycleSource: null,
-            shortDurationViolation: false,
-            minEquity: resetBalance,
-            lastBalance: resetBalance,
-            lastEquity: resetBalance,
-            capturedAt: now,
-          },
-        })
         await notifyFinanceEngine({
           type: 'PHASE_PASS',
           account: String(account.accountNumber),
@@ -949,15 +964,11 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
           nextPhase: nextPhaseKey,
           challengeType: accountData.challengeType,
           ownerEmail: accountData.user?.email ?? undefined,
-          resetCommand: `/reset_done ${account.accountNumber}`,
         })
       } catch (error) {
         console.error('Failed to notify finance engine about phase pass', error)
       }
     }
-
-    let nextStageAssigned: boolean | null = null
-    let nextStageChallengeId: string | null = null
 
     if (accountData.userId && (statusWillChange || nextStageAssigned !== null)) {
       await clearCacheByPrefix(buildCacheKey(['trader', 'challenges', accountData.userId]))
@@ -973,9 +984,10 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       breach_reason: breachReason,
       breach_event: resolvedBreachEvent,
       trade_duration_violations: resolvedTradeViolations,
-      status: breached ? 'breached' : passed ? 'awaiting_reset' : 'active',
+      status: breached ? 'breached' : passed ? (nextStageAssigned ? 'completed' : 'passed') : 'active',
       next_stage_assigned: nextStageAssigned,
       next_stage_challenge_id: nextStageChallengeId,
+      next_stage_account_number: nextStageAccountNumber,
     })
   } catch (err) {
     console.log('❌ METRICS ERROR:', err)

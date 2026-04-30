@@ -119,9 +119,10 @@ export const assignReadyAccountFromPool = async ({
       phase,
       currency: resolvedCurrency,
       ...objectiveFields,
-      status: 'assigned_pending_access',
-      accessStatus: 'pending',
+      status: resolvedPlatform === 'mt5' ? 'active' : 'assigned_pending_access',
+      accessStatus: resolvedPlatform === 'mt5' ? 'granted' : 'pending',
       assignedAt: new Date(),
+      ...(resolvedPlatform === 'mt5' ? { accessGrantedAt: new Date() } : {}),
     } as Prisma.CTraderAccountUncheckedUpdateInput
 
     if (resolvedPlatform === 'mt5') {

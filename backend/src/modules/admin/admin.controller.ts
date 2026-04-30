@@ -272,7 +272,7 @@ export const listActiveChallengeAccounts = async (_req: Request, res: Response, 
     const normalizedPlatform = platform?.toLowerCase()
     const accounts = await prisma.cTraderAccount.findMany({
       where: {
-        status: { in: ['active', 'assigned', 'assigned_pending_access', 'awaiting_reset', 'withdraw_requested', 'admin_checking'] },
+        status: { in: ['active', 'assigned', 'assigned_pending_access', 'passed', 'awaiting_reset', 'withdraw_requested', 'admin_checking'] },
         ...(normalizedPlatform ? { platform: { equals: normalizedPlatform, mode: 'insensitive' } } : {}),
       },
       orderBy: { createdAt: 'desc' },
@@ -803,7 +803,7 @@ export const getDashboardStats = async (_req: Request, res: Response, next: Next
       sumPayoutsUsd({ status: 'completed', createdAt: { gte: yesterdayStart, lt: todayStart } }),
       prisma.user.count(),
       prisma.user.count({ where: { createdAt: { lt: monthStart } } }),
-      prisma.cTraderAccount.count({ where: { status: { in: ['active', 'funded', 'assigned', 'assigned_pending_access', 'awaiting_reset', 'withdraw_requested'] } } }),
+      prisma.cTraderAccount.count({ where: { status: { in: ['active', 'funded', 'assigned', 'assigned_pending_access', 'passed', 'awaiting_reset', 'withdraw_requested'] } } }),
       prisma.cTraderAccount.count({
         where: {
           status: { in: ['funded', 'active'] },

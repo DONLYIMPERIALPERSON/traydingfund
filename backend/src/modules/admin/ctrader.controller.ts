@@ -742,7 +742,7 @@ export const listCTraderAccounts = async (req: Request, res: Response, next: Nex
     const { status, platform } = req.query as ListCTraderQuery & { platform?: string }
     const normalizedStatus = status?.toLowerCase()
     const baseWhere: Prisma.CTraderAccountWhereInput = normalizedStatus === 'awaiting-next-stage'
-      ? { status: { equals: 'awaiting_reset', mode: Prisma.QueryMode.insensitive } }
+      ? { status: { in: ['awaiting_reset', 'passed'], mode: Prisma.QueryMode.insensitive } as any }
       : status
         ? { status: { equals: status, mode: Prisma.QueryMode.insensitive } }
         : {}
