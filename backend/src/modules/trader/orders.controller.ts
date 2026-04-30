@@ -153,6 +153,11 @@ const FALLBACK_REPEAT_PLAN_PRICES: Record<string, Record<string, { planId: strin
     '500000': { planId: '500000', price: 11500, currency: 'NGN' },
     '800000': { planId: '800000', price: 17000, currency: 'NGN' },
   },
+  ngn_flexi: {
+    '200000': { planId: '200000', price: 9000, currency: 'NGN' },
+    '500000': { planId: '500000', price: 21000, currency: 'NGN' },
+    '800000': { planId: '800000', price: 31500, currency: 'NGN' },
+  },
 }
 
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000)
