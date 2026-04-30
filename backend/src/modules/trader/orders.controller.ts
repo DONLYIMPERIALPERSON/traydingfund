@@ -147,6 +147,13 @@ const BREEZY_RENEWAL_WINDOW_DAYS = 2
 
 const isBreezyChallengeType = (challengeType?: string | null) => String(challengeType ?? '').toLowerCase() === 'breezy'
 const PHASE2_REPEAT_SUPPORTED_TYPES = new Set(['ngn_standard', 'ngn_flexi'])
+const FALLBACK_REPEAT_PLAN_PRICES: Record<string, Record<string, { planId: string; price: number; currency: string }>> = {
+  ngn_standard: {
+    '200000': { planId: '200000', price: 5000, currency: 'NGN' },
+    '500000': { planId: '500000', price: 11500, currency: 'NGN' },
+    '800000': { planId: '800000', price: 17000, currency: 'NGN' },
+  },
+}
 
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000)
 
@@ -185,29 +192,37 @@ const resolvePhase2RepeatAmountKobo = async (account: {
   accountSize: string
   currency?: string | null
 }) => {
-  const plan = await prisma.challengePlan.findFirst({
+  const normalizedDigits = account.accountSize.replace(/\D/g, '')
+  const plans = await prisma.challengePlan.findMany({
     where: {
       phase: 'phase_1',
-      accountSize: account.accountSize,
       enabled: true,
       ...(account.challengeType != null ? { challengeType: account.challengeType } : {}),
     },
     orderBy: { updatedAt: 'desc' },
   })
 
-  if (!plan) {
+  const plan = plans.find((entry) => String(entry.accountSize ?? '').replace(/\D/g, '') === normalizedDigits)
+
+  const fallbackPlan = (() => {
+    const normalizedChallengeType = String(account.challengeType ?? '').toLowerCase()
+    return FALLBACK_REPEAT_PLAN_PRICES[normalizedChallengeType]?.[normalizedDigits] ?? null
+  })()
+
+  if (!plan && !fallbackPlan) {
     throw new ApiError('Unable to determine repeat fee for this account.', 400)
   }
 
-  const baseAmountKobo = Math.round(Number(plan.price) * 100)
+  const basePrice = plan ? Number(plan.price) : fallbackPlan!.price
+  const baseAmountKobo = Math.round(basePrice * 100)
   if (!Number.isFinite(baseAmountKobo) || baseAmountKobo <= 0) {
     throw new ApiError('Invalid challenge fee configured for this account.', 400)
   }
 
   return {
-    planId: plan.planId,
+    planId: plan?.planId ?? fallbackPlan!.planId,
     amountKobo: Math.round(baseAmountKobo * 1.1),
-    currency: (plan.currency || account.currency || 'NGN').toUpperCase(),
+    currency: ((plan?.currency ?? fallbackPlan?.currency ?? account.currency ?? 'NGN')).toUpperCase(),
   }
 }
 
