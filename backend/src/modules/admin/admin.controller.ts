@@ -746,19 +746,35 @@ const buildUserCertificateAudit = async (email: string, certType: 'all' | 'onboa
   const existingKeys = new Set(
     user.certificates.map((certificate) => `${certificate.type}:${certificate.relatedEntityId ?? ''}`),
   )
+  const existingByType = {
+    onboarding: user.certificates.filter((certificate) => certificate.type === 'onboarding').length,
+    passed: user.certificates.filter((certificate) => certificate.type === 'passed_challenge').length,
+    payout: user.certificates.filter((certificate) => certificate.type === 'payout').length,
+    overall: user.certificates.filter((certificate) => certificate.type === 'overall_reward').length,
+  }
 
   const onboardingEligible = user.orders.length
-  const onboardingExisting = user.orders.filter((order) => existingKeys.has(`onboarding:${String(order.id)}`)).length
+  const onboardingExisting = Math.max(
+    existingByType.onboarding,
+    user.orders.filter((order) => existingKeys.has(`onboarding:${String(order.id)}`)).length,
+  )
 
   const passedEligibleAccounts = user.cTraderAccounts.filter(shouldHavePassedCertificate)
-  const passedEligible = passedEligibleAccounts.length
-  const passedExisting = passedEligibleAccounts.filter((account) => existingKeys.has(`passed_challenge:${account.challengeId || String(account.id)}`)).length
+  const passedMatchedExisting = passedEligibleAccounts.filter((account) => existingKeys.has(`passed_challenge:${account.challengeId || String(account.id)}`)).length
+  const passedExisting = Math.max(existingByType.passed, passedMatchedExisting)
+  const passedEligible = Math.max(passedEligibleAccounts.length, passedExisting)
 
   const payoutEligible = user.payouts.length
-  const payoutExisting = user.payouts.filter((payout) => existingKeys.has(`payout:${String(payout.id)}`)).length
+  const payoutExisting = Math.max(
+    existingByType.payout,
+    user.payouts.filter((payout) => existingKeys.has(`payout:${String(payout.id)}`)).length,
+  )
 
   const overallEligible = user.payouts.length > 0 ? 1 : 0
-  const overallExisting = overallEligible > 0 && existingKeys.has('overall_reward:overall-reward') ? 1 : 0
+  const overallExisting = Math.max(
+    existingByType.overall,
+    overallEligible > 0 && existingKeys.has('overall_reward:overall-reward') ? 1 : 0,
+  )
 
   return {
     user,
