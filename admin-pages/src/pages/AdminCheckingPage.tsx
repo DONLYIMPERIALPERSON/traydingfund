@@ -6,6 +6,7 @@ import {
   adminUpdateMt5Password,
   adminResetAccount,
   clearUserPaymentMethod,
+  forceGenerateUserCertificate,
   previewUserMissingCertificates,
   regenerateUserMissingCertificates,
   lookupChallengeAccount,
@@ -140,6 +141,7 @@ const AdminCheckingPage = () => {
   const [regeneratingCertificates, setRegeneratingCertificates] = useState(false)
   const [previewingCertificates, setPreviewingCertificates] = useState(false)
   const [certificateSummary, setCertificateSummary] = useState<string>('')
+  const [forcingCertificate, setForcingCertificate] = useState(false)
 
   const formatCurrency = (value: number | null | undefined, currency?: string | null) => {
     if (value == null) return '—'
@@ -364,6 +366,28 @@ const AdminCheckingPage = () => {
       setError(err instanceof Error ? err.message : 'Failed to regenerate certificates')
     } finally {
       setRegeneratingCertificates(false)
+    }
+  }
+
+  const handleForceGenerateCertificate = async () => {
+    const trimmed = certificateEmail.trim()
+    if (!trimmed) {
+      setError('Enter an email to force generate certificate.')
+      return
+    }
+    if (certificateType === 'all') {
+      setError('Select a specific certificate type first.')
+      return
+    }
+    setForcingCertificate(true)
+    setError('')
+    try {
+      const response = await forceGenerateUserCertificate(trimmed, certificateType)
+      setCertificateSummary(`Forced ${response.certificate_type} certificate generated successfully.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to force generate certificate')
+    } finally {
+      setForcingCertificate(false)
     }
   }
 
@@ -648,6 +672,9 @@ const AdminCheckingPage = () => {
               </button>
               <button type="button" onClick={handleRegenerateCertificates} disabled={regeneratingCertificates}>
                 {regeneratingCertificates ? 'Regenerating...' : 'Regenerate Certificates'}
+              </button>
+              <button type="button" onClick={handleForceGenerateCertificate} disabled={forcingCertificate}>
+                {forcingCertificate ? 'Generating...' : 'Force Generate'}
               </button>
             </div>
           </div>

@@ -934,6 +934,106 @@ export const regenerateUserMissingCertificates = async (req: Request, res: Respo
   }
 }
 
+export const forceGenerateUserCertificate = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const email = String(req.body?.email ?? '').trim().toLowerCase()
+    const certType = normalizeCertificateTypeFilter(String(req.body?.certificate_type ?? ''))
+    if (!email) {
+      throw new ApiError('email is required', 400)
+    }
+    if (certType === 'all') {
+      throw new ApiError('Select a specific certificate type to force generate', 400)
+    }
+
+    const { user } = await buildUserCertificateAudit(email, certType)
+
+    if (certType === 'onboarding') {
+      const order = await prisma.order.findFirst({
+        where: { userId: user.id, status: 'completed' },
+        orderBy: { createdAt: 'desc' },
+      })
+      if (!order) throw new ApiError('No completed order found for onboarding certificate', 404)
+      const certificate = await createOnboardingCertificate({
+        userId: user.id,
+        orderId: order.id,
+        challengeType: order.challengeType,
+        phase: order.phase,
+        accountSize: order.accountSize,
+      })
+      return res.json({ message: 'Certificate generated', certificate_type: certType, certificate_url: certificate.certificateUrl })
+    }
+
+    if (certType === 'passed') {
+      const account = await prisma.cTraderAccount.findFirst({
+        where: {
+          userId: user.id,
+          OR: [
+            { status: { in: ['funded', 'completed', 'passed'] } },
+            { phase: { contains: 'funded', mode: 'insensitive' } },
+          ],
+        },
+        orderBy: [
+          { passedAt: 'desc' },
+          { updatedAt: 'desc' },
+        ],
+      })
+      if (!account) throw new ApiError('No eligible passed/funded account found for passed certificate', 404)
+      const certificate = await createPassedChallengeCertificate({
+        userId: user.id,
+        accountId: account.id,
+        challengeId: account.challengeId,
+        phase: account.phase,
+        challengeType: account.challengeType,
+        accountSize: account.accountSize,
+      })
+      return res.json({ message: 'Certificate generated', certificate_type: certType, certificate_url: certificate.certificateUrl })
+    }
+
+    if (certType === 'payout') {
+      const payout = await prisma.payout.findFirst({
+        where: { userId: user.id, status: { in: ['completed', 'processing', 'pending_approval'] } },
+        include: { account: true },
+        orderBy: { requestedAt: 'desc' },
+      })
+      if (!payout) throw new ApiError('No payout found for payout certificate', 404)
+      const certificate = await createPayoutCertificate({
+        userId: user.id,
+        payoutId: payout.id,
+        accountId: payout.accountId,
+        amount: payout.amountKobo / 100,
+        currency: payout.account?.currency ?? 'USD',
+      })
+      return res.json({ message: 'Certificate generated', certificate_type: certType, certificate_url: certificate.certificateUrl })
+    }
+
+    const payouts = await prisma.payout.findMany({
+      where: { userId: user.id, status: { in: ['completed', 'processing', 'pending_approval'] } },
+      include: { account: true },
+    })
+    if (!payouts.length) throw new ApiError('No payout history found for overall reward certificate', 404)
+    const fxConfig = await getFxRatesConfig()
+    const usdNgnRate = fxConfig.rules?.usd_ngn_rate ?? 1300
+    const preferredCurrency = (user.overallRewardCurrency ?? 'USD').toUpperCase()
+    const totalReward = payouts.reduce((sum, payout) => {
+      const rawAmount = payout.profitAmount ?? (payout.amountKobo ? payout.amountKobo / 100 : 0)
+      const payoutCurrency = payout.account?.currency ?? 'USD'
+      if (preferredCurrency === 'NGN') {
+        const ngnAmount = payoutCurrency.toUpperCase() === 'NGN' ? rawAmount : rawAmount * usdNgnRate
+        return sum + ngnAmount
+      }
+      return sum + (payoutCurrency.toUpperCase() === 'NGN' ? rawAmount / usdNgnRate : rawAmount)
+    }, 0)
+    const certificate = await createOverallRewardCertificate({
+      userId: user.id,
+      totalReward,
+      currency: preferredCurrency === 'NGN' ? 'NGN' : 'USD',
+    })
+    return res.json({ message: 'Certificate generated', certificate_type: certType, certificate_url: certificate.certificateUrl })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
 export const getUserProfile = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = Number(req.params.userId)

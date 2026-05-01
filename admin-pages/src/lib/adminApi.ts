@@ -134,6 +134,12 @@ export type AdminPreviewCertificatesResponse = {
   audit: AdminCertificateAudit
 }
 
+export type AdminForceGenerateCertificateResponse = {
+  message: string
+  certificate_type: string
+  certificate_url: string
+}
+
 export type AdminResetAccountResponse = {
   status: 'pending' | 'completed'
   message: string
@@ -697,6 +703,12 @@ export const regenerateUserMissingCertificates = async (email: string, certifica
 
 export const previewUserMissingCertificates = async (email: string, certificate_type: 'all' | 'onboarding' | 'passed' | 'payout' | 'overall' = 'all') =>
   apiFetch<AdminPreviewCertificatesResponse>(`/admin/users/certificates/regenerate-missing?email=${encodeURIComponent(email)}&certificate_type=${encodeURIComponent(certificate_type)}`)
+
+export const forceGenerateUserCertificate = async (email: string, certificate_type: 'onboarding' | 'passed' | 'payout' | 'overall') =>
+  apiFetch<AdminForceGenerateCertificateResponse>('/admin/users/certificates/force-generate', {
+    method: 'POST',
+    body: JSON.stringify({ email, certificate_type }),
+  })
 
 export const fetchFundedChallengeAccounts = async (platform?: string) =>
   apiFetch<{ accounts: ChallengeAccountListItem[] }>(
