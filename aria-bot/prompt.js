@@ -13,10 +13,32 @@ Use only the information below. If a user asks for anything outside this knowled
 ### NGN Accounts
 - NGN Standard
 - NGN Flexi
+- NGN Breezy
+- Attic Program
 
 ### Standard vs Flexi
 - NGN Standard is a 2-phase challenge with 11% max drawdown, 5% max daily drawdown, 10% Phase 1 target, 5% Phase 2 target, 1 minimum trading day, 80% profit split, and weekly withdrawals.
 - NGN Flexi is a 2-phase challenge with 20% max drawdown, no daily drawdown, 10% Phase 1 target, 10% Phase 2 target, no minimum trading days, 70% profit split, and daily withdrawals.
+
+### Breezy Account
+- Breezy is a no-challenge NGN account model.
+- It has no max drawdown and no daily drawdown.
+- It uses a 50% capital protection limit.
+- Minimum closed trades for withdrawal: 5.
+- Minimum profit for withdrawal: 5%.
+- Risk score requirement for withdrawal: minimum 40.
+- Profit split: up to 100% based on risk score.
+- Withdrawals: on demand once eligible.
+- Subscription: weekly.
+- Account access is paused if subscription expires.
+- Account is terminated at 50% loss.
+
+### Attic Program
+- Attic is an entry challenge program.
+- Attic account size shown in system fallback data: ₦200,000.
+- Attic challenge type exists separately from NGN Standard.
+- Passing Attic promotes the trader into NGN Standard.
+- Attic resets back to phase 1 when promoted logic is applied.
 
 ## Pricing
 
@@ -54,6 +76,15 @@ Use only the information below. If a user asks for anything outside this knowled
 - ₦500,000 — ₦11,500
 - ₦800,000 — ₦17,000
 
+### NGN Breezy
+- ₦200,000 — ₦7,500 per week
+- ₦500,000 — ₦15,000 per week
+- ₦800,000 — ₦24,000 per week
+- ₦1,000,000 — ₦30,000 per week
+
+### Attic
+- Attic ₦200,000 — ₦1,500
+
 ## Rules
 
 ### USD 2 Step
@@ -80,6 +111,25 @@ Use only the information below. If a user asks for anything outside this knowled
 - Minimum Trade Duration: 3 minutes
 - Profit Split: 80%
 - Withdrawals: Weekly
+
+### NGN Breezy
+- Challenge: None
+- Drawdown Limits: None
+- Capital Protection Limit: 50% of initial balance
+- Minimum Closed Trades for Withdrawal: 5
+- Minimum Profit for Withdrawal: 5%
+- Risk Score Requirement: Minimum 40
+- Risk Score Factors: lot size, drawdown behavior, and trading activity
+- Profit Split: Up to 100% based on risk score
+- Withdrawals: On Demand once eligible
+- Subscription: Weekly
+- Account Access: Paused if subscription expires
+- Account Termination: Account is closed at 50% loss
+
+### Attic Program
+- Account Size: ₦200,000
+- Attic is a separate challenge track
+- Passing Attic promotes trader into NGN Standard
 
 ### USD 1 Step
 #### Challenge Phase
@@ -177,6 +227,7 @@ Use only the information below. If a user asks for anything outside this knowled
 - USD Instant Funded: Bi-weekly
 - NGN Standard funded: Weekly
 - NGN Flexi funded: Daily
+- NGN Breezy: On demand once eligible
 
 ### Payout Methods
 - Bank transfer
@@ -190,8 +241,17 @@ Use only the information below. If a user asks for anything outside this knowled
 - 2 Step: Phase 1 → Phase 2 → Funded
 - 1 Step: Phase 1 → Funded
 - Instant Funded: starts directly funded
+- Attic: Attic phase → promoted into NGN Standard
 - Passing a phase moves the trader to the next phase
 - Backend email flow says the existing login credentials remain the same during next-phase preparation
+
+## Phase 2 Repeat
+- Phase 2 repeat is supported for NGN Standard and NGN Flexi.
+- It applies when a trader breaches in phase 2.
+- Each account is eligible for one repeat only.
+- Repeat fee is the original challenge fee plus 10%.
+- After successful repeat payment, a new ready phase 2 account is assigned.
+- The old breached account is hidden/archived from the trader.
 
 ## Violations and Restrictions
 
@@ -259,12 +319,15 @@ Use only the information below. If a user asks for anything outside this knowled
 ## FAQ
 - What is MacheFunded? MacheFunded is a prop trading firm that funds traders who meet clear trading objectives and risk rules.
 - How fast can I get funded? Traders can choose 1-step, 2-step, or instant funded challenges. Once they pass, they receive a funded account.
+- What is Breezy? Breezy is a no-challenge NGN account with weekly subscription, on-demand withdrawals when eligible, and profit split up to 100% based on risk score.
+- What is Attic? Attic is an entry challenge program that can promote traders into NGN Standard after passing.
 - What is max drawdown? 11% for 1-Step, 2-Step, and NGN Standard. 5% for Instant Funded. 20% for NGN Flexi.
 - What is max daily drawdown? 5% for 1-Step, 2-Step, and NGN Standard. 2% for Instant Funded. None for NGN Flexi.
 - Do you have minimum trading days? Yes for 1-Step, 2-Step, Instant Funded, and NGN Standard. No for NGN Flexi.
 - What is the minimum trade duration? 3 minutes. 3 trades closed under 3 minutes breaches the account.
 - What profit split do I receive? 80% for 1-Step, 2-Step, and NGN Standard funded. 50% for Instant Funded. 70% for NGN Flexi funded.
 - How often are withdrawals processed? Weekly for 1-Step, 2-Step, and NGN Standard funded. Bi-weekly for Instant Funded. Daily for NGN Flexi.
+- Can I repeat phase 2 after breaching? Yes, for NGN Standard and NGN Flexi only. It is one repeat per account, and the repeat fee is challenge fee plus 10%.
 - Are hedging and martingale allowed? No.
 - Are unsupported markets allowed? No. Trading unsupported instruments can breach the account.
 `;
