@@ -1,4 +1,3 @@
-import { SESClient, SendRawEmailCommand } from '@aws-sdk/client-ses'
 import { env } from '../config/env'
 import { buildEmailTemplate } from './emailTemplate'
 
@@ -14,68 +13,62 @@ export type EmailPayload = {
   attachments?: Array<{ filename: string; content: Buffer; contentType?: string }>
 }
 
-const resolveButtonLink = (override?: string) => override ?? env.sesDashboardUrl
+const resolveButtonLink = (override?: string) => override ?? env.zeptoDashboardUrl
 
 const resolveSender = () => {
-  const fromEmail = env.sesFromEmail
+  const fromEmail = env.zeptoFromEmail
   if (!fromEmail) return ''
-  return env.sesFromName ? `${env.sesFromName} <${fromEmail}>` : fromEmail
+  return env.zeptoFromName ? `${env.zeptoFromName} <${fromEmail}>` : fromEmail
 }
 
-const buildRawEmail = (payload: {
-  to: string
-  subject: string
-  html: string
-  text: string
-  replyTo?: string
-  from: string
-  attachments?: Array<{ filename: string; content: Buffer; contentType: string }>
-}) => {
-  const boundary = `BOUNDARY_${Date.now()}`
-  const headerLines = [
-    `From: ${payload.from}`,
-    `To: ${payload.to}`,
-    `Subject: ${payload.subject}`,
-    'MIME-Version: 1.0',
-    `Content-Type: multipart/mixed; boundary="${boundary}"`,
-  ]
+type ZeptoAttachment = {
+  name: string
+  mime_type: string
+  content: string
+}
 
-  if (payload.replyTo) {
-    headerLines.push(`Reply-To: ${payload.replyTo}`)
+const buildZeptoPayload = (payload: EmailPayload) => {
+  const htmlbody = buildEmailTemplate({
+    title: payload.title,
+    subtitle: payload.subtitle,
+    content: payload.content,
+    buttonText: payload.buttonText,
+    buttonLink: resolveButtonLink(payload.buttonLink),
+    infoBox: payload.infoBox,
+  })
+
+  const attachments: ZeptoAttachment[] | undefined = payload.attachments?.map((attachment) => ({
+    name: attachment.filename,
+    mime_type: attachment.contentType ?? 'application/octet-stream',
+    content: attachment.content.toString('base64'),
+  }))
+
+  return {
+    from: {
+      address: env.zeptoFromEmail,
+      name: env.zeptoFromName || 'MacheFunded',
+    },
+    to: [
+      {
+        email_address: {
+          address: payload.to,
+        },
+      },
+    ],
+    subject: payload.subject,
+    htmlbody,
+    textbody: payload.content,
+    ...(env.zeptoReplyToEmail
+      ? {
+          reply_to: [
+            {
+              address: env.zeptoReplyToEmail,
+            },
+          ],
+        }
+      : {}),
+    ...(attachments?.length ? { attachments } : {}),
   }
-
-  const bodyLines = [
-    `--${boundary}`,
-    'Content-Type: multipart/alternative; boundary="ALT_BOUNDARY"',
-    '',
-    '--ALT_BOUNDARY',
-    'Content-Type: text/plain; charset="UTF-8"',
-    'Content-Transfer-Encoding: 7bit',
-    '',
-    payload.text,
-    '',
-    '--ALT_BOUNDARY',
-    'Content-Type: text/html; charset="UTF-8"',
-    'Content-Transfer-Encoding: 7bit',
-    '',
-    payload.html,
-    '',
-    '--ALT_BOUNDARY--',
-  ]
-
-  const attachmentLines = (payload.attachments ?? []).flatMap((attachment) => [
-    `--${boundary}`,
-    `Content-Type: ${attachment.contentType}; name="${attachment.filename}"`,
-    'Content-Transfer-Encoding: base64',
-    `Content-Disposition: attachment; filename="${attachment.filename}"`,
-    '',
-    attachment.content.toString('base64'),
-    '',
-  ])
-
-  const ending = `--${boundary}--`
-
-  return [...headerLines, '', ...bodyLines, ...attachmentLines, ending].join('\r\n')
 }
 
 export const fetchRemoteAttachment = async (payload: {
@@ -96,47 +89,24 @@ export const fetchRemoteAttachment = async (payload: {
 }
 
 export const sendUnifiedEmail = async (payload: EmailPayload) => {
-  if (!env.sesAccessKeyId || !env.sesSecretAccessKey || !env.sesFromEmail) {
-    console.warn('[email] AWS SES credentials or from email not configured')
+  if (!env.zeptoToken || !env.zeptoFromEmail) {
+    console.warn('[email] ZeptoMail token or from email not configured')
     return null
   }
-  const html = buildEmailTemplate({
-    title: payload.title,
-    subtitle: payload.subtitle,
-    content: payload.content,
-    buttonText: payload.buttonText,
-    buttonLink: resolveButtonLink(payload.buttonLink),
-    infoBox: payload.infoBox,
-  })
-
-
-  const attachments = payload.attachments?.map((attachment) => ({
-    filename: attachment.filename,
-    content: attachment.content,
-    contentType: attachment.contentType ?? 'application/pdf',
-  }))
-
-  const client = new SESClient({
-    region: env.sesRegion,
-    credentials: {
-      accessKeyId: env.sesAccessKeyId,
-      secretAccessKey: env.sesSecretAccessKey,
+  const response = await fetch(env.zeptoApiUrl, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      Authorization: env.zeptoToken,
     },
+    body: JSON.stringify(buildZeptoPayload(payload)),
   })
 
-  const rawEmail = buildRawEmail({
-    to: payload.to,
-    subject: payload.subject,
-    html,
-    text: payload.content,
-    from: resolveSender(),
-    ...(env.sesReplyToEmail ? { replyTo: env.sesReplyToEmail } : {}),
-    ...(attachments ? { attachments } : {}),
-  })
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '')
+    throw new Error(`ZeptoMail send failed (${response.status}): ${errorText}`)
+  }
 
-  const command = new SendRawEmailCommand({
-    RawMessage: { Data: Buffer.from(rawEmail) },
-  })
-
-  return client.send(command)
+  return response.json().catch(() => ({ ok: true }))
 }
