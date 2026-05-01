@@ -3,7 +3,7 @@ import { prisma } from '../../config/prisma'
 import { ApiError } from '../../common/errors'
 import { Prisma } from '@prisma/client'
 import { requestAccountAccess } from '../../services/accessEngine.service'
-import { pushActiveAccountAdd } from '../../services/ctraderEngine.service'
+import { pushActiveAccountAdd, pushActiveAccountRemove } from '../../services/ctraderEngine.service'
 import { recordCredentialView } from '../../services/emailLog.service'
 import { buildObjectiveFields } from '../ctrader/ctrader.objectives'
 import { assignReadyAccountFromPool, buildBaseChallengeId, buildChallengeIdForPhase, normalizeAccountSize, normalizeChallengeBase, resolveChallengeCurrency } from '../ctrader/ctrader.assignment'
@@ -91,6 +91,115 @@ const normalizeUploadAccountSize = (raw: string) => {
   }
   if (!Number.isFinite(value) || value <= 0) return raw
   return `$${value.toLocaleString('en-US')}`
+}
+
+const resolveAwaitingNextStageConfig = (account: {
+  challengeType?: string | null
+  phase?: string | null
+  accountSize: string
+  currency?: string | null
+  challengeId: string
+  platform?: string | null
+}) => {
+  const normalizedChallengeType = String(account.challengeType ?? 'two_step').toLowerCase()
+  const normalizedPhase = String(account.phase ?? '').toLowerCase()
+  const isAttic = normalizedChallengeType === 'attic'
+
+  if (isAttic) {
+    return {
+      challengeType: 'ngn_standard',
+      phase: 'phase_1',
+      accountSize: '₦200,000',
+      currency: 'NGN',
+      baseChallengeId: normalizeChallengeBase(account.challengeId),
+      platform: account.platform ?? 'ctrader',
+    }
+  }
+
+  const nextPhase = normalizedChallengeType === 'two_step'
+    ? (normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null)
+    : ['one_step', 'ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)
+      ? (normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null)
+      : null
+
+  if (!nextPhase) return null
+
+  return {
+    challengeType: account.challengeType ?? 'two_step',
+    phase: nextPhase,
+    accountSize: account.accountSize,
+    currency: resolveChallengeCurrency(account.challengeType, account.currency ?? null),
+    baseChallengeId: normalizeChallengeBase(account.challengeId),
+    platform: account.platform ?? 'ctrader',
+  }
+}
+
+const assignAwaitingNextStageAccount = async (accountId: number) => {
+  const account = await prisma.cTraderAccount.findUnique({
+    where: { id: accountId },
+    include: { user: true },
+  })
+
+  if (!account) {
+    throw new ApiError('Account not found', 404)
+  }
+  if (!account.userId) {
+    throw new ApiError('Account has no assigned user', 400)
+  }
+
+  const config = resolveAwaitingNextStageConfig(account)
+  if (!config) {
+    throw new ApiError('Account is not eligible for next stage', 400)
+  }
+
+  const assigned = await assignReadyAccountFromPool({
+    userId: account.userId,
+    challengeType: config.challengeType,
+    phase: config.phase,
+    accountSize: config.accountSize,
+    currency: config.currency,
+    baseChallengeId: config.baseChallengeId,
+    platform: config.platform,
+  })
+
+  if (!assigned) {
+    throw new ApiError('No ready account available to assign next stage', 409)
+  }
+
+  await prisma.cTraderAccount.update({
+    where: { id: account.id },
+    data: { status: 'completed' },
+  })
+
+  try {
+    await pushActiveAccountRemove(account.accountNumber, 'phase_passed')
+  } catch (error) {
+    console.error('Failed to remove completed account from active engine list', error)
+  }
+
+  const resolvedPlatform = String(assigned.platform ?? account.platform ?? 'ctrader').toLowerCase()
+  if (resolvedPlatform === 'mt5') {
+    await prisma.cTraderAccount.update({
+      where: { id: assigned.id },
+      data: { status: 'active', accessStatus: 'granted', accessGrantedAt: new Date() },
+    })
+  } else if (account.user?.email) {
+    await requestAccountAccess({
+      user_email: account.user.email,
+      account_number: assigned.accountNumber,
+      broker: assigned.brokerName,
+      platform: resolvedPlatform,
+      ...(account.user.fullName ? { user_name: account.user.fullName } : {}),
+      ...(assigned.challengeType ? { account_type: assigned.challengeType } : {}),
+      ...(assigned.phase ? { account_phase: assigned.phase } : {}),
+      ...(assigned.accountSize ? { account_size: assigned.accountSize } : {}),
+      ...(assigned.mt5Login ? { mt5_login: assigned.mt5Login } : {}),
+      ...(assigned.mt5Server ? { mt5_server: assigned.mt5Server } : {}),
+      ...(assigned.mt5Password ? { mt5_password: assigned.mt5Password } : {}),
+    })
+  }
+
+  return assigned
 }
 
 const resolveReplacementPhase = (challengeType: string, phase: string, nextPhase: boolean) => {
@@ -228,7 +337,7 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
         platform: (order.metadata as { platform?: string } | null)?.platform ?? 'ctrader',
       })
 
-      if (!assigned) break
+      if (!assigned) continue
 
       await prisma.order.update({
         where: { id: order.id },
@@ -264,7 +373,30 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
       })
     }
 
-    // Next-stage assignment disabled: accounts are reused and moved forward via finance reset flow.
+    const awaitingNextStageAccounts = await prisma.cTraderAccount.findMany({
+      where: {
+        userId: { not: null },
+        archivedAt: null,
+        status: { in: ['awaiting_reset', 'passed'], mode: Prisma.QueryMode.insensitive } as any,
+      },
+      orderBy: { updatedAt: 'asc' },
+      include: { user: true },
+    })
+
+    for (const awaitingAccount of awaitingNextStageAccounts) {
+      try {
+        await assignAwaitingNextStageAccount(awaitingAccount.id)
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 409) {
+          continue
+        }
+        console.error('Failed to auto-assign awaiting next stage account after upload', {
+          accountId: awaitingAccount.id,
+          accountNumber: awaitingAccount.accountNumber,
+          error,
+        })
+      }
+    }
 
     res.status(201).json({
       created: toCreate.length,
@@ -278,108 +410,11 @@ export const uploadCTraderAccounts = async (req: Request, res: Response, next: N
 
 export const forceAssignNextStage = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    throw new ApiError('Next stage assignment is disabled. Use the reset flow to advance phases.', 409)
     const { account_id } = req.body as ForceNextStagePayload
     if (!account_id || !Number.isFinite(Number(account_id))) {
       throw new ApiError('account_id is required', 400)
     }
-
-    const account = await prisma.cTraderAccount.findUnique({
-      where: { id: Number(account_id) },
-      include: { user: true },
-    })
-
-    if (!account) {
-      throw new ApiError('Account not found', 404)
-    }
-
-    const resolvedAccount = account as NonNullable<typeof account>
-    const accountUserId = resolvedAccount.userId
-    if (!accountUserId) {
-      throw new ApiError('Account has no assigned user', 400)
-    }
-
-    const normalizedChallengeType = String(resolvedAccount.challengeType ?? 'two_step').toLowerCase()
-    const normalizedPhase = String(resolvedAccount.phase ?? '').toLowerCase()
-    if (normalizedChallengeType === 'instant_funded' || normalizedPhase === 'funded') {
-      throw new ApiError('Account is not eligible for next stage', 400)
-    }
-
-    const nextPhase = normalizedChallengeType === 'two_step'
-      ? (normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null)
-      : ['one_step', 'ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)
-        ? (normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null)
-        : null
-
-    if (!nextPhase) {
-      throw new ApiError('Account is not eligible for next stage', 400)
-    }
-
-    const resolvedNextPhase = nextPhase
-
-    const assigned = await assignReadyAccountFromPool({
-      userId: accountUserId as number,
-      challengeType: resolvedAccount.challengeType ?? 'two_step',
-      phase: String(resolvedNextPhase ?? ''),
-      accountSize: resolvedAccount.accountSize,
-      currency: resolveChallengeCurrency(resolvedAccount.challengeType, resolvedAccount.currency ?? null),
-      baseChallengeId: normalizeChallengeBase(resolvedAccount.challengeId ?? ''),
-    })
-
-    if (!assigned) {
-      throw new ApiError('No ready account available to assign next stage', 409)
-    }
-
-    const assignedAccount = assigned as NonNullable<typeof assigned>
-
-    await prisma.cTraderAccount.update({
-      where: { id: resolvedAccount.id },
-      data: { status: 'completed' },
-    })
-
-    const resolvedUser = resolvedAccount.user
-    const resolvedUserEmail = resolvedUser?.email ?? null
-    if (!resolvedUserEmail) {
-      res.json({
-        message: 'Next stage assigned',
-        assigned_challenge_id: assignedAccount.challengeId,
-        assigned_account_number: assignedAccount.accountNumber,
-      })
-      return
-    }
-
-    const email = resolvedUserEmail
-    const resolvedUserFullName = resolvedUser?.fullName ?? undefined
-    const accessAccountSize = assignedAccount.accountSize ?? resolvedAccount.accountSize
-    const accessPayload: Parameters<typeof requestAccountAccess>[0] = {
-      user_email: email!,
-      account_number: assignedAccount.accountNumber,
-      broker: assignedAccount.brokerName,
-      platform: assignedAccount.platform ?? 'ctrader',
-      ...(resolvedUserFullName ? { user_name: resolvedUserFullName } : {}),
-      ...(accessAccountSize ? { account_size: accessAccountSize } : {}),
-    }
-    const accountType = resolvedAccount.challengeType ?? undefined
-    if (accountType) {
-      accessPayload.account_type = accountType
-    }
-    const accountPhase = resolvedNextPhase ?? undefined
-    if (accountPhase) {
-      accessPayload.account_phase = accountPhase
-    }
-    const mt5Login = assignedAccount.mt5Login
-    if (mt5Login !== null) {
-      accessPayload.mt5_login = mt5Login as string
-    }
-    const mt5Server = assignedAccount.mt5Server
-    if (mt5Server !== null) {
-      accessPayload.mt5_server = mt5Server as string
-    }
-    const mt5Password = assignedAccount.mt5Password
-    if (mt5Password !== null) {
-      accessPayload.mt5_password = mt5Password as string
-    }
-    await requestAccountAccess(accessPayload)
+    const assignedAccount = await assignAwaitingNextStageAccount(Number(account_id))
 
     res.json({
       message: 'Next stage assigned',
