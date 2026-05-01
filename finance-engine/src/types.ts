@@ -3,10 +3,14 @@ export type FinanceEventType = 'PHASE_PASS' | 'WITHDRAW_REQUEST' | 'WITHDRAWAL' 
 export type FinanceEventPayload = {
   type: FinanceEventType
   account: string
+  accountSize?: string | null
+  accountType?: string | null
   platform?: string
   profit?: number
   targetBalance?: number
   amount?: number
+  currentBalance?: number | null
+  profitSplitPercent?: number | null
   reason?: string
   currentPhase?: string
   nextPhase?: string

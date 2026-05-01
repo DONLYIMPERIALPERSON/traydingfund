@@ -27,10 +27,14 @@ const parseCommand = (text?: string | null) => {
 const formatEventMessage = (payload: {
   type: string
   account: string
+  accountSize?: string | null
+  accountType?: string | null
   platform?: string
   profit?: number
   targetBalance?: number
   amount?: number
+  currentBalance?: number | null
+  profitSplitPercent?: number | null
   currentPhase?: string
   nextPhase?: string
   challengeType?: string
@@ -38,11 +42,19 @@ const formatEventMessage = (payload: {
   resetCommand?: string
 }) => {
   const platformLine = payload.platform ? `Platform: ${payload.platform}` : null
+  const accountSizeLine = payload.accountSize ? `Account Size: ${payload.accountSize}` : null
+  const accountTypeLine = payload.accountType ? `Account Type: ${payload.accountType}` : null
+  const currentBalanceLine = payload.currentBalance != null ? `Current Balance: ${payload.currentBalance}` : null
+  const profitSplitLine = payload.profitSplitPercent != null ? `Profit Split: ${payload.profitSplitPercent}%` : null
   if (payload.type === 'PHASE_PASS') {
     const lines = [
       '✅ Phase passed',
       `Account: ${payload.account}`,
+      accountSizeLine,
+      accountTypeLine,
       platformLine,
+      currentBalanceLine,
+      profitSplitLine,
       `Profit to deduct: ${payload.profit ?? 0}`,
       `Target Balance: ${payload.targetBalance ?? ''}`,
       payload.currentPhase ? `Current Phase: ${payload.currentPhase}` : null,
@@ -64,7 +76,11 @@ const formatEventMessage = (payload: {
     return [
       '💸 Withdrawal requested',
       `Account: ${payload.account}`,
+      accountSizeLine,
+      accountTypeLine,
       platformLine,
+      currentBalanceLine,
+      profitSplitLine,
       `Amount: ${payload.amount ?? payload.profit ?? 0}`,
       compactApproveCommand ? 'Approve Command:' : null,
       compactApproveCommand,
@@ -76,7 +92,11 @@ const formatEventMessage = (payload: {
     return [
       '💸 Withdrawal completed',
       `Account: ${payload.account}`,
+      accountSizeLine,
+      accountTypeLine,
       platformLine,
+      currentBalanceLine,
+      profitSplitLine,
       `Amount: ${payload.amount ?? payload.profit ?? 0}`,
     ].filter(Boolean).join('\n')
   }
@@ -84,7 +104,11 @@ const formatEventMessage = (payload: {
     return [
       '🧮 Balance adjustment',
       `Account: ${payload.account}`,
+      accountSizeLine,
+      accountTypeLine,
       platformLine,
+      currentBalanceLine,
+      profitSplitLine,
       `Amount: ${payload.amount ?? payload.profit ?? payload.targetBalance ?? ''}`,
     ].filter(Boolean).join('\n')
   }
@@ -102,10 +126,14 @@ export const registerWebhook = async (bot: TelegramBot) => {
 export const sendFinanceEventMessage = async (bot: TelegramBot, payload: {
   type: string
   account: string
+  accountSize?: string | null
+  accountType?: string | null
   platform?: string
   profit?: number
   targetBalance?: number
   amount?: number
+  currentBalance?: number | null
+  profitSplitPercent?: number | null
   currentPhase?: string
   nextPhase?: string
   challengeType?: string

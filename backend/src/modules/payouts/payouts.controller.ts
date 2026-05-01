@@ -754,7 +754,7 @@ export const approvePayoutRequest = async (req: AuthRequest, res: Response, next
     }
 
     const payoutAccount = payout.accountId
-      ? await prisma.cTraderAccount.findUnique({ where: { id: payout.accountId }, include: { user: true } })
+      ? await prisma.cTraderAccount.findUnique({ where: { id: payout.accountId }, include: { user: true, metrics: true } })
       : null
     const expectedOperationExpiresAt = new Date(Date.now() + 5 * 60 * 1000)
 
@@ -805,6 +805,9 @@ export const approvePayoutRequest = async (req: AuthRequest, res: Response, next
         account: String(payoutAccount?.accountNumber ?? ''),
         platform: payoutAccount?.platform ?? 'ctrader',
         accountSize: payoutAccount?.accountSize ?? null,
+        accountType: payoutAccount?.challengeType ?? null,
+        currentBalance: payoutAccount?.metrics?.balance ?? payoutAccount?.initialBalance ?? null,
+        profitSplitPercent: payout.profitSplitPercent ?? null,
         amount: updated.amountKobo / 100,
         ...(payoutAccount?.accountNumber
           ? { resetCommand: `/withdraw_done${payoutAccount.accountNumber}` }
