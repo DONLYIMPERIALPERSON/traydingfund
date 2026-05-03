@@ -90,13 +90,22 @@ const rulesData = [
         ],
     },
     {
-        title: 'Instant Funded',
+        title: 'NGN 1-Step Account — Phase 1',
         items: [
-            'Max Drawdown: 5%',
-            'Max Daily Drawdown: 2%',
-            'Minimum Trading Days: 5',
-            'Profit Split: 50%',
-            'Withdrawals: Bi-weekly',
+            'Max Drawdown: 10%',
+            'Max Daily Drawdown: 3%',
+            'Profit Target: 10%',
+            'Minimum Trading Days: 1',
+        ],
+    },
+    {
+        title: 'NGN 1-Step Account — Funded',
+        items: [
+            'Max Drawdown: 10%',
+            'Max Daily Drawdown: 3%',
+            'Profit Split: 80%',
+            'Withdrawals: Weekly',
+            'Minimum Trading Days: 1',
         ],
     },
 ];

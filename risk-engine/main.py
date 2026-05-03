@@ -594,6 +594,20 @@ ACCOUNT_RULES = {
         "min_trade_duration_minutes": 3,
         "min_trading_days": 1,
     },
+    "ngn_one_step_phase_1": {
+        "max_drawdown_pct": 10,
+        "daily_drawdown_pct": 3,
+        "profit_target_pct": 10,
+        "min_trade_duration_minutes": 0,
+        "min_trading_days": 1,
+    },
+    "ngn_one_step_funded": {
+        "max_drawdown_pct": 10,
+        "daily_drawdown_pct": 3,
+        "profit_target_pct": 0,
+        "min_trade_duration_minutes": 0,
+        "min_trading_days": 1,
+    },
     "ngn_flexi_phase_1": {
         "max_drawdown_pct": 20,
         "daily_drawdown_pct": 0,

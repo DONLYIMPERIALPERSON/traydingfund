@@ -9,7 +9,7 @@ type PricingTier = {
 }
 
 type PricingTab = {
-  key: 'twoPhase' | 'onePhase' | 'instant' | 'ngnStandard' | 'ngnFlexi' | 'breezy'
+  key: 'twoPhase' | 'onePhase' | 'ngnStandard' | 'ngnOneStep' | 'ngnFlexi' | 'breezy'
   label: string
   tiers: PricingTier[]
   rules: string[]
@@ -26,18 +26,18 @@ type AccountView = {
   fee: string
   status: 'available' | 'paused'
   profit_split: string
-  challenge_type: 'two_step' | 'one_step' | 'instant_funded' | 'ngn_standard' | 'ngn_flexi' | 'breezy'
+  challenge_type: 'two_step' | 'one_step' | 'ngn_standard' | 'ngn_one_step' | 'ngn_flexi' | 'breezy'
   phase: 'phase_1' | 'phase_2' | 'funded'
   description?: string
 }
 
 const pricingTabs: PricingTab[] = [
   { key: 'ngnStandard', label: 'NGN Standard', tiers: [{ account: '₦200,000', price: '₦5,000' }, { account: '₦500,000', price: '₦11,500' }, { account: '₦800,000', price: '₦17,000' }], rules: [] },
+  { key: 'ngnOneStep', label: 'NGN 1 Step', tiers: [{ account: '₦200,000', price: '₦6,000' }, { account: '₦500,000', price: '₦13,800' }, { account: '₦800,000', price: '₦20,400' }], rules: [] },
   { key: 'ngnFlexi', label: 'NGN Flexi', tiers: [{ account: '₦200,000', price: '₦9,000' }, { account: '₦500,000', price: '₦21,000' }, { account: '₦800,000', price: '₦31,500' }], rules: [] },
   { key: 'breezy', label: 'NGN Breezy', tiers: [{ account: '₦200,000', price: '₦7,500' }, { account: '₦500,000', price: '₦15,000' }, { account: '₦800,000', price: '₦24,000' }, { account: '₦1,000,000', price: '₦30,000' }], rules: ['Challenge: None', 'Daily DD: None', 'Max DD: None', 'Minimum Trades Required: 5', 'Profit Split: Up to 100%', 'Withdrawals: On Demand'] },
   { key: 'twoPhase', label: '2 Step', tiers: [{ account: '$2K', price: '$12' }, { account: '$10K', price: '$81' }, { account: '$30K', price: '$163' }, { account: '$50K', price: '$203' }, { account: '$100K', price: '$354' }, { account: '$200K', price: '$681' }], rules: [] },
   { key: 'onePhase', label: '1 Step', tiers: [{ account: '$2K', price: '$26' }, { account: '$10K', price: '$108' }, { account: '$30K', price: '$203' }, { account: '$50K', price: '$299' }, { account: '$100K', price: '$450' }, { account: '$200K', price: '$885' }], rules: [] },
-  { key: 'instant', label: 'Instant Funded', tiers: [{ account: '$2K', price: '$53' }, { account: '$10K', price: '$163' }, { account: '$30K', price: '$381' }, { account: '$50K', price: '$612' }, { account: '$100K', price: '$1091' }, { account: '$200K', price: '$1910' }], rules: [] },
 ]
 
 const formatAccountSize = (label: string) => {
@@ -70,6 +70,7 @@ const MobileTradingAccountsPage: React.FC = () => {
   const [planPrices, setPlanPrices] = useState<Record<string, PublicChallengePlan[]>>({})
   const [objectiveRules, setObjectiveRules] = useState<Record<string, string[]>>({})
   const effectiveRules = objectiveRules[activeTab.key] ?? activeTab.rules
+  const visibleRules = effectiveRules.filter((rule) => !rule.toLowerCase().includes('minimum trade duration'))
 
   useEffect(() => {
     const loadObjectives = async () => {
@@ -104,8 +105,8 @@ const MobileTradingAccountsPage: React.FC = () => {
         rules.forEach((challenge: any) => {
           if (challenge.key === 'two_step') next.twoPhase = buildMergedRules(challenge.phases)
           if (challenge.key === 'one_step') next.onePhase = buildMergedRules(challenge.phases)
-          if (challenge.key === 'instant_funded') next.instant = challenge.phases[0]?.rules.map((rule: any) => `${rule.label}: ${rule.value}`) ?? []
           if (challenge.key === 'ngn_standard') next.ngnStandard = buildMergedRules(challenge.phases)
+          if (challenge.key === 'ngn_one_step') next.ngnOneStep = buildMergedRules(challenge.phases)
           if (challenge.key === 'ngn_flexi') next.ngnFlexi = buildMergedRules(challenge.phases)
         })
         setObjectiveRules(next)
@@ -142,10 +143,10 @@ const MobileTradingAccountsPage: React.FC = () => {
 
     const challengeKey = activeTab.key === 'onePhase'
       ? 'one_step'
-      : activeTab.key === 'instant'
-        ? 'instant_funded'
-        : activeTab.key === 'ngnStandard'
+      : activeTab.key === 'ngnStandard'
           ? 'ngn_standard'
+          : activeTab.key === 'ngnOneStep'
+            ? 'ngn_one_step'
           : activeTab.key === 'ngnFlexi'
             ? 'ngn_flexi'
             : activeTab.key === 'breezy'
@@ -175,7 +176,7 @@ const MobileTradingAccountsPage: React.FC = () => {
         status: matchedPlan?.status?.toLowerCase() === 'paused' ? 'paused' : 'available',
         profit_split: getRuleValue(['Profit Split']),
         challenge_type: challengeKey as AccountView['challenge_type'],
-        phase: activeTab.key === 'instant' ? 'funded' : 'phase_1',
+        phase: 'phase_1',
         description: activeTab.key === 'breezy' ? 'Weekly subscription · bank transfer only' : undefined,
       }
     })
@@ -184,17 +185,17 @@ const MobileTradingAccountsPage: React.FC = () => {
   const isPurchaseRestricted = (tabKey: PricingTab['key']) => {
     const challengeKey = tabKey === 'onePhase'
       ? 'one_step'
-      : tabKey === 'instant'
-        ? 'instant_funded'
-        : tabKey === 'ngnStandard'
+      : tabKey === 'ngnStandard'
           ? 'ngn_standard'
+          : tabKey === 'ngnOneStep'
+            ? 'ngn_one_step'
           : tabKey === 'ngnFlexi'
             ? 'ngn_flexi'
             : tabKey === 'breezy'
               ? 'breezy'
               : 'two_step'
 
-    if (['two_step', 'one_step', 'instant_funded'].includes(challengeKey)) {
+    if (['two_step', 'one_step'].includes(challengeKey)) {
       return (planPrices[challengeKey] ?? []).length === 0
     }
 
@@ -239,7 +240,7 @@ const MobileTradingAccountsPage: React.FC = () => {
               </div>
 
               <div className="mobile-trading-account-card__details">
-                {effectiveRules.map((rule) => (
+                {visibleRules.map((rule) => (
                   <div key={rule} className="mobile-trading-account-card__detail">
                     <span className="mobile-trading-account-card__bullet">•</span>
                     <span>{rule}</span>

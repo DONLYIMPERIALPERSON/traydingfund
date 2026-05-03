@@ -23,7 +23,7 @@ type ChallengePlanRecord = {
 
 const isUsdChallengeType = (challengeType?: string | null) => {
   const normalized = String(challengeType ?? '').toLowerCase()
-  return ['two_step', 'one_step', 'instant_funded'].includes(normalized)
+  return ['two_step', 'one_step'].includes(normalized)
 }
 
 const formatMoney = (amount: number, currency: string) => {
@@ -49,6 +49,9 @@ export const listPublicPlans = async (_req: Request, res: Response, next: NextFu
       { planId: '100k', name: '$100K', price: 354, accountSize: '$100K', currency: 'USD', status: 'Available', enabled: true, challengeType: 'two_step', phase: 'phase_1' },
       { planId: '200k', name: '$200K', price: 681, accountSize: '$200K', currency: 'USD', status: 'Available', enabled: true, challengeType: 'two_step', phase: 'phase_1' },
       { planId: 'attic_200000', name: 'Attic ₦200,000', price: 1500, accountSize: '₦200,000', currency: 'NGN', status: 'Available', enabled: true, challengeType: 'attic', phase: 'phase_1' },
+      { planId: 'ngn1_200000', name: 'NGN 1 Step ₦200,000', price: 6000, accountSize: '₦200,000', currency: 'NGN', status: 'Available', enabled: true, challengeType: 'ngn_one_step', phase: 'phase_1' },
+      { planId: 'ngn1_500000', name: 'NGN 1 Step ₦500,000', price: 13800, accountSize: '₦500,000', currency: 'NGN', status: 'Available', enabled: true, challengeType: 'ngn_one_step', phase: 'phase_1' },
+      { planId: 'ngn1_800000', name: 'NGN 1 Step ₦800,000', price: 20400, accountSize: '₦800,000', currency: 'NGN', status: 'Available', enabled: true, challengeType: 'ngn_one_step', phase: 'phase_1' },
       { planId: '200000', name: '₦200,000', price: 5000, accountSize: '₦200,000', currency: 'NGN', status: 'Available', enabled: true, challengeType: 'ngn_standard', phase: 'phase_1' },
       { planId: '500000', name: '₦500,000', price: 11500, accountSize: '₦500,000', currency: 'NGN', status: 'Available', enabled: true, challengeType: 'ngn_standard', phase: 'phase_1' },
       { planId: '800000', name: '₦800,000', price: 17000, accountSize: '₦800,000', currency: 'NGN', status: 'Available', enabled: true, challengeType: 'ngn_standard', phase: 'phase_1' },
@@ -58,6 +61,7 @@ export const listPublicPlans = async (_req: Request, res: Response, next: NextFu
     const existingPlanIds = new Set(databasePlans.map((plan) => plan.planId))
     const mergedFallbackPlans = fallbackPlans.filter((plan) => !existingPlanIds.has(plan.planId))
     const resolvedPlans = [...databasePlans, ...mergedFallbackPlans]
+      .filter((plan) => String(plan.challengeType ?? '').toLowerCase() !== 'instant_funded')
       .filter((plan) => env.enableUsdChallenges || !isUsdChallengeType(plan.challengeType)) as ChallengePlanRecord[]
 
     res.json({

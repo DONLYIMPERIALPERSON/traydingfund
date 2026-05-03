@@ -92,24 +92,6 @@ export const DEFAULT_TRADING_OBJECTIVES: TradingObjectivesConfig = {
       ],
     },
     {
-      key: 'instant_funded',
-      label: 'Instant Funded',
-      phases: [
-        {
-          key: 'funded',
-          label: 'Instant Funded',
-          rules: [
-            { key: 'max_drawdown', label: 'Max Drawdown', value: '5%' },
-            { key: 'max_daily_drawdown', label: 'Max Daily Drawdown', value: '2%' },
-            { key: 'min_trading_days', label: 'Minimum Trading Days', value: '5' },
-            { key: 'min_trade_duration', label: 'Minimum Trade Duration Rule', value: '3 mins (3 trades closed under 3 mins breach the account)' },
-            { key: 'profit_split', label: 'Profit Split', value: '50%' },
-            { key: 'withdrawals', label: 'Withdrawals', value: 'Bi-weekly' },
-          ],
-        },
-      ],
-    },
-    {
       key: 'attic',
       label: 'Attic Program',
       phases: [
@@ -161,6 +143,35 @@ export const DEFAULT_TRADING_OBJECTIVES: TradingObjectivesConfig = {
             { key: 'withdrawals', label: 'Withdrawals', value: 'Weekly' },
             { key: 'min_trading_days', label: 'Minimum Trading Days', value: '1' },
             { key: 'min_trade_duration', label: 'Minimum Trade Duration Rule', value: '3 mins (3 trades closed under 3 mins breach the account)' },
+          ],
+        },
+      ],
+    },
+    {
+      key: 'ngn_one_step',
+      label: 'NGN 1 Step',
+      phases: [
+        {
+          key: 'phase_1',
+          label: 'Phase 1',
+          rules: [
+            { key: 'max_drawdown', label: 'Max Drawdown', value: '10%' },
+            { key: 'max_daily_drawdown', label: 'Max Daily Drawdown', value: '3%' },
+            { key: 'profit_target', label: 'Profit Target', value: '10%' },
+            { key: 'min_trading_days', label: 'Minimum Trading Days', value: '1' },
+            { key: 'min_trade_duration', label: 'Minimum Trade Duration Rule', value: '0 mins' },
+          ],
+        },
+        {
+          key: 'funded',
+          label: 'Funded',
+          rules: [
+            { key: 'max_drawdown', label: 'Max Drawdown', value: '10%' },
+            { key: 'max_daily_drawdown', label: 'Max Daily Drawdown', value: '3%' },
+            { key: 'profit_split', label: 'Profit Split', value: '80%' },
+            { key: 'withdrawals', label: 'Withdrawals', value: 'Weekly' },
+            { key: 'min_trading_days', label: 'Minimum Trading Days', value: '1' },
+            { key: 'min_trade_duration', label: 'Minimum Trade Duration Rule', value: '0 mins' },
           ],
         },
       ],

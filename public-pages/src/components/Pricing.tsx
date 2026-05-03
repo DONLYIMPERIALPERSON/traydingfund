@@ -61,25 +61,6 @@ const usdTabs: PricingTab[] = [
             'Withdrawals: Weekly',
         ],
     },
-    {
-        key: 'instant',
-        label: 'Instant Funded',
-        tiers: [
-            { account: '$2,000', price: '$53' },
-            { account: '$10,000', price: '$163' },
-            { account: '$30,000', price: '$381' },
-            { account: '$50,000', price: '$612' },
-            { account: '$100,000', price: '$1,091' },
-            { account: '$200,000', price: '$1,910' },
-        ],
-        rules: [
-            'Max Drawdown: 5%',
-            'Max Daily Drawdown: 2%',
-            'Minimum Trading Days: 5',
-            'Profit Split: 50%',
-            'Withdrawals: Bi-weekly',
-        ],
-    },
 ];
 
 const ngnTabs: PricingTab[] = [
@@ -110,6 +91,23 @@ const ngnTabs: PricingTab[] = [
             { account: '₦800,000', price: '₦17,000' },
         ],
         rules: usdTwoPhaseRules,
+    },
+    {
+        key: 'oneStep',
+        label: '1 Step Account',
+        tiers: [
+            { account: '₦200,000', price: '₦6,000' },
+            { account: '₦500,000', price: '₦13,800' },
+            { account: '₦800,000', price: '₦20,400' },
+        ],
+        rules: [
+            'Max Drawdown: 10%',
+            'Max Daily Drawdown: 3%',
+            'Profit Target: 10%',
+            'Minimum Trading Days: 1',
+            'Profit Split: 80%',
+            'Withdrawals: Weekly',
+        ],
     },
     {
         key: 'breezy',

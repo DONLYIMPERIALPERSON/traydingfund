@@ -7,17 +7,17 @@ const faqs = [
   {
     question: 'How fast can I get funded?',
     answer:
-      'You can choose from 1-step, 2-step, or instant funded challenges. Once you pass, you receive a funded account.',
+      'You can choose from 1-step, 2-step, NGN 1-step, NGN Standard, NGN Flexi, or Breezy options. Once you pass the required phase(s), you receive a funded account.',
   },
   {
     question: 'What is max drawdown?',
     answer:
-      'Max drawdown is the total loss limit on your account balance or equity. For 1-Step and 2-Step challenges it is 11%, while Instant Funded accounts use 5%.',
+      'Max drawdown is the total loss limit on your account balance or equity. For 1-Step and 2-Step challenges it is 11%. NGN 1-Step uses 10%.',
   },
   {
     question: 'What is max daily drawdown?',
     answer:
-      'Max daily drawdown is the maximum loss you can take in a single day. It is 5% for 1-Step and 2-Step challenges, and 2% for Instant Funded accounts.',
+      'Max daily drawdown is the maximum loss you can take in a single day. It is 5% for 1-Step and 2-Step challenges, while NGN 1-Step uses 3%.',
   },
   {
     question: 'When does the daily drawdown reset?',
@@ -32,17 +32,17 @@ const faqs = [
   {
     question: 'Do you have minimum trading days?',
     answer:
-      'Yes. 1-Step and 2-Step challenges require at least 1 trading day per phase, while Instant Funded accounts require 5 minimum trading days.',
+      'Yes. 1-Step, 2-Step, and NGN 1-Step challenges require at least 1 trading day per required phase.',
   },
   {
     question: 'What profit split do I receive?',
     answer:
-      'Funded 1-Step and 2-Step accounts pay up to 80% profit split. Instant Funded accounts use a 50% split.',
+      'Funded 1-Step, 2-Step, and NGN 1-Step accounts pay up to 80% profit split.',
   },
   {
     question: 'How often are withdrawals processed?',
     answer:
-      'Withdrawals are weekly for 1-Step and 2-Step funded accounts, and bi-weekly for Instant Funded accounts.',
+      'Withdrawals are weekly for 1-Step, 2-Step, and NGN 1-Step funded accounts.',
   },
   {
     question: 'Do you offer account scaling?',
@@ -50,9 +50,9 @@ const faqs = [
       'Yes. Our scaling conditions are simple: receive 4 payouts and maintain good trading behaviour. After each set of 4 payouts, we scale your account by 50%.',
   },
   {
-    question: 'Do you offer instant funded accounts?',
+    question: 'Do you offer NGN 1-step accounts?',
     answer:
-      'Yes. Our instant funded option provides immediate access to a funded account with defined risk limits.',
+      'Yes. NGN 1-Step is available with Phase 1 to Funded progression, 10% max drawdown, and 3% max daily drawdown.',
   },
   {
     question: 'How do withdrawals work?',

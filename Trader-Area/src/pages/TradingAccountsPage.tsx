@@ -15,7 +15,7 @@ type PricingTier = {
 }
 
 type PricingTab = {
-  key: 'twoPhase' | 'onePhase' | 'instant' | 'ngnStandard' | 'ngnFlexi' | 'breezy'
+  key: 'twoPhase' | 'onePhase' | 'ngnStandard' | 'ngnOneStep' | 'ngnFlexi' | 'breezy'
   label: string
   tiers: PricingTier[]
   rules: string[]
@@ -32,7 +32,7 @@ type AccountView = {
   fee: string
   status: 'available' | 'paused'
   profit_split: string
-  challenge_type: 'two_step' | 'one_step' | 'instant_funded' | 'ngn_standard' | 'ngn_flexi' | 'breezy'
+  challenge_type: 'two_step' | 'one_step' | 'ngn_standard' | 'ngn_one_step' | 'ngn_flexi' | 'breezy'
   phase: 'phase_1' | 'phase_2' | 'funded'
   description?: string
 }
@@ -45,6 +45,16 @@ const pricingTabs: PricingTab[] = [
       { account: '₦200,000', price: '₦5,000' },
       { account: '₦500,000', price: '₦11,500' },
       { account: '₦800,000', price: '₦17,000' },
+    ],
+    rules: [],
+  },
+  {
+    key: 'ngnOneStep',
+    label: 'NGN 1 Step',
+    tiers: [
+      { account: '₦200,000', price: '₦6,000' },
+      { account: '₦500,000', price: '₦13,800' },
+      { account: '₦800,000', price: '₦20,400' },
     ],
     rules: [],
   },
@@ -102,19 +112,6 @@ const pricingTabs: PricingTab[] = [
     ],
     rules: [],
   },
-  {
-    key: 'instant',
-    label: 'Instant Funded',
-    tiers: [
-      { account: '$2K', price: '$53' },
-      { account: '$10K', price: '$163' },
-      { account: '$30K', price: '$381' },
-      { account: '$50K', price: '$612' },
-      { account: '$100K', price: '$1091' },
-      { account: '$200K', price: '$1910' },
-    ],
-    rules: [],
-  },
 ]
 
 const formatAccountSize = (label: string) => {
@@ -152,6 +149,7 @@ const DesktopTradingAccountsPage: React.FC = () => {
   const [planPrices, setPlanPrices] = useState<Record<string, PublicChallengePlan[]>>({})
   const [objectiveRules, setObjectiveRules] = useState<Record<string, string[]>>({})
   const effectiveRules = objectiveRules[activeTab.key] ?? activeTab.rules
+  const visibleRules = effectiveRules.filter((rule) => !rule.toLowerCase().includes('minimum trade duration'))
 
   useEffect(() => {
     const loadObjectives = async () => {
@@ -208,14 +206,13 @@ const DesktopTradingAccountsPage: React.FC = () => {
             return
           }
 
-          if (challenge.key === 'instant_funded') {
-            const instant = challenge.phases[0]
-            next.instant = instant?.rules.map((rule: any) => `${rule.label}: ${rule.value}`) ?? []
+          if (challenge.key === 'ngn_standard') {
+            next.ngnStandard = buildMergedRules(challenge.phases)
             return
           }
 
-          if (challenge.key === 'ngn_standard') {
-            next.ngnStandard = buildMergedRules(challenge.phases)
+          if (challenge.key === 'ngn_one_step') {
+            next.ngnOneStep = buildMergedRules(challenge.phases)
             return
           }
 
@@ -263,10 +260,10 @@ const DesktopTradingAccountsPage: React.FC = () => {
 
     const challengeKey = activeTab.key === 'onePhase'
       ? 'one_step'
-      : activeTab.key === 'instant'
-        ? 'instant_funded'
-        : activeTab.key === 'ngnStandard'
+      : activeTab.key === 'ngnStandard'
           ? 'ngn_standard'
+          : activeTab.key === 'ngnOneStep'
+            ? 'ngn_one_step'
           : activeTab.key === 'ngnFlexi'
             ? 'ngn_flexi'
             : activeTab.key === 'breezy'
@@ -286,9 +283,7 @@ const DesktopTradingAccountsPage: React.FC = () => {
         ? tier.account.replace(/[^0-9]/g, '')
         : tier.account.replace(/[^0-9km.]/gi, '').toLowerCase()
       const challengeType = challengeKey
-      const phase = activeTab.key === 'instant'
-        ? 'funded'
-        : 'phase_1'
+      const phase = 'phase_1'
       const resolvedCurrency = matchedPlan?.currency
         ?? (isNgnAccount ? 'NGN' : 'USD')
       const fee = normalizeDisplayPrice(
@@ -317,17 +312,17 @@ const DesktopTradingAccountsPage: React.FC = () => {
   const isPurchaseRestricted = (tabKey: PricingTab['key']) => {
     const challengeKey = tabKey === 'onePhase'
       ? 'one_step'
-      : tabKey === 'instant'
-        ? 'instant_funded'
-        : tabKey === 'ngnStandard'
+      : tabKey === 'ngnStandard'
           ? 'ngn_standard'
+          : tabKey === 'ngnOneStep'
+            ? 'ngn_one_step'
           : tabKey === 'ngnFlexi'
             ? 'ngn_flexi'
             : tabKey === 'breezy'
               ? 'breezy'
               : 'two_step'
 
-    if (['two_step', 'one_step', 'instant_funded'].includes(challengeKey)) {
+    if (['two_step', 'one_step'].includes(challengeKey)) {
       return (planPrices[challengeKey] ?? []).length === 0
     }
 
@@ -370,7 +365,7 @@ const DesktopTradingAccountsPage: React.FC = () => {
                   <div className="pricing-tier-account">{formatAccountSize(tier.account)}</div>
                 </div>
                 <div className="pricing-tier-details">
-                  {effectiveRules.map((rule) => (
+                  {visibleRules.map((rule) => (
                     <div key={rule} className="pricing-detail">
                       <span className="pricing-bullet">•</span>
                       <span>{rule}</span>
