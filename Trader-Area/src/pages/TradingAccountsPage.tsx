@@ -56,7 +56,14 @@ const pricingTabs: PricingTab[] = [
       { account: '₦500,000', price: '₦13,800' },
       { account: '₦800,000', price: '₦20,400' },
     ],
-    rules: [],
+    rules: [
+      'Max Drawdown: 10%',
+      'Max Daily Drawdown: 3%',
+      'Phase 1 Profit Target: 10%',
+      'Minimum Trading Days: 1',
+      'Profit Split: 80%',
+      'Withdrawals: Weekly',
+    ],
   },
   {
     key: 'ngnFlexi',
@@ -220,6 +227,16 @@ const DesktopTradingAccountsPage: React.FC = () => {
             next.ngnFlexi = buildMergedRules(challenge.phases)
           }
         })
+        if (!next.ngnOneStep || next.ngnOneStep.length === 0) {
+          next.ngnOneStep = [
+            'Max Drawdown: 10%',
+            'Max Daily Drawdown: 3%',
+            'Phase 1 Profit Target: 10%',
+            'Minimum Trading Days: 1',
+            'Profit Split: 80%',
+            'Withdrawals: Weekly',
+          ]
+        }
         setObjectiveRules(next)
       } catch (err) {
         console.error('Failed to load trading objectives', err)

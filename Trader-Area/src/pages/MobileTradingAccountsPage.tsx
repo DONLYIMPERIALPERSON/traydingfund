@@ -33,7 +33,7 @@ type AccountView = {
 
 const pricingTabs: PricingTab[] = [
   { key: 'ngnStandard', label: 'NGN Standard', tiers: [{ account: '₦200,000', price: '₦5,000' }, { account: '₦500,000', price: '₦11,500' }, { account: '₦800,000', price: '₦17,000' }], rules: [] },
-  { key: 'ngnOneStep', label: 'NGN 1 Step', tiers: [{ account: '₦200,000', price: '₦6,000' }, { account: '₦500,000', price: '₦13,800' }, { account: '₦800,000', price: '₦20,400' }], rules: [] },
+  { key: 'ngnOneStep', label: 'NGN 1 Step', tiers: [{ account: '₦200,000', price: '₦6,000' }, { account: '₦500,000', price: '₦13,800' }, { account: '₦800,000', price: '₦20,400' }], rules: ['Max Drawdown: 10%', 'Max Daily Drawdown: 3%', 'Phase 1 Profit Target: 10%', 'Minimum Trading Days: 1', 'Profit Split: 80%', 'Withdrawals: Weekly'] },
   { key: 'ngnFlexi', label: 'NGN Flexi', tiers: [{ account: '₦200,000', price: '₦9,000' }, { account: '₦500,000', price: '₦21,000' }, { account: '₦800,000', price: '₦31,500' }], rules: [] },
   { key: 'breezy', label: 'NGN Breezy', tiers: [{ account: '₦200,000', price: '₦7,500' }, { account: '₦500,000', price: '₦15,000' }, { account: '₦800,000', price: '₦24,000' }, { account: '₦1,000,000', price: '₦30,000' }], rules: ['Challenge: None', 'Daily DD: None', 'Max DD: None', 'Minimum Trades Required: 5', 'Profit Split: Up to 100%', 'Withdrawals: On Demand'] },
   { key: 'twoPhase', label: '2 Step', tiers: [{ account: '$2K', price: '$12' }, { account: '$10K', price: '$81' }, { account: '$30K', price: '$163' }, { account: '$50K', price: '$203' }, { account: '$100K', price: '$354' }, { account: '$200K', price: '$681' }], rules: [] },
@@ -109,6 +109,9 @@ const MobileTradingAccountsPage: React.FC = () => {
           if (challenge.key === 'ngn_one_step') next.ngnOneStep = buildMergedRules(challenge.phases)
           if (challenge.key === 'ngn_flexi') next.ngnFlexi = buildMergedRules(challenge.phases)
         })
+        if (!next.ngnOneStep || next.ngnOneStep.length === 0) {
+          next.ngnOneStep = ['Max Drawdown: 10%', 'Max Daily Drawdown: 3%', 'Phase 1 Profit Target: 10%', 'Minimum Trading Days: 1', 'Profit Split: 80%', 'Withdrawals: Weekly']
+        }
         setObjectiveRules(next)
       } catch (err) {
         console.error('Failed to load trading objectives', err)
