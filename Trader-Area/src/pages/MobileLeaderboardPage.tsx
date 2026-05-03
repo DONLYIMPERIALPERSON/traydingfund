@@ -135,16 +135,31 @@ const MobileLeaderboardPage: React.FC = () => {
 
             <section className="mobile-leaderboard-top10">
               <h2>Top 10</h2>
+              <div className="mobile-leaderboard-top10__labels">
+                <span>Rank</span>
+                <span>Trader</span>
+                <span>Profit</span>
+                <span>Equity</span>
+                <span>Gain %</span>
+              </div>
               {topTenList.map((item) => (
-                <article key={item.challenge_id} className="mobile-leaderboard-row">
-                  <div className="mobile-leaderboard-row__line">
-                    <strong>{item.rank}</strong>
-                    <span>{item.nickname}</span>
-                    <span>{formatByAccountCurrency(item.profit, item.account_type, item.account_size)}</span>
-                    <span>{formatByAccountCurrency(item.equity, item.account_type, item.account_size)}</span>
-                    <span>{item.gain_percent.toFixed(2)}%</span>
+                <article key={item.challenge_id} className="mobile-leaderboard-card mobile-leaderboard-card--list">
+                  <div className="mobile-leaderboard-card__top">
+                    <div className="mobile-leaderboard-card__name-wrap">
+                      <i className="fas fa-medal" />
+                      <strong>{item.nickname}</strong>
+                    </div>
+                    <span className="mobile-leaderboard-card__rank">{item.rank}</span>
                   </div>
-                  <div className="mobile-leaderboard-row__account">Account: {item.account_type} {formatAccountSizeLabel(item.account_type, item.account_size)}</div>
+                  <div className="mobile-leaderboard-card__metrics">
+                    <div><small>Profit</small><strong>{formatByAccountCurrency(item.profit, item.account_type, item.account_size)}</strong></div>
+                    <div><small>Equity</small><strong>{formatByAccountCurrency(item.equity, item.account_type, item.account_size)}</strong></div>
+                    <div><small>Gain %</small><strong>{item.gain_percent.toFixed(2)}%</strong></div>
+                  </div>
+                  <div className="mobile-leaderboard-card__account">
+                    <span>Account</span>
+                    <strong>{item.account_type} {formatAccountSizeLabel(item.account_type, item.account_size)}</strong>
+                  </div>
                 </article>
               ))}
             </section>

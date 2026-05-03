@@ -104,20 +104,24 @@
   color: #ffffff;
 }
 .mobile-leaderboard-top10 h2 { margin: 12px 0 10px; font-size: 16px; }
-.mobile-leaderboard-row { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 10px; margin-bottom: 8px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-.mobile-leaderboard-row__line { display:grid; grid-template-columns: 18px 1fr 1fr 1fr auto; gap:6px; font-size:11px; align-items:center; }
-.mobile-leaderboard-row__line strong {
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
+.mobile-leaderboard-top10__labels {
+  display: grid;
+  grid-template-columns: 38px 1fr 1fr 1fr auto;
+  gap: 8px;
+  padding: 0 8px 8px;
+  font-size: 10px;
   font-weight: 800;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(238,247,251,.65);
+  text-transform: uppercase;
+  letter-spacing: .04em;
 }
-.mobile-leaderboard-row__line span { font-weight: 700; }
-.mobile-leaderboard-row__account { margin-top: 6px; font-size: 11px; color: rgba(238,247,251,.78); font-weight: 700; }
+
+.mobile-leaderboard-card--list {
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+}
+
+.mobile-leaderboard-card--list .mobile-leaderboard-card__name-wrap i {
+  color: #9dd8ff;
+}
 .mobile-leaderboard-state { text-align:center; color: rgba(238,247,251,.8); padding: 20px 0; }
