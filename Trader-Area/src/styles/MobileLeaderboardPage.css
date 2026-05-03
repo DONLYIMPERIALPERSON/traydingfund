@@ -53,6 +53,10 @@
 .mobile-leaderboard-card__name-wrap { display:flex; align-items:center; gap:8px; }
 .mobile-leaderboard-card__name-wrap i { color: #ffcc4d; }
 .mobile-leaderboard-card__name-wrap strong { font-weight: 800; }
+
+.mobile-leaderboard-card--top-1 .mobile-leaderboard-card__name-wrap i { color: #ffcc4d; }
+.mobile-leaderboard-card--top-2 .mobile-leaderboard-card__name-wrap i { color: #c0c7d6; }
+.mobile-leaderboard-card--top-3 .mobile-leaderboard-card__name-wrap i { color: #b0734b; }
 .mobile-leaderboard-card__rank {
   width: 34px;
   height: 34px;
