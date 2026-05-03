@@ -14,15 +14,20 @@ const marketGroups = [
       'GBPJPY',
       'AUDJPY',
       'NZDJPY',
+      'EURCHF',
+      'GBPCHF',
+      'CADJPY',
+      'CHFJPY',
+      'EURAUD',
     ],
   },
   {
     title: 'Metals',
-    symbols: ['XAUUSD', 'XAGUSD'],
+    symbols: ['XAUUSD', 'XAGUSD', 'XPTUSD'],
   },
   {
     title: 'Indices',
-    symbols: ['US30', 'US500', 'USTEC', 'UK100', 'DE30'],
+    symbols: ['US30', 'US500', 'USTEC', 'UK100', 'DE30', 'FRA40', 'JP225'],
   },
   {
     title: 'Crypto',

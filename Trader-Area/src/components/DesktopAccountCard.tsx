@@ -17,6 +17,7 @@ interface AccountProps {
 
 const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType, phase, accountNumber, startDate, amount, currency, platform, status, passedStage, hasPendingWithdrawal }) => {
   const navigate = useNavigate()
+  const isBreezyAccount = String(challengeType ?? '').toLowerCase() === 'breezy'
 
   const formatChallengeType = (value?: string) => {
     if (!value) return null
@@ -270,6 +271,33 @@ const DesktopAccountCard: React.FC<AccountProps> = ({ challengeId, challengeType
             <i className="fas fa-chart-bar" style={{fontSize: '14px'}}></i>
             <span>Account Metrics</span>
           </div>
+
+          {isBreezyAccount && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s',
+                color: '#f8fafc',
+                fontSize: '14px',
+                backgroundColor: 'rgba(11, 159, 184, 0.18)',
+                border: '1px solid rgba(11, 159, 184, 0.35)'
+              }}
+              onClick={(e) => {
+                e.stopPropagation()
+                navigate(`/breezy-analytics?challenge_id=${encodeURIComponent(challengeId)}`)
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(11, 159, 184, 0.28)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(11, 159, 184, 0.18)'}
+            >
+              <i className="fas fa-wave-square" style={{ fontSize: '14px' }}></i>
+              <span>Breezy Analytics</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -28,6 +28,7 @@ import LeaderboardPage from './pages/LeaderboardPage'
 import AccountOverviewPage from './pages/AccountOverviewPage'
 import MobileMetricsPage from './pages/MobileMetricsPage'
 import MobileStatsPage from './pages/MobileStatsPage'
+import MobileLeaderboardPage from './pages/MobileLeaderboardPage'
 import StatisticsPage from './pages/StatisticsPage'
 import CredentialsPage from './pages/CredentialsPage'
 import MobileCredentialsPage from './pages/MobileCredentialsPage'
@@ -38,9 +39,10 @@ import MobileHistoryPage from './pages/MobileHistoryPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import CalendarPage from './pages/CalendarPage'
 import MobileCalendarPage from './pages/MobileCalendarPage'
-import MobileEconomicCalendarPage from './pages/MobileEconomicCalendarPage'
 import AccountRecoveryPage from './pages/AccountRecoveryPage'
 import MobileOverviewPage from './pages/MobileOverviewPage'
+import BreezyAnalyticsPage from './pages/BreezyAnalyticsPage'
+import MobileBreezyAnalyticsPage from './pages/MobileBreezyAnalyticsPage'
 import PWAPrompts from './components/PWAPrompts'
 import AppLoadingScreen from './components/AppLoadingScreen'
 
@@ -59,6 +61,7 @@ const TradingAccountsEntryRoute = () => (isMobileViewport() ? <MobileTradingAcco
 const CredentialsEntryRoute = () => (isMobileViewport() ? <MobileCredentialsPage /> : <CredentialsPage />)
 const MetricsEntryRoute = () => (isMobileViewport() ? <MobileMetricsPage /> : <AccountOverviewPage />)
 const StatisticsEntryRoute = () => (isMobileViewport() ? <MobileStatsPage /> : <StatisticsPage />)
+const BreezyAnalyticsEntryRoute = () => (isMobileViewport() ? <MobileBreezyAnalyticsPage /> : <BreezyAnalyticsPage />)
 const CalendarEntryRoute = () => (isMobileViewport() ? <MobileCalendarPage /> : <CalendarPage />)
 const StartChallengeEntryRoute = () => (isMobileViewport() ? <MobileStartChallengePage /> : <StartChallengePage />)
 const OrdersEntryRoute = () => (isMobileViewport() ? <MobileOrdersPage /> : <OrdersPage />)
@@ -250,10 +253,26 @@ function App() {
             }
           />
           <Route
+            path="/mobile-leaderboard"
+            element={
+              <ProtectedRoute>
+                <MobileLeaderboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/statistics"
             element={
               <ProtectedRoute>
                 <StatisticsEntryRoute />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/breezy-analytics"
+            element={
+              <ProtectedRoute>
+                <BreezyAnalyticsEntryRoute />
               </ProtectedRoute>
             }
           />
@@ -274,10 +293,10 @@ function App() {
             }
           />
           <Route
-            path="/economic-calendar"
+            path="/mobile-calendar"
             element={
               <ProtectedRoute>
-                <MobileEconomicCalendarPage />
+                <MobileCalendarPage />
               </ProtectedRoute>
             }
           />

@@ -7,7 +7,6 @@ import {
   createPhase2RepeatOrder,
   downloadBreachReport,
   fetchUserChallengeAccountDetail,
-  refreshChallengeAccount,
   refreshPaymentOrderStatus,
   type PaymentOrderResponse,
   type UserChallengeAccountDetailResponse,
@@ -94,20 +93,12 @@ const isActiveAccount = (status?: string | null) => {
     || normalized === 'admin_checking'
 }
 
-const isOlderThanThirtyMinutes = (timestamp?: string | null) => {
-  if (!timestamp) return false
-  const parsed = new Date(timestamp)
-  if (Number.isNaN(parsed.getTime())) return false
-  return (Date.now() - parsed.getTime()) > (30 * 60 * 1000)
-}
-
 const MobileMetricsPage: React.FC = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [accountData, setAccountData] = useState<UserChallengeAccountDetailResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [isRefreshing, setIsRefreshing] = useState(false)
   const [isDownloadingBreachReport, setIsDownloadingBreachReport] = useState(false)
   const [isRenewing, setIsRenewing] = useState(false)
   const [currentOrder, setCurrentOrder] = useState<PaymentOrderResponse | null>(null)
@@ -138,24 +129,6 @@ const MobileMetricsPage: React.FC = () => {
 
     loadAccountData().finally(() => setLoading(false))
   }, [challengeId, loadAccountData])
-
-  const handleForceRefresh = useCallback(async () => {
-    if (!challengeId || isRefreshing) return
-
-    try {
-      setIsRefreshing(true)
-      const response = await refreshChallengeAccount(challengeId)
-      setAccountData((current) => current ? {
-        ...current,
-        last_refresh_requested_at: response.requested_at ?? new Date().toISOString(),
-      } : current)
-      await loadAccountData()
-    } catch (refreshError) {
-      console.error('Failed to refresh account metrics', refreshError)
-    } finally {
-      setIsRefreshing(false)
-    }
-  }, [challengeId, isRefreshing, loadAccountData])
 
   const handleDownloadBreachReport = useCallback(async () => {
     if (isDownloadingBreachReport || !challengeId) return
@@ -277,15 +250,10 @@ const MobileMetricsPage: React.FC = () => {
   const isBreezyAccount = String(accountData.challenge_type ?? '').toLowerCase() === 'breezy'
   const normalizedBreachReason = accountData.breached_reason?.toLowerCase() ?? ''
   const isFraudBreach = normalizedBreachReason.includes('fraud')
-  const durationViolationsCount = (accountData.metrics.duration_violations_count ?? 0) > 0
-    ? accountData.metrics.duration_violations_count ?? 0
-    : (Array.isArray(accountData.metrics.trade_duration_violations) ? accountData.metrics.trade_duration_violations.length : 0)
-  const minTradeDurationMinutes = (accountData.metrics as typeof accountData.metrics & { min_trade_duration_minutes?: number | null }).min_trade_duration_minutes ?? 0
   const initialBalance = accountData.initial_balance ?? parseAccountSize(accountData.account_size)
   const profitValue = accountData.metrics.balance - initialBalance
   const profitPercent = initialBalance > 0 ? (profitValue / initialBalance) * 100 : 0
   const latestUpdateTimestamp = accountData.last_feed_at ?? accountData.last_refresh_requested_at
-  const showForceRefreshButton = isActiveAccount(accountData.objective_status) && isOlderThanThirtyMinutes(accountData.last_feed_at)
   const showLastUpdated = isActiveAccount(accountData.objective_status)
   const breezyMetrics = accountData.metrics.breezy
   const breezyScore = Math.max(0, Math.min(100, Number(breezyMetrics?.risk_score ?? accountData.breezy?.risk_score ?? 0)))
@@ -371,11 +339,7 @@ const MobileMetricsPage: React.FC = () => {
           <div className="mobile-metrics-balance-header">
             <span className="mobile-metrics-balance-title">Balance Overview</span>
             <div className="mobile-metrics-update-row mobile-metrics-update-row--header">
-              {showForceRefreshButton ? (
-                <button type="button" className="mobile-metrics-refresh" onClick={() => void handleForceRefresh()}>
-                  {isRefreshing ? 'Updating...' : 'Refresh'}
-                </button>
-              ) : showLastUpdated ? (
+              {showLastUpdated ? (
                 <span>Last updated: {formatRelativeUpdate(latestUpdateTimestamp)}</span>
               ) : null}
             </div>
@@ -441,7 +405,7 @@ const MobileMetricsPage: React.FC = () => {
 
             <div className="mobile-metrics-objectives-list desktop-objectives-list">
               {(
-                ['profit_target', 'max_drawdown', 'max_daily_drawdown', 'min_trade_duration', 'min_trading_days'] as const
+                ['profit_target', 'max_drawdown', 'max_daily_drawdown', 'min_trading_days'] as const
               )
                 .filter((key) => !(accountData.challenge_type === 'ngn_flexi' && key === 'max_daily_drawdown'))
                 .filter((key) => !(accountData.phase?.toLowerCase() === 'funded' && key === 'profit_target'))
@@ -451,27 +415,17 @@ const MobileMetricsPage: React.FC = () => {
                       profit_target: 'Profit Target',
                       max_drawdown: 'Max Drawdown',
                       max_daily_drawdown: 'Max Daily Drawdown',
-                      min_trade_duration: 'Minimum Trade Duration',
                       min_trading_days: 'Minimum Trading Days',
                     }[key],
                     status: 'pending',
                     note: 'Pending',
                   }
-                  const effectiveObjective = key === 'min_trade_duration'
-                    ? {
-                        ...objective,
-                        status: durationViolationsCount >= 3 ? 'breached' : objective.status,
-                        note: objective.note
-                          ? objective.note.replace(/\(\d+\/3\)/, `(${durationViolationsCount}/3)`)
-                          : `Pass • ${minTradeDurationMinutes} min rule (${durationViolationsCount}/3)`,
-                      }
-                    : objective
+                  const effectiveObjective = objective
 
                   const iconMap: Record<string, { icon: string; className: string }> = {
                     max_drawdown: { icon: 'circle-exclamation', className: 'max-loss' },
                     max_daily_drawdown: { icon: 'triangle-exclamation', className: 'max-loss' },
                     profit_target: { icon: 'bullseye', className: 'profit-target' },
-                    min_trade_duration: { icon: 'hourglass-half', className: 'time-rule' },
                     min_trading_days: { icon: 'calendar-days', className: 'trading-days' },
                   }
                   const iconConfig = iconMap[key] ?? { icon: 'clipboard-list', className: 'trading-days' }

@@ -3,8 +3,9 @@ import { prisma } from '../../config/prisma'
 import { Prisma, type Order, type CTraderAccount } from '@prisma/client'
 import { env } from '../../config/env'
 import { ApiError } from '../../common/errors'
-import { createVirtualAccount } from '../../services/safehaven.service'
+import { createTransfer, createVirtualAccount, resolveAccountName } from '../../services/safehaven.service'
 import { getFxRatesConfig } from '../fxRates/fxRates.service'
+import { getAffiliateCommissionPercent } from '../affiliate/affiliate.controller'
 import { pushActiveAccountRemove } from '../../services/ctraderEngine.service'
 import { requestAccountAccess } from '../../services/accessEngine.service'
 import { assignReadyAccountFromPool, buildBaseChallengeId, normalizeChallengeBase } from '../ctrader/ctrader.assignment'
@@ -46,13 +47,14 @@ const assertChallengeTypePurchasable = (challengeType?: string | null) => {
   }
 }
 
-const resolveAffiliateCommissionAmountKobo = (order: { netAmountKobo: number; currency?: string | null; challengeType?: string | null }, usdNgnRate: number) => {
+const resolveAffiliateCommissionAmountKobo = async (order: { netAmountKobo: number; currency?: string | null; challengeType?: string | null }, usdNgnRate: number) => {
   if (String(order.challengeType ?? '').toLowerCase() === 'attic') {
     return 30000
   }
 
   const commissionBaseKobo = toUsdKobo(order.netAmountKobo, order.currency, usdNgnRate)
-  return Math.round(commissionBaseKobo * (AFFILIATE_COMMISSION_PERCENT / 100))
+  const affiliateCommissionPercent = await getAffiliateCommissionPercent()
+  return Math.round(commissionBaseKobo * (affiliateCommissionPercent / 100))
 }
 
 const assignReadyAccount = async (
@@ -76,8 +78,6 @@ const maybeBurnAccount = async (accountId: number) => {
 }
 
 const burnStatuses = new Set(['failed', 'violated', 'breached', 'completed', 'passed'])
-const AFFILIATE_COMMISSION_PERCENT = 30
-
 const toUsdKobo = (amountKobo: number, currency?: string | null, rate?: number) => {
   if (currency?.toUpperCase() === 'NGN') {
     const divider = rate && rate > 0 ? rate : 1300
@@ -87,11 +87,64 @@ const toUsdKobo = (amountKobo: number, currency?: string | null, rate?: number) 
   return amountKobo
 }
 
+const normalizeComparableValue = (value?: string | null) => {
+  const normalized = String(value ?? '').trim().toLowerCase()
+  return normalized || null
+}
+
+const hasMatchingComparableValue = (left?: string | null, right?: string | null) => {
+  const normalizedLeft = normalizeComparableValue(left)
+  const normalizedRight = normalizeComparableValue(right)
+  return Boolean(normalizedLeft && normalizedRight && normalizedLeft === normalizedRight)
+}
+
+const resolveEligibleAffiliateId = async (buyerUserId: number, rawAffiliateId?: number | null) => {
+  const affiliateId = rawAffiliateId ?? null
+  if (!affiliateId || Number.isNaN(affiliateId) || affiliateId <= 0) {
+    return null
+  }
+
+  if (affiliateId === buyerUserId) {
+    return null
+  }
+
+  const [buyer, affiliate] = await Promise.all([
+    prisma.user.findUnique({ where: { id: buyerUserId } }),
+    prisma.user.findUnique({ where: { id: affiliateId } }),
+  ])
+
+  if (!buyer || !affiliate) {
+    return null
+  }
+
+  if (normalizeComparableValue(affiliate.status) !== 'active') {
+    return null
+  }
+
+  if (hasMatchingComparableValue(buyer.email, affiliate.email)) {
+    return null
+  }
+
+  if (hasMatchingComparableValue(buyer.payoutAccountNumber, affiliate.payoutAccountNumber)) {
+    return null
+  }
+
+  if (hasMatchingComparableValue(buyer.payoutCryptoAddress, affiliate.payoutCryptoAddress)) {
+    return null
+  }
+
+  if (hasMatchingComparableValue(buyer.payoutSafeHavenReference, affiliate.payoutSafeHavenReference)) {
+    return null
+  }
+
+  return affiliate.id
+}
+
 const createAffiliateCommission = async (
   tx: Prisma.TransactionClient,
-  order: { id: number; affiliateId?: number | null; netAmountKobo: number; currency?: string | null }
+  order: { id: number; userId: number; affiliateId?: number | null; netAmountKobo: number; currency?: string | null; challengeType?: string | null }
 ) => {
-  const resolvedAffiliateId = order.affiliateId ?? null
+  const resolvedAffiliateId = await resolveEligibleAffiliateId(order.userId, order.affiliateId ?? null)
   if (!resolvedAffiliateId) return
 
   const affiliateCommissionClient = (tx as typeof prisma).affiliateCommission
@@ -103,7 +156,7 @@ const createAffiliateCommission = async (
 
   const fxConfig = await getFxRatesConfig()
   const usdNgnRate = fxConfig.rules?.usd_ngn_rate ?? 1300
-  const commissionAmount = resolveAffiliateCommissionAmountKobo(order, usdNgnRate)
+  const commissionAmount = await resolveAffiliateCommissionAmountKobo(order, usdNgnRate)
 
   await affiliateCommissionClient.create({
     data: {
@@ -113,6 +166,123 @@ const createAffiliateCommission = async (
       status: 'earned',
     },
   })
+}
+
+const shouldRunAffiliateReserveTransfer = (order: Order) =>
+  order.paymentMethod === 'bank_transfer'
+  && order.paymentProvider === 'safehaven'
+  && order.status === 'completed'
+  && order.orderType !== 'breezy_renewal'
+
+const resolveAffiliateReserveTransferAmountNgn = async (order: Order) => {
+  const safehaven = resolveSafeHavenPayload(order)
+  const safehavenAmount = Number(safehaven?.amount)
+  if (Number.isFinite(safehavenAmount) && safehavenAmount > 0) {
+    const affiliateCommissionPercent = await getAffiliateCommissionPercent()
+    return Math.round(safehavenAmount * (affiliateCommissionPercent / 100))
+  }
+
+  if (String(order.currency ?? '').toUpperCase() === 'NGN') {
+    const affiliateCommissionPercent = await getAffiliateCommissionPercent()
+    return Math.round((order.netAmountKobo / 100) * (affiliateCommissionPercent / 100))
+  }
+
+  const fxConfig = await getFxRatesConfig()
+  const affiliateCommissionPercent = await getAffiliateCommissionPercent()
+  const usdNgnRate = fxConfig.rules?.usd_ngn_rate ?? 1300
+  const ngnAmount = Math.round((order.netAmountKobo / 100) * usdNgnRate)
+  return Math.round(ngnAmount * (affiliateCommissionPercent / 100))
+}
+
+const transferAffiliateReserveForSale = async (order: Order) => {
+  if (!shouldRunAffiliateReserveTransfer(order)) return
+  if (!env.safehavenSettlementAccountNumber || !env.safehavenAffiliateDebitAccount || !env.safehavenSettlementBankCode) {
+    console.warn('[affiliate-reserve-transfer] skipped: missing SafeHaven env configuration', {
+      orderId: order.id,
+      providerOrderId: order.providerOrderId,
+    })
+    return
+  }
+
+  const metadata = ((order.metadata as Record<string, unknown> | null) ?? {})
+  const existingTransfer = (metadata.affiliate_reserve_transfer as Record<string, unknown> | undefined) ?? undefined
+  if (existingTransfer?.status === 'completed') {
+    return
+  }
+
+  const amountNgn = await resolveAffiliateReserveTransferAmountNgn(order)
+  if (!Number.isFinite(amountNgn) || amountNgn <= 0) {
+    console.warn('[affiliate-reserve-transfer] skipped: invalid computed amount', {
+      orderId: order.id,
+      providerOrderId: order.providerOrderId,
+      amountNgn,
+    })
+    return
+  }
+
+  try {
+    const enquiry = await resolveAccountName({
+      bankCode: env.safehavenSettlementBankCode,
+      accountNumber: env.safehavenAffiliateDebitAccount,
+    })
+
+    const nameEnquiryReference = enquiry.data?.sessionId ?? enquiry.data?.reference ?? null
+    if (!nameEnquiryReference) {
+      throw new Error('SafeHaven name enquiry did not return a usable reference for affiliate reserve transfer')
+    }
+
+    const paymentReference = `AFF-RESERVE-${order.id}-${Date.now()}`
+    const transferResponse = await createTransfer({
+      nameEnquiryReference,
+      debitAccountNumber: env.safehavenSettlementAccountNumber,
+      beneficiaryBankCode: env.safehavenSettlementBankCode,
+      beneficiaryAccountNumber: env.safehavenAffiliateDebitAccount,
+      amount: amountNgn,
+      saveBeneficiary: false,
+      narration: `Affiliate reserve for sale ${order.providerOrderId}`,
+      paymentReference,
+    })
+
+    const normalizedResponseCode = String(transferResponse.responseCode ?? '').trim()
+    const normalizedTransferStatus = String(transferResponse.data?.status ?? '').trim().toLowerCase()
+    const transferSucceeded = normalizedResponseCode === '00'
+      && (!normalizedTransferStatus || ['completed', 'success', 'successful', 'approved'].includes(normalizedTransferStatus))
+
+    if (!transferSucceeded) {
+      throw new Error(`SafeHaven internal reserve transfer failed (${normalizedResponseCode || 'no_code'}: ${transferResponse.message ?? 'Unknown error'})`)
+    }
+
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        metadata: {
+          ...metadata,
+          affiliate_reserve_transfer: {
+            status: 'completed',
+            amount_ngn: amountNgn,
+            payment_reference: paymentReference,
+            response_code: transferResponse.responseCode ?? null,
+            transfer_reference: transferResponse.data?.reference ?? transferResponse.data?.transactionReference ?? null,
+            completed_at: new Date().toISOString(),
+          },
+        } as Prisma.InputJsonValue,
+      },
+    })
+
+    console.log('[affiliate-reserve-transfer] completed', {
+      orderId: order.id,
+      providerOrderId: order.providerOrderId,
+      amountNgn,
+      destinationAccount: env.safehavenAffiliateDebitAccount,
+    })
+  } catch (error) {
+    console.error('[affiliate-reserve-transfer] failed without blocking sale', {
+      orderId: order.id,
+      providerOrderId: order.providerOrderId,
+      destinationAccount: env.safehavenAffiliateDebitAccount,
+      error: error instanceof Error ? error.message : error,
+    })
+  }
 }
 
 const formatCurrency = (amountKobo: number, currency: string = 'USD') => {
@@ -527,7 +697,7 @@ const handleCompletedOrder = async (order: Order) => {
         subject: buildEmailSubject('Your purchase receipt & trading objectives'),
         title: 'Challenge Purchase Confirmed',
         subtitle: 'Your trading objectives are ready',
-        content: `Thank you for your purchase! Your ${order.accountSize} ${order.challengeType ?? 'two_step'} challenge has been confirmed. Please review your receipt and objectives below.`,
+        content: `Thank you for your purchase! Your ${order.accountSize} ${order.challengeType ?? 'two_step'} challenge has been confirmed. Please review your receipt and objectives below. Also review our supported markets before trading: https://machefunded.com/supported-markets`,
         buttonText: 'View Dashboard',
         infoBox: [
           `Receipt: ${formatCurrency(order.netAmountKobo, order.currency ?? 'USD')} (${order.paymentMethod ?? 'payment'})`,
@@ -840,6 +1010,7 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
     const affiliateId = rawAffiliateId
       ? Number(Array.isArray(rawAffiliateId) ? rawAffiliateId[0] : rawAffiliateId)
       : (req.body as { affiliate_id?: number }).affiliate_id
+    const eligibleAffiliateId = await resolveEligibleAffiliateId(user.id, affiliateId)
 
     if (!plan_id || !account_size || !amount_kobo || !challenge_type || !phase) {
       throw new ApiError('plan_id, account_size, amount_kobo, challenge_type, and phase are required', 400)
@@ -897,7 +1068,7 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
           },
           paidAt: new Date(),
           userId: user.id,
-          affiliateId: affiliateId && !Number.isNaN(affiliateId) && affiliateId !== user.id ? affiliateId : null,
+          affiliateId: eligibleAffiliateId,
           idempotencyKey,
         } as Prisma.OrderUncheckedCreateInput,
       })
@@ -980,7 +1151,7 @@ export const createBankTransferOrder = async (req: AuthRequest, res: Response, n
           couponId: couponResult.couponId,
         },
         userId: user.id,
-        affiliateId: affiliateId && !Number.isNaN(affiliateId) && affiliateId !== user.id ? affiliateId : null,
+        affiliateId: eligibleAffiliateId,
         idempotencyKey,
       } as Prisma.OrderUncheckedCreateInput,
     })
@@ -1227,6 +1398,7 @@ export const createFreeOrder = async (req: AuthRequest, res: Response, next: Nex
     const affiliateId = rawAffiliateId
       ? Number(Array.isArray(rawAffiliateId) ? rawAffiliateId[0] : rawAffiliateId)
       : (req.body as { affiliate_id?: number }).affiliate_id
+    const eligibleAffiliateId = await resolveEligibleAffiliateId(user.id, affiliateId)
 
     if (!plan_id || !account_size || !amount_kobo || !challenge_type || !phase) {
       throw new ApiError('plan_id, account_size, amount_kobo, challenge_type, and phase are required', 400)
@@ -1283,7 +1455,7 @@ export const createFreeOrder = async (req: AuthRequest, res: Response, next: Nex
         metadata: { platform: normalizedPlatform, couponId: couponResult.couponId },
         paidAt: new Date(),
         userId: user.id,
-        affiliateId: affiliateId && !Number.isNaN(affiliateId) && affiliateId !== user.id ? affiliateId : null,
+        affiliateId: eligibleAffiliateId,
         idempotencyKey,
       } as Prisma.OrderUncheckedCreateInput,
     })
@@ -1292,9 +1464,11 @@ export const createFreeOrder = async (req: AuthRequest, res: Response, next: Nex
       const affiliateId = (order as { affiliateId?: number | null }).affiliateId
       await createAffiliateCommission(prisma, {
         id: order.id,
+        userId: order.userId,
         ...(affiliateId !== undefined && affiliateId !== null ? { affiliateId } : {}),
         netAmountKobo: order.netAmountKobo,
         currency: order.currency,
+        challengeType: order.challengeType,
       })
     }
 
@@ -1324,6 +1498,7 @@ export const createCryptoOrder = async (req: AuthRequest, res: Response, next: N
     const affiliateId = rawAffiliateId
       ? Number(Array.isArray(rawAffiliateId) ? rawAffiliateId[0] : rawAffiliateId)
       : (req.body as { affiliate_id?: number }).affiliate_id
+    const eligibleAffiliateId = await resolveEligibleAffiliateId(user.id, affiliateId)
 
     if (!plan_id || !account_size || !amount_kobo || !crypto_currency || !challenge_type || !phase) {
       throw new ApiError('plan_id, account_size, amount_kobo, crypto_currency, challenge_type, and phase are required', 400)
@@ -1386,7 +1561,7 @@ export const createCryptoOrder = async (req: AuthRequest, res: Response, next: N
         cryptoCurrency: normalizedCurrency,
         cryptoAddress: address,
         userId: user.id,
-        affiliateId: affiliateId && !Number.isNaN(affiliateId) && affiliateId !== user.id ? affiliateId : null,
+        affiliateId: eligibleAffiliateId,
         idempotencyKey,
       } as Prisma.OrderUncheckedCreateInput,
     })
@@ -1441,9 +1616,11 @@ export const handleSafeHavenWebhook = async (req: Request, res: Response, next: 
         const affiliateId = (nextOrder as { affiliateId?: number | null }).affiliateId
       await createAffiliateCommission(tx, {
         id: nextOrder.id,
+        userId: nextOrder.userId,
         ...(affiliateId !== undefined && affiliateId !== null ? { affiliateId } : {}),
         netAmountKobo: nextOrder.netAmountKobo,
         currency: nextOrder.currency,
+        challengeType: nextOrder.challengeType,
       })
       }
 
@@ -1503,6 +1680,8 @@ export const handleSafeHavenWebhook = async (req: Request, res: Response, next: 
       } else {
         await handleCompletedOrder(updatedOrder)
       }
+
+      await transferAffiliateReserveForSale(updatedOrder)
     }
 
     res.json({ received: true })

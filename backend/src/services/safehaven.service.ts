@@ -1,6 +1,12 @@
 import { env } from '../config/env'
 import crypto from 'crypto'
 
+const debugSafeHaven = (...args: unknown[]) => {
+  if (env.nodeEnv !== 'production' && process.env.DEBUG_SAFEHAVEN === 'true') {
+    console.log('[safehaven]', ...args)
+  }
+}
+
 class SafeHavenResponseError extends Error {
   status: number | undefined
   headers: Record<string, string> | undefined
@@ -48,6 +54,19 @@ export type SafeHavenNameEnquiryResponse = {
     bankCode?: string
     reference?: string
     sessionId?: string
+    [key: string]: unknown
+  }
+}
+
+export type SafeHavenTransferResponse = {
+  statusCode?: number
+  responseCode?: string
+  message?: string
+  data?: {
+    sessionId?: string
+    reference?: string
+    transactionReference?: string
+    status?: string
     [key: string]: unknown
   }
 }
@@ -128,9 +147,7 @@ const requestAccessToken = async () => {
   const rawText = await response.text()
   const responseHeaders = Object.fromEntries(response.headers.entries())
 
-  console.log('SAFEHAVEN TOKEN STATUS:', response.status)
-  console.log('SAFEHAVEN TOKEN HEADERS:', responseHeaders)
-  console.log('SAFEHAVEN TOKEN RAW DATA:', rawText)
+  debugSafeHaven('token status', response.status)
 
   if (!response.ok) {
     console.error('SAFEHAVEN TOKEN REQUEST FAILED:', {
@@ -145,11 +162,8 @@ const requestAccessToken = async () => {
   }
 
   try {
-    console.log('BEFORE TOKEN PARSE:', rawText)
-
     const parsed = JSON.parse(rawText) as SafeHavenTokenResponse
-
-    console.log('PARSED TOKEN RESPONSE:', parsed)
+    debugSafeHaven('token parsed', { expiresIn: parsed.expires_in, tokenType: parsed.token_type })
 
     return parsed
   } catch (err) {
@@ -177,9 +191,7 @@ const makeAuthenticatedRequest = async <T>(path: string, init: RequestInit = {})
   const rawText = await response.text()
   const responseHeaders = Object.fromEntries(response.headers.entries())
 
-  console.log('SAFEHAVEN STATUS:', response.status)
-  console.log('SAFEHAVEN HEADERS:', responseHeaders)
-  console.log('SAFEHAVEN RAW DATA:', rawText)
+  debugSafeHaven('request status', { path, status: response.status })
 
   if (!response.ok) {
     console.error('SAFEHAVEN REQUEST FAILED:', {
@@ -195,11 +207,8 @@ const makeAuthenticatedRequest = async <T>(path: string, init: RequestInit = {})
   }
 
   try {
-    console.log('BEFORE PARSE:', rawText)
-
     const parsed = JSON.parse(rawText) as T
-
-    console.log('PARSED SAFEHAVEN RESPONSE:', parsed)
+    debugSafeHaven('request parsed', { path, ok: true })
 
     return parsed
   } catch (err) {
@@ -403,3 +412,44 @@ export const resolveAccountName = async (payload: { bankCode: string; accountNum
       body: JSON.stringify(payload),
     }
   )
+
+export const createTransfer = async (payload: {
+  nameEnquiryReference: string
+  debitAccountNumber: string
+  beneficiaryBankCode: string
+  beneficiaryAccountNumber: string
+  amount: number
+  saveBeneficiary?: boolean
+  narration?: string
+  paymentReference?: string
+}) => {
+  if (!payload.nameEnquiryReference) {
+    throw new Error('SafeHaven transfer requires a name enquiry reference')
+  }
+
+  if (!payload.debitAccountNumber) {
+    throw new Error('SafeHaven transfer requires a debit account number')
+  }
+
+  if (!payload.beneficiaryBankCode || !payload.beneficiaryAccountNumber) {
+    throw new Error('SafeHaven transfer requires beneficiary bank details')
+  }
+
+  if (!payload.amount || Number.isNaN(payload.amount) || payload.amount <= 0) {
+    throw new Error('SafeHaven transfer amount must be greater than zero')
+  }
+
+  return makeAuthenticatedRequest<SafeHavenTransferResponse>('/transfers', {
+    method: 'POST',
+    body: JSON.stringify({
+      nameEnquiryReference: payload.nameEnquiryReference,
+      debitAccountNumber: payload.debitAccountNumber,
+      beneficiaryBankCode: payload.beneficiaryBankCode,
+      beneficiaryAccountNumber: payload.beneficiaryAccountNumber,
+      amount: payload.amount,
+      saveBeneficiary: payload.saveBeneficiary ?? false,
+      narration: payload.narration ?? 'Affiliate payout',
+      paymentReference: payload.paymentReference,
+    }),
+  })
+}

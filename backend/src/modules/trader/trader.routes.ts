@@ -13,6 +13,7 @@ import {
   generatePassedChallengeCertificatePreview,
   listCertificates,
   updateProfile,
+  getMobileLeaderboard,
   requestChallengeRefresh,
 } from './trader.controller'
 import {
@@ -104,6 +105,7 @@ traderRouter.post('/certificates/onboarding-preview', generateOnboardingCertific
 traderRouter.post('/certificates/passed-challenge-preview', generatePassedChallengeCertificatePreview)
 traderRouter.post('/certificates/breach-report-previews', generateBreachReportPreviews)
 traderRouter.get('/challenges', authenticate, requireRole('trader'), listChallengeAccounts)
+traderRouter.get('/leaderboard/mobile', authenticate, requireRole('trader'), getMobileLeaderboard)
 traderRouter.get('/challenges/:challengeId', authenticate, requireRole('trader'), getChallengeAccountDetail)
 traderRouter.get('/challenges/:challengeId/calendar', authenticate, requireRole('trader'), getChallengeCalendar)
 traderRouter.get('/challenges/:challengeId/breach-report', authenticate, requireRole('trader'), downloadBreachReport)

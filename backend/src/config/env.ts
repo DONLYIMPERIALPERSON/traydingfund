@@ -20,6 +20,10 @@ export const env = {
   safehavenPrivateKey: process.env.SAFEHAVEN_PRIVATE_KEY ?? '',
   safehavenAudience: process.env.SAFEHAVEN_AUDIENCE ?? '',
   safehavenSettlementBankCode: process.env.SAFEHAVEN_SETTLEMENT_BANK_CODE ?? '',
+  safehavenAffiliateDebitAccount:
+    process.env.SAFEHAVEN_AFFILIATE_DEBIT_ACCOUNT
+    ?? process.env.SAFEHEVEN_AFFILITE_DEBIT_ACCOUNT
+    ?? '',
   accessEngineBaseUrl: process.env.ACCESS_ENGINE_BASE_URL ?? 'https://access-engine.placeholder',
   ctraderEngineWebhookUrl: process.env.CTRADER_ENGINE_WEBHOOK_URL ?? '',
   ctraderEngineSyncEnabled: String(process.env.CTRADER_ENGINE_SYNC_ENABLED ?? 'true').toLowerCase() === 'true',

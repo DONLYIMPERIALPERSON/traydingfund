@@ -359,10 +359,22 @@ export type AffiliateOverviewStats = {
   total_affiliates: number
   total_commissions: number
   total_paid_out: number
+  total_auto_paid_out_today: number
+  commission_percent: number
   pending_payouts_count: number
   pending_payouts_sum: number
   pending_milestones: number
   unique_purchasers: number
+}
+
+export type AffiliateCommissionConfigResponse = {
+  id: number
+  key: string
+  label: string
+  rules: {
+    commission_percent: number
+  }
+  updated_at: string
 }
 
 export type AffiliateCommission = {
@@ -544,6 +556,13 @@ export type UserProfileData = {
     is_verified?: boolean
     verified_at?: string | null
   }
+}
+
+export type AdminResetUserKycResponse = {
+  message: string
+  user_id: number
+  email: string
+  kyc_status: string
 }
 
 export type UserChallengeAccount = {
@@ -1160,6 +1179,12 @@ export const updateTradingObjectives = async (payload: { rules: TradingObjective
 export const fetchAffiliateOverview = async () =>
   apiFetch<AffiliateOverviewStats>('/admin/affiliate/overview')
 
+export const updateAffiliateCommissionPercent = async (commission_percent: number) =>
+  apiFetch<AffiliateCommissionConfigResponse>('/admin/affiliate/config', {
+    method: 'PUT',
+    body: JSON.stringify({ commission_percent }),
+  })
+
 export const fetchAffiliateCommissions = async (page: number = 1, perPage: number = 50) => {
   const params = new URLSearchParams()
   params.set('page', String(page))
@@ -1293,4 +1318,9 @@ export const sendUserEmail = async (userId: number, subject: string, message: st
   apiFetch<{ message: string }>(`/admin/users/${userId}/email`, {
     method: 'POST',
     body: JSON.stringify({ subject, message }),
+  })
+
+export const resetUserKyc = async (userId: number) =>
+  apiFetch<AdminResetUserKycResponse>(`/admin/users/${userId}/kyc/reset`, {
+    method: 'POST',
   })

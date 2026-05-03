@@ -26,7 +26,6 @@ const rulesData = [
             'Phase 2 Profit Target: 10%',
             'Max Drawdown: 20%',
             'No Minimum Trading Days',
-            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)',
             'Profit Split: 70%',
             'Withdrawals: Daily',
         ],
@@ -39,7 +38,6 @@ const rulesData = [
             'Phase 1 Profit Target: 10%',
             'Phase 2 Profit Target: 5%',
             'Minimum Trading Days: 1',
-            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)',
             'Profit Split: 80%',
             'Withdrawals: Weekly',
         ],
@@ -51,7 +49,6 @@ const rulesData = [
             'Max Daily Drawdown: 5%',
             'Profit Target: 10%',
             'Minimum Trading Days: 1',
-            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)',
         ],
     },
     {
@@ -61,7 +58,6 @@ const rulesData = [
             'Max Daily Drawdown: 5%',
             'Profit Target: 5%',
             'Minimum Trading Days: 1',
-            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)',
         ],
     },
     {
@@ -72,7 +68,6 @@ const rulesData = [
             'Profit Split: 80%',
             'Withdrawals: Weekly',
             'Minimum Trading Days: 1',
-            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)',
         ],
     },
     {
@@ -82,7 +77,6 @@ const rulesData = [
             'Max Daily Drawdown: 5%',
             'Profit Target: 10%',
             'Minimum Trading Days: 1',
-            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)',
         ],
     },
     {
@@ -93,7 +87,6 @@ const rulesData = [
             'Profit Split: 80%',
             'Withdrawals: Weekly',
             'Minimum Trading Days: 1',
-            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)',
         ],
     },
     {
@@ -102,7 +95,6 @@ const rulesData = [
             'Max Drawdown: 5%',
             'Max Daily Drawdown: 2%',
             'Minimum Trading Days: 5',
-            'Minimum Trade Duration Rule: 3 mins (3 trades closed under 3 mins breach the account)',
             'Profit Split: 50%',
             'Withdrawals: Bi-weekly',
         ],
@@ -140,6 +132,16 @@ export default function Rules() {
                     </h2>
                     <p className="text-gray-300 mt-3 max-w-2xl mx-auto">
                         The essentials only—clear drawdown limits, targets, and payout schedules.
+                    </p>
+                </div>
+
+                <div className="mb-8 rounded-2xl border border-[#ffd700]/45 bg-[#ffd700]/10 px-4 py-3 text-center">
+                    <p className="text-sm font-semibold text-[#ffe8a3]">
+                        Important: Check the{' '}
+                        <a href="/supported-markets" className="underline hover:text-white">
+                            supported markets list
+                        </a>{' '}
+                        before trading. Trading an unsupported pair will result in a breach.
                     </p>
                 </div>
 
@@ -209,6 +211,13 @@ export default function Rules() {
                     </div>
                 </div>
                 <div className="mt-8 text-center">
+                    <p className="mb-3 text-sm text-[#ffd7a3]">
+                        Note: Please check the{' '}
+                        <a href="/supported-markets" className="underline hover:text-white">
+                            supported markets list
+                        </a>{' '}
+                        before trading. Trading an unsupported pair will result in a breach.
+                    </p>
                     <a
                         href="/supported-markets"
                         className="inline-flex items-center justify-center rounded-full border border-[#ffd700] px-5 py-2 text-sm font-semibold text-[#ffd700] transition hover:bg-[#ffd700] hover:text-black"

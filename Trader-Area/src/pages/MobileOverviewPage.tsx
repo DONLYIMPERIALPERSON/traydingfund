@@ -18,7 +18,7 @@ const HIDDEN_BREACHED_ACCOUNTS_KEY = 'trader_area_hidden_breached_accounts'
 const bottomNavItems = [
   { label: 'Accounts', icon: 'fa-wallet', href: '/mobile-overview' },
   { label: 'Rewards', icon: 'fa-gift', href: '/payout' },
-  { label: 'Calendar', icon: 'fa-calendar-alt', href: '/economic-calendar' },
+  { label: 'Leaderboard', icon: 'fa-trophy', href: '/mobile-leaderboard' },
   { label: 'Affiliate', icon: 'fa-users', href: '/affiliate' },
   { label: 'Profile', icon: 'fa-user', href: '/profile' },
 ]
@@ -144,14 +144,14 @@ const SlideCard: React.FC<SlideCardProps> = ({ account, onHideBreached, onRenew,
     navigate(`/credentials?challenge_id=${encodeURIComponent(account.challenge_id)}`)
   }
 
-  const handleOpenCalendar = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleOpenTradingCalendar = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
-    navigate(`/calendar?challenge_id=${encodeURIComponent(account.challenge_id)}`)
+    navigate(`/mobile-calendar?challenge_id=${encodeURIComponent(account.challenge_id)}`)
   }
 
   const handleOpenStats = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
-    navigate(`/statistics?challenge_id=${encodeURIComponent(account.challenge_id)}`)
+    navigate(`${isBreezyAccount ? '/breezy-analytics' : '/statistics'}?challenge_id=${encodeURIComponent(account.challenge_id)}`)
   }
 
   const handleHideBreached = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -224,17 +224,17 @@ const SlideCard: React.FC<SlideCardProps> = ({ account, onHideBreached, onRenew,
           </span>
           <span className="mobile-overview-slide-card__action-label">Metrics</span>
         </button>
-        <button type="button" className="mobile-overview-slide-card__action-item" onClick={handleOpenCalendar}>
+        <button type="button" className="mobile-overview-slide-card__action-item" onClick={handleOpenTradingCalendar}>
           <span className="mobile-overview-slide-card__action-icon">
             <i className="fas fa-calendar-alt" />
           </span>
-          <span className="mobile-overview-slide-card__action-label">Calendar</span>
+          <span className="mobile-overview-slide-card__action-label">Trading Calendar</span>
         </button>
         <button type="button" className="mobile-overview-slide-card__action-item" onClick={handleOpenStats}>
           <span className="mobile-overview-slide-card__action-icon">
             <i className="fas fa-chart-pie" />
           </span>
-          <span className="mobile-overview-slide-card__action-label">Stats</span>
+          <span className="mobile-overview-slide-card__action-label">{isBreezyAccount ? 'Breezy Analytics' : 'Stats'}</span>
         </button>
       </div>
     </article>

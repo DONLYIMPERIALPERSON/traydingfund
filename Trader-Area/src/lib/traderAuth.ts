@@ -1,6 +1,17 @@
 import { apiFetch } from '../lib/api'
 
 const MOCK_USER_KEY = 'nairatrader_auth_user'
+const AFFILIATE_REFERRER_KEY = 'affiliate_referrer_id'
+
+function clearSelfReferralMarker(user: Pick<AuthMeResponse, 'id'>): void {
+  const storedAffiliateId = localStorage.getItem(AFFILIATE_REFERRER_KEY)
+  if (!storedAffiliateId) return
+
+  const numericAffiliateId = Number(storedAffiliateId)
+  if (!Number.isNaN(numericAffiliateId) && numericAffiliateId === user.id) {
+    localStorage.removeItem(AFFILIATE_REFERRER_KEY)
+  }
+}
 
 export type AuthMeResponse = {
   id: number
@@ -78,6 +89,15 @@ export type KycUploadProxyResponse = {
 
 export type KycHistoryResponse = {
   requests: KycRequestItem[]
+}
+
+export type BankKycSubmissionResponse = {
+  status: string
+  message: string
+  kyc_status: string
+  bank_code: string
+  bank_account_number: string
+  account_name: string
 }
 
 export type WithdrawalPrecheckResponse = {
@@ -189,7 +209,8 @@ export type UserChallengeMetrics = {
     capital_protection_level?: number | null
     risk_score?: number | null
     risk_score_band?: string | null
-    risk_components?: Record<string, number> | null
+    risk_components?: Record<string, unknown> | null
+    transparency?: BreezyTransparency | null
     effective_profit_split_percent?: number | null
     withdrawal_eligible?: boolean | null
     withdrawal_block_reason?: string | null
@@ -252,6 +273,8 @@ export type UserChallengeAccountDetailResponse = {
     withdrawal_block_reason?: string | null
     risk_score?: number | null
     risk_score_band?: string | null
+    risk_components?: Record<string, unknown> | null
+    transparency?: BreezyTransparency | null
     profit_split_percent?: number | null
     subscription_started_at?: string | null
     subscription_expires_at?: string | null
@@ -259,6 +282,48 @@ export type UserChallengeAccountDetailResponse = {
     renewal_price_kobo?: number | null
     can_renew?: boolean | null
   } | null
+}
+
+export type BreezyTradeCard = {
+  position_id?: string | null
+  deal_id?: string | null
+  symbol?: string | null
+  profit?: number | null
+  volume?: number | null
+  opened_at_ms?: number | null
+  closed_at_ms?: number | null
+  duration_minutes?: number | null
+  trade_score?: number | null
+  behavior_adjustment?: number | null
+  final_trade_delta?: number | null
+  weighted_trade_delta?: number | null
+  weighted_behavior_delta?: number | null
+  previous_score?: number | null
+  new_score?: number | null
+  risk_usage_score?: number | null
+  efficiency_score?: number | null
+  duration_score?: number | null
+  behavior_details?: Record<string, number | null> | null
+}
+
+export type BreezyHealthyDay = {
+  date: string
+  closed_trades: number
+  worst_trade_score: number
+  has_revenge_pattern: boolean
+  has_lot_inconsistency: boolean
+  healthy: boolean
+}
+
+export type BreezyTransparency = {
+  score_breakdown?: {
+    trades_contribution?: number
+    behavior_contribution?: number
+    healthy_day_bonus?: number
+    final_breezy_score?: number
+  } | null
+  healthy_days?: BreezyHealthyDay[] | null
+  trade_cards?: BreezyTradeCard[] | null
 }
 
 export type UserChallengeCalendarDay = {
@@ -276,21 +341,23 @@ export type UserChallengeCalendarResponse = {
   daily_pnl: UserChallengeCalendarDay[]
 }
 
-export type EconomicCalendarItem = {
-  event: string
-  country: string
-  date: string
-  impact: 'High' | 'Medium' | 'Low' | string
-  actual: string | null
-  forecast: string | null
-  previous: string | null
+export type MobileLeaderboardItem = {
+  rank: number
+  challenge_id: string
+  nickname: string
+  profit: number
+  equity: number
+  gain_percent: number
+  account_type: string
+  account_size: string
+  account_size_value: number | null
 }
 
-export type EconomicCalendarResponse = {
+export type MobileLeaderboardResponse = {
   success: boolean
-  count: number
-  data: EconomicCalendarItem[]
+  data: MobileLeaderboardItem[]
 }
+
 
 export type CertificateResponse = {
   id: number
@@ -445,12 +512,14 @@ export async function fetchCurrentUser(): Promise<AuthMeResponse> {
   const cached = getPersistedAuthUser()
   if (cached) return cached
   const profile = await apiFetch<AuthMeResponse>('/trader/me')
+  clearSelfReferralMarker(profile)
   persistAuthUser(profile)
   return profile
 }
 
 export async function loginWithBackend(): Promise<AuthMeResponse> {
   const user = await apiFetch<AuthMeResponse>('/trader/me')
+  clearSelfReferralMarker(user)
   persistAuthUser(user)
   return user
 }
@@ -463,6 +532,7 @@ export async function logoutFromBackend(): Promise<void> {
 export async function fetchProfile(): Promise<AuthMeResponse> {
   try {
     const profile = await apiFetch<AuthMeResponse>('/trader/me')
+    clearSelfReferralMarker(profile)
     persistAuthUser(profile)
     return profile
   } catch (error) {
@@ -579,6 +649,16 @@ export async function submitKyc(payload: {
   return response
 }
 
+export async function submitBankKyc(payload: {
+  bank_code: string
+  bank_account_number: string
+}): Promise<BankKycSubmissionResponse> {
+  return apiFetch<BankKycSubmissionResponse>('/kyc/bank-verify', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function fetchBankAccountProfile(): Promise<BankAccountProfile | null> {
   const profile = await fetchProfile()
   if (!profile.payout_bank_code || !profile.payout_account_number || !profile.payout_account_name) {
@@ -636,9 +716,8 @@ export async function fetchUserChallengeCalendar(challengeId: string): Promise<U
   return apiFetch<UserChallengeCalendarResponse>(`/trader/challenges/${encodeURIComponent(challengeId)}/calendar`)
 }
 
-export async function fetchEconomicCalendar(impact?: string): Promise<EconomicCalendarResponse> {
-  const query = impact && impact !== 'All' ? `?impact=${encodeURIComponent(impact)}` : ''
-  return apiFetch<EconomicCalendarResponse>(`/calendar${query}`)
+export async function fetchMobileLeaderboard(): Promise<MobileLeaderboardResponse> {
+  return apiFetch<MobileLeaderboardResponse>('/trader/leaderboard/mobile')
 }
 
 export async function fetchTradingObjectives(): Promise<TradingObjectivesResponse> {

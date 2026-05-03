@@ -30,6 +30,7 @@ BACKEND_ACTIVE_ACCOUNTS_ENDPOINT = settings.get("BACKEND_ACTIVE_ACCOUNTS_ENDPOIN
 BACKEND_ENGINE_SECRET = settings.get("BACKEND_ENGINE_SECRET", "")
 SYNC_INTERVAL_SECONDS = int(settings.get("SYNC_INTERVAL_SECONDS", 30))
 ACCOUNT_COOLDOWN_SECONDS = int(settings.get("ACCOUNT_COOLDOWN_SECONDS", 300))
+LAST_METRICS_STATE_FILE = os.path.join(BASE_FOLDER, settings.get("LAST_METRICS_STATE_FILE", "account_last_metrics_state.json"))
 COMMON_FILES_DIR = os.path.join(
     os.environ.get("APPDATA", ""),
     "MetaQuotes",
@@ -101,6 +102,39 @@ def save_cooldown_state(last_processed_at: Dict[str, float]) -> None:
             json.dump(last_processed_at, f, indent=2)
     except Exception as exc:
         print(f"[replay-mt5] Failed to write cooldown state: {exc}")
+
+
+def load_last_metrics_state() -> Dict[str, Dict[str, float]]:
+    if not os.path.exists(LAST_METRICS_STATE_FILE):
+        return {}
+    try:
+        with open(LAST_METRICS_STATE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            return {}
+        normalized: Dict[str, Dict[str, float]] = {}
+        for account_number, state in data.items():
+            if not isinstance(state, dict):
+                continue
+            try:
+                normalized[str(account_number)] = {
+                    "current_balance": float(state.get("current_balance")),
+                    "current_equity": float(state.get("current_equity")),
+                }
+            except Exception:
+                continue
+        return normalized
+    except Exception as exc:
+        print(f"[replay-mt5] Failed to read last metrics state: {exc}")
+        return {}
+
+
+def save_last_metrics_state(last_metrics_state: Dict[str, Dict[str, float]]) -> None:
+    try:
+        with open(LAST_METRICS_STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(last_metrics_state, f, indent=2)
+    except Exception as exc:
+        print(f"[replay-mt5] Failed to write last metrics state: {exc}")
 
 
 def fetch_active_accounts() -> List[Dict[str, str]]:
@@ -283,13 +317,17 @@ def rotate_due_accounts(due_accounts: List[Dict[str, str]]) -> List[Dict[str, st
     return rotated
 
 
-def send_metrics_from_file(account_number: str, account_meta: Dict[str, str] | None = None) -> bool:
+def send_metrics_from_file(
+    account_number: str,
+    account_meta: Dict[str, str] | None = None,
+    last_metrics_state: Dict[str, Dict[str, float]] | None = None,
+) -> str:
     filename = f"metrics_{account_number}.json"
     file_path = os.path.join(COMMON_FILES_DIR, filename)
 
     if not os.path.exists(file_path):
         log_manager_failure(account_number, "metrics_file_missing", {"file_path": file_path})
-        return False
+        return "failed"
 
     try:
         with open(file_path, "r", encoding="latin-1") as file:
@@ -297,7 +335,7 @@ def send_metrics_from_file(account_number: str, account_meta: Dict[str, str] | N
     except Exception as exc:
         print(f"[replay-mt5] Failed reading metrics file {filename}: {exc}")
         log_manager_failure(account_number, "metrics_file_read_failed", {"file_path": file_path, "error": str(exc)})
-        return False
+        return "failed"
 
     try:
         payload_account = str(payload.get("account_number") or "")
@@ -306,7 +344,7 @@ def send_metrics_from_file(account_number: str, account_meta: Dict[str, str] | N
     except Exception:
         print(f"[replay-mt5] Skipping metrics send for {account_number}; invalid payload structure")
         log_manager_failure(account_number, "invalid_metrics_payload", {"file_path": file_path})
-        return False
+        return "failed"
 
     if payload_account != str(account_number):
         print(
@@ -314,7 +352,22 @@ def send_metrics_from_file(account_number: str, account_meta: Dict[str, str] | N
             f"payload account mismatch ({payload_account})"
         )
         log_manager_failure(account_number, "payload_account_mismatch", {"payload_account": payload_account})
-        return False
+        return "failed"
+
+    previous_state = (last_metrics_state or {}).get(str(account_number)) or {}
+    previous_balance = previous_state.get("current_balance")
+    previous_equity = previous_state.get("current_equity")
+    if previous_balance is not None and previous_equity is not None:
+        if previous_balance == current_balance and previous_equity == current_equity:
+            print(
+                f"[replay-mt5] Skipping metrics send for {account_number}; "
+                f"balance/equity unchanged ({current_balance:.2f}/{current_equity:.2f})"
+            )
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
+            return "unchanged"
 
     if account_meta:
         payload["account_type"] = account_meta.get("accountType") or account_meta.get("account_type")
@@ -352,16 +405,21 @@ def send_metrics_from_file(account_number: str, account_meta: Dict[str, str] | N
                 "replay_send_failed",
                 {"status_code": response.status_code, "response_text": response.text[:4000], "target": target_label, "url": url},
             )
-            return False
+            return "failed"
         if response.status_code in (200, 202):
+            if last_metrics_state is not None:
+                last_metrics_state[str(account_number)] = {
+                    "current_balance": current_balance,
+                    "current_equity": current_equity,
+                }
             os.remove(file_path)
-            return True
+            return "sent"
     except Exception as exc:
         print(f"[replay-mt5] Error sending metrics for {account_number}: {exc}")
         log_manager_failure(account_number, "replay_send_exception", {"error": str(exc)})
-        return False
+        return "failed"
 
-    return False
+    return "failed"
 
 
 def run_loop() -> None:
@@ -369,6 +427,7 @@ def run_loop() -> None:
         raise RuntimeError("No MT5 terminals configured in settings.json")
 
     last_processed_at: Dict[str, float] = load_cooldown_state()
+    last_metrics_state: Dict[str, Dict[str, float]] = load_last_metrics_state()
     last_sync_at = 0.0
     active_jobs: Dict[str, Dict[str, object]] = {}
     while True:
@@ -381,10 +440,16 @@ def run_loop() -> None:
                 account_meta = job.get("account_meta")
                 job_result = finalize_mt5_job(job)
                 if job_result.get("metrics_updated"):
-                    sent = send_metrics_from_file(account_number, account_meta if isinstance(account_meta, dict) else None)
-                    if sent:
+                    dispatch_result = send_metrics_from_file(
+                        account_number,
+                        account_meta if isinstance(account_meta, dict) else None,
+                        last_metrics_state,
+                    )
+                    if dispatch_result in ("sent", "unchanged"):
                         last_processed_at[account_number] = time.time()
                         save_cooldown_state(last_processed_at)
+                        if dispatch_result == "sent":
+                            save_last_metrics_state(last_metrics_state)
                     else:
                         print(f"[replay-mt5] Metrics send failed for {account_number}; keeping account eligible for retry")
                 else:

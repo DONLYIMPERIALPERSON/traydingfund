@@ -22,7 +22,7 @@ const faqs = [
   {
     question: 'When does the daily drawdown reset?',
     answer:
-      'Daily drawdown resets at 00:00 UTC each day, based on the highest balance reached during the UTC day.',
+      'Daily drawdown resets at 00:00 UTC each day, based on the highest balance reached during the UTC day. To make the reset visible in your metrics, you must trigger a position/trade so the metrics refresh. If you already have an open position, it should update automatically.',
   },
   {
     question: 'What are the profit targets?',
@@ -35,11 +35,6 @@ const faqs = [
       'Yes. 1-Step and 2-Step challenges require at least 1 trading day per phase, while Instant Funded accounts require 5 minimum trading days.',
   },
   {
-    question: 'What is the minimum trade duration?',
-    answer:
-      'All challenge types enforce a minimum trade duration of 3 minutes; closing 3 trades under 3 minutes breaches the account.',
-  },
-  {
     question: 'What profit split do I receive?',
     answer:
       'Funded 1-Step and 2-Step accounts pay up to 80% profit split. Instant Funded accounts use a 50% split.',
@@ -50,6 +45,11 @@ const faqs = [
       'Withdrawals are weekly for 1-Step and 2-Step funded accounts, and bi-weekly for Instant Funded accounts.',
   },
   {
+    question: 'Do you offer account scaling?',
+    answer:
+      'Yes. Our scaling conditions are simple: receive 4 payouts and maintain good trading behaviour. After each set of 4 payouts, we scale your account by 50%.',
+  },
+  {
     question: 'Do you offer instant funded accounts?',
     answer:
       'Yes. Our instant funded option provides immediate access to a funded account with defined risk limits.',
@@ -58,6 +58,21 @@ const faqs = [
     question: 'How do withdrawals work?',
     answer:
       'Withdrawals are processed on the schedule defined for each challenge type. Payouts are fast once approved.',
+  },
+  {
+    question: 'Can I repeat a phase if breached?',
+    answer:
+      'Yes. Phase repeat is available for all Naira (NGN) accounts.',
+  },
+  {
+    question: 'How long does KYC take and what is needed?',
+    answer:
+      'For NGN accounts, verification can be instant using your bank account number. For USD accounts, KYC can take up to 24 hours and requires a valid government-issued ID.',
+  },
+  {
+    question: 'What happens if I trade an unsupported market?',
+    answer:
+      'Trading any unsupported market is a rule violation and can immediately breach your account. Always check the Supported Markets list before placing a trade.',
   },
   {
     question: 'What happens if I trade during review windows?',
@@ -101,6 +116,12 @@ export default function FAQ({ limit, showReadMore = false }: FAQProps) {
         {showReadMore && (
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <a
+              href="/rules"
+              className="inline-flex items-center justify-center rounded-full border border-[#ffd700]/50 px-6 py-2 text-sm font-semibold text-[#ffd700] transition hover:bg-[#2a2200] hover:text-white"
+            >
+              View trading rules
+            </a>
+            <a
               href="/faq"
               className="inline-flex items-center justify-center rounded-full border border-white/20 px-6 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
             >
@@ -110,7 +131,7 @@ export default function FAQ({ limit, showReadMore = false }: FAQProps) {
               href="/supported-markets"
               className="inline-flex items-center justify-center rounded-full border border-[#7fe7f7]/50 px-6 py-2 text-sm font-semibold text-[#7fe7f7] transition hover:bg-[#0f3a46] hover:text-white"
             >
-              🔗 Supported markets list
+              Supported markets list
             </a>
           </div>
         )}

@@ -5,6 +5,7 @@ import {
   fetchAffiliatePayouts,
   approveAffiliatePayout,
   rejectAffiliatePayout,
+  updateAffiliateCommissionPercent,
   type AffiliateOverviewStats,
   type AffiliateCommission,
   type AffiliatePayout,
@@ -13,9 +14,12 @@ import './ReferralsPage.css'
 
 const ReferralsPage = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'commissions' | 'payouts'>('overview')
+  const [showPendingOnly, setShowPendingOnly] = useState(false)
   const [overview, setOverview] = useState<AffiliateOverviewStats | null>(null)
   const [commissions, setCommissions] = useState<AffiliateCommission[]>([])
   const [payouts, setPayouts] = useState<AffiliatePayout[]>([])
+  const [commissionPercentInput, setCommissionPercentInput] = useState('30')
+  const [savingCommissionPercent, setSavingCommissionPercent] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedPayout, setSelectedPayout] = useState<AffiliatePayout | null>(null)
@@ -30,6 +34,7 @@ const ReferralsPage = () => {
       setError(null)
       const data = await fetchAffiliateOverview()
       setOverview(data)
+      setCommissionPercentInput(String(data.commission_percent ?? 30))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load affiliate data')
     } finally {
@@ -121,6 +126,29 @@ const ReferralsPage = () => {
     return `${amountUsd} • ${amountNgn}`
   }
 
+  const visiblePayouts = showPendingOnly
+    ? payouts.filter((payout) => payout.status.toLowerCase() === 'pending')
+    : payouts
+
+  const handleSaveCommissionPercent = async () => {
+    try {
+      setSavingCommissionPercent(true)
+      const value = Number(commissionPercentInput)
+      if (!Number.isFinite(value) || value < 0 || value > 100) {
+        alert('Commission percent must be between 0 and 100')
+        return
+      }
+
+      await updateAffiliateCommissionPercent(value)
+      await loadOverview()
+      alert('Affiliate commission percent updated successfully')
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to update commission percent')
+    } finally {
+      setSavingCommissionPercent(false)
+    }
+  }
+
 
   if (loading) {
     return (
@@ -150,6 +178,32 @@ const ReferralsPage = () => {
       <div className="admin-dashboard-card">
         <h2>Referrals / Affiliates</h2>
         <p>Commission performance, payout management, and milestone tracking.</p>
+        {overview && (
+          <div className="ref-global-commission-bar">
+            <div className="ref-global-commission-copy">
+              <strong>Affiliate Commission %</strong>
+              <span>Update the percentage used for new affiliate commission calculations.</span>
+            </div>
+            <div className="ref-global-commission-actions">
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.01"
+                value={commissionPercentInput}
+                onChange={(event) => setCommissionPercentInput(event.target.value)}
+              />
+              <button
+                type="button"
+                className="ref-save-commission-btn"
+                onClick={handleSaveCommissionPercent}
+                disabled={savingCommissionPercent}
+              >
+                {savingCommissionPercent ? 'Saving...' : 'Update Commission %'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tab Navigation */}
@@ -179,6 +233,10 @@ const ReferralsPage = () => {
       {activeTab === 'overview' && overview && (
         <>
           <div className="admin-kpi-grid referrals-kpi-grid">
+            <article className="admin-kpi-card">
+              <h3>Commission %</h3>
+              <strong>{overview.commission_percent.toLocaleString()}%</strong>
+            </article>
             <article className="admin-kpi-card">
               <h3>Total Affiliates</h3>
               <strong>{overview.total_affiliates.toLocaleString()}</strong>
@@ -253,6 +311,28 @@ const ReferralsPage = () => {
       {activeTab === 'payouts' && (
         <div className="admin-dashboard-card">
           <h3>Payout Requests</h3>
+          {overview && (
+            <div className="admin-kpi-grid referrals-kpi-grid" style={{ marginBottom: '16px' }}>
+              <article className="admin-kpi-card">
+                <h3>Total Auto Payout Today</h3>
+                <strong>₦{overview.total_auto_paid_out_today.toLocaleString('en-NG')}</strong>
+              </article>
+              <article className="admin-kpi-card">
+                <h3>Pending Amount</h3>
+                <strong>${overview.pending_payouts_sum.toLocaleString()}</strong>
+              </article>
+            </div>
+          )}
+          <div className="ref-payout-toolbar">
+            <label className="ref-payout-filter">
+              <input
+                type="checkbox"
+                checked={showPendingOnly}
+                onChange={(event) => setShowPendingOnly(event.target.checked)}
+              />
+              <span>Show only pending transactions</span>
+            </label>
+          </div>
           <div className="admin-table-card">
             <table className="admin-table">
               <thead>
@@ -268,7 +348,7 @@ const ReferralsPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {payouts.map((payout) => (
+                {visiblePayouts.map((payout) => (
                   <tr key={payout.id}>
                     <td>{payout.affiliate}</td>
                     <td>{resolvePayoutAmount(payout)}</td>
@@ -309,6 +389,13 @@ const ReferralsPage = () => {
                     </td>
                   </tr>
                 ))}
+                {visiblePayouts.length === 0 && (
+                  <tr>
+                    <td colSpan={8} style={{ textAlign: 'center', color: '#9ca3af' }}>
+                      No payout requests match the current filter.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

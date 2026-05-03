@@ -2,7 +2,6 @@ import { createApp } from './app'
 import { env } from './config/env'
 import { prisma } from './config/prisma'
 import { pushActiveAccountFullSync } from './services/ctraderEngine.service'
-import { warmEconomicCalendarCache } from './services/economicCalendar.service'
 import { processBreezySubscriptions } from './services/breezySubscription.service'
 
 const ACTIVE_STATUSES = ['active', 'assigned', 'assigned_pending_access', 'funded']
@@ -44,10 +43,6 @@ const start = async () => {
       setInterval(syncActiveAccounts, intervalMs)
       console.log(`[engine-sync] Active account sync scheduled every ${intervalMs / 1000}s`)
     }
-    warmEconomicCalendarCache()
-    setInterval(() => {
-      void warmEconomicCalendarCache()
-    }, 5 * 60 * 1000)
     void processBreezySubscriptions()
     setInterval(() => {
       void processBreezySubscriptions()

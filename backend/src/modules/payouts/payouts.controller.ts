@@ -550,6 +550,7 @@ export const requestPayout = async (req: AuthRequest, res: Response, next: NextF
           withdrawal_schedule: payoutInfo.withdrawalSchedule,
           mt5_account_number: payoutInfo.account.accountNumber,
           currency: payoutCurrency,
+          current_balance_at_request: payoutInfo.metrics?.balance ?? payoutInfo.initialBalance,
         },
       },
     })
@@ -800,13 +801,23 @@ export const approvePayoutRequest = async (req: AuthRequest, res: Response, next
     })
 
     try {
+      const payoutMetadata = (payout.metadata ?? {}) as Record<string, unknown>
+      const storedCurrentBalance = typeof payoutMetadata.current_balance_at_request === 'number'
+        ? payoutMetadata.current_balance_at_request
+        : (typeof payoutMetadata.current_balance_at_request === 'string'
+          ? Number(payoutMetadata.current_balance_at_request)
+          : null)
+      const derivedCurrentBalance = storedCurrentBalance != null && Number.isFinite(storedCurrentBalance)
+        ? storedCurrentBalance
+        : ((payoutAccount?.initialBalance ?? 0) + (payout.profitBaseAmount ?? 0))
+
       const payload = {
         type: 'WITHDRAW_REQUEST' as const,
         account: String(payoutAccount?.accountNumber ?? ''),
         platform: payoutAccount?.platform ?? 'ctrader',
         accountSize: payoutAccount?.accountSize ?? null,
         accountType: payoutAccount?.challengeType ?? null,
-        currentBalance: payoutAccount?.metrics?.balance ?? payoutAccount?.initialBalance ?? null,
+        currentBalance: derivedCurrentBalance,
         profitSplitPercent: payout.profitSplitPercent ?? null,
         amount: updated.amountKobo / 100,
         ...(payoutAccount?.accountNumber

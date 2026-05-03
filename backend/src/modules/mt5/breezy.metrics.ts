@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../config/prisma'
 import { env } from '../../config/env'
 import { ApiError } from '../../common/errors'
+import { clearCacheByPrefix } from '../../common/cache'
 
 type BreezyMetricsPayload = {
   account_number?: string
@@ -23,6 +24,7 @@ type BreezyMetricsPayload = {
   risk_score?: number
   risk_score_band?: string
   components?: Record<string, unknown>
+  trade_metrics?: Array<Record<string, unknown>>
   profit_split?: number
   withdrawal_eligible?: boolean
   withdrawal_block_reason?: string | null
@@ -50,6 +52,42 @@ const parseIsoDate = (value: unknown): Date | null => {
   if (typeof value !== 'string' || !value.trim()) return null
   const parsed = new Date(value)
   return Number.isFinite(parsed.getTime()) ? parsed : null
+}
+
+const buildNormalizedRiskComponents = (
+  payload: BreezyMetricsPayload,
+): Prisma.InputJsonValue => {
+  const baseComponents = payload.components && typeof payload.components === 'object'
+    ? { ...payload.components }
+    : {}
+
+  const existingTransparency = (
+    'transparency' in baseComponents
+    && baseComponents.transparency
+    && typeof baseComponents.transparency === 'object'
+  )
+    ? baseComponents.transparency as Record<string, unknown>
+    : null
+
+  const normalizedTransparency = existingTransparency ?? {
+    score_breakdown: {
+      trades_contribution: typeof baseComponents.trade_component_weighted === 'number' ? baseComponents.trade_component_weighted : 0,
+      behavior_contribution: typeof baseComponents.behavior_component_weighted === 'number' ? baseComponents.behavior_component_weighted : 0,
+      healthy_day_bonus: typeof baseComponents.healthy_day_bonus === 'number' ? baseComponents.healthy_day_bonus : 0,
+      final_breezy_score: payload.risk_score ?? 0,
+    },
+    healthy_days: Array.isArray(baseComponents.healthy_days) ? baseComponents.healthy_days : [],
+    trade_cards: Array.isArray(payload.trade_metrics)
+      ? payload.trade_metrics
+      : Array.isArray((baseComponents as { trade_cards?: unknown }).trade_cards)
+        ? (baseComponents as { trade_cards?: unknown[] }).trade_cards
+        : [],
+  }
+
+  return {
+    ...baseComponents,
+    transparency: normalizedTransparency,
+  } as Prisma.InputJsonValue
 }
 
 export const upsertBreezyMetrics = async (req: Request, res: Response, next: NextFunction) => {
@@ -83,6 +121,7 @@ export const upsertBreezyMetrics = async (req: Request, res: Response, next: Nex
     const mappedAccountStatus = accountStatus === 'terminated' ? 'breached' : 'active'
     const now = new Date()
     const dailyPnlSummary = parseDailyPnlSummary(payload.daily_pnl_summary)
+    const normalizedRiskComponents = buildNormalizedRiskComponents(payload)
 
     await prisma.$transaction(async (tx) => {
       await tx.cTraderAccount.update({
@@ -141,7 +180,7 @@ export const upsertBreezyMetrics = async (req: Request, res: Response, next: Nex
           accountStatus,
           riskScore: Number(payload.risk_score ?? 0),
           riskScoreBand: payload.risk_score_band ? String(payload.risk_score_band) : null,
-          riskComponents: ((payload.components ?? Prisma.JsonNull) as Prisma.InputJsonValue),
+          riskComponents: normalizedRiskComponents,
           effectiveProfitSplitPercent: Number(payload.profit_split ?? 0),
           withdrawalEligible: Boolean(payload.withdrawal_eligible),
           withdrawalBlockReason: payload.withdrawal_block_reason ? String(payload.withdrawal_block_reason) : null,
@@ -173,7 +212,7 @@ export const upsertBreezyMetrics = async (req: Request, res: Response, next: Nex
           accountStatus,
           riskScore: Number(payload.risk_score ?? 0),
           riskScoreBand: payload.risk_score_band ? String(payload.risk_score_band) : null,
-          riskComponents: ((payload.components ?? Prisma.JsonNull) as Prisma.InputJsonValue),
+          riskComponents: normalizedRiskComponents,
           effectiveProfitSplitPercent: Number(payload.profit_split ?? 0),
           withdrawalEligible: Boolean(payload.withdrawal_eligible),
           withdrawalBlockReason: payload.withdrawal_block_reason ? String(payload.withdrawal_block_reason) : null,
@@ -186,15 +225,28 @@ export const upsertBreezyMetrics = async (req: Request, res: Response, next: Nex
       })
 
       if (dailyPnlSummary.length > 0) {
-        for (const entry of dailyPnlSummary) {
-          await tx.accountDailyPnl.upsert({
-            where: { accountId_date: { accountId: account.id, date: entry.date } },
-            create: { accountId: account.id, date: entry.date, pnl: entry.pnl },
-            update: { pnl: entry.pnl },
-          })
+        try {
+          for (const entry of dailyPnlSummary) {
+            await tx.accountDailyPnl.upsert({
+              where: { accountId_date: { accountId: account.id, date: entry.date } },
+              create: { accountId: account.id, date: entry.date, pnl: entry.pnl },
+              update: { pnl: entry.pnl },
+            })
+          }
+        } catch (dailyPnlError) {
+          if (dailyPnlError instanceof Prisma.PrismaClientKnownRequestError && dailyPnlError.code === 'P2021') {
+            console.warn('[BREEZY_METRICS] AccountDailyPnl table missing, skipping daily pnl persistence for now')
+          } else {
+            throw dailyPnlError
+          }
         }
       }
     })
+
+    if (account.userId) {
+      await clearCacheByPrefix(`mf-cache:trader:challenges:${account.userId}`)
+      await clearCacheByPrefix(`mf-cache:trader:me:${account.userId}`)
+    }
 
     res.json({
       message: 'Breezy metrics ingested successfully',

@@ -86,8 +86,6 @@ const parseDailyPnlSummary = (value: unknown): Array<{ date: Date; pnl: number }
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
-const MIN_TRADE_DURATION_SECONDS = 180
-const MAX_DURATION_VIOLATIONS = 3
 
 const toUtcDateKey = (value: Date) => value.toISOString().slice(0, 10)
 
@@ -379,19 +377,10 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       processedTradeIds.add(tradeId)
       newlyProcessedTrades.push(trade)
     })
-    const priorViolations = (metrics as any)?.durationViolationsCount ?? 0
-    const durationRuleEnabled = accountData.minTradeDurationMinutes != null
-    const minDurationSeconds = durationRuleEnabled
-      ? accountData.minTradeDurationMinutes * 60
-      : MIN_TRADE_DURATION_SECONDS
-    const newViolations = newlyProcessedTrades.filter((trade) => {
-      const duration = calculateTradeDurationMinutes(trade)
-      return durationRuleEnabled && duration != null && duration * 60 < minDurationSeconds
-    }).length
     const durationViolationsCount = isMt5Payload
-      ? (durationRuleEnabled ? Math.max(0, reportedShortTradesCount ?? 0) : 0)
-      : (durationRuleEnabled ? priorViolations + newViolations : 0)
-    const shortDurationViolation = durationRuleEnabled && durationViolationsCount >= MAX_DURATION_VIOLATIONS
+      ? Math.max(0, reportedShortTradesCount ?? 0)
+      : ((metrics as any)?.durationViolationsCount ?? 0)
+    const shortDurationViolation = false
     const supportedSymbols = new Set(
       (supportedSymbolsConfig.supported_symbols ?? []).map((symbol) => String(symbol).toUpperCase())
     )
@@ -563,8 +552,6 @@ export const upsertCTraderMetrics = async (req: Request, res: Response, next: Ne
       breachReason = 'MAX_DRAWDOWN'
     } else if (dailyDdEnabled && (equity < dailyBreachBalance || (isMt5Payload ? effectiveEquityLow : guardedMinEquity) < dailyBreachBalance)) {
       breachReason = 'DAILY_DRAWDOWN'
-    } else if (shortDurationViolation) {
-      breachReason = 'MIN_TRADE_DURATION'
     }
 
     

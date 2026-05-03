@@ -719,6 +719,47 @@ export const clearUserPaymentMethod = async (req: Request, res: Response, next: 
   }
 }
 
+export const resetUserKyc = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = Number(req.params.userId)
+    if (!Number.isFinite(userId)) throw new ApiError('Invalid user ID', 400)
+
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+    if (!user) throw new ApiError('User not found', 404)
+
+    await prisma.$transaction(async (tx) => {
+      await tx.kycRequest.deleteMany({ where: { userId } })
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          kycStatus: 'not_started',
+          payoutVerifiedAt: null,
+          payoutMethodType: null,
+          payoutBankName: null,
+          payoutBankCode: null,
+          payoutAccountNumber: null,
+          payoutAccountName: null,
+          payoutCryptoCurrency: null,
+          payoutCryptoAddress: null,
+          payoutCryptoFirstName: null,
+          payoutCryptoLastName: null,
+          payoutSafeHavenReference: null,
+          payoutSafeHavenPayload: Prisma.JsonNull,
+        },
+      })
+    })
+
+    res.json({
+      message: 'KYC details cleared successfully',
+      user_id: userId,
+      email: user.email,
+      kyc_status: 'not_started',
+    })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
 const buildUserCertificateAudit = async (email: string, certType: 'all' | 'onboarding' | 'passed' | 'payout' | 'overall' = 'all') => {
   const user = await prisma.user.findUnique({
     where: { email },

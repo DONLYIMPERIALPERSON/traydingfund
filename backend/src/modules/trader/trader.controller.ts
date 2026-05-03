@@ -555,6 +555,79 @@ export const listChallengeAccounts = async (req: AuthRequest, res: Response, nex
   }
 }
 
+const parseAccountSizeNumber = (accountSize?: string | null) => {
+  const cleaned = String(accountSize ?? '').replace(/[^0-9]/g, '')
+  const value = Number(cleaned)
+  return Number.isFinite(value) ? value : null
+}
+
+export const getMobileLeaderboard = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    ensureUser(req)
+
+    const accounts = await prisma.cTraderAccount.findMany({
+      where: {
+        archivedAt: null,
+        OR: [
+          { challengeType: { contains: 'breezy', mode: 'insensitive' } },
+          { phase: { contains: 'funded', mode: 'insensitive' } },
+          { status: { equals: 'funded', mode: 'insensitive' } },
+        ],
+      },
+      include: {
+        metrics: true,
+        user: {
+          select: {
+            fullName: true,
+            nickName: true,
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 250,
+    })
+
+    const ranked = accounts
+      .map((account) => {
+        const initial = Number(account.initialBalance ?? 0)
+        const balance = Number(account.metrics?.balance ?? 0)
+        const equity = Number(account.metrics?.equity ?? balance)
+        const isBreezy = String(account.challengeType ?? '').toLowerCase() === 'breezy'
+        const profit = isBreezy
+          ? Number(account.metrics?.realizedProfit ?? Math.max(0, balance - initial))
+          : Math.max(0, balance - initial)
+        const gainPercent = initial > 0 ? (profit / initial) * 100 : 0
+
+        const { firstName } = splitFullName(account.user?.fullName)
+        const nickname = account.user?.nickName?.trim() || firstName || 'Trader'
+        const accountSizeValue = parseAccountSizeNumber(account.accountSize)
+        const accountTypeLabel = isBreezy ? 'Breezy' : 'NGN Flexi'
+
+        return {
+          challenge_id: account.challengeId,
+          nickname,
+          profit,
+          equity,
+          gain_percent: gainPercent,
+          account_type: accountTypeLabel,
+          account_size: account.accountSize,
+          account_size_value: accountSizeValue,
+        }
+      })
+      .filter((item) => item.profit > 0)
+      .sort((a, b) => b.profit - a.profit)
+      .slice(0, 10)
+      .map((item, index) => ({ ...item, rank: index + 1 }))
+
+    res.json({
+      success: true,
+      data: ranked,
+    })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
 export const getChallengeAccountDetail = async (
   req: AuthRequest,
   res: Response,
@@ -688,7 +761,6 @@ export const getChallengeAccountDetail = async (
       : metrics.profitTargetBalance
     const maxDrawdownBalance = metrics.breachBalance ?? initialBalance
     const dailyDrawdownBalance = metrics.dailyBreachBalance ?? initialBalance
-    const minTradeDurationMinutes = objectiveFields.minTradeDurationMinutes ?? 0
     const durationViolationsCount = metrics.durationViolationsCount ?? 0
     const minTradingDaysRequired = objectiveFields.minTradingDaysRequired ?? 0
     const stageElapsedHours = metrics.stageElapsedHours ?? 0
@@ -706,7 +778,6 @@ export const getChallengeAccountDetail = async (
     const normalizedBreachReason = breachReason?.toUpperCase() ?? null
     const breachedByMaxDrawdown = normalizedBreachReason === 'MAX_DRAWDOWN'
     const breachedByDailyDrawdown = normalizedBreachReason === 'DAILY_DRAWDOWN'
-    const minTradeDurationBreached = normalizedBreachReason === 'MIN_TRADE_DURATION'
     const rawResetType = (account.metrics as { expectedBalanceOperationType?: string | null } | null)?.expectedBalanceOperationType
       ?? null
     const resetType = rawResetType === 'PHASE_RESET'
@@ -719,6 +790,14 @@ export const getChallengeAccountDetail = async (
 
     const isMt5Account = platform === 'mt5'
     const phase2Repeat = await buildPhase2RepeatMeta(account)
+    const breezyRiskComponents = (account.metrics as { riskComponents?: Record<string, unknown> | null } | null)?.riskComponents ?? null
+    const breezyTransparency = (
+      breezyRiskComponents
+      && typeof breezyRiskComponents === 'object'
+      && 'transparency' in breezyRiskComponents
+    )
+      ? (breezyRiskComponents as { transparency?: unknown }).transparency ?? null
+      : null
 
     const objectives = {
       profit_target: {
@@ -756,13 +835,6 @@ export const getChallengeAccountDetail = async (
             : 'Pending',
         },
       }),
-      min_trade_duration: {
-        label: 'Minimum Trade Duration',
-        status: durationViolationsCount >= 3 || minTradeDurationBreached ? 'breached' : 'passed',
-        note: minTradeDurationMinutes
-          ? `${durationViolationsCount >= 3 || minTradeDurationBreached ? 'Violated' : 'Pass'} • ${minTradeDurationMinutes} min rule (${durationViolationsCount}/3)`
-          : 'Pending',
-      },
       min_trading_days: {
         label: 'Minimum Trading Days',
         status: minTradingDaysMet ? 'passed' : 'pending',
@@ -889,6 +961,7 @@ export const getChallengeAccountDetail = async (
               risk_score: (account.metrics as { riskScore?: number | null } | null)?.riskScore ?? null,
               risk_score_band: (account.metrics as { riskScoreBand?: string | null } | null)?.riskScoreBand ?? null,
               risk_components: (account.metrics as { riskComponents?: unknown } | null)?.riskComponents ?? null,
+              transparency: breezyTransparency,
               effective_profit_split_percent: (account.metrics as { effectiveProfitSplitPercent?: number | null } | null)?.effectiveProfitSplitPercent ?? null,
               withdrawal_eligible: (account.metrics as { withdrawalEligible?: boolean | null } | null)?.withdrawalEligible ?? null,
               withdrawal_block_reason: (account.metrics as { withdrawalBlockReason?: string | null } | null)?.withdrawalBlockReason ?? null,
@@ -912,6 +985,8 @@ export const getChallengeAccountDetail = async (
             withdrawal_block_reason: (account.metrics as { withdrawalBlockReason?: string | null } | null)?.withdrawalBlockReason ?? null,
             risk_score: (account.metrics as { riskScore?: number | null } | null)?.riskScore ?? null,
             risk_score_band: (account.metrics as { riskScoreBand?: string | null } | null)?.riskScoreBand ?? null,
+            risk_components: breezyRiskComponents,
+            transparency: breezyTransparency,
             profit_split_percent: (account.metrics as { effectiveProfitSplitPercent?: number | null } | null)?.effectiveProfitSplitPercent ?? null,
             subscription_started_at: account.subscriptionStartedAt?.toISOString() ?? null,
             subscription_expires_at: account.subscriptionExpiresAt?.toISOString() ?? null,

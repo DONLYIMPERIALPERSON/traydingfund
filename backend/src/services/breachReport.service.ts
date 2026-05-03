@@ -172,6 +172,12 @@ export const buildBreachNarrative = (breachReason: string) => {
       narrative: 'The account breached the minimum trade duration rule after multiple trades were closed too quickly. This rule helps discourage prohibited scalping behavior.',
     }
   }
+  if (normalized === 'HFT_BREACH') {
+    return {
+      title: 'High Frequency Trading Breach',
+      narrative: 'The account triggered an HFT breach after more than 10 positions were closed within a rolling 1-minute window.',
+    }
+  }
   if (normalized === 'TIME_LIMIT') {
     return {
       title: 'Time Limit Breach',

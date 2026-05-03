@@ -1,8 +1,8 @@
 export default function TrustHighlights() {
     const highlights = [
         {
-            title: 'Scale with Confidence',
-            desc: 'Trade within clear drawdown limits and earn bigger buying power as you stay consistent.',
+            title: 'Simple Scaling Plan',
+            desc: 'Receive 4 payouts and maintain good trading behaviour, then we scale your account by 50%. This repeats after each set of 4 payouts.',
         },
         {
             title: 'Speedy Payouts',

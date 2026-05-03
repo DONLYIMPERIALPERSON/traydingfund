@@ -6,7 +6,7 @@ import { prisma } from '../config/prisma'
 import { ApiError } from './errors'
 
 const debugAuth = (...args: unknown[]) => {
-  if (env.nodeEnv !== 'production') {
+  if (env.nodeEnv !== 'production' && process.env.DEBUG_AUTH === 'true') {
     console.log('[backend-auth]', ...args)
   }
 }
@@ -83,7 +83,7 @@ export const authenticate = async (req: AuthenticatedRequest, _res: Response, ne
     req.supabaseSub = sub
     next()
   } catch (error) {
-    console.error('Auth middleware failed:', error)
+    console.error('Auth middleware failed:', error instanceof Error ? error.message : error)
     debugAuth('auth failure details', {
       path: req.originalUrl,
       message: error instanceof Error ? error.message : String(error),

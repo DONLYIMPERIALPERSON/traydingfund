@@ -9,6 +9,7 @@ import {
   listKycHistory,
   resolveBankAccount,
   saveCryptoPayout,
+  submitBankKyc,
   submitKyc,
   uploadKycDocument,
 } from './kyc.controller'
@@ -48,10 +49,16 @@ const submitKycSchema = z.object({
   selfie_url: z.string().optional().nullable(),
 })
 
+const submitBankKycSchema = z.object({
+  bank_code: z.string().min(1),
+  bank_account_number: z.string().min(10),
+})
+
 kycRouter.get('/banks', listBanks)
 kycRouter.get('/eligibility', authenticate, fetchKycEligibility)
 kycRouter.get('/history', authenticate, listKycHistory)
 kycRouter.post('/resolve-bank', authenticate, validate({ body: resolveBankSchema }), resolveBankAccount)
+kycRouter.post('/bank-verify', authenticate, validate({ body: submitBankKycSchema }), submitBankKyc)
 kycRouter.post('/save-crypto', authenticate, validate({ body: saveCryptoSchema }), saveCryptoPayout)
 kycRouter.post('/upload-url', authenticate, validate({ body: uploadUrlSchema }), createKycUploadUrl)
 kycRouter.post('/upload', authenticate, validate({ body: uploadSchema }), uploadKycDocument)

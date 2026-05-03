@@ -12,6 +12,7 @@ import {
   unsuspendUser,
   banUser,
   addUserNote,
+  resetUserKyc,
   sendUserEmail,
   type UserProfileData,
   type UserChallengeAccount,
@@ -77,6 +78,7 @@ const UserProfilePage = ({ user, onBack, onOpenSupportChat }: UserProfilePagePro
   const [noteTag, setNoteTag] = useState('')
   const [banReason, setBanReason] = useState('')
   const [banDuration, setBanDuration] = useState('')
+  const [resettingKyc, setResettingKyc] = useState(false)
 
   const userId = user.user_id
 
@@ -246,6 +248,22 @@ const UserProfilePage = ({ user, onBack, onOpenSupportChat }: UserProfilePagePro
     }
   }
 
+  const handleResetKyc = async () => {
+    const confirmed = window.confirm(`Clear all KYC details for ${user.name}? This will remove saved KYC/payment verification details so the user can submit KYC again.`)
+    if (!confirmed) return
+
+    try {
+      setResettingKyc(true)
+      await resetUserKyc(userId)
+      alert('KYC details cleared successfully')
+      await loadProfile()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to clear KYC details')
+    } finally {
+      setResettingKyc(false)
+    }
+  }
+
   const renderTabContent = () => {
     if (activeTab === 'View profile') {
       if (loading.profile) return <div>Loading profile...</div>
@@ -307,6 +325,12 @@ const UserProfilePage = ({ user, onBack, onOpenSupportChat }: UserProfilePagePro
     }
 
     if (activeTab === 'KYC') {
+      if (!profileData && !loading.profile) {
+        void loadProfile()
+      }
+      if (loading.profile) return <div>Loading KYC...</div>
+      if (errors.profile) return <div className="error">Error: {errors.profile}</div>
+
       // Show KYC status from user profile
       const kycStatus = profileData?.kyc_status || 'Unknown'
       const kycStatusDisplay = kycStatus === 'active' ? 'Approved' :
@@ -352,6 +376,15 @@ const UserProfilePage = ({ user, onBack, onOpenSupportChat }: UserProfilePagePro
                 : 'Not verified'}
               </p>
             </article>
+          </div>
+
+          <div className="admin-profile-actions">
+            <p>Need the user to submit KYC again? Clear their saved KYC status and verification details.</p>
+            <div>
+              <button type="button" className="danger" onClick={() => void handleResetKyc()} disabled={resettingKyc}>
+                {resettingKyc ? 'Clearing KYC...' : 'Delete KYC Details'}
+              </button>
+            </div>
           </div>
 
           {challengeAccounts.length > 0 && (

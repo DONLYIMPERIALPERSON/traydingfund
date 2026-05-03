@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { addUserNote, banUser, clearUserPaymentMethod, disableUserWithdrawals, enableUserWithdrawals, forceGenerateUserCertificate, getAdminMe, getDashboardStats, getUserChallengeAccounts, getUserOrders, getUserPayouts, getUserProfile, getUserSupportTickets, listActiveChallengeAccounts, listAdminUsers, listAtticChallengeAccounts, listBreachedChallengeAccounts, listBreezyAccounts, listFundedChallengeAccounts, listTopFundedTraders, lookupChallengeAccount, lookupUserPaymentMethod, previewUserMissingCertificates, regenerateUserMissingCertificates, sendUserEmail, suspendUser, unsuspendUser } from './admin.controller'
+import { addUserNote, banUser, clearUserPaymentMethod, disableUserWithdrawals, enableUserWithdrawals, forceGenerateUserCertificate, getAdminMe, getDashboardStats, getUserChallengeAccounts, getUserOrders, getUserPayouts, getUserProfile, getUserSupportTickets, listActiveChallengeAccounts, listAdminUsers, listAtticChallengeAccounts, listBreachedChallengeAccounts, listBreezyAccounts, listFundedChallengeAccounts, listTopFundedTraders, lookupChallengeAccount, lookupUserPaymentMethod, previewUserMissingCertificates, regenerateUserMissingCertificates, resetUserKyc, sendUserEmail, suspendUser, unsuspendUser } from './admin.controller'
 import { approveCryptoOrder, declineCryptoOrder, getOrderStats, listOrders, listPendingAssignments, retryPendingAssignments } from './admin.orders.controller'
 import { authenticate, requireRole } from '../../common/auth'
 import { createAllowlistEntry, deleteAllowlistEntry, listAllowlist, updateAllowlistEntry } from './admin.allowlist.controller'
@@ -12,6 +12,7 @@ import {
   listAdminAffiliatePayouts,
   approveAffiliatePayout,
   rejectAffiliatePayout,
+  updateAffiliateCommissionConfig,
 } from '../affiliate/affiliate.controller'
 
 export const adminRouter = Router()
@@ -31,6 +32,7 @@ adminRouter.post('/users/:userId/unsuspend', authenticate, requireRole(['admin',
 adminRouter.post('/users/:userId/ban', authenticate, requireRole(['admin', 'super_admin']), banUser)
 adminRouter.post('/users/:userId/notes', authenticate, requireRole(['admin', 'super_admin']), addUserNote)
 adminRouter.post('/users/:userId/email', authenticate, requireRole(['admin', 'super_admin']), sendUserEmail)
+adminRouter.post('/users/:userId/kyc/reset', authenticate, requireRole(['admin', 'super_admin']), resetUserKyc)
 adminRouter.get('/challenges/active', authenticate, requireRole(['admin', 'super_admin']), listActiveChallengeAccounts)
 adminRouter.get('/challenges/attic', authenticate, requireRole(['admin', 'super_admin']), listAtticChallengeAccounts)
 adminRouter.get('/challenges/lookup', authenticate, requireRole(['admin', 'super_admin']), lookupChallengeAccount)
@@ -69,6 +71,7 @@ adminRouter.get('/kyc/profiles', authenticate, requireRole(['admin', 'super_admi
 adminRouter.get('/kyc/requests', authenticate, requireRole(['admin', 'super_admin']), listAdminKycRequests)
 adminRouter.post('/kyc/requests/:id/review', authenticate, requireRole(['admin', 'super_admin']), reviewKycRequest)
 adminRouter.get('/affiliate/overview', authenticate, requireRole(['admin', 'super_admin']), listAdminAffiliateOverview)
+adminRouter.put('/affiliate/config', authenticate, requireRole(['super_admin']), updateAffiliateCommissionConfig)
 adminRouter.get('/affiliate/commissions', authenticate, requireRole(['admin', 'super_admin']), listAdminAffiliateCommissions)
 adminRouter.get('/affiliate/payouts', authenticate, requireRole(['admin', 'super_admin']), listAdminAffiliatePayouts)
 adminRouter.post('/affiliate/payouts/:id/approve', authenticate, requireRole(['admin', 'super_admin']), approveAffiliatePayout)

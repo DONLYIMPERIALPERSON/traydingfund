@@ -14,6 +14,72 @@ const ensureUser = (req: AuthenticatedRequest) => {
   return req.user
 }
 
+const ACTIVE_KYC_STATUSES = ['pending', 'in_review', 'processing', 'submitted', 'approved', 'verified']
+
+const normalizeNameTokens = (value?: string | null) => String(value ?? '')
+  .toLowerCase()
+  .replace(/[^a-z0-9\s]/g, ' ')
+  .split(/\s+/)
+  .map((part) => part.trim())
+  .filter((part) => part.length >= 2)
+
+const hasAtLeastOneNameMatch = (savedName?: string | null, resolvedName?: string | null) => {
+  const savedTokens = normalizeNameTokens(savedName)
+  const resolvedTokens = new Set(normalizeNameTokens(resolvedName))
+  return savedTokens.some((token) => resolvedTokens.has(token))
+}
+
+const assertNoActiveOrApprovedKycForUser = async (userId: number) => {
+  const existing = await prisma.kycRequest.findFirst({
+    where: {
+      userId,
+      status: { in: ACTIVE_KYC_STATUSES },
+    },
+    orderBy: { submittedAt: 'desc' },
+  })
+
+  if (!existing) {
+    return
+  }
+
+  const normalizedStatus = existing.status.toLowerCase()
+  if (normalizedStatus === 'approved' || normalizedStatus === 'verified') {
+    throw new ApiError('Your KYC has already been approved.', 409)
+  }
+
+  throw new ApiError('You already have a KYC request in progress.', 409)
+}
+
+const assertDocumentKycUnique = async (userId: number, documentType: string, documentNumber: string) => {
+  const existing = await prisma.kycRequest.findFirst({
+    where: {
+      userId: { not: userId },
+      documentType,
+      documentNumber,
+      status: { in: ACTIVE_KYC_STATUSES },
+    },
+  })
+
+  if (existing) {
+    throw new ApiError('This KYC document is already in use by another account.', 409)
+  }
+}
+
+const assertBankKycUnique = async (userId: number, bankCode: string, bankAccountNumber: string) => {
+  const existingUser = await prisma.user.findFirst({
+    where: {
+      id: { not: userId },
+      payoutBankCode: bankCode,
+      payoutAccountNumber: bankAccountNumber,
+      kycStatus: { in: ACTIVE_KYC_STATUSES, mode: 'insensitive' },
+    },
+  })
+
+  if (existingUser) {
+    throw new ApiError('This bank account is already linked to another verified or pending KYC profile.', 409)
+  }
+}
+
 const countKycEligibleAccounts = async (userId: number) => prisma.cTraderAccount.count({
   where: {
     userId,
@@ -183,6 +249,9 @@ export const submitKyc = async (req: AuthenticatedRequest, res: Response, next: 
       throw new ApiError('You need at least one funded or active Breezy account before KYC becomes available.', 403)
     }
 
+    await assertNoActiveOrApprovedKycForUser(user.id)
+    await assertDocumentKycUnique(user.id, document_type, document_number)
+
     await prisma.user.update({
       where: { id: user.id },
       data: { kycStatus: 'pending' },
@@ -207,6 +276,100 @@ export const submitKyc = async (req: AuthenticatedRequest, res: Response, next: 
       message: 'KYC submitted successfully',
       kyc_status: 'pending',
       request_id: requestRecord.id,
+    })
+  } catch (err) {
+    next(err as Error)
+  }
+}
+
+export const submitBankKyc = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const user = ensureUser(req)
+    const { bank_code, bank_account_number } = req.body as {
+      bank_code?: string
+      bank_account_number?: string
+    }
+
+    if (!bank_code || !bank_account_number) {
+      throw new ApiError('bank_code and bank_account_number are required', 400)
+    }
+
+    const eligibility = await countKycEligibleAccounts(user.id)
+    if (eligibility < 1) {
+      throw new ApiError('You need at least one funded or active Breezy account before KYC becomes available.', 403)
+    }
+
+    await assertNoActiveOrApprovedKycForUser(user.id)
+
+    const dbUser = await prisma.user.findUnique({ where: { id: user.id } })
+    if (!dbUser) {
+      throw new ApiError('User not found', 404)
+    }
+
+    if (!dbUser.fullName?.trim()) {
+      throw new ApiError('Please set your full name in Settings before using bank KYC verification.', 400)
+    }
+
+    const safehavenResponse = await resolveAccountName({
+      bankCode: bank_code,
+      accountNumber: bank_account_number,
+    })
+
+    const accountName = safehavenResponse.data?.accountName
+    if (!accountName) {
+      throw new ApiError(safehavenResponse.message || 'Unable to resolve account name', 400)
+    }
+
+    if (!hasAtLeastOneNameMatch(dbUser.fullName, accountName)) {
+      throw new ApiError('Bank account name does not match your saved profile name. Update your name in Settings or use a matching account.', 400)
+    }
+
+    await assertBankKycUnique(user.id, bank_code, bank_account_number)
+
+    const now = new Date()
+
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          payoutMethodType: 'bank_transfer',
+          payoutBankCode: bank_code,
+          payoutAccountNumber: bank_account_number,
+          payoutAccountName: accountName,
+          payoutSafeHavenReference: safehavenResponse.data?.reference ?? null,
+          payoutSafeHavenPayload: safehavenResponse as any,
+          payoutVerifiedAt: now,
+          payoutUpdatedAt: now,
+          kycStatus: 'approved',
+        },
+      })
+
+      await tx.kycRequest.create({
+        data: {
+          userId: user.id,
+          documentType: 'bank_verification',
+          documentNumber: bank_account_number,
+          idFrontUrl: 'bank_verification',
+          idBackUrl: null,
+          selfieUrl: null,
+          status: 'approved',
+          submittedAt: now,
+          reviewedAt: now,
+          reviewedBy: 'system_bank_verification',
+        },
+      })
+    })
+
+    await clearCacheByPrefix(buildCacheKey(['trader', 'me', user.id]))
+    await clearCacheByPrefix(buildCacheKey(['payouts', 'summary', user.id]))
+
+    res.json({
+      status: 'success',
+      message: 'Bank KYC approved successfully.',
+      kyc_status: 'approved',
+      bank_code,
+      bank_account_number,
+      account_name: accountName,
     })
   } catch (err) {
     next(err as Error)

@@ -74,6 +74,10 @@
   color: rgba(238, 247, 251, 0.74);
 }
 
+.mobile-kyc-subtext {
+  margin-bottom: 24px;
+}
+
 .mobile-kyc-card--status {
   text-align: center;
 }
@@ -112,9 +116,64 @@
 
 .mobile-kyc-history-list,
 .mobile-kyc-form-grid,
-.mobile-kyc-upload-grid {
+.mobile-kyc-upload-grid,
+.mobile-kyc-method-grid {
   display: grid;
   gap: 12px;
+  margin-top: 6px;
+}
+
+.mobile-kyc-method-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: #eef7fb;
+}
+
+.mobile-kyc-method-card__icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(127, 231, 247, 0.14);
+  color: #7fe7f7;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.mobile-kyc-method-card__content {
+  display: grid;
+  gap: 4px;
+}
+
+.mobile-kyc-method-card__content strong {
+  font-size: 14px;
+}
+
+.mobile-kyc-method-card__content span {
+  font-size: 12px;
+  color: rgba(238, 247, 251, 0.72);
+}
+
+.mobile-kyc-method-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  color: #7fe7f7;
+  padding: 0;
+  margin: 6px 0 14px;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .mobile-kyc-history-item {

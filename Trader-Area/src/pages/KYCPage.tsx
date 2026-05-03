@@ -4,13 +4,17 @@ import DesktopSidebar from '../components/DesktopSidebar'
 import DesktopFooter from '../components/DesktopFooter'
 import '../styles/DesktopKYCPage.css'
 import {
+  fetchBankList,
   createKycUploadUrl,
   fetchKycEligibility,
   fetchKycHistory,
   fetchProfile,
   persistAuthUser,
+  resolveKycAccountName,
+  submitBankKyc,
   uploadKycDocument,
   submitKyc,
+  type BankListItem,
   type KycRequestItem,
 } from '../lib/traderAuth'
 
@@ -40,6 +44,12 @@ const KYCPage: React.FC = () => {
   const [idBackPreview, setIdBackPreview] = useState<string | null>(null)
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle')
   const [kycHistory, setKycHistory] = useState<KycRequestItem[]>([])
+  const [banks, setBanks] = useState<BankListItem[]>([])
+  const [savedName, setSavedName] = useState('')
+  const [bankCode, setBankCode] = useState('')
+  const [bankAccountNumber, setBankAccountNumber] = useState('')
+  const [bankAccountName, setBankAccountName] = useState('')
+  const [resolvingBank, setResolvingBank] = useState(false)
 
   const isKycApproved = kycStatus === 'approved' || kycStatus === 'verified'
   const isKycPending = ['pending', 'in_review', 'processing', 'submitted'].includes(kycStatus)
@@ -51,13 +61,19 @@ const KYCPage: React.FC = () => {
       setLoading(true)
       setFormError('')
       try {
-        const [eligibility, profileRes, historyRes] = await Promise.all([
+        const [eligibility, profileRes, historyRes, banksRes] = await Promise.all([
           fetchKycEligibility(),
           fetchProfile(),
           fetchKycHistory(),
+          fetchBankList(),
         ])
         setEligibleForKyc(eligibility.eligible)
         setEligibilityMessage(eligibility.message)
+        setBanks(banksRes.banks ?? [])
+        setSavedName(profileRes.full_name ?? '')
+        setBankCode(profileRes.payout_bank_code ?? '')
+        setBankAccountNumber(profileRes.payout_account_number ?? '')
+        setBankAccountName(profileRes.payout_account_name ?? '')
         const historyItems = historyRes.requests ?? []
         const latestRequestStatus = historyItems[0]?.status?.toLowerCase()
         const resolvedStatus = resolveEffectiveKycStatus(
@@ -107,6 +123,64 @@ const KYCPage: React.FC = () => {
     reader.readAsDataURL(file)
   }
 
+  const handleResolveBankName = async () => {
+    if (!bankCode || bankAccountNumber.length !== 10) {
+      setFormError('Select a bank and enter a valid 10-digit account number.')
+      return
+    }
+
+    setResolvingBank(true)
+    setFormError('')
+    setFormSuccess('')
+    try {
+      const response = await resolveKycAccountName({
+        bank_code: bankCode,
+        bank_account_number: bankAccountNumber,
+      })
+      setBankAccountName(response.account_name)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to verify bank account.'
+      setFormError(message)
+      setBankAccountName('')
+    } finally {
+      setResolvingBank(false)
+    }
+  }
+
+  const handleSubmitBankKyc = async () => {
+    if (!savedName.trim()) {
+      setFormError('Please set your full name in Settings before using bank KYC verification.')
+      return
+    }
+
+    if (!bankCode || bankAccountNumber.length !== 10) {
+      setFormError('Select a bank and enter a valid 10-digit account number.')
+      return
+    }
+
+    setSubmitting(true)
+    setFormError('')
+    setFormSuccess('')
+    try {
+      const response = await submitBankKyc({
+        bank_code: bankCode,
+        bank_account_number: bankAccountNumber,
+      })
+      setBankAccountName(response.account_name)
+      setKycStatus((response.kyc_status || 'approved').toLowerCase())
+      setFormSuccess(response.message)
+      const [updated, history] = await Promise.all([fetchProfile(), fetchKycHistory()])
+      persistAuthUser(updated)
+      setSavedName(updated.full_name ?? '')
+      setKycHistory(history.requests ?? [])
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Bank KYC verification failed'
+      setFormError(message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const clearFile = (setFile: (file: File | null) => void, setPreview: (preview: string | null) => void) => {
     setFile(null)
     setPreview(null)
@@ -117,7 +191,7 @@ const KYCPage: React.FC = () => {
       const reader = new FileReader()
       reader.onload = () => {
         const result = reader.result?.toString() ?? ''
-        const base64 = result.includes('base64,') ? result.split('base64,')[1] : result
+        const base64 = result.includes('base64,') ? (result.split('base64,')[1] ?? '') : result
         resolve(base64)
       }
       reader.onerror = () => reject(new Error('Failed to read file.'))
@@ -307,6 +381,61 @@ const KYCPage: React.FC = () => {
 
               {canShowForm && (
                 <div className="kyc-form-section">
+                <div className="section-header">
+                  <div className="status-icon">
+                    <i className="fas fa-building-columns"></i>
+                  </div>
+                  <div>
+                    <h2 className="status-title">Instant Nigerian Bank Verification</h2>
+                    <p className="status-subtitle">Verify with your Nigerian bank account. At least one bank-account name must match your saved profile name.</p>
+                  </div>
+                </div>
+
+                {!savedName.trim() && (
+                  <div className="info-card warning" style={{ marginBottom: '24px' }}>
+                    <div className="info-content">
+                      <div>Set your full name in Settings before using bank KYC verification.</div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="form-grid">
+                  <div className="form-item">
+                    <label className="form-label">Bank</label>
+                    <select className="form-input" value={bankCode} onChange={(e) => setBankCode(e.target.value)}>
+                      <option value="">Select bank</option>
+                      {banks.map((bank) => (
+                        <option key={bank.bank_code} value={bank.bank_code}>{bank.bank_name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-item">
+                    <label className="form-label">Account Number</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={bankAccountNumber}
+                      onChange={(e) => setBankAccountNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      placeholder="Enter 10-digit account number"
+                    />
+                  </div>
+
+                  <div className="form-item">
+                    <label className="form-label">Verified Account Name</label>
+                    <input type="text" className="form-input" value={bankAccountName} readOnly placeholder="Resolve account name" />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '24px' }}>
+                  <button onClick={() => void handleResolveBankName()} className="submit-button" type="button" disabled={resolvingBank || submitting}>
+                    {resolvingBank ? 'Verifying...' : 'Verify Account Name'}
+                  </button>
+                  <button onClick={() => void handleSubmitBankKyc()} className="submit-button" type="button" disabled={submitting || !eligibleForKyc}>
+                    {submitting ? 'Submitting...' : 'Complete Bank KYC'}
+                  </button>
+                </div>
+
                 <div className="section-header">
                   <div className="status-icon">
                     <i className="fas fa-upload"></i>

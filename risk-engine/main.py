@@ -55,13 +55,21 @@ SUPPORTED_MARKET_SYMBOLS = {
     "GBPJPYm",
     "AUDJPYm",
     "NZDJPYm",
+    "EURCHFm",
+    "GBPCHFm",
+    "CADJPYm",
+    "CHFJPYm",
+    "EURAUDm",
     "XAUUSDm",
     "XAGUSDm",
+    "XPTUSDm",
     "US30m",
     "US500m",
     "USTECm",
     "UK100m",
     "DE30m",
+    "FRA40m",
+    "JP225m",
     "BTCUSDm",
     "ETHUSDm",
     "USOILm",
@@ -1064,6 +1072,7 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
     breach_reason = None
     breach_event: Optional[dict] = None
     trade_duration_violations: List[dict] = []
+    recent_close_times_ms: List[int] = []
     passed = False
     pass_event: Optional[dict] = None
     realized_profit = 0.0
@@ -1102,22 +1111,20 @@ def calculate_result(session: ReplaySession) -> ReplayResult:
                 daily_peak_balance = balance_snapshot
 
         if event_type == "deal" and event.get("entry") == 1 and not event.get("ignored"):
-            min_duration = replay.min_trade_duration_minutes or 0
-            duration_min = event.get("duration_min")
-            if min_duration and duration_min is not None and duration_min < min_duration:
-                trade_duration_violations.append(
-                    {
-                        "position_id": event.get("position_id"),
-                        "deal_id": event.get("deal_id"),
-                        "symbol": event.get("symbol"),
-                        "duration_min": duration_min,
-                        "closed_time_ms": ts,
-                    }
-                )
-                if len(trade_duration_violations) >= 3 and breach_reason is None:
-                    breach_reason = "MIN_TRADE_DURATION"
-                    breach_event = {"violations": trade_duration_violations[:3]}
-                    break
+            # HFT breach rule: if more than 10 positions are closed within a rolling 60-second window.
+            recent_close_times_ms.append(ts)
+            one_minute_ago = ts - 60_000
+            recent_close_times_ms = [t for t in recent_close_times_ms if t >= one_minute_ago]
+            if len(recent_close_times_ms) > 10 and breach_reason is None:
+                breach_reason = "HFT_BREACH"
+                breach_event = {
+                    "type": "hft_breach",
+                    "window_seconds": 60,
+                    "close_count": len(recent_close_times_ms),
+                    "threshold": 10,
+                    "time_ms": ts,
+                }
+                break
             profit = event.get("profit")
             if profit is None:
                 profit = 0.0

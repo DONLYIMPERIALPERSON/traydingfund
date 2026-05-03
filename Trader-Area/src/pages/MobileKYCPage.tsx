@@ -1,18 +1,23 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
+  fetchBankList,
   createKycUploadUrl,
   fetchKycEligibility,
   fetchKycHistory,
   fetchProfile,
   persistAuthUser,
+  resolveKycAccountName,
+  submitBankKyc,
   uploadKycDocument,
   submitKyc,
+  type BankListItem,
   type KycRequestItem,
 } from '../lib/traderAuth'
 import '../styles/MobileKYCPage.css'
 
 type UploadStatus = 'idle' | 'ready' | 'uploading'
+type KycMethod = 'bank' | 'document' | null
 
 const resolveEffectiveKycStatus = (profileStatusRaw: string | null | undefined, hasHistory: boolean, latestRequestStatus?: string) => {
   const profileStatus = (profileStatusRaw || 'not_started').toLowerCase()
@@ -39,6 +44,13 @@ const MobileKYCPage: React.FC = () => {
   const [idBackPreview, setIdBackPreview] = useState<string | null>(null)
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle')
   const [kycHistory, setKycHistory] = useState<KycRequestItem[]>([])
+  const [banks, setBanks] = useState<BankListItem[]>([])
+  const [savedName, setSavedName] = useState('')
+  const [bankCode, setBankCode] = useState('')
+  const [bankAccountNumber, setBankAccountNumber] = useState('')
+  const [bankAccountName, setBankAccountName] = useState('')
+  const [resolvingBank, setResolvingBank] = useState(false)
+  const [selectedMethod, setSelectedMethod] = useState<KycMethod>(null)
 
   const isKycApproved = kycStatus === 'approved' || kycStatus === 'verified'
   const isKycPending = ['pending', 'in_review', 'processing', 'submitted'].includes(kycStatus)
@@ -49,13 +61,20 @@ const MobileKYCPage: React.FC = () => {
       setLoading(true)
       setFormError('')
       try {
-        const [eligibility, profileRes, historyRes] = await Promise.all([
+        const [eligibility, profileRes, historyRes, banksRes] = await Promise.all([
           fetchKycEligibility(),
           fetchProfile(),
           fetchKycHistory(),
+          fetchBankList(),
         ])
         setEligibleForKyc(eligibility.eligible)
         setEligibilityMessage(eligibility.message)
+        setBanks(banksRes.banks ?? [])
+        setSavedName(profileRes.full_name ?? '')
+        setBankCode(profileRes.payout_bank_code ?? '')
+        setBankAccountNumber(profileRes.payout_account_number ?? '')
+        setBankAccountName(profileRes.payout_account_name ?? '')
+        setSelectedMethod(null)
         const historyItems = historyRes.requests ?? []
         const latestRequestStatus = historyItems[0]?.status?.toLowerCase()
         const resolvedStatus = resolveEffectiveKycStatus(
@@ -113,7 +132,7 @@ const MobileKYCPage: React.FC = () => {
       const reader = new FileReader()
       reader.onload = () => {
         const result = reader.result?.toString() ?? ''
-        const base64 = result.includes('base64,') ? result.split('base64,')[1] : result
+        const base64 = result.includes('base64,') ? (result.split('base64,')[1] ?? '') : result
         resolve(base64 ?? '')
       }
       reader.onerror = () => reject(new Error('Failed to read file.'))
@@ -184,13 +203,73 @@ const MobileKYCPage: React.FC = () => {
       })
       setKycStatus((response.kyc_status || 'pending').toLowerCase())
       setFormSuccess(response.message)
-      const updated = await fetchProfile()
+      const [updated, history] = await Promise.all([fetchProfile(), fetchKycHistory()])
       persistAuthUser(updated)
+      setSavedName(updated.full_name ?? '')
+      setKycHistory(history.requests ?? [])
       setUploadStatus('ready')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'KYC submission failed'
       setFormError(message)
       setUploadStatus('ready')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleResolveBankName = async () => {
+    if (!bankCode || bankAccountNumber.length !== 10) {
+      setFormError('Select a bank and enter a valid 10-digit account number.')
+      return
+    }
+
+    setResolvingBank(true)
+    setFormError('')
+    setFormSuccess('')
+    try {
+      const response = await resolveKycAccountName({
+        bank_code: bankCode,
+        bank_account_number: bankAccountNumber,
+      })
+      setBankAccountName(response.account_name)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to verify bank account.'
+      setFormError(message)
+      setBankAccountName('')
+    } finally {
+      setResolvingBank(false)
+    }
+  }
+
+  const handleSubmitBankKyc = async () => {
+    if (!savedName.trim()) {
+      setFormError('Please set your full name in Settings before using bank KYC verification.')
+      return
+    }
+
+    if (!bankCode || bankAccountNumber.length !== 10) {
+      setFormError('Select a bank and enter a valid 10-digit account number.')
+      return
+    }
+
+    setSubmitting(true)
+    setFormError('')
+    setFormSuccess('')
+    try {
+      const response = await submitBankKyc({
+        bank_code: bankCode,
+        bank_account_number: bankAccountNumber,
+      })
+      setBankAccountName(response.account_name)
+      setKycStatus((response.kyc_status || 'approved').toLowerCase())
+      setFormSuccess(response.message)
+      const [updated, history] = await Promise.all([fetchProfile(), fetchKycHistory()])
+      persistAuthUser(updated)
+      setSavedName(updated.full_name ?? '')
+      setKycHistory(history.requests ?? [])
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Bank KYC verification failed'
+      setFormError(message)
     } finally {
       setSubmitting(false)
     }
@@ -253,68 +332,150 @@ const MobileKYCPage: React.FC = () => {
 
             {canShowForm ? (
               <section className="mobile-kyc-card">
-                <h2>Upload Identification</h2>
-                <p className="mobile-kyc-subtext">Upload your ID documents to verify your identity.</p>
+                <h2>Choose Verification Method</h2>
+                <p className="mobile-kyc-subtext">Select how you want to complete your KYC before we show the required details.</p>
 
-                <div className="mobile-kyc-form-grid">
-                  <label>
-                    <span>Document Type</span>
-                    <select value={documentType} onChange={(e) => { setDocumentType(e.target.value); if (formError) setFormError('') }}>
-                      <option value="">Select document type</option>
-                      <option value="passport">International Passport</option>
-                      <option value="drivers_license">Driver’s License</option>
-                      <option value="national_id">National ID</option>
-                    </select>
-                  </label>
+                {selectedMethod === null ? (
+                  <div className="mobile-kyc-method-grid">
+                    <button type="button" className="mobile-kyc-method-card" onClick={() => setSelectedMethod('bank')}>
+                      <div className="mobile-kyc-method-card__icon">
+                        <i className="fas fa-university" />
+                      </div>
+                      <div className="mobile-kyc-method-card__content">
+                        <strong>Nigerian Bank Verification</strong>
+                        <span>Instant approval if at least one name matches your saved profile name.</span>
+                      </div>
+                    </button>
 
-                  <label>
-                    <span>Document Number</span>
-                    <input value={documentNumber} onChange={(e) => { setDocumentNumber(e.target.value); if (formError) setFormError('') }} placeholder="Enter document number" />
-                  </label>
-                </div>
-
-                <div className="mobile-kyc-upload-grid">
-                  <div className="mobile-kyc-upload-card">
-                    <div className="mobile-kyc-upload-card__header">
-                      <h4>Front of ID</h4>
-                      <span>Required</span>
-                    </div>
-                    <div className="mobile-kyc-upload-card__preview">
-                      {idFrontPreview ? <img src={idFrontPreview} alt="ID front preview" /> : <div className="mobile-kyc-upload-placeholder"><i className="fas fa-id-card" /><p>Upload front of ID</p></div>}
-                    </div>
-                    <div className="mobile-kyc-upload-card__actions">
-                      <label className="mobile-kyc-upload-button">
-                        Choose File
-                        <input type="file" accept="image/*" onChange={(e) => handleFileSelect(e, setIdFront, setIdFrontPreview)} hidden />
-                      </label>
-                      {idFront ? <button type="button" className="mobile-kyc-upload-remove" onClick={() => clearFile(setIdFront, setIdFrontPreview)}>Remove</button> : null}
-                    </div>
+                    <button type="button" className="mobile-kyc-method-card" onClick={() => setSelectedMethod('document')}>
+                      <div className="mobile-kyc-method-card__icon">
+                        <i className="fas fa-id-card" />
+                      </div>
+                      <div className="mobile-kyc-method-card__content">
+                        <strong>Document Upload</strong>
+                        <span>Upload your government-issued ID for manual review.</span>
+                      </div>
+                    </button>
                   </div>
+                ) : null}
 
-                  <div className="mobile-kyc-upload-card">
-                    <div className="mobile-kyc-upload-card__header">
-                      <h4>Back of ID</h4>
-                      <span>Optional</span>
-                    </div>
-                    <div className="mobile-kyc-upload-card__preview">
-                      {idBackPreview ? <img src={idBackPreview} alt="ID back preview" /> : <div className="mobile-kyc-upload-placeholder"><i className="fas fa-id-card" /><p>Upload back of ID</p></div>}
-                    </div>
-                    <div className="mobile-kyc-upload-card__actions">
-                      <label className="mobile-kyc-upload-button">
-                        Choose File
-                        <input type="file" accept="image/*" onChange={(e) => handleFileSelect(e, setIdBack, setIdBackPreview)} hidden />
+                {selectedMethod !== null ? (
+                  <button type="button" className="mobile-kyc-method-back" onClick={() => setSelectedMethod(null)}>
+                    <i className="fas fa-chevron-left" />
+                    Change method
+                  </button>
+                ) : null}
+
+                {selectedMethod === 'bank' ? (
+                  <>
+                    <h2>Instant Nigerian Bank Verification</h2>
+                    <p className="mobile-kyc-subtext">Verify with your bank account. At least one bank-account name must match your saved profile name.</p>
+
+                    {!savedName.trim() ? (
+                      <div className="mobile-kyc-error">Set your full name in Settings before using bank KYC verification.</div>
+                    ) : null}
+
+                    <div className="mobile-kyc-form-grid">
+                      <label>
+                        <span>Bank</span>
+                        <select value={bankCode} onChange={(e) => setBankCode(e.target.value)}>
+                          <option value="">Select bank</option>
+                          {banks.map((bank) => (
+                            <option key={bank.bank_code} value={bank.bank_code}>{bank.bank_name}</option>
+                          ))}
+                        </select>
                       </label>
-                      {idBack ? <button type="button" className="mobile-kyc-upload-remove" onClick={() => clearFile(setIdBack, setIdBackPreview)}>Remove</button> : null}
+
+                      <label>
+                        <span>Account Number</span>
+                        <input value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="Enter 10-digit account number" />
+                      </label>
+
+                      <label>
+                        <span>Verified Account Name</span>
+                        <input value={bankAccountName} readOnly placeholder="Resolve account name" />
+                      </label>
                     </div>
-                  </div>
-                </div>
+
+                    <div className="mobile-kyc-upload-card__actions" style={{ marginBottom: '16px' }}>
+                      <button type="button" className="mobile-kyc-submit" onClick={() => void handleResolveBankName()} disabled={resolvingBank || submitting}>
+                        {resolvingBank ? 'Verifying...' : 'Verify Account Name'}
+                      </button>
+                      <button type="button" className="mobile-kyc-submit" onClick={() => void handleSubmitBankKyc()} disabled={submitting || !eligibleForKyc}>
+                        {submitting ? 'Submitting...' : 'Complete Bank KYC'}
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+
+                {selectedMethod === 'document' ? (
+                  <>
+                    <h2>Upload Identification</h2>
+                    <p className="mobile-kyc-subtext">Upload your ID documents to verify your identity.</p>
+
+                    <div className="mobile-kyc-form-grid">
+                      <label>
+                        <span>Document Type</span>
+                        <select value={documentType} onChange={(e) => { setDocumentType(e.target.value); if (formError) setFormError('') }}>
+                          <option value="">Select document type</option>
+                          <option value="passport">International Passport</option>
+                          <option value="drivers_license">Driver’s License</option>
+                          <option value="national_id">National ID</option>
+                        </select>
+                      </label>
+
+                      <label>
+                        <span>Document Number</span>
+                        <input value={documentNumber} onChange={(e) => { setDocumentNumber(e.target.value); if (formError) setFormError('') }} placeholder="Enter document number" />
+                      </label>
+                    </div>
+
+                    <div className="mobile-kyc-upload-grid">
+                      <div className="mobile-kyc-upload-card">
+                        <div className="mobile-kyc-upload-card__header">
+                          <h4>Front of ID</h4>
+                          <span>Required</span>
+                        </div>
+                        <div className="mobile-kyc-upload-card__preview">
+                          {idFrontPreview ? <img src={idFrontPreview} alt="ID front preview" /> : <div className="mobile-kyc-upload-placeholder"><i className="fas fa-id-card" /><p>Upload front of ID</p></div>}
+                        </div>
+                        <div className="mobile-kyc-upload-card__actions">
+                          <label className="mobile-kyc-upload-button">
+                            Choose File
+                            <input type="file" accept="image/*" onChange={(e) => handleFileSelect(e, setIdFront, setIdFrontPreview)} hidden />
+                          </label>
+                          {idFront ? <button type="button" className="mobile-kyc-upload-remove" onClick={() => clearFile(setIdFront, setIdFrontPreview)}>Remove</button> : null}
+                        </div>
+                      </div>
+
+                      <div className="mobile-kyc-upload-card">
+                        <div className="mobile-kyc-upload-card__header">
+                          <h4>Back of ID</h4>
+                          <span>Optional</span>
+                        </div>
+                        <div className="mobile-kyc-upload-card__preview">
+                          {idBackPreview ? <img src={idBackPreview} alt="ID back preview" /> : <div className="mobile-kyc-upload-placeholder"><i className="fas fa-id-card" /><p>Upload back of ID</p></div>}
+                        </div>
+                        <div className="mobile-kyc-upload-card__actions">
+                          <label className="mobile-kyc-upload-button">
+                            Choose File
+                            <input type="file" accept="image/*" onChange={(e) => handleFileSelect(e, setIdBack, setIdBackPreview)} hidden />
+                          </label>
+                          {idBack ? <button type="button" className="mobile-kyc-upload-remove" onClick={() => clearFile(setIdBack, setIdBackPreview)}>Remove</button> : null}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : null}
 
                 {formError ? <div className="mobile-kyc-error">{formError}</div> : null}
                 {formSuccess ? <div className="mobile-kyc-success">{formSuccess}</div> : null}
 
-                <button type="button" className="mobile-kyc-submit" onClick={() => void handleSubmitKYC()} disabled={loading || submitting || !eligibleForKyc}>
-                  {submitting ? 'Submitting...' : uploadStatus === 'uploading' ? 'Uploading...' : 'Submit KYC'}
-                </button>
+                {selectedMethod === 'document' ? (
+                  <button type="button" className="mobile-kyc-submit" onClick={() => void handleSubmitKYC()} disabled={loading || submitting || !eligibleForKyc}>
+                    {submitting ? 'Submitting...' : uploadStatus === 'uploading' ? 'Uploading...' : 'Submit KYC'}
+                  </button>
+                ) : null}
               </section>
             ) : null}
 

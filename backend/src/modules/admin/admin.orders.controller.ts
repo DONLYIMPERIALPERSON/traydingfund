@@ -9,8 +9,8 @@ import { createOnboardingCertificate } from '../../services/certificate.service'
 import { getFxRatesConfig } from '../fxRates/fxRates.service'
 import { fetchRemoteAttachment, sendUnifiedEmail } from '../../services/email.service'
 import { redeemCouponForCompletedOrder } from '../../services/coupon.service'
+import { getAffiliateCommissionPercent } from '../affiliate/affiliate.controller'
 
-const AFFILIATE_COMMISSION_PERCENT = 30
 const BREEZY_SUBSCRIPTION_DAYS = 7
 const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000)
 const isBreezyChallengeType = (challengeType?: string | null) => String(challengeType ?? '').toLowerCase() === 'breezy'
@@ -64,8 +64,61 @@ const toUsdKobo = (amountKobo: number, currency?: string | null, rate?: number) 
   return amountKobo
 }
 
-const createAffiliateCommission = async (order: { id: number; affiliateId?: number | null; netAmountKobo: number; currency?: string | null }) => {
-  const affiliateId = order.affiliateId ?? null
+const normalizeComparableValue = (value?: string | null) => {
+  const normalized = String(value ?? '').trim().toLowerCase()
+  return normalized || null
+}
+
+const hasMatchingComparableValue = (left?: string | null, right?: string | null) => {
+  const normalizedLeft = normalizeComparableValue(left)
+  const normalizedRight = normalizeComparableValue(right)
+  return Boolean(normalizedLeft && normalizedRight && normalizedLeft === normalizedRight)
+}
+
+const resolveEligibleAffiliateId = async (buyerUserId: number, rawAffiliateId?: number | null) => {
+  const affiliateId = rawAffiliateId ?? null
+  if (!affiliateId || Number.isNaN(affiliateId) || affiliateId <= 0) {
+    return null
+  }
+
+  if (affiliateId === buyerUserId) {
+    return null
+  }
+
+  const [buyer, affiliate] = await Promise.all([
+    prisma.user.findUnique({ where: { id: buyerUserId } }),
+    prisma.user.findUnique({ where: { id: affiliateId } }),
+  ])
+
+  if (!buyer || !affiliate) {
+    return null
+  }
+
+  if (normalizeComparableValue(affiliate.status) !== 'active') {
+    return null
+  }
+
+  if (hasMatchingComparableValue(buyer.email, affiliate.email)) {
+    return null
+  }
+
+  if (hasMatchingComparableValue(buyer.payoutAccountNumber, affiliate.payoutAccountNumber)) {
+    return null
+  }
+
+  if (hasMatchingComparableValue(buyer.payoutCryptoAddress, affiliate.payoutCryptoAddress)) {
+    return null
+  }
+
+  if (hasMatchingComparableValue(buyer.payoutSafeHavenReference, affiliate.payoutSafeHavenReference)) {
+    return null
+  }
+
+  return affiliate.id
+}
+
+const createAffiliateCommission = async (order: { id: number; userId: number; affiliateId?: number | null; netAmountKobo: number; currency?: string | null }) => {
+  const affiliateId = await resolveEligibleAffiliateId(order.userId, order.affiliateId ?? null)
   if (!affiliateId) return
 
   const existing = await prisma.affiliateCommission.findFirst({
@@ -76,7 +129,8 @@ const createAffiliateCommission = async (order: { id: number; affiliateId?: numb
   const fxConfig = await getFxRatesConfig()
   const usdNgnRate = fxConfig.rules?.usd_ngn_rate ?? 1300
   const commissionBaseKobo = toUsdKobo(order.netAmountKobo, order.currency, usdNgnRate)
-  const commissionAmount = Math.round(commissionBaseKobo * (AFFILIATE_COMMISSION_PERCENT / 100))
+  const affiliateCommissionPercent = await getAffiliateCommissionPercent()
+  const commissionAmount = Math.round(commissionBaseKobo * (affiliateCommissionPercent / 100))
   await prisma.affiliateCommission.create({
     data: {
       orderId: order.id,
@@ -393,6 +447,7 @@ export const approveCryptoOrder = async (req: Request, res: Response, next: Next
 
     await createAffiliateCommission({
       id: updated.id,
+      userId: updated.userId,
       ...(updated.affiliateId !== null && updated.affiliateId !== undefined ? { affiliateId: updated.affiliateId } : {}),
       netAmountKobo: updated.netAmountKobo,
       currency: updated.currency,
@@ -424,7 +479,7 @@ export const approveCryptoOrder = async (req: Request, res: Response, next: Next
           subject: 'Your purchase receipt & trading objectives',
           title: 'Challenge Purchase Confirmed',
           subtitle: 'Your trading objectives are ready',
-          content: `Thank you for your purchase! Your ${updated.accountSize} ${challengeType} challenge has been confirmed. Please review your receipt and objectives below.`,
+          content: `Thank you for your purchase! Your ${updated.accountSize} ${challengeType} challenge has been confirmed. Please review your receipt and objectives below. Also review our supported markets before trading: https://machefunded.com/supported-markets`,
           buttonText: 'View Dashboard',
           infoBox: [
             `Receipt: ${formatCurrency(updated.netAmountKobo)} (${updated.paymentMethod ?? 'payment'})`,
