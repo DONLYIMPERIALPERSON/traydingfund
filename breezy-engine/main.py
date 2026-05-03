@@ -108,14 +108,7 @@ def write_replay_detail_file(*, account_number: str, detail: dict) -> None:
 
 
 def safe_write_replay_detail_file(*, account_number: str, detail: dict) -> None:
-    try:
-        write_replay_detail_file(account_number=account_number, detail=detail)
-    except Exception as exc:
-        log_diagnostic(
-            account_number=account_number,
-            issue="replay_detail_write_failed",
-            details={"error": str(exc)},
-        )
+    return
 
 
 def post_result_to_backend(result: BreezyReplayResult) -> None:

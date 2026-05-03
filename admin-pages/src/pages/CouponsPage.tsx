@@ -214,7 +214,7 @@ const CouponsPage = () => {
       .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
       .map((value) => value.trim().toLowerCase())
 
-    const fallbackTypes = ['one_step', 'two_step', 'instant_funded', 'ngn_standard', 'ngn_flexi', 'attic']
+    const fallbackTypes = ['one_step', 'two_step', 'ngn_standard', 'ngn_one_step', 'ngn_flexi', 'attic']
     return Array.from(new Set([...fromPlans, ...fallbackTypes])).filter(Boolean)
   }, [planList])
 
