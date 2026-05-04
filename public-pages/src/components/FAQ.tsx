@@ -25,6 +25,11 @@ const faqs = [
       'Daily drawdown resets at 00:00 UTC each day, based on the highest balance reached during the UTC day. To make the reset visible in your metrics, you must trigger a position/trade so the metrics refresh. If you already have an open position, it should update automatically.',
   },
   {
+    question: 'How is Daily and Max DD calculated?',
+    answer:
+      'Our system uses a static drawdown model, which means your drawdown limits are calculated using fixed rules. Maximum Drawdown (Max DD): We first calculate your drawdown allowance from your initial account size. Example: Account Size 200,000, Max DD 20% = 40,000, Initial Breach Level = 160,000. If your account grows to a new high balance (e.g., 220,000), your drawdown allowance remains 40,000, so the new breach level becomes 180,000 (220,000 - 40,000). Daily Drawdown (Daily DD): Calculated from your opening balance at the start of the day (00:00 UTC). Example: Start of Day Balance 200,000, Daily DD 5% = 10,000, so Daily Breach Level = 190,000. If your equity drops below that level during the day, it triggers a breach. Important: Max DD adjusts only when a new balance high is made; Daily DD is based strictly on the day’s opening balance; Daily DD resets at 00:00 UTC; all breaches are triggered using equity (not balance).',
+  },
+  {
     question: 'What are the profit targets?',
     answer:
       'For 2-Step challenges, the target is 10% in Phase 1 and 5% in Phase 2. For 1-Step challenges, the target is 10%.',
