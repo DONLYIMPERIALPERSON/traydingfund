@@ -118,7 +118,7 @@ const resolveAwaitingNextStageConfig = (account: {
 
   const nextPhase = normalizedChallengeType === 'two_step'
     ? (normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null)
-    : ['one_step', 'ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)
+    : ['one_step', 'ngn_one_step', 'ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)
       ? (normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null)
       : null
 
@@ -216,7 +216,7 @@ const resolveReplacementPhase = (challengeType: string, phase: string, nextPhase
     return normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null
   }
 
-  if (['one_step', 'ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)) {
+  if (['one_step', 'ngn_one_step', 'ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)) {
     return normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null
   }
 
@@ -236,7 +236,7 @@ const isAllowedReplacementPhase = (challengeType: string, targetPhase: string) =
   const normalizedChallengeType = String(challengeType ?? 'two_step').toLowerCase()
   if (normalizedChallengeType === 'instant_funded') return targetPhase === 'funded'
   if (normalizedChallengeType === 'attic') return targetPhase === 'phase_1'
-  if (['two_step', 'one_step', 'ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)) {
+  if (['two_step', 'one_step', 'ngn_one_step', 'ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)) {
     return ['phase_1', 'phase_2', 'funded'].includes(targetPhase)
   }
   return ['phase_1', 'phase_2', 'funded'].includes(targetPhase)
