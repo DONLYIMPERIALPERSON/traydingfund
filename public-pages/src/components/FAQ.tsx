@@ -27,7 +27,7 @@ const faqs = [
   {
     question: 'How is Daily and Max DD calculated?',
     answer:
-      'Our system uses a static drawdown model, which means your drawdown limits are calculated using fixed rules. Maximum Drawdown (Max DD): We first calculate your drawdown allowance from your initial account size. Example: Account Size 200,000, Max DD 20% = 40,000, Initial Breach Level = 160,000. If your account grows to a new high balance (e.g., 220,000), your drawdown allowance remains 40,000, so the new breach level becomes 180,000 (220,000 - 40,000). Daily Drawdown (Daily DD): Calculated from your opening balance at the start of the day (00:00 UTC). Example: Start of Day Balance 200,000, Daily DD 5% = 10,000, so Daily Breach Level = 190,000. If your equity drops below that level during the day, it triggers a breach. Important: Max DD adjusts only when a new balance high is made; Daily DD is based strictly on the day’s opening balance; Daily DD resets at 00:00 UTC; all breaches are triggered using equity (not balance).',
+      'Our system uses a static drawdown model, which means your drawdown limits are calculated using fixed rules.\n\n1. Maximum Drawdown (Max DD)\n• We first calculate your drawdown allowance from your initial account size.\n\nExample:\n• Account Size: 200,000\n• Max DD: 20% → 40,000\n• Initial Breach Level: 160,000\n\nIf your account makes a new high balance:\n• New Balance High: 220,000\n• Drawdown allowance remains: 40,000\n• New Breach Level: 220,000 – 40,000 = 180,000\n\nYour account is breached if equity drops below 180,000.\n\n2. Daily Drawdown (Daily DD)\n• Calculated from your opening balance at the start of the day (00:00 UTC).\n\nExample:\n• Start of Day Balance: 200,000\n• Daily DD: 5% → 10,000\n• Daily Breach Level: 200,000 – 10,000 = 190,000\n\nIf equity drops below 190,000 during that day, it triggers a breach.\n\nImportant Notes:\n• Max DD adjusts only when a new balance high is made\n• Daily DD is based strictly on the day’s opening balance\n• Daily DD resets at 00:00 UTC\n• All breaches are triggered using equity (not balance)',
   },
   {
     question: 'What are the profit targets?',
@@ -113,7 +113,7 @@ export default function FAQ({ limit, showReadMore = false }: FAQProps) {
           {visibleFaqs.map((faq) => (
             <div key={faq.question} className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/8 to-white/[0.03] p-5 shadow-[0_0_20px_rgba(255,255,255,0.04)]">
               <h3 className="text-white font-semibold text-lg">{faq.question}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-white/70">{faq.answer}</p>
+              <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-white/70">{faq.answer}</p>
             </div>
           ))}
         </div>
