@@ -118,9 +118,11 @@ const resolveAwaitingNextStageConfig = (account: {
 
   const nextPhase = normalizedChallengeType === 'two_step'
     ? (normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null)
-    : ['one_step', 'ngn_one_step', 'ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)
+    : ['ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)
       ? (normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null)
-      : null
+      : ['one_step', 'ngn_one_step'].includes(normalizedChallengeType)
+        ? (normalizedPhase === 'phase_1' ? 'funded' : null)
+        : null
 
   if (!nextPhase) return null
 
@@ -216,8 +218,12 @@ const resolveReplacementPhase = (challengeType: string, phase: string, nextPhase
     return normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null
   }
 
-  if (['one_step', 'ngn_one_step', 'ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)) {
+  if (['ngn_standard', 'ngn_flexi'].includes(normalizedChallengeType)) {
     return normalizedPhase === 'phase_1' ? 'phase_2' : normalizedPhase === 'phase_2' ? 'funded' : null
+  }
+
+  if (['one_step', 'ngn_one_step'].includes(normalizedChallengeType)) {
+    return normalizedPhase === 'phase_1' ? 'funded' : null
   }
 
   return null
