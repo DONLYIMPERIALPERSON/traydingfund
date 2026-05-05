@@ -190,9 +190,13 @@ const buildAccountPayout = async (accountId: number) => {
   })
 
   const scheduleDays = resolveScheduleDays(objectiveFields.withdrawalSchedule)
+  // TEMPORARY BUSINESS OVERRIDE:
+  // NGN Flexi withdrawals are currently enforced every 3 days internally.
+  // Revert this to `scheduleDays` once Flexi returns to normal schedule.
+  const effectiveScheduleDays = challengeType === 'ngn_flexi' ? 3 : scheduleDays
   const payoutCooldownStart = resolvePayoutCooldownStart(lastPayout)
   const nextEligibleAt = payoutCooldownStart
-    ? new Date(payoutCooldownStart.getTime() + scheduleDays * 24 * 60 * 60 * 1000)
+    ? new Date(payoutCooldownStart.getTime() + effectiveScheduleDays * 24 * 60 * 60 * 1000)
     : null
 
   return {
@@ -203,7 +207,7 @@ const buildAccountPayout = async (accountId: number) => {
     profitSplitPercent,
     profitSplitAmount,
     withdrawalSchedule: objectiveFields.withdrawalSchedule,
-    scheduleDays,
+    scheduleDays: effectiveScheduleDays,
     nextEligibleAt,
     lastPayout,
     isBreezy: false,
