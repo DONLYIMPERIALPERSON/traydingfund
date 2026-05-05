@@ -9,6 +9,7 @@ export default function Navbar() {
     const navLinks = [
         { name: 'Home', href: '/#', isSection: true, sectionId: 'home' },
         { name: 'Challenges', href: '/#pricing', isSection: true, sectionId: 'pricing' },
+        { name: 'Partner', href: '/partner', isSection: false },
         { name: 'Store', href: '/store', isSection: false },
         { name: 'Trading Objectives', href: '/rules', isSection: false },
         { name: 'Blog', href: 'https://blog.machefunded.com', isSection: false },
