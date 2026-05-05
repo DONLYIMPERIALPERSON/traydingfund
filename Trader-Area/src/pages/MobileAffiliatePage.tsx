@@ -58,8 +58,13 @@ const MobileAffiliatePage: React.FC = () => {
     }
   }
 
-  const formatCurrency = (amount: number) =>
-    `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const formatCurrency = (amount: number) => {
+    const currency = dashboardData?.display_currency === 'NGN' ? 'NGN' : 'USD'
+    if (currency === 'NGN') {
+      return `₦${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    }
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  }
 
   if (loading) {
     return (
@@ -106,6 +111,10 @@ const MobileAffiliatePage: React.FC = () => {
         </section>
 
         <section className="mobile-affiliate-stats-grid">
+          <article className="mobile-affiliate-stat-card mobile-affiliate-stat-card--wide">
+            <span>Current Referral Commission</span>
+            <strong>{dashboardData?.commission_percent ?? 30}%</strong>
+          </article>
           <article className="mobile-affiliate-stat-card">
             <span>Available Balance</span>
             <strong>{formatCurrency(dashboardData?.stats.available_balance || 0)}</strong>

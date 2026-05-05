@@ -13,6 +13,8 @@ import {
   saveCryptoPayout,
   fetchCryptoPayoutProfile,
   persistAuthUser,
+  getAffiliateEarningsCurrencyPreference,
+  setAffiliateEarningsCurrencyPreference,
   type BankListItem,
   type BankAccountProfile,
   type CryptoPayoutProfile,
@@ -23,6 +25,7 @@ const SettingsPage: React.FC = () => {
   const [useNickNameForCertificates, setUseNickNameForCertificates] = useState(false)
   const [overallRewardCurrency, setOverallRewardCurrency] = useState<'USD' | 'NGN'>('USD')
   const [savingRewardCurrency, setSavingRewardCurrency] = useState(false)
+  const [affiliateEarningsCurrency, setAffiliateEarningsCurrency] = useState<'USD' | 'NGN'>('USD')
   const [banks, setBanks] = useState<BankListItem[]>([])
   const [bankCode, setBankCode] = useState('')
   const [bankAccountNumber, setBankAccountNumber] = useState('')
@@ -70,6 +73,7 @@ const SettingsPage: React.FC = () => {
         ])
         setUseNickNameForCertificates(profile.use_nickname_for_certificates || false)
         setOverallRewardCurrency((profile.overall_reward_currency?.toUpperCase() === 'NGN' ? 'NGN' : 'USD'))
+        setAffiliateEarningsCurrency(getAffiliateEarningsCurrencyPreference())
         setBanks(banksRes.banks ?? [])
         setBankProfile(bankProfileRes)
         setCryptoProfile(cryptoProfileRes)
@@ -130,6 +134,12 @@ const SettingsPage: React.FC = () => {
     } finally {
       setSavingRewardCurrency(false)
     }
+  }
+
+  const handleAffiliateEarningsCurrencyChange = (currency: 'USD' | 'NGN') => {
+    if (currency === affiliateEarningsCurrency) return
+    setAffiliateEarningsCurrency(currency)
+    setAffiliateEarningsCurrencyPreference(currency)
   }
 
 
@@ -317,6 +327,34 @@ const SettingsPage: React.FC = () => {
                   className={`settings-currency-option ${overallRewardCurrency === 'NGN' ? 'active' : ''}`}
                   onClick={() => handleOverallRewardCurrencyChange('NGN')}
                   disabled={savingRewardCurrency}
+                >
+                  NGN
+                </button>
+              </div>
+            </div>
+
+            <div className="theme-toggle">
+              <div className="theme-left">
+                <i className="fas fa-hand-holding-dollar theme-icon"></i>
+                <div className="theme-text">
+                  <h3 className="theme-title">Affiliate Earnings Currency</h3>
+                  <p className="theme-subtitle">
+                    {affiliateEarningsCurrency === 'NGN' ? 'Show in NGN' : 'Show in USD'}
+                  </p>
+                </div>
+              </div>
+              <div className="settings-currency-toggle">
+                <button
+                  type="button"
+                  className={`settings-currency-option ${affiliateEarningsCurrency === 'USD' ? 'active' : ''}`}
+                  onClick={() => handleAffiliateEarningsCurrencyChange('USD')}
+                >
+                  USD
+                </button>
+                <button
+                  type="button"
+                  className={`settings-currency-option ${affiliateEarningsCurrency === 'NGN' ? 'active' : ''}`}
+                  onClick={() => handleAffiliateEarningsCurrencyChange('NGN')}
                 >
                   NGN
                 </button>

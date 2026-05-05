@@ -10,6 +10,8 @@ import {
   saveCryptoPayout,
   fetchCryptoPayoutProfile,
   persistAuthUser,
+  getAffiliateEarningsCurrencyPreference,
+  setAffiliateEarningsCurrencyPreference,
   type BankListItem,
   type BankAccountProfile,
   type CryptoPayoutProfile,
@@ -22,6 +24,7 @@ const MobileSettingsPage: React.FC = () => {
   const [useNickNameForCertificates, setUseNickNameForCertificates] = useState(false)
   const [overallRewardCurrency, setOverallRewardCurrency] = useState<'USD' | 'NGN'>('USD')
   const [savingRewardCurrency, setSavingRewardCurrency] = useState(false)
+  const [affiliateEarningsCurrency, setAffiliateEarningsCurrency] = useState<'USD' | 'NGN'>('USD')
   const [banks, setBanks] = useState<BankListItem[]>([])
   const [bankCode, setBankCode] = useState('')
   const [bankAccountNumber, setBankAccountNumber] = useState('')
@@ -70,6 +73,7 @@ const MobileSettingsPage: React.FC = () => {
         ])
         setUseNickNameForCertificates(profile.use_nickname_for_certificates || false)
         setOverallRewardCurrency((profile.overall_reward_currency?.toUpperCase() === 'NGN' ? 'NGN' : 'USD'))
+        setAffiliateEarningsCurrency(getAffiliateEarningsCurrencyPreference())
         setBanks(banksRes.banks ?? [])
         setBankProfile(bankProfileRes)
         setCryptoProfile(cryptoProfileRes)
@@ -127,6 +131,12 @@ const MobileSettingsPage: React.FC = () => {
     } finally {
       setSavingRewardCurrency(false)
     }
+  }
+
+  const handleAffiliateEarningsCurrencyChange = (currency: 'USD' | 'NGN') => {
+    if (currency === affiliateEarningsCurrency) return
+    setAffiliateEarningsCurrency(currency)
+    setAffiliateEarningsCurrencyPreference(currency)
   }
 
   const resolveAndSaveBank = async (showSuccess = true) => {
@@ -256,6 +266,17 @@ const MobileSettingsPage: React.FC = () => {
             <div className="mobile-settings-currency-toggle">
               <button type="button" className={overallRewardCurrency === 'USD' ? 'is-active' : ''} onClick={() => void handleOverallRewardCurrencyChange('USD')} disabled={savingRewardCurrency}>USD</button>
               <button type="button" className={overallRewardCurrency === 'NGN' ? 'is-active' : ''} onClick={() => void handleOverallRewardCurrencyChange('NGN')} disabled={savingRewardCurrency}>NGN</button>
+            </div>
+          </div>
+
+          <div className="mobile-settings-item mobile-settings-item--stacked">
+            <div>
+              <strong>Affiliate Earnings Currency</strong>
+              <p>{affiliateEarningsCurrency === 'NGN' ? 'Show in NGN' : 'Show in USD'}</p>
+            </div>
+            <div className="mobile-settings-currency-toggle">
+              <button type="button" className={affiliateEarningsCurrency === 'USD' ? 'is-active' : ''} onClick={() => handleAffiliateEarningsCurrencyChange('USD')}>USD</button>
+              <button type="button" className={affiliateEarningsCurrency === 'NGN' ? 'is-active' : ''} onClick={() => handleAffiliateEarningsCurrencyChange('NGN')}>NGN</button>
             </div>
           </div>
         </section>

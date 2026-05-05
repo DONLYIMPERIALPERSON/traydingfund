@@ -2,6 +2,7 @@ import { apiFetch } from '../lib/api'
 
 const MOCK_USER_KEY = 'nairatrader_auth_user'
 const AFFILIATE_REFERRER_KEY = 'affiliate_referrer_id'
+const AFFILIATE_EARNINGS_CURRENCY_KEY = 'affiliate_earnings_currency'
 
 function clearSelfReferralMarker(user: Pick<AuthMeResponse, 'id'>): void {
   const storedAffiliateId = localStorage.getItem(AFFILIATE_REFERRER_KEY)
@@ -872,4 +873,13 @@ export function getPersistedAuthUser(): AuthMeResponse | null {
 
 export function clearPersistedAuthUser(): void {
   localStorage.removeItem(MOCK_USER_KEY)
+}
+
+export function getAffiliateEarningsCurrencyPreference(): 'USD' | 'NGN' {
+  const value = String(localStorage.getItem(AFFILIATE_EARNINGS_CURRENCY_KEY) ?? '').toUpperCase()
+  return value === 'NGN' ? 'NGN' : 'USD'
+}
+
+export function setAffiliateEarningsCurrencyPreference(currency: 'USD' | 'NGN'): void {
+  localStorage.setItem(AFFILIATE_EARNINGS_CURRENCY_KEY, currency)
 }

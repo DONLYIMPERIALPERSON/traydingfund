@@ -114,6 +114,11 @@ const resolveAffiliateScope = (req: Request): AffiliateScope => {
   return raw === 'attic' ? 'attic' : 'trader'
 }
 
+const resolveAffiliateDisplayCurrency = (req: Request): 'USD' | 'NGN' => {
+  const raw = String(req.query.currency ?? '').toUpperCase()
+  return raw === 'NGN' ? 'NGN' : 'USD'
+}
+
 const buildReferralLink = (affiliateId: number, scope: AffiliateScope) =>
   scope === 'attic'
     ? `https://attic.machefunded.com/ref/${affiliateId}`
@@ -342,10 +347,19 @@ const attemptAutoAffiliateBankPayout = async (params: {
 export const getAffiliateDashboard = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const scope = resolveAffiliateScope(req)
+    const displayCurrency = resolveAffiliateDisplayCurrency(req)
+    const fxConfig = await getFxRatesConfig()
+    const usdNgnRate = Number(fxConfig.rules?.usd_ngn_rate ?? 1300)
+    const convertUsdAmount = (amountUsd: number) => displayCurrency === 'NGN'
+      ? Number((amountUsd * usdNgnRate).toFixed(2))
+      : Number(amountUsd.toFixed(2))
     const { affiliateCommissionClient, affiliatePayoutClient } = getAffiliateClients()
     if (!affiliateCommissionClient?.aggregate || !affiliatePayoutClient?.findMany) {
+      const affiliateCommissionPercent = await getAffiliateCommissionPercent()
       res.json({
         referral_link: buildReferralLink(ensureUser(req).id, scope),
+        commission_percent: affiliateCommissionPercent,
+        display_currency: displayCurrency,
         stats: { available_balance: 0, total_earned: 0, referrals: 0, impressions: 0 },
         rewards: [],
         recent_transactions: [],
@@ -358,6 +372,7 @@ export const getAffiliateDashboard = async (req: AuthRequest, res: Response, nex
 
     const user = ensureUser(req)
     const affiliateId = user.id
+    const affiliateCommissionPercent = await getAffiliateCommissionPercent()
 
     const [earned, paid, payoutRequests, recentCommissions, recentPayouts, affiliateProfile] = await Promise.all([
       affiliateCommissionClient.aggregate({
@@ -399,9 +414,11 @@ export const getAffiliateDashboard = async (req: AuthRequest, res: Response, nex
 
     res.json({
       referral_link: buildReferralLink(affiliateId, scope),
+      commission_percent: affiliateCommissionPercent,
+      display_currency: displayCurrency,
       stats: {
-        available_balance: availableBalance / 100,
-        total_earned: totalEarned / 100,
+        available_balance: convertUsdAmount(availableBalance / 100),
+        total_earned: convertUsdAmount(totalEarned / 100),
         referrals: await (prisma as any).order.count({ where: { affiliateId, ...buildOrderScopeWhere(scope) } }),
         impressions: 0,
       },
@@ -409,13 +426,13 @@ export const getAffiliateDashboard = async (req: AuthRequest, res: Response, nex
       recent_transactions: (recentCommissions as Array<{ createdAt: Date; amountKobo: number; orderId: number }>).map((commission) => ({
         date: commission.createdAt.toISOString(),
         type: 'Referral Commission',
-        commission: commission.amountKobo / 100,
+        commission: convertUsdAmount(commission.amountKobo / 100),
         order_id: commission.orderId,
       })),
       recent_payouts: (recentPayouts as Array<{ requestedAt: Date; status: string; amountKobo: number }>).map((payout) => ({
         date: payout.requestedAt.toISOString(),
         status: payout.status,
-        amount: payout.amountKobo / 100,
+        amount: convertUsdAmount(payout.amountKobo / 100),
       })),
       bank_details: affiliateProfile.payoutAccountNumber
         ? {

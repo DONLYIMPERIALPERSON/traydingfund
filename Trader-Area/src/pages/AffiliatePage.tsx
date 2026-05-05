@@ -60,8 +60,13 @@ const AffiliatePage: React.FC = () => {
     }
   }
 
-  const formatCurrency = (amount: number) =>
-    `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const formatCurrency = (amount: number) => {
+    const currency = dashboardData?.display_currency === 'NGN' ? 'NGN' : 'USD'
+    if (currency === 'NGN') {
+      return `₦${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    }
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  }
 
 
   if (loading) {
@@ -132,6 +137,14 @@ const AffiliatePage: React.FC = () => {
 
         {/* Stats Cards */}
         <div className="stats-grid">
+          <div className="stat-card stat-card--commission">
+            <div className="stat-icon">
+              <i className="fas fa-percent"></i>
+            </div>
+            <div className="stat-value">{dashboardData?.commission_percent ?? 30}%</div>
+            <div className="stat-label">Current Referral Commission</div>
+          </div>
+
           {/* Available Balance */}
           <div className="stat-card">
             <div className="stat-icon">

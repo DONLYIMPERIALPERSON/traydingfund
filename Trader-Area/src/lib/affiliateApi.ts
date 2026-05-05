@@ -1,4 +1,5 @@
 import { apiFetch } from '../lib/api'
+import { getAffiliateEarningsCurrencyPreference } from './traderAuth'
 
 export type AffiliateStats = {
   available_balance: number
@@ -28,6 +29,8 @@ export type BankDetails = {
 
 export type AffiliateDashboard = {
   referral_link: string
+  commission_percent?: number
+  display_currency?: 'USD' | 'NGN'
   stats: AffiliateStats
   recent_transactions: AffiliateTransaction[]
   recent_payouts: AffiliatePayoutHistory[]
@@ -37,7 +40,8 @@ export type AffiliateDashboard = {
 
 
 export async function fetchAffiliateDashboard(): Promise<AffiliateDashboard> {
-  return apiFetch<AffiliateDashboard>('/trader/affiliate/summary?scope=trader')
+  const currency = getAffiliateEarningsCurrencyPreference()
+  return apiFetch<AffiliateDashboard>(`/trader/affiliate/summary?scope=trader&currency=${currency}`)
 }
 
 export async function requestAffiliatePayout(): Promise<{ message: string }> {
